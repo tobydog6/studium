@@ -17,6 +17,9 @@ Every render needs to look like it came from the same studio shoot as the mirror
 
 ## Lenses (full-frame mirrorless mount)
 
+> **Lens style update (16 Oct):** generate every lens in the low-key look, not the catalogue-flat wording below. Swap each lens prompt's lighting, background and camera sentences for these: "warm tungsten key at about 2800 kelvin from the upper left, golden highlights tracing the top edge of every ring and the brass band, strong contrast with shadows falling to deep black along the underside, a subtle warm rim light separating the silhouette. Background: dark charcoal seamless falling off to pure black. Shot with a 100 mm macro lens, tack sharp end to end." Ask for plain engraved tick marks instead of numbers, and use `dslr-front-3q.png` (or the finished 50 mm) as the reference image.
+
+
 All five share one family look: matte black anodised barrels, a fine diamond-knurled rubber focus ring, a thin brushed-brass accent ring near the mount, engraved distance scale in warm off-white, and multicoated glass with amber and green reflections.
 
 ### L1 · 50 mm f/1.8 "normal" · side profile (3:2)

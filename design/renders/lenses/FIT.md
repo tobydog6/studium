@@ -1,4 +1,4 @@
-# Lens fit on dslr-3q-nolens.png (1872×1248)
-- Mount ellipse centre about (1130, 735), outer radius about 265 px.
-- Lens cut-out scaled so its height is 1.10 × the mount diameter (583 px). Left edge at x = 865 − 4% of the lens width, top at y = 735 − h/2 + 2% of h.
-- This fits the 50 mm (lens-50-cut.png). Re-check each lens the same way.
+# Lens swap master (16 Oct)
+- **Master body:** `../dslr-hero-nolens.png` (1872×1248). This is the hero shot with the lens removed. Lens-off body plus `lens-2470-cut.png` recombine into `../dslr-front-3q.png` almost exactly (mean diff about 2/255), so the 24-70 is perfectly aligned already.
+- **Lens angle that fits:** the original "as if just pulled straight off the camera" wording, with the axis pointing lower right and toward the viewer and the full barrel side visible (about 40°). `lens-50.png` fits at height = 1.02 × the zoom's rear-end height (630 px), top-left at (748, 380).
+- `../dslr-3q-nolens.png` (the front-facing mount) is no longer the master. The 15° lens rule only applied to that body.

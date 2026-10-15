@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Splat Explorer</title>
+<style id="fontface">
+@@include styles/fonts.css@@
+</style>
+<style>
+@@include styles/main.css@@
+</style>
+</head>
+<body>
+  <div id="viewport"></div>
+
+  <div id="grid" class="hidden">
+    <div class="l v v1"></div><div class="l v v2"></div><div class="l h h1"></div><div class="l h h2"></div>
+  </div>
+  <div id="crosshair" class="hidden"></div>
+
+  <!-- Viewfinder -->
+  <div id="viewfinder">
+    <div class="mask"></div>
+    <div id="vfTop"><span id="vfLens">50mm</span><span id="vfBody" class="vfbody">Canon EOS R</span><span id="vfMode">◉ CAPTURE</span></div>
+    <div id="vfBrief" class="hidden"></div>
+    <div id="vfFrame"><span class="cnr tl"></span><span class="cnr tr"></span><span class="cnr bl"></span><span class="cnr br"></span><svg id="vfComp" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+    <div id="vfCompLbl" class="vfcomp-lbl"></div>
+    <div id="vfAF"></div>
+    <div id="vfBar">
+      <span class="rec"><span class="dot"></span><span id="vfSettings">f/2.8 · 1/125 · ISO 400</span></span>
+      <span id="vfFocus" class="vffocus">FOCUS ▮▮▮▯▯</span>
+      <span class="exp" id="vfExp">0 EV</span>
+    </div>
+  </div>
+  <div id="shutterBlade"></div>
+  <div id="flash"></div>
+
+  <div id="prompt" class="hidden"><div class="pill"><span class="dot"></span>Click to look around</div></div>
+
+  <div id="hud" class="hidden">
+    <div id="briefChip" class="hidden"><span>📋</span> <span class="t" id="briefChipText"></span></div>
+    <div id="photoCount"><span class="ico">◉</span> <span id="photoNum">0</span></div>
+    <div id="hint">
+      <span><b>WASD</b> move</span><span><b>Mouse</b> look</span><span><b>E / Q</b> up·down</span>
+      <span><b>P</b> raise camera</span><span><b>G</b> guides</span><span><b>Space</b> menu</span>
+    </div>
+    <button id="btnHelp" title="How it works — replay the intro">?</button>
+  </div>
+
+  <div id="toast"></div>
+  <div id="shotTip" class="hidden" aria-live="polite"><span class="st-h"></span><span class="st-b"></span></div>
+  <div id="tutorial" class="overlay hidden tutwrap">
+    <div class="tut-card">
+      <div class="tut-ico" id="tutIco"></div>
+      <div class="tut-step" id="tutStep"></div>
+      <h3 class="tut-title" id="tutTitle"></h3>
+      <p class="tut-body" id="tutBody"></p>
+      <div class="tut-dots" id="tutDots"></div>
+      <div class="tut-nav"><button class="btn" id="tutSkip">Skip</button><div class="tut-sp"></div><button class="btn" id="tutBack">Back</button><button class="btn primary" id="tutNext">Next</button></div>
+    </div>
+  </div>
+
+  <div id="loader"><div class="loadcard"><div class="spin"></div><div id="loadmsg">Loading scene…</div><div id="loadsub"></div></div></div>
+
+  <!-- Landing -->
+  <!-- SUITE HUB -->
+  <div id="hub" class="overlay hubwrap">
+    <div class="hub-inner">
+      <div class="hub-masthead"><span class="hub-mono">◉</span><span class="hub-word">The Studio</span></div>
+      <div class="hub-sub">A photography suite · choose a tool</div>
+      <div class="hub-tiles">
+        <button class="hubtile" id="tilePunctum">
+          <div class="ht-ico"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="24" cy="24" r="18"/><circle cx="24" cy="24" r="5" fill="currentColor" stroke="none"/><path d="M24 2v8M24 38v8M2 24h8M38 24h8"/></svg></div>
+          <div class="ht-name">Punctum</div>
+          <div class="ht-desc">Read photographs — the culling game &amp; the critical eye.</div>
+          <div class="ht-go">Open →</div>
+        </button>
+        <button class="hubtile" id="tileSplat">
+          <div class="ht-ico"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M24 5l17 9.5v19L24 43 7 33.5v-19z"/><path d="M7 14.5L24 24l17-9.5M24 24v19"/></svg></div>
+          <div class="ht-name">Splat viewer</div>
+          <div class="ht-desc">Step inside a captured place and shoot it like a photographer.</div>
+          <div class="ht-go">Open →</div>
+        </button>
+        <button class="hubtile" id="tileStudio">
+          <div class="ht-ico"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="10" width="26" height="20" rx="2"/><rect x="16" y="20" width="26" height="18" rx="2"/><circle cx="13" cy="17" r="2.4" fill="currentColor" stroke="none"/></svg></div>
+          <div class="ht-name">Photo studio</div>
+          <div class="ht-desc">Edit, sequence &amp; present — folio, photobook &amp; gallery show.</div>
+          <div class="ht-go">Open →</div>
+        </button>
+      </div>
+      <div class="hub-note">Splat viewer &amp; Photo studio run fully offline · Punctum uses the web for its fonts &amp; account</div>
+    </div>
+  </div>
+
+  <!-- PHOTO STUDIO home -->
+  <div id="studio" class="overlay hubwrap hidden">
+    <div class="hub-inner">
+      <button class="hubback" data-hub>‹ Suite</button>
+      <div class="hub-masthead" style="margin-top:14px"><span class="hub-mono">▤</span><span class="hub-word">Photo Studio</span></div>
+      <div class="hub-sub">Edit, sequence &amp; present</div>
+      <div class="studio-cards">
+        <button class="stcard" id="stEdit"><span class="sc-ic"><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 10h26M4 17h26M4 24h26"/><circle cx="11" cy="10" r="3" fill="#26262b"/><circle cx="22" cy="17" r="3" fill="#26262b"/><circle cx="14" cy="24" r="3" fill="#26262b"/></svg></span><span><span class="sc-tt">Photos &amp; edit</span><span class="sc-dd">Your shots · open the Lightroom-style editor</span></span></button>
+        <button class="stcard" id="stFolio"><span class="sc-ic"><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="4" width="12" height="16" rx="1"/><rect x="19" y="4" width="11" height="10" rx="1"/><rect x="19" y="17" width="11" height="13" rx="1"/><rect x="4" y="23" width="12" height="7" rx="1"/></svg></span><span><span class="sc-tt">Folio board</span><span class="sc-dd">Arrange an A0 portfolio panel</span></span></button>
+        <button class="stcard" id="stBook"><span class="sc-ic"><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 6C13 3 6 3 4 4v24c2-1 9-1 13 2 4-3 11-3 13-2V4c-2-1-9-1-13 2z"/><path d="M17 8v20"/></svg></span><span><span class="sc-tt">Photobook</span><span class="sc-dd">Design spreads · export a PDF</span></span></button>
+        <button class="stcard" id="stGallery"><span class="sc-ic"><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="8" width="26" height="15" rx="1"/><path d="M4 27h26M11 8v15M23 8v15"/></svg></span><span><span class="sc-tt">Gallery show</span><span class="sc-dd">Hang a real exhibition mockup</span></span></button>
+      </div>
+      <div class="studio-foot"><span id="stCount">No photos yet</span><button class="btn" id="stUpload">Upload photos</button><button class="btn" id="stClear">Start fresh</button><input type="file" id="stFile" accept="image/*" multiple hidden></div>
+    </div>
+  </div>
+
+  <!-- PUNCTUM (isolated module) -->
+  <div id="punctum" class="overlay punctumwrap hidden">
+    <button class="hubback punctum-back" data-hub>‹ Suite</button>
+    <iframe id="punctumFrame" title="Punctum"></iframe>
+  </div>
+
+  <div id="landing" class="overlay hidden">
+    <div class="card landing-card">
+      <button class="hubback" data-hub style="margin-bottom:14px">‹ Suite</button>
+      <div class="hero">
+        <svg class="aperture" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true">
+          <circle cx="50" cy="50" r="45" stroke-opacity="0.3"/>
+          <line x1="92" y1="50" x2="59.2" y2="63.1"/><line x1="71" y1="86.4" x2="43.2" y2="64.5"/>
+          <line x1="29" y1="86.4" x2="34.1" y2="51.4"/><line x1="8" y1="50" x2="40.8" y2="36.9"/>
+          <line x1="29" y1="13.6" x2="56.8" y2="35.5"/><line x1="71" y1="13.6" x2="65.9" y2="48.6"/>
+        </svg>
+        <div>
+          <h1><span class="em">Splat</span> Explorer</h1>
+          <p class="tag">Step inside a captured place — and shoot it like a photographer.</p>
+        </div>
+      </div>
+      <div class="scenehead" id="sceneHead">Choose a scene to explore</div>
+      <div class="scenerow" id="sceneRow"></div>
+      <div class="orsep" id="orSep"><span>or load your own capture</span></div>
+      <div id="dropzone"><div class="big">Load your scene</div><div class="small">Drop a <b>.ply</b> · <b>.splat</b> · <b>.ksplat</b> here, or click to browse</div></div>
+      <input id="fileInput" type="file" accept=".ply,.splat,.ksplat" hidden>
+      <div class="legend">
+        <div><span class="key">Look</span> click, then move the mouse</div>
+        <div><span class="key">Move</span> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
+        <div><span class="key">Up / Down</span> <kbd>E</kbd> / <kbd>Q</kbd></div>
+        <div><span class="key">Camera</span> <kbd>P</kbd> raise · click to shoot</div>
+        <div><span class="key">Faster</span> hold <kbd>Shift</kbd></div>
+        <div><span class="key">Menu</span> <kbd>Space</kbd></div>
+      </div>
+      <p class="note" id="landingNote"></p>
+    </div>
+  </div>
+  <div id="fadeover"></div>
+
+  <!-- Menu = the camera's back screen -->
+  <div id="menu" class="overlay hidden">
+    <div class="card mmenu">
+      <div class="mm-top">
+        <div class="mm-id"><span class="camdot"></span><span class="mm-idlbl">Camera back &middot; <b id="camTitle">menu</b></span></div>
+        <button class="btn primary" id="btnResume">Resume &nbsp;<kbd style="color:inherit;background:rgba(0,0,0,.18);border-color:rgba(0,0,0,.2)">Space</kbd></button>
+      </div>
+      <div class="mm-body">
+        <div class="mm-hero">
+          <div class="mm-stage" id="holoStage"><div class="mm-scene" id="holoScene"><div class="camart" id="camArt"></div></div></div>
+          <div class="mm-caption"><div class="mm-name" id="mHeroName">Canon EOS R</div><div class="mm-spec mono" id="mHeroSpec">Full-frame · 50mm · f/2.8 · ISO400</div></div>
+        </div>
+        <div class="mm-side">
+          <div class="mm-tabs">
+            <button class="mtab on" data-tab="camera">Camera</button>
+            <button class="mtab" data-tab="settings">Settings</button>
+          </div>
+          <div class="mm-panes">
+            <div class="campane" data-pane="camera">
+              <div class="lab">Choose a body</div>
+              <div class="bodylist" id="bodyList"></div>
+              <div class="lab">Lens</div>
+              <div class="chips" id="lensList"></div>
+            </div>
+            <div class="campane hidden" data-pane="settings">
+              <div class="mm-cols">
+                <div class="mm-col">
+                  <div class="lab">Exposure</div>
+                  <div class="ctrl"><span class="name">Aperture</span><input id="mAp" type="range" min="0" max="7" value="2"><span class="val mono" id="mApVal">f/2.8</span></div>
+                  <div class="ctrl"><span class="name">Shutter</span><input id="mSh" type="range" min="0" max="9" value="3"><span class="val mono" id="mShVal">1/125</span></div>
+                  <div class="ctrl"><span class="name">ISO</span><input id="mIso" type="range" min="0" max="6" value="2"><span class="val mono" id="mIsoVal">400</span></div>
+                  <div class="ctrl"><span class="name">Focus <span style="color:var(--muted);font-size:11px">↑↓</span></span><input id="mFocus" type="range" min="0" max="100" value="50"><span class="val" id="mFocusVal">50</span></div>
+                  <div class="ctrl"><span class="name">Meter</span><span class="expmeter"><span>−</span><span class="track"><span class="ndl" id="mExpNdl" style="left:50%"></span></span><span>+</span></span></div>
+                </div>
+                <div class="mm-col">
+                  <div class="lab">Handling</div>
+                  <div class="ctrl"><span class="name">Move speed</span><input id="mSpeed" type="range" min="1" max="100" value="12"><span class="val" id="mSpeedVal">12</span></div>
+                  <div class="ctrl"><span class="name">Look sensitivity</span><input id="mSens" type="range" min="1" max="100" value="8"><span class="val" id="mSensVal">8</span></div>
+                  <div class="ctrl"><span class="name">Invert vertical</span><div class="switch" id="mInvert"><span class="k"></span></div></div>
+                  <div class="ctrl"><span class="name">Keep inside scene</span><div class="switch on" id="mBounds"><span class="k"></span></div></div>
+                  <div class="ctrl"><span class="name">Shutter sound</span><div class="switch on" id="mSound"><span class="k"></span></div></div>
+                  <div class="ctrl"><span class="name">Framing grid</span><div class="switch" id="mGrid"><span class="k"></span></div></div>
+                </div>
+              </div>
+              <div class="lab">Level the scene <span style="color:var(--muted);font-weight:600;text-transform:none;letter-spacing:0;font-size:11px">if it loads tilted</span></div>
+              <div class="seg" id="upSeg">
+                <button class="btn" data-up="yup">Upright</button><button class="btn" data-up="ydown">Flip</button>
+                <button class="btn" data-up="zup">Z-up</button><button class="btn" data-up="zdown">Z-down</button>
+              </div>
+              <div class="mm-namerow"><span class="mm-nl">Name / class</span><input id="mName" type="text" placeholder="e.g. Room 12 — Ava" autocomplete="off"></div>
+              <div class="mm-briefrow"><span class="lab" style="padding:0">Brief <span id="briefProg" style="color:var(--muted);font-weight:600">0 / 0</span></span><div class="chips" id="briefList"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="out-row">
+        <button class="btn" id="btnFolio">Folio board</button>
+        <button class="btn" id="btnPhotobook">Photobook</button>
+        <button class="btn" id="btnGalleryShow">Gallery show</button>
+      </div>
+      <div class="menu-actions">
+        <button class="btn" id="btnMenuHub">⌂ Suite</button>
+        <button class="btn" id="btnRecenter">Recenter</button>
+        <button class="btn" id="btnMenuPhotos">Photos <span id="menuPhotoCount" class="badge">0</span></button>
+        <button class="btn" id="btnMenuLoad">Load a different splat</button>
+      </div>
+      <!-- look/grading controls kept in the DOM (used by the capture pipeline) but not shown here — grading lives in the editor -->
+      <div id="lookHidden" style="display:none" aria-hidden="true">
+        <div id="lookPresets">
+          <button class="chip on" data-look="natural">Natural</button><button class="chip" data-look="cinematic">Cinematic</button><button class="chip" data-look="warm">Warm</button><button class="chip" data-look="cool">Cool</button><button class="chip" data-look="film">Film</button><button class="chip" data-look="bw">B&amp;W</button>
+        </div>
+        <input id="lkBloom" type="range" min="0" max="200" value="100"><span id="lkBloomV">100%</span>
+        <input id="lkDof" type="range" min="0" max="200" value="100"><span id="lkDofV">100%</span>
+        <input id="lkWarm" type="range" min="-100" max="100" value="0"><span id="lkWarmV">0</span>
+        <input id="lkCon" type="range" min="50" max="150" value="100"><span id="lkConV">100%</span>
+        <input id="lkSat" type="range" min="0" max="200" value="100"><span id="lkSatV">100%</span>
+        <input id="lkGrain" type="range" min="0" max="200" value="100"><span id="lkGrainV">100%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gallery -->
+  <div id="gallery" class="overlay hidden">
+    <div class="card">
+      <div class="galhead"><h2>Your photos (<span id="galHeadCount">0</span>)</h2>
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="btnContact">Contact sheet</button><button class="btn" id="btnDownloadAll">Download all</button><button class="btn primary" id="btnCloseGallery">Back to exploring</button></div>
+      </div>
+      <div id="galBody"></div>
+    </div>
+  </div>
+
+  <!-- Editor: Lightroom-style Develop -->
+  <div id="editor" class="overlay hidden">
+    <div class="lr-wrap">
+      <div class="lr-stage-col">
+        <div class="lr-topbar">
+          <button class="lr-back" id="eCancel">‹ Back to gallery</button>
+          <div class="lr-croptools">
+            <span class="lr-ct-lab">Crop</span>
+            <button class="lr-ct on" data-a="free">Free</button>
+            <button class="lr-ct" data-a="1">1:1</button>
+            <button class="lr-ct" data-a="1.33333">4:3</button>
+            <button class="lr-ct" data-a="1.5">3:2</button>
+            <button class="lr-ct" data-a="0.8">4:5</button>
+            <button class="lr-ct" data-a="1.77778">16:9</button>
+            <span class="lr-ct-sep"></span>
+            <button class="lr-ct ic" id="eRotL" title="Rotate left">⟲</button>
+            <button class="lr-ct ic" id="eRotR" title="Rotate right">⟳</button>
+          </div>
+          <div class="lr-topright">
+            <button class="lr-ghost" id="eReset">Reset</button>
+            <button class="lr-save" id="eSave">Save copy</button>
+          </div>
+        </div>
+        <div id="editStage"><canvas id="editCanvas"></canvas><div id="editHint">drag to reposition · scroll to zoom</div></div>
+      </div>
+      <aside class="lr-panel">
+        <div class="lr-hist"><canvas id="lrHist" width="372" height="150"></canvas>
+          <div class="lr-rgb"><span>R <b id="lrR">–</b></span><span>G <b id="lrG">–</b></span><span>B <b id="lrB">–</b></span></div>
+        </div>
+        <div class="lr-edithdr"><span class="lr-h">Edit</span>
+          <div class="lr-hbtns"><button class="lr-pill" id="eAuto">Auto</button><button class="lr-pill" id="eBW">B&amp;W</button><button class="lr-pill" id="eHDR">HDR</button></div>
+        </div>
+        <div class="lr-profile"><span class="lr-plab">Profile</span>
+          <select id="eProfile" class="lr-sel"><option value="color">Color</option><option value="mono">Monochrome</option><option value="vivid">Vivid</option><option value="flat">Flat</option><option value="portrait">Portrait</option></select>
+          <button class="lr-grid" id="eProfBrowse" title="Profiles">▦</button>
+        </div>
+        <section class="lr-sec" data-sec="light">
+          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Light</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
+          <div class="lr-body">
+            <div class="lr-row"><span class="lr-n">Exposure</span><input type="range" id="pExposure" min="-100" max="100" value="0"><span class="lr-v" id="vExposure">0.00</span></div>
+            <div class="lr-row"><span class="lr-n">Contrast</span><input type="range" id="pContrast" min="-100" max="100" value="0"><span class="lr-v" id="vContrast">0</span></div>
+            <div class="lr-row"><span class="lr-n">Highlights</span><input type="range" id="pHighlights" min="-100" max="100" value="0"><span class="lr-v" id="vHighlights">0</span></div>
+            <div class="lr-row"><span class="lr-n">Shadows</span><input type="range" id="pShadows" min="-100" max="100" value="0"><span class="lr-v" id="vShadows">0</span></div>
+            <div class="lr-row"><span class="lr-n">Whites</span><input type="range" id="pWhites" min="-100" max="100" value="0"><span class="lr-v" id="vWhites">0</span></div>
+            <div class="lr-row"><span class="lr-n">Blacks</span><input type="range" id="pBlacks" min="-100" max="100" value="0"><span class="lr-v" id="vBlacks">0</span></div>
+          </div>
+        </section>
+        <section class="lr-sec" data-sec="color">
+          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Color</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
+          <div class="lr-body">
+            <div class="lr-row wb"><span class="lr-n">White balance</span><select id="eWB" class="lr-sel sm"><option value="asshot">As Shot</option><option value="auto">Auto</option><option value="custom">Custom</option></select></div>
+            <div class="lr-row"><span class="lr-n">Temperature</span><input type="range" class="trk-temp" id="pTemp" min="-100" max="100" value="0"><span class="lr-v" id="vTemp">0</span></div>
+            <div class="lr-row"><span class="lr-n">Tint</span><input type="range" class="trk-tint" id="pTint" min="-100" max="100" value="0"><span class="lr-v" id="vTint">0</span></div>
+            <div class="lr-row"><span class="lr-n">Vibrance</span><input type="range" class="trk-vib" id="pVibrance" min="-100" max="100" value="0"><span class="lr-v" id="vVibrance">0</span></div>
+            <div class="lr-row"><span class="lr-n">Saturation</span><input type="range" class="trk-sat" id="pSaturation" min="-100" max="100" value="0"><span class="lr-v" id="vSaturation">0</span></div>
+          </div>
+        </section>
+        <section class="lr-sec" data-sec="effects">
+          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Effects</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
+          <div class="lr-body">
+            <div class="lr-row"><span class="lr-n">Texture</span><input type="range" id="pTexture" min="-100" max="100" value="0"><span class="lr-v" id="vTexture">0</span></div>
+            <div class="lr-row"><span class="lr-n">Clarity</span><input type="range" id="pClarity" min="-100" max="100" value="0"><span class="lr-v" id="vClarity">0</span></div>
+            <div class="lr-row"><span class="lr-n">Dehaze</span><input type="range" id="pDehaze" min="-100" max="100" value="0"><span class="lr-v" id="vDehaze">0</span></div>
+            <div class="lr-row"><span class="lr-n">Vignette</span><input type="range" id="pVignette" min="-100" max="100" value="0"><span class="lr-v" id="vVignette">0</span></div>
+            <div class="lr-row"><span class="lr-n">Grain</span><input type="range" id="pGrain" min="0" max="100" value="0"><span class="lr-v" id="vGrain">0</span></div>
+            <div class="lr-sub" id="grainSub">
+              <div class="lr-row"><span class="lr-n">Size</span><input type="range" id="pGrainSize" min="0" max="100" value="25"><span class="lr-v" id="vGrainSize">25</span></div>
+              <div class="lr-row"><span class="lr-n">Roughness</span><input type="range" id="pGrainRough" min="0" max="100" value="50"><span class="lr-v" id="vGrainRough">50</span></div>
+            </div>
+            <div class="lr-row"><span class="lr-n">Glow</span><input type="range" id="pGlow" min="0" max="100" value="0"><span class="lr-v" id="vGlow">0</span></div>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <!-- OUTPUT: Folio board (A0) -->
+  <div id="folio" class="overlay hidden" style="padding:0">
+    <div class="outwrap">
+      <div class="outbar">
+        <button class="btn" id="foBack">‹ Back</button>
+        <h2>Folio board <span style="color:var(--muted);font-weight:600;font-size:12px">· A0 portfolio panel</span></h2>
+        <div class="sp"></div>
+        <button class="btn" id="foUpload">Upload photos</button>
+        <button class="btn" id="foAuto">Shuffle layout</button>
+        <button class="btn" id="foClear">Clear</button>
+        <button class="btn primary" id="foDownload">Download board</button>
+        <input type="file" id="foFile" accept="image/*" multiple hidden>
+      </div>
+      <div class="outbody">
+        <div class="outtray" id="foTray"></div>
+        <div class="outstage"><div id="foBoard"></div><div class="outhint">Click an image to resize (S · M · L · XL) · drag to reorder · Shuffle for a new layout</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OUTPUT: Photobook (page designer) -->
+  <div id="photobook" class="overlay hidden" style="padding:0">
+    <div class="outwrap">
+      <div class="outbar">
+        <button class="btn" id="pbBack">‹ Back</button>
+        <h2>Photobook <span class="submuted">· page designer</span></h2>
+        <div class="pblayouts" id="pbLayouts"></div>
+        <div class="sp"></div>
+        <button class="btn" id="pbPrev">‹</button>
+        <span id="pbPageLbl" class="pblbl">Cover</span>
+        <button class="btn" id="pbNext">›</button>
+        <button class="btn" id="pbUpload">Upload photos</button>
+        <button class="btn" id="pbAdd">+ Spread</button>
+        <button class="btn primary" id="pbDownload">Download PDF</button>
+        <input type="file" id="pbFile" accept="image/*" multiple hidden>
+      </div>
+      <div class="outbody">
+        <div class="outtray" id="pbTray"></div>
+        <div class="outstage pbstage"><div id="pbBook"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OUTPUT: Gallery show -->
+  <div id="galleryshow" class="overlay hidden" style="padding:0">
+    <div class="outwrap">
+      <div class="outbar">
+        <button class="btn" id="gxBack">‹ Back</button>
+        <h2>Gallery show</h2>
+        <div class="sp"></div>
+        <div class="gxLayouts" id="gxLayouts"></div>
+      </div>
+      <div class="outbody"><div class="outstage gxstage">
+        <div class="gxroom" id="gxRoom"><div class="gxworld" id="gxWorld">
+          <div class="gxsurf gx-floor"></div>
+          <div class="gxsurf gx-ceil"><div class="gxtrack"></div><div class="gxfix" style="left:28%"></div><div class="gxfix" style="left:50%"></div><div class="gxfix" style="left:72%"></div></div>
+          <div class="gxsurf gx-left" id="gxLeft"></div>
+          <div class="gxsurf gx-right" id="gxRight"></div>
+          <div class="gxsurf gx-back" id="gxWallBack"><div class="gxpool" style="left:20%"></div><div class="gxpool" style="left:50%"></div><div class="gxpool" style="left:80%"></div></div>
+        </div></div>
+        <div class="gxhint">Drag to look around the room</div>
+      </div></div>
+    </div>
+  </div>
+
+<script id="engine">
+@@include engine@@
+</script>
+<script>
+@@include scenes.js@@
+
+</script>
+<script>
+@@include punctum.js@@
+
+</script>
+<script>
+@@include app.js@@
+</script>
+</body>
+</html>

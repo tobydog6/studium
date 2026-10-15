@@ -1,0 +1,3042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Punctum</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1C1C20; --graphite:#26262B; --raised:#303036; --line:#3E3E45; --line2:#4E4E56;
+    --bone:#F2EFE9; --silver:#AEAEB4; --faint:#7A7A82;
+    --safelight:#E4552E; --safelight-soft:#f0a487;
+    --gold:#E4B34A;
+    --display:'Archivo',-apple-system,BlinkMacSystemFont,sans-serif;
+    --serif:'Newsreader',Georgia,serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{-webkit-text-size-adjust:100%;}
+  body{font-family:var(--display); background:var(--ink); color:var(--bone); min-height:100vh; -webkit-font-smoothing:antialiased; line-height:1.5;}
+  ::selection{background:var(--safelight); color:#fff;}
+
+  .wrap{max-width:1180px; margin:0 auto; padding:0 32px;}
+  #loadbar{position:fixed; top:0; left:0; height:2px; width:0; background:var(--safelight); z-index:2000; transition:width .2s ease, opacity .3s; opacity:0;}
+
+  /* ---------- type ---------- */
+  h1,h2,h3,h4{font-family:var(--display); font-weight:800; letter-spacing:-0.02em; line-height:1.02;}
+  .eyebrow{font-family:var(--display); font-size:11px; font-weight:700; letter-spacing:0.28em; text-transform:uppercase; color:var(--safelight);}
+  .display-xl{font-size:clamp(64px,13vw,160px); font-weight:900; letter-spacing:-0.045em; line-height:0.9;}
+  .display-l{font-size:clamp(34px,5vw,58px); font-weight:800; letter-spacing:-0.035em;}
+  .serif{font-family:var(--serif);}
+
+  /* ---------- buttons ---------- */
+  button{font-family:var(--display); cursor:pointer; border:none; background:none; color:inherit; font-size:15px;}
+  .btn{display:inline-flex; align-items:center; gap:9px; padding:14px 24px; font-weight:600; font-size:15px; border-radius:2px; transition:transform .12s, background .15s, color .15s, border-color .15s; border:1px solid var(--line2); color:var(--bone); background:transparent; letter-spacing:0.01em;}
+  .btn:hover{border-color:var(--bone);}
+  .btn:active{transform:translateY(1px);}
+  .btn-primary{background:var(--safelight); border-color:var(--safelight); color:#fff;}
+  .btn-primary:hover{background:#f0663f; border-color:#f0663f;}
+  .btn-solid{background:var(--bone); color:var(--ink); border-color:var(--bone); font-weight:700;}
+  .btn-solid:hover{background:#fff;}
+  .btn-lg{padding:18px 34px; font-size:17px;}
+  .btn-block{width:100%; justify-content:center;}
+  .btn-ghost{border-color:transparent; color:var(--silver); padding:10px 14px;}
+  .btn-ghost:hover{color:var(--bone); border-color:var(--line2);}
+  .btn-danger{border-color:var(--line2); color:var(--safelight-soft);}
+  .btn-locked{opacity:.45; cursor:not-allowed; color:var(--faint);}
+  .btn-locked:hover{border-color:var(--line2);}
+  .btn-danger:hover{background:var(--safelight); color:#fff; border-color:var(--safelight);}
+  .link{color:var(--safelight-soft); cursor:pointer; font-weight:600; border-bottom:1px solid transparent; transition:border-color .15s;}
+  .link:hover{border-color:var(--safelight-soft);}
+
+  .hidden{display:none !important;}
+
+  /* ---------- masthead ---------- */
+  .masthead{padding:72px 0 26px; text-align:center; border-bottom:1px solid var(--line);}
+  .masthead .eyebrow{display:block; margin-bottom:20px;}
+  .masthead h1{font-size:clamp(58px,11vw,132px); font-weight:900; letter-spacing:-0.05em; line-height:0.86;}
+  .masthead .tagline{font-family:var(--serif); font-style:italic; font-size:clamp(16px,2.2vw,21px); color:var(--silver); margin-top:22px; font-weight:300;}
+  .masthead .barthes{font-family:var(--serif); font-size:15px; line-height:1.7; color:var(--faint); max-width:540px; margin:20px auto 0; font-style:italic; font-weight:300;}
+
+  .screen{padding:44px 0 90px;}
+
+  /* ---------- top nav row inside screens ---------- */
+  .topline{display:flex; justify-content:space-between; align-items:flex-end; gap:20px; flex-wrap:wrap; margin-bottom:8px;}
+  .topline h2{font-size:clamp(30px,4.5vw,46px); font-weight:800; letter-spacing:-0.035em;}
+  .topline .actions{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .who-badge{font-size:13px; color:var(--silver); font-weight:500; padding:8px 14px; border:1px solid var(--line); border-radius:2px;}
+  .who-badge b{color:var(--bone); font-weight:700;}
+
+  /* ---------- gate / centered cards ---------- */
+  .stage-center{min-height:60vh; display:flex; align-items:center; justify-content:center; padding:40px 0 90px;}
+  .card{background:var(--graphite); border:1px solid var(--line); border-radius:4px; padding:44px 40px; width:100%; max-width:460px;}
+  .card h2{font-size:34px; font-weight:800; letter-spacing:-0.03em; margin-bottom:6px;}
+  .card .card-sub{font-family:var(--serif); color:var(--silver); font-size:16px; margin-bottom:30px; font-weight:300; line-height:1.5;}
+  label{display:block; font-size:11px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; color:var(--faint); margin-bottom:10px;}
+  input[type=text],input[type=password]{width:100%; font-family:var(--display); font-size:16px; font-weight:500; padding:15px 16px; border:1px solid var(--line2); background:var(--ink); color:var(--bone); border-radius:2px; margin-bottom:22px; transition:border-color .15s;}
+  input:focus{outline:none; border-color:var(--safelight);}
+  textarea{width:100%; font-family:var(--display); font-size:16px; font-weight:500; line-height:1.75; padding:16px 18px; border:1px solid var(--line2); background:var(--ink); color:var(--bone); border-radius:4px; resize:vertical; transition:border-color .15s;}
+  textarea#wsNote{font-size:24px; line-height:1.7; padding:24px 26px; min-height:200px; font-weight:400;}
+  textarea#wsPrompt2,textarea#wsPrompt3,textarea#wsPrompt4{font-size:19px; line-height:1.6; padding:18px 20px; min-height:130px;}
+  textarea:focus{outline:none; border-color:var(--safelight);}
+  select{font-family:var(--display); font-size:16px; font-weight:500; padding:14px 16px; border:1px solid var(--line2); background:var(--ink); color:var(--bone); border-radius:2px; cursor:pointer; width:100%;}
+  select:focus{outline:none; border-color:var(--safelight);}
+  .name-wrap{position:relative;}
+  .suggest{position:absolute; left:0; right:0; top:calc(100% - 12px); background:var(--raised); border:1px solid var(--line2); border-radius:2px; overflow:hidden; z-index:20; max-height:220px; overflow-y:auto;}
+  .suggest div{padding:12px 16px; cursor:pointer; font-size:15px; font-weight:500; border-bottom:1px solid var(--line);}
+  .suggest div:last-child{border-bottom:none;}
+  .suggest div:hover{background:var(--safelight); color:#fff;}
+  .err{color:var(--safelight-soft); font-size:13px; margin:-12px 0 16px; min-height:18px; font-weight:500;}
+  .card-foot{font-size:13px; color:var(--faint); text-align:center; margin-top:22px; font-weight:400;}
+  .card-foot .link{font-size:13px;}
+
+  /* ---------- learn banner (its own band, above packs) ---------- */
+  .learn-band{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:36px 0 20px;}
+  .learn-solo{max-width:calc(50% - 8px); margin:0 auto 48px;}
+  .learn-solo .learn-tile{margin:0;}
+  .learn-tile{position:relative; border:1px solid var(--line); border-radius:4px; padding:28px 30px; background:var(--graphite); cursor:pointer; overflow:hidden; transition:border-color .18s, transform .18s;}
+  .learn-wide{position:relative; display:flex; align-items:center; gap:18px; flex-wrap:wrap; border:1px solid var(--line); border-radius:4px; padding:20px 28px; background:var(--graphite); cursor:pointer; margin:32px 0; transition:border-color .18s, transform .18s;}
+  .learn-wide:hover{border-color:var(--safelight); transform:translateY(-2px);}
+  .learn-wide .eyebrow{flex-shrink:0;}
+  .learn-wide h3{font-size:20px; font-weight:800; letter-spacing:-0.02em; flex-shrink:0;}
+  .learn-wide p{font-family:var(--serif); font-size:14px; color:var(--silver); font-weight:300; flex:1; min-width:200px;}
+  .learn-wide .arrow{color:var(--safelight); font-size:18px; flex-shrink:0;}
+  .learn-tile:hover{border-color:var(--safelight); transform:translateY(-3px);}
+  .learn-tile .eyebrow{margin-bottom:14px;}
+  .learn-tile h3{font-size:26px; font-weight:800; letter-spacing:-0.03em; margin-bottom:8px;}
+  .learn-tile p{font-family:var(--serif); font-size:15px; color:var(--silver); font-weight:300; line-height:1.55; max-width:90%;}
+  .learn-tile .arrow{position:absolute; top:26px; right:28px; color:var(--safelight); font-size:20px; transition:transform .18s;}
+  .learn-tile:hover .arrow{transform:translate(4px,-4px);}
+
+  /* ---------- section label ---------- */
+  .band-head{display:flex; align-items:baseline; gap:16px; margin:0 0 22px; padding-bottom:14px; border-bottom:1px solid var(--line);}
+  .band-head h3{font-size:22px; font-weight:800; letter-spacing:-0.02em;}
+  .band-head .count{font-size:13px; color:var(--faint); font-weight:600; letter-spacing:0.04em;}
+  .band-gap{margin-top:56px;}
+
+  /* ---------- tabs ---------- */
+  .tabs{display:flex; gap:4px; margin:0 0 8px; border-bottom:1px solid var(--line);}
+  .tab{font-family:var(--display); font-size:18px; font-weight:700; letter-spacing:-0.01em; color:var(--faint); padding:14px 22px; border:none; background:none; cursor:pointer; position:relative; transition:color .15s;}
+  .tab:hover{color:var(--silver);}
+  .tab.is-active{color:var(--bone);}
+  .tab.is-active::after{content:''; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--safelight);}
+  .tab-note{font-family:var(--serif); font-style:italic; font-size:15px; color:var(--faint); font-weight:300; margin:20px 0 24px;}
+  /* my games history */
+  .play-card{border:1px solid var(--line); border-radius:4px; background:var(--graphite); padding:22px 24px; margin-bottom:14px;}
+  .play-top{display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap;}
+  .play-game{font-family:var(--display); font-size:11px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; color:var(--safelight); margin-right:12px;}
+  .play-pack{font-size:19px; font-weight:700; letter-spacing:-0.01em;}
+  .play-when{font-size:13px; color:var(--faint); font-weight:500;}
+  .play-sum{font-family:var(--serif); font-style:italic; font-size:15px; color:var(--silver); font-weight:300; margin:8px 0 16px;}
+
+  /* ---------- pack grid: image-led monograph plates ---------- */
+  .plate-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:26px;}
+  .plate{border:1px solid var(--line); border-radius:4px; overflow:hidden; background:var(--graphite); transition:border-color .18s, transform .18s; position:relative;}
+  .plate:hover{border-color:var(--line2); transform:translateY(-4px);}
+  .plate .cover{position:relative; aspect-ratio:4/3; background:#000; overflow:hidden; cursor:pointer;}
+  .plate .cover img{width:100%; height:100%; object-fit:cover; transition:transform .5s ease;}
+  .plate:hover .cover img{transform:scale(1.04);}
+  .plate .cover .kind{position:absolute; top:14px; left:14px; font-family:var(--display); font-size:10px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; padding:6px 11px; background:rgba(12,12,13,.78); backdrop-filter:blur(6px); color:#F4F1EB; border-radius:2px;}
+  .plate.played{border-color:var(--safelight); box-shadow:0 0 0 1px var(--safelight), 0 6px 22px rgba(216,68,30,.18);}
+  .plate.played .cover::after{content:'Played'; position:absolute; bottom:12px; right:12px; font-family:var(--display); font-size:9px; font-weight:700; letter-spacing:0.18em; text-transform:uppercase; padding:5px 9px; background:var(--safelight); color:#fff; border-radius:2px;}
+  .info-icon{position:absolute; top:14px; right:14px; width:32px; height:32px; border-radius:50%; background:rgba(12,12,13,.62); backdrop-filter:blur(6px); border:1.5px solid rgba(255,255,255,.55); color:#fff; display:flex; align-items:center; justify-content:center; font-size:19px; font-weight:700; line-height:1; padding-top:1px; cursor:pointer; z-index:5; transition:background .15s, border-color .15s;}
+  .info-icon:hover{background:var(--safelight); border-color:var(--safelight);}
+  .progress-band{display:grid; grid-template-columns:1fr 1fr; gap:22px; margin:0 0 34px;}
+  .prog-item .prog-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:13px; font-weight:700; letter-spacing:0.04em;}
+  .prog-item .prog-head>span:first-child{color:var(--bone);}
+  .prog-meta{display:flex; align-items:center; gap:9px;}
+  .prog-meta #progArtistLabel, .prog-meta #progStudentLabel{color:var(--faint); font-weight:600; font-size:13px;}
+  .prog-meta .tier-pill{font-size:10px; padding:4px 10px;}
+  .pbar-track{height:8px; background:var(--raised); border:1px solid var(--line); border-radius:5px; overflow:hidden;}
+  .pbar-fill{height:100%; width:0%; background:var(--safelight); border-radius:5px; transition:width .4s ease;}
+  .photoshop-tile{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:28px 30px; border:1px solid var(--line); border-radius:4px; background:var(--graphite); max-width:560px;}
+  .photoshop-tile h3{font-size:22px; font-weight:800; letter-spacing:-0.02em; margin-bottom:6px;}
+  .photoshop-tile p{font-family:var(--serif); font-size:14px; color:var(--silver); font-weight:300;}
+  .tier-key{display:flex; gap:10px; flex-wrap:wrap; margin:0 0 26px;}
+  .tier-pill{--tc:var(--faint); font-family:var(--display); font-size:11px; font-weight:700; letter-spacing:0.08em; padding:6px 12px; border-radius:20px; color:var(--tc); border:1px solid var(--tc); background:color-mix(in srgb, var(--tc) 12%, transparent);}
+  .progress-row{display:grid; grid-template-columns:180px 1fr 90px 150px; align-items:center; gap:18px; padding:16px 0; border-bottom:1px solid var(--line);}
+  .prow-bars{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+  .prow-bar-label{display:block; font-size:10px; color:var(--faint); font-weight:600; margin-bottom:4px; letter-spacing:0.02em;}
+  .discover-feed{height:74vh; overflow-y:auto; scroll-snap-type:y mandatory; border-radius:6px; scrollbar-width:thin;}
+  #discoverFeedWrap.is-fullscreen{position:fixed; inset:0; z-index:4000; background:var(--ink); padding:0;}
+  #discoverFeedWrap.is-fullscreen .discover-feed{height:100vh; border-radius:0;}
+  #discoverFeedWrap.is-fullscreen .discover-card{height:100vh; border-radius:0; margin-bottom:0;}
+  .discover-exit-btn{position:fixed; top:16px; right:16px; z-index:4010; width:44px; height:44px; border-radius:50%; background:rgba(12,12,13,.7); backdrop-filter:blur(6px); border:1.5px solid rgba(255,255,255,.5); color:#fff; font-size:20px; display:none; align-items:center; justify-content:center; cursor:pointer;}
+  #discoverFeedWrap.is-fullscreen .discover-exit-btn{display:flex;}
+  .discover-card{scroll-snap-align:start; scroll-snap-stop:always; height:74vh; position:relative; background:#000; margin-bottom:14px; border-radius:6px; overflow:hidden;}
+  .discover-card img{width:100%; height:100%; object-fit:contain; background:#000;}
+  .discover-card .dcap{position:absolute; left:0; right:0; bottom:0; padding:26px 22px 20px; background:linear-gradient(0deg, rgba(0,0,0,.82), transparent); display:flex; justify-content:space-between; align-items:flex-end; gap:14px;}
+  .discover-card .dname{font-family:var(--display); font-weight:800; font-size:20px; color:#fff; letter-spacing:-0.02em;}
+  .discover-card .dbtn{flex-shrink:0; padding:10px 16px; font-size:13px; font-weight:700; border-radius:3px; background:var(--safelight); color:#fff; border:none; cursor:pointer;}
+  .fav-star{width:34px; height:34px; border-radius:50%; background:rgba(12,12,13,.55); backdrop-filter:blur(6px); border:1.5px solid rgba(255,255,255,.5); color:#fff; display:flex; align-items:center; justify-content:center; font-size:19px; cursor:pointer; transition:background .15s, color .15s, border-color .15s;}
+  .fav-star.on{color:var(--gold); border-color:var(--gold); background:rgba(184,137,43,.18);}
+  .gcell{position:relative;}
+  .gcell .fav-star{position:absolute; top:8px; right:8px; z-index:4;}
+  .discover-card .fav-star{position:absolute; top:16px; right:16px; z-index:4;}
+  .lightbox-star{position:fixed; top:24px; right:24px; z-index:3010; width:44px; height:44px; font-size:24px;}
+  .favorites-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px;}
+  .favorites-grid .gcell{background:#000; border:1px solid var(--line); border-radius:3px; overflow:hidden; aspect-ratio:1; cursor:zoom-in;}
+  .favorites-grid .gcell img{width:100%; height:100%; object-fit:cover;}
+  .upload-pulse{display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; padding:18px 22px; border:1.5px solid var(--safelight); border-radius:4px; background:rgba(228,85,46,.08); margin-bottom:32px; cursor:pointer; animation:pulseGlow 1.8s ease-in-out infinite;}
+  .upload-pulse span{font-family:var(--serif); font-style:italic; font-weight:300; color:var(--bone); font-size:15px;}
+  @keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 rgba(228,85,46,.35);} 50%{box-shadow:0 0 0 10px rgba(228,85,46,0);}}
+  @keyframes pulseUnlock{0%,100%{box-shadow:0 0 0 0 rgba(242,194,48,.55); border-color:#F2C230;} 50%{box-shadow:0 0 0 16px rgba(242,194,48,0); border-color:#F2C230;}}
+  @keyframes pulseTitle{0%,100%{text-shadow:0 0 22px rgba(228,179,74,.85), 0 0 48px rgba(228,179,74,.35);} 50%{text-shadow:0 0 8px rgba(228,179,74,.25), 0 0 18px rgba(228,179,74,.1);}}
+  #mastheadTitle.pulse-title{animation:pulseTitle 1.8s ease-in-out infinite; color:var(--gold);}
+  .level-square.pulse-unlock{animation:pulseUnlock 1.6s ease-in-out infinite;}
+  .workshop-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:14px; margin-top:20px;}
+  .tsp-grid{display:flex; flex-direction:column; gap:20px; margin-top:20px;}
+  .tsp-card{border:1px solid var(--line); border-radius:6px; overflow:hidden; background:var(--graphite); display:flex; flex-wrap:wrap;}
+  .tsp-card .tsp-img{width:220px; flex-shrink:0; aspect-ratio:1; background:#000; overflow:hidden;}
+  .tsp-card .tsp-img img{width:100%; height:100%; object-fit:cover; cursor:zoom-in;}
+  .tsp-card .tsp-body{padding:22px 26px; flex:1; min-width:280px; display:flex; flex-direction:column; justify-content:center;}
+  .tsp-card .tsp-note{font-family:var(--serif); font-style:italic; font-size:21px; color:var(--bone); font-weight:400; line-height:1.55; margin-bottom:12px;}
+  .tsp-card .tsp-none{font-family:var(--serif); font-style:italic; font-size:15px; color:var(--faint); font-weight:300;}
+  .tsp-card .tsp-prompt{font-size:14px; color:var(--silver); margin-top:8px; line-height:1.5;}
+  .tsp-card .tsp-prompt b{color:var(--bone); font-weight:700;}
+  .fb-row{border:1px solid var(--line); border-radius:4px; background:var(--graphite); padding:18px 22px; margin-bottom:12px;}
+  .fb-row .fb-head{display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:8px;}
+  .fb-row .fb-who{font-weight:700; font-size:14px;}
+  .fb-row .fb-when{font-size:12px; color:var(--faint);}
+  .fb-row .fb-text{font-family:var(--serif); font-size:16px; color:var(--silver); font-weight:300; line-height:1.6;}
+  .comments-block{margin-top:32px; padding-top:26px; border-top:1px solid var(--line);}
+  .comment-row{display:flex; justify-content:space-between; align-items:flex-start; gap:14px; padding:14px 0; border-bottom:1px solid var(--line);}
+  .comment-row .c-who{font-weight:700; font-size:13px; margin-bottom:4px;}
+  .comment-row .c-when{color:var(--faint); font-weight:500; font-size:11px; margin-left:8px;}
+  .comment-row .c-text{font-family:var(--serif); font-size:15px; color:var(--silver); font-weight:300; line-height:1.55;}
+  .comment-del{flex-shrink:0; color:var(--faint); cursor:pointer; font-size:18px; padding:2px 8px;}
+  .comment-del:hover{color:var(--safelight);}
+  .tsp-card{border:1px solid var(--line); border-radius:4px; overflow:hidden; background:var(--graphite);}
+  .pn-thumbs{display:flex; gap:8px; margin-top:12px;}
+  .pn-thumbs img{width:52px; height:52px; object-fit:cover; border-radius:3px; border:1px solid var(--line2);}
+  .tsp-card .tsp-img img{width:100%; height:100%; object-fit:cover; cursor:zoom-in;}
+  .workshop-grid .wcell{position:relative; aspect-ratio:1; border:1px solid var(--line); border-radius:4px; overflow:hidden; cursor:pointer; background:#000;}
+  .workshop-grid .wcell img{width:100%; height:100%; object-fit:cover; transition:transform .3s;}
+  .workshop-grid .wcell:hover img{transform:scale(1.05);}
+  .workshop-grid .wcell .wtag{position:absolute; bottom:8px; left:8px; font-family:var(--display); font-size:9px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; padding:4px 9px; border-radius:2px; background:rgba(12,12,13,.78); color:var(--gold);}
+  .workshop-howto{display:flex; align-items:center; gap:14px; padding:16px 20px; margin:20px 0 18px; border:1.5px solid var(--safelight); border-radius:4px; background:rgba(228,85,46,.08); font-size:15px; color:var(--bone);}
+  .workshop-howto .how-num{font-size:22px; color:var(--safelight); flex-shrink:0;}
+  .workshop-grid .wcell{cursor:pointer;}
+  .workshop-grid .wcell:not(.written)::after{content:'\270E'; position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:50%; background:var(--safelight); color:#fff; font-size:13px; display:flex; align-items:center; justify-content:center;}
+  .workshop-grid .wcell.written .wtag{color:var(--safelight);}
+  .ws-plabel{display:block; font-family:var(--serif); font-style:italic; font-weight:400; font-size:18px; text-transform:none; letter-spacing:normal; color:var(--silver); margin:20px 0 10px;}
+  .ws-plabel.main{font-family:var(--display); font-style:normal; text-transform:none; letter-spacing:-0.01em; font-size:24px; font-weight:800; color:var(--bone); margin-top:24px;}
+  .ws-prompts{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:8px;}
+  #homeUploadBtn.pulse{border-color:var(--safelight); color:var(--safelight-soft); animation:pulseGlow 1.8s ease-in-out infinite;}
+  .mini-thumbs{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;}
+  .mini-thumbs .mthumb{width:52px; height:52px; border-radius:3px; overflow:hidden; border:2px solid var(--safelight);}
+  .mini-thumbs .mthumb img{width:100%; height:100%; object-fit:cover;}
+  .progress-row:last-child{border-bottom:none;}
+  .progress-row .prname{font-weight:700; font-size:15px;}
+  .progress-row .prfrac{font-size:13px; color:var(--faint); text-align:right; font-weight:600;}
+  .uploaded-tick{display:block; font-size:11px; font-weight:600; color:var(--gold); margin-top:3px; letter-spacing:0.02em;}
+  .uploaded-tick.off{color:var(--faint);}
+  .progress-row.tier-max{background:linear-gradient(90deg, rgba(228,85,46,.07), transparent); border-radius:4px; padding-left:12px; padding-right:12px; margin:0 -12px;}
+  .tier-pill.pulse{animation:pulseTier 1.6s ease-in-out infinite;}
+  @keyframes pulseTier{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb, var(--tc) 55%, transparent);} 50%{box-shadow:0 0 0 8px color-mix(in srgb, var(--tc) 0%, transparent);}}
+  @media(max-width:680px){ .progress-row{grid-template-columns:1fr; gap:8px; text-align:left;} .progress-row .prfrac{text-align:left;} .prow-bars{grid-template-columns:1fr;} }
+  .plate .cover .nocover{width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--faint); font-size:13px; font-family:var(--serif); font-style:italic;}
+  .plate .body{padding:20px 22px 22px;}
+  .plate .body .title{font-size:21px; font-weight:700; letter-spacing:-0.02em; line-height:1.15;}
+  .plate .body .by{font-family:var(--serif); font-size:14px; color:var(--silver); font-style:italic; font-weight:300; margin-top:5px;}
+  .plate .body .row{display:flex; gap:10px; margin-top:18px;}
+  .plate .body .row .btn{flex:1; justify-content:center; padding:12px 16px; font-size:14px;}
+
+  .empty{text-align:center; color:var(--faint); font-family:var(--serif); font-style:italic; font-weight:300; padding:52px 24px; line-height:1.7; font-size:16px; border:1px dashed var(--line); border-radius:4px;}
+
+  /* ---------- game chooser ---------- */
+  .choose-grid{display:grid; grid-template-columns:1fr 1fr; gap:22px; margin-top:12px;}
+  .gateway-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:24px; margin:32px 0 20px;}
+  .level-square{position:relative; min-height:clamp(340px,48vh,560px); border:1px solid var(--line); border-radius:8px; background:var(--graphite); display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:48px 34px; cursor:pointer; transition:border-color .18s, transform .18s; overflow:hidden;}
+  .level-bg{position:absolute; inset:0; background-size:cover; background-position:center; opacity:0; transition:opacity 1s ease, background-image .4s ease;}
+  .level-bg.on{opacity:.4;}
+  .level-square::after{content:''; position:absolute; inset:0; background:linear-gradient(180deg, rgba(28,28,32,.55), rgba(28,28,32,.88)); pointer-events:none;}
+  .discover-hero{position:relative; overflow:hidden;}
+  .discover-hero::after{content:''; position:absolute; inset:0; background:linear-gradient(90deg, rgba(28,28,32,.7), rgba(28,28,32,.85)); pointer-events:none;}
+  .discover-hero .level-bg{position:absolute; inset:0; background-size:cover; background-position:center; opacity:0; transition:opacity 1s ease, background-image .4s ease;}
+  .discover-hero .level-bg.on{opacity:.4;}
+  .discover-hero .lvl-content{position:relative; z-index:2;}
+  .level-square.locked .level-bg{opacity:.12 !important;}
+  .lvl-content, .lvl-progress{position:relative; z-index:2;}
+  .level-square:hover{border-color:var(--safelight); transform:translateY(-4px);}
+  .level-square .num{font-family:var(--display); font-size:14px; font-weight:700; letter-spacing:0.12em; color:var(--faint);}
+  .level-square h3{font-family:var(--display); font-size:clamp(34px,4.2vw,52px); font-weight:900; letter-spacing:-0.035em; line-height:0.98; margin:22px 0 18px;}
+  .level-square p{font-size:16px;}
+  .lock-ic{width:0.62em; height:0.62em; display:inline-block; vertical-align:-0.06em; margin-left:2px;}
+  .level-square p{font-family:var(--serif); font-size:15px; line-height:1.55; color:var(--silver); font-weight:300;}
+  .level-square.locked{opacity:.5; cursor:not-allowed;}
+  .level-square.locked:hover{border-color:var(--line); transform:none;}
+  .lvl-progress{position:absolute; top:16px; right:18px; font-family:var(--display); font-size:10px; font-weight:700; letter-spacing:0.08em; color:var(--faint);}
+  .choose-card.locked{opacity:.5; cursor:not-allowed;}
+  .choose-card.locked:hover{border-color:var(--line); transform:none;}
+  .keyword-row{display:flex; flex-wrap:wrap; gap:8px; margin:18px 0;}
+  .kw-chip{padding:7px 14px; border:1px solid var(--line2); border-radius:20px; font-size:12px; color:var(--silver); cursor:pointer; transition:border-color .15s, color .15s;}
+  .kw-chip:hover{border-color:var(--safelight); color:var(--bone);}
+  .choose-card{border:1px solid var(--line); border-radius:4px; padding:44px 40px; background:var(--graphite); transition:border-color .18s, transform .18s; cursor:pointer;}
+  .choose-card:hover{border-color:var(--safelight); transform:translateY(-4px);}
+  .choose-card .num{font-family:var(--display); font-size:13px; font-weight:700; letter-spacing:0.2em; color:var(--faint);}
+  .choose-card h3{font-size:36px; font-weight:800; letter-spacing:-0.035em; margin:16px 0 12px;}
+  .choose-card p{font-family:var(--serif); font-size:16px; line-height:1.6; color:var(--silver); font-weight:300; margin-bottom:28px; min-height:78px;}
+
+  /* ---------- play (punctum) ---------- */
+  .play-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;}
+  .play-head .ptitle{font-size:24px; font-weight:800; letter-spacing:-0.02em;}
+  .counter{font-family:var(--display); font-size:13px; font-weight:700; letter-spacing:0.18em; color:var(--faint);}
+  .counter b{color:var(--safelight);}
+  .frame{background:#000; border:1px solid var(--line); border-radius:4px; height:62vh; display:flex; align-items:center; justify-content:center; overflow:hidden;}
+  .frame img{max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; opacity:0; transition:opacity .35s;}
+  .frame img.in{opacity:1;}
+  .choices{display:grid; grid-template-columns:1fr 1fr; gap:14px; max-width:620px; margin:20px auto 0;}
+  .choice{padding:22px; font-size:17px; font-weight:700; border-radius:3px; border:1px solid var(--line2); background:var(--graphite); color:var(--bone); transition:.15s; letter-spacing:0.01em;}
+  .choice.nothing:hover{background:var(--raised); border-color:var(--silver);}
+  .choice.struck{border-color:var(--safelight); color:var(--safelight-soft);}
+  .choice.struck:hover{background:var(--safelight); color:#fff;}
+
+  /* ---------- culling duel ---------- */
+  .duel{display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:14px;}
+  .fighter{border:1px solid var(--line); border-radius:4px; overflow:hidden; cursor:pointer; background:var(--graphite); transition:border-color .15s, transform .15s;}
+  .fighter:hover{border-color:var(--safelight); transform:translateY(-4px);}
+  .fighter .fimg{height:52vh; background:#000; display:flex; align-items:center; justify-content:center; overflow:hidden;}
+  .fighter .fimg img{max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain;}
+  .fighter .flabel{text-align:center; padding:15px 0; font-family:var(--display); font-size:11px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; color:var(--faint);}
+  .fighter:hover .flabel{color:var(--safelight);}
+  .duel-q{text-align:center; font-family:var(--serif); font-style:italic; font-size:19px; color:var(--silver); margin:20px 0 2px; font-weight:300;}
+
+  /* ---------- results ---------- */
+  .contact{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px;}
+  .cell{border:1px solid var(--line); border-radius:3px; overflow:hidden; background:var(--graphite);}
+  .cell .ci{position:relative; aspect-ratio:1; background:#000; overflow:hidden;}
+  .cell .ci img{width:100%; height:100%; object-fit:cover;}
+  .cell .ci .rk{position:absolute; top:8px; left:8px; min-width:26px; height:26px; padding:0 7px; border-radius:2px; background:var(--safelight); color:#fff; font-family:var(--display); font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:center;}
+  .cell .meta{display:flex; justify-content:space-between; align-items:center; padding:11px 13px; font-size:12px; color:var(--silver); font-weight:500;}
+  .cell .meta b{font-family:var(--display); color:var(--bone); font-weight:800; font-size:17px;}
+
+  /* reflection: big top five */
+  .reflect{max-width:820px; margin:0 auto;}
+  .reflect li{list-style:none; margin-bottom:26px;}
+  .reflect .rn{font-family:var(--display); font-size:13px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase; color:var(--safelight); margin-bottom:10px;}
+  .reflect .rf{background:#000; border:1px solid var(--line); border-radius:4px; height:52vh; display:flex; align-items:center; justify-content:center; overflow:hidden;}
+  .reflect .rf img{max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain;}
+
+  /* individuals */
+  .person{margin-bottom:30px;}
+  .person h4{font-size:16px; font-weight:700; margin-bottom:12px; letter-spacing:-0.01em;}
+  .person h4 span{color:var(--faint); font-weight:500; font-family:var(--serif); font-style:italic; font-size:14px;}
+  .prow{display:flex; gap:10px; flex-wrap:wrap;}
+  .prow .slot{position:relative; width:96px; height:96px; border:1px solid var(--line2); border-radius:3px; overflow:hidden; cursor:zoom-in; transition:border-color .15s;}
+  .prow .slot:hover{border-color:var(--safelight);}
+  .prow .slot img{width:100%; height:100%; object-fit:cover;}
+  .prow .slot .pn{position:absolute; top:5px; left:5px; width:20px; height:20px; border-radius:2px; background:var(--safelight); color:#fff; font-family:var(--display); font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center;}
+
+  /* essays */
+  .essay{max-width:680px; margin:0 auto;}
+  .essay .lede{font-family:var(--serif); font-size:22px; line-height:1.6; color:var(--bone); font-weight:300; margin-bottom:10px;}
+  .essay h3{font-size:15px; font-weight:700; letter-spacing:0.14em; text-transform:uppercase; color:var(--safelight); margin:36px 0 12px;}
+  .essay p{font-family:var(--serif); font-size:18px; line-height:1.8; color:var(--silver); font-weight:300; margin-bottom:16px;}
+  .essay p strong{color:var(--bone); font-weight:500;}
+  .essay p em{color:var(--bone); font-style:italic;}
+  .essay .closing{margin-top:30px; padding-top:22px; border-top:1px solid var(--line); font-family:var(--serif); font-size:19px; line-height:1.7; color:var(--bone); font-weight:300; font-style:italic;}
+  .link-list{display:flex; flex-direction:column; gap:12px; margin-top:8px;}
+  .link-list a{display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 22px; border:1px solid var(--line); border-radius:4px; background:var(--graphite); color:var(--bone); text-decoration:none; font-weight:600; font-size:16px; transition:border-color .15s, transform .15s;}
+  .link-list a:hover{border-color:var(--safelight); transform:translateY(-2px);}
+  .link-list a .host{font-family:var(--serif); font-style:italic; font-weight:300; font-size:13px; color:var(--faint);}
+  .link-list a .arrow{color:var(--safelight); font-size:18px;}
+  .gallery-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px;}
+  .gallery-grid .gcell{background:#000; border:1px solid var(--line); border-radius:4px; overflow:hidden; cursor:zoom-in; aspect-ratio:4/3; display:flex; align-items:center; justify-content:center;}
+  .gallery-grid .gcell img{width:100%; height:100%; object-fit:cover; transition:transform .4s;}
+  .gallery-grid .gcell:hover img{transform:scale(1.04);}
+
+  /* setup / upload */
+  .panel{background:var(--graphite); border:1px solid var(--line); border-radius:4px; padding:34px; max-width:720px;}
+  .drop{border:1.5px dashed var(--line2); border-radius:4px; padding:48px; text-align:center; color:var(--silver); cursor:pointer; transition:.15s; margin-bottom:16px; font-family:var(--serif); font-style:italic; font-weight:300; font-size:16px;}
+  .drop:hover,.drop.over{border-color:var(--safelight); color:var(--safelight-soft); background:var(--raised);}
+  .prog{margin-bottom:18px; min-height:26px;}
+  .prog.off{visibility:hidden;}
+  .ptrack{height:3px; background:var(--line); border-radius:2px; overflow:hidden;}
+  .pfill{height:100%; width:0; background:var(--safelight); transition:width .18s ease;}
+  .ptext{font-size:12px; color:var(--silver); margin-top:8px; font-weight:500;}
+  .thumbs{display:grid; grid-template-columns:repeat(auto-fill,minmax(78px,1fr)); gap:8px; margin-bottom:24px;}
+  .thumb{position:relative; aspect-ratio:1; border:1px solid var(--line2); border-radius:2px; overflow:hidden;}
+  .thumb img{width:100%; height:100%; object-fit:cover;}
+  .thumb .x{position:absolute; top:3px; right:3px; width:22px; height:22px; background:rgba(12,12,13,.8); color:#fff; border-radius:2px; font-size:15px; line-height:22px; text-align:center; cursor:pointer;}
+  .thumb .x:hover{background:var(--safelight);}
+  .helper{font-family:var(--serif); font-style:italic; font-size:14px; color:var(--faint); margin-top:14px; font-weight:300; line-height:1.6;}
+
+  .toolbar{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+
+  /* lightbox */
+  .lightbox{position:fixed; inset:0; background:rgba(6,6,7,.94); z-index:3000; display:flex; align-items:center; justify-content:center; padding:32px; cursor:zoom-out;}
+  .lightbox img{max-width:96%; max-height:96%; object-fit:contain;}
+
+  /* config warning */
+  .config-warn{background:#2a1712; border:1px solid var(--safelight); color:var(--safelight-soft); padding:18px 22px; border-radius:4px; margin:24px 0; font-family:var(--serif); font-size:15px; font-weight:300; line-height:1.6;}
+
+  @media(max-width:760px){
+    .wrap{padding:0 20px;}
+    .learn-band{grid-template-columns:1fr;}
+    .learn-solo{max-width:100%;}
+    .choose-grid{grid-template-columns:1fr;}
+    .gateway-grid{grid-template-columns:1fr;}
+    .ws-prompts{grid-template-columns:1fr;}
+    .duel{grid-template-columns:1fr;}
+    .fighter .fimg{height:38vh;}
+    .frame{height:52vh;}
+    .plate-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));}
+    .masthead{padding:52px 0 22px;}
+    .screen{padding:32px 0 70px;}
+  }
+</style>
+</head>
+<body>
+<div id="loadbar"></div>
+
+<div class="wrap">
+  <header class="masthead">
+    <span class="eyebrow">A photographic selection studio</span>
+    <h1 id="mastheadTitle">PUNCTUM</h1>
+    <div class="tagline" id="mastheadTagline">Learn to feel photographs and cull like an artist</div>
+    <p class="barthes">"It is this element which rises from the scene, shoots out of it like an arrow, and pierces me." Roland Barthes, Camera Lucida</p>
+  </header>
+</div>
+
+<div class="wrap">
+  <div id="configWarn" class="config-warn hidden"></div>
+
+  <!-- GATE -->
+  <section id="gate" class="stage-center">
+    <div class="card">
+      <h2>Step inside</h2>
+      <p class="card-sub">Choose your class, then your name, and enter the password to begin looking.</p>
+      <div id="gateClassWrap" class="hidden">
+        <label>Your class</label>
+        <select id="classInput" onchange="Gate.classChanged()" style="margin-bottom:22px;"></select>
+      </div>
+      <label>Your name</label>
+      <div class="name-wrap">
+        <input type="text" id="nameInput" autocomplete="off" placeholder="First name">
+        <div class="suggest hidden" id="nameSuggest"></div>
+      </div>
+      <label id="passLabel">Class password</label>
+      <input type="password" id="passInput" placeholder="Password" onkeydown="if(event.key==='Enter')Gate.enter()">
+      <div class="err" id="gateErr"></div>
+      <div id="gateDebug" style="font-size:11px; color:#8a8a92; margin:-8px 0 14px; word-break:break-all;"></div>
+      <button class="btn btn-primary btn-lg btn-block" onclick="Gate.enter()">Enter the studio</button>
+      <button class="btn btn-lg btn-block" style="margin-top:10px;" onclick="Gate.guest()">Continue as guest</button>
+      <p class="card-foot"><span class="link" onclick="Gate.teacher()">Back end login</span></p>
+    </div>
+  </section>
+
+  <!-- STUDENT HOME -->
+  <!-- LEVELS: the sole landing after sign-in -->
+  <section id="levels" class="screen hidden">
+    <div class="topline" style="justify-content:space-between;">
+      <button class="btn btn-lg discover-hero" style="flex:1; text-align:center; justify-content:center;" onclick="App.enterLevel4()">
+        <div class="level-bg" id="bgDiscoverBtn"></div>
+        <span class="lvl-content">Discover &#8599;</span>
+      </button>
+      <div class="actions" style="justify-content:flex-end; gap:16px;">
+        <button class="btn btn-lg" onclick="App.openFeedback()">Feedback</button>
+        <span class="who-badge" style="padding:14px 22px; font-size:15px;">Looking as <b id="whoamiLevels"></b></span>
+        <button class="btn btn-lg btn-ghost" onclick="Gate.logout()">Log out</button>
+      </div>
+    </div>
+    <div class="gateway-grid">
+      <div class="level-square" id="gateCulling" onclick="App.enterLevel1()">
+        <div class="level-bg" id="bgCulling"></div>
+        <span class="lvl-progress" id="gateCullProgress"></span>
+        <div class="lvl-content">
+          <div class="num">01</div>
+          <h3>The Culling Game</h3>
+          <p>Cull your teacher's picks and classmates' images down to your top five.</p>
+        </div>
+      </div>
+      <div class="level-square locked" id="gatePunctum" onclick="App.enterPooledPunctum()">
+        <div class="level-bg" id="bgPunctum"></div>
+        <div class="lvl-content">
+          <div class="num">02</div>
+          <h3>Punctum <span id="punctumLockIcon" style="color:var(--gold)"><svg class="lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span></h3>
+          <p id="punctumTileDesc">Locked until you have culled 6 teacher picks.</p>
+        </div>
+      </div>
+      <div class="level-square locked" id="gatePhotoshop" onclick="App.enterLevel3()">
+        <div class="level-bg" id="bgPhotoshop"></div>
+        <div class="lvl-content">
+          <div class="num">03</div>
+          <h3>Photoshop Tutorial <span id="photoshopLockIcon" style="color:var(--gold)"><svg class="lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span></h3>
+          <p id="photoshopTileDesc">Locked until you have written about 6 photographs.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="shome" class="screen hidden">
+    <div class="topline" style="justify-content:center;">
+      <div class="actions" style="justify-content:center;">
+        <span class="who-badge">Looking as <b id="whoami"></b></span>
+        <button class="btn btn-lg" id="homeUploadBtn" onclick="Cull.setup()">Upload your photos</button>
+        <button class="btn btn-lg" onclick="App.openFeedback()">Feedback</button>
+        <button class="btn btn-lg" id="shomeLevelsBtn" onclick="App.toLevels()">Levels</button>
+        <button class="btn btn-lg btn-ghost" onclick="Gate.logout()">Log out</button>
+      </div>
+    </div>
+
+    <div class="learn-wide" onclick="App.showLearn('cull','shome')">
+      <span class="eyebrow">The method</span>
+      <h3>The cull</h3>
+      <p>How a photographer edits a body of work down to only its strongest images.</p>
+      <span class="arrow">&#8599;</span>
+    </div>
+
+    <div class="progress-band" id="progressBand">
+      <div class="prog-item">
+        <div class="prog-head"><span>Artist packs</span><span class="prog-meta"><span class="tier-pill" id="progArtistTier" style="--tc:var(--faint)">Blank Roll</span><span id="progArtistLabel">0 / 0</span></span></div>
+        <div class="pbar-track"><div class="pbar-fill" id="progArtistFill"></div></div>
+      </div>
+      <div class="prog-item">
+        <div class="prog-head"><span>Student packs</span><span class="prog-meta"><span class="tier-pill" id="progStudentTier" style="--tc:var(--faint)">Blank Roll</span><span id="progStudentLabel">0 / 0</span></span></div>
+        <div class="pbar-track"><div class="pbar-fill" id="progStudentFill"></div></div>
+      </div>
+    </div>
+
+    <div class="tabs" style="justify-content:center;">
+      <button class="tab is-active" id="tabArtist" onclick="App.switchTab('artist')">Artist packs</button>
+      <button class="tab" id="tabStudent" onclick="App.switchTab('student')">Student packs</button>
+      <button class="tab hidden" id="tabStudentPunctum" onclick="App.switchTab('studentPunctum')">Student punctums</button>
+      <button class="tab hidden" id="tabStudentProgress" onclick="App.switchTab('studentProgress')">Student progress</button>
+      <button class="tab" id="tabMine" onclick="App.switchTab('mine')">My profile</button>
+    </div>
+
+    <div id="panelArtist">
+      <div class="tab-note">Cull your teacher's picks down to your top five.</div>
+      <div id="artistList" class="plate-grid"></div>
+      <p id="artistEmpty" class="empty hidden">No artist packs yet. Your teacher will add some.</p>
+    </div>
+
+    <div id="panelStudent" class="hidden">
+      <div class="tab-note">Cull and rank photographs uploaded by the class.</div>
+      <div id="studentList" class="plate-grid"></div>
+      <p id="studentEmpty" class="empty hidden">No student packs yet. Upload yours for the class to rank.</p>
+    </div>
+
+    <div id="panelStudentPunctum" class="hidden">
+      <div class="tab-note">Every student who has picked photos in Punctum. Tap a name to see their images and notes.</div>
+      <div id="studentPunctumTabs" class="tabs" style="justify-content:flex-start; margin-bottom:20px;"></div>
+      <div id="studentPunctumList"></div>
+      <p id="studentPunctumEmpty" class="empty hidden">No students have played Punctum yet.</p>
+    </div>
+
+    <div id="panelStudentProgress" class="hidden">
+      <div class="tab-note">How each student in a class is getting on.</div>
+      <div id="studioProgressTabs" class="tabs" style="justify-content:flex-start; margin-bottom:20px;"></div>
+      <div class="tier-key">
+        <span class="tier-pill" style="--tc:var(--bone)">Blank Roll</span>
+        <span class="tier-pill" style="--tc:#b08d57">Shooting</span>
+        <span class="tier-pill" style="--tc:#b9b9c2">Developing</span>
+        <span class="tier-pill" style="--tc:var(--safelight)">Printing</span>
+        <span class="tier-pill" style="--tc:var(--gold)">Exhibited</span>
+      </div>
+      <div id="studioProgressList"></div>
+      <p id="studioProgressEmpty" class="empty hidden">No students in this class yet.</p>
+    </div>
+
+    <div id="panelMine" class="hidden">
+      <div id="profileUploadPrompt" class="upload-pulse hidden" onclick="Cull.setup()">
+        <span>You have not uploaded your own pack yet</span>
+        <button class="btn btn-primary">Upload your photos &#8599;</button>
+      </div>
+
+      <div class="prog-item">
+        <div class="prog-head"><span>Artist packs</span><span class="prog-meta"><span class="tier-pill" id="profArtistTier" style="--tc:var(--faint)">Blank Roll</span><span id="profArtistLabel">0 / 0</span></span></div>
+        <div class="pbar-track"><div class="pbar-fill" id="profArtistFill"></div></div>
+        <div class="mini-thumbs" id="profArtistThumbs"></div>
+      </div>
+      <div class="prog-item" style="margin-top:24px;">
+        <div class="prog-head"><span>Student packs</span><span class="prog-meta"><span class="tier-pill" id="profStudentTier" style="--tc:var(--faint)">Blank Roll</span><span id="profStudentLabel">0 / 0</span></span></div>
+        <div class="pbar-track"><div class="pbar-fill" id="profStudentFill"></div></div>
+        <div class="mini-thumbs" id="profStudentThumbs"></div>
+      </div>
+
+      <div class="band-head band-gap"><h3>Favourites</h3><span class="count" id="favCount"></span></div>
+      <div id="favGrid" class="favorites-grid"></div>
+      <p id="favEmpty" class="empty hidden">Tap the star on any photo to save it here.</p>
+      <div class="band-head band-gap"><h3>Games played</h3></div>
+      <div id="mineList"></div>
+      <p id="mineEmpty" class="empty hidden">You have not played anything yet. Pick a pack to begin.</p>
+    </div>
+
+  </section>
+
+  <!-- DISCOVER: level 4, always unlocked, optional bonus -->
+  <section id="discoverLevel" class="screen hidden">
+    <div class="topline">
+      <h2>Discover</h2>
+      <div class="actions">
+        <button class="btn" id="discoverFsBtn" onclick="App.toggleDiscoverFullscreen()">Fullscreen &#9974;</button>
+        <button class="btn btn-ghost" onclick="App.toLevels()">Levels</button>
+      </div>
+    </div>
+    <p class="tab-note">Scroll through the work in your packs. Tap Learn about to research the artist.</p>
+    <div id="discoverFeedWrap">
+      <button class="discover-exit-btn" onclick="App.toggleDiscoverFullscreen()" title="Exit fullscreen">&#10005;</button>
+      <div id="discoverFeed" class="discover-feed"></div>
+    </div>
+    <p id="discoverEmpty" class="empty hidden">No photographs to discover yet.</p>
+  </section>
+
+  <!-- GAME CHOICE -->
+  <section id="choose" class="screen hidden">
+    <div class="topline">
+      <h2 id="chooseTitle"></h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="App.toStudentHome()">Back</button></div>
+    </div>
+    <div class="choose-grid">
+      <div class="choose-card" id="cardCull">
+        <div class="num">01</div>
+        <h3>The Culling Game</h3>
+        <p>Keep one, drop one, until only your five strongest remain, then rank them.</p>
+        <button class="btn btn-primary btn-lg btn-block" id="chooseCull">Play the Culling Game</button>
+      </div>
+      <div class="choose-card" id="cardPunctum">
+        <div class="num">02</div>
+        <h3>Punctum</h3>
+        <p>Move through the photographs one at a time and mark the ones that strike you.</p>
+        <button class="btn btn-primary btn-lg btn-block" id="choosePunctum">Play Punctum</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PLAY -->
+  <section id="play" class="screen hidden">
+    <div class="play-head">
+      <span class="ptitle" id="playTitle"></span>
+      <div class="toolbar"><span class="counter" id="playProgress"></span><button class="btn btn-ghost" onclick="App.toLevels()">Quit</button></div>
+    </div>
+    <div class="frame"><img id="playImg" src="" alt=""></div>
+    <div class="choices">
+      <button class="choice nothing" id="btnNothing">Nothing</button>
+      <button class="choice struck" id="btnStruck">Struck me</button>
+    </div>
+  </section>
+
+  <!-- PUNCTUM END -->
+  <section id="pdone" class="screen hidden">
+    <div class="topline">
+      <h2 id="pdoneTitle"></h2>
+      <div class="actions"><button class="btn btn-solid" onclick="App.toStudentHome()">Back to the studio</button></div>
+    </div>
+    <div class="band-head"><h3>What struck you</h3><span class="count" id="pdoneMineCount"></span></div>
+    <div class="contact" id="pdoneMine"></div>
+    <div class="band-head band-gap"><h3>What struck the class</h3><span class="count" id="pdoneClassCount"></span></div>
+    <div class="contact" id="pdoneClass"></div>
+  </section>
+
+  <!-- STUDENT RESULTS -->
+  <section id="sresults" class="screen hidden">
+    <div class="topline">
+      <h2 id="srTitle"></h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="App.toStudentHome()">Back</button></div>
+    </div>
+    <div id="srCullingWrap" class="hidden">
+      <div class="band-head">
+        <h3 id="srCullHead">The class ranking</h3>
+        <span class="count" id="crCount"></span>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px;">
+        <button class="btn" id="srClassFilterMine" onclick="App.setCullClassFilter('mine')">Your class</button>
+        <button class="btn" id="srClassFilterAll" onclick="App.setCullClassFilter('all')">All classes</button>
+        <button class="btn" id="srCullToggle" onclick="App.toggleStudentCullView()">See each top five</button>
+      </div>
+      <div class="contact" id="crGrid"></div>
+      <div id="srCullIndividuals" class="hidden"></div>
+    </div>
+    <div class="comments-block">
+      <div class="band-head"><h3>Comments</h3><span class="count" id="commentCount"></span></div>
+      <p class="helper">Everyone who culls this pack can see and leave comments here, from any class.</p>
+      <div id="commentList"></div>
+      <textarea id="commentText" rows="3" placeholder="What did you think?" style="margin-top:14px;"></textarea>
+      <button class="btn btn-primary" onclick="App.postComment()" style="margin-top:10px;">Post comment</button>
+      <div class="helper" id="commentMsg"></div>
+    </div>
+  </section>
+
+  <!-- CULLING SETUP -->
+  <section id="csetup" class="screen hidden">
+    <div class="topline">
+      <h2>Upload your photos</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="App.toStudentHome()">Back</button></div>
+    </div>
+    <div class="panel">
+      <label>Pack name</label>
+      <input type="text" id="cullPackName" placeholder="e.g. My street photographs">
+      <label>Your photographs (at least three)</label>
+      <div class="drop" id="cullDrop">Click or drag your photographs here</div>
+      <input type="file" id="cullFile" accept="image/*" multiple class="hidden">
+      <div class="prog off" id="cullBusy"><div class="ptrack"><div class="pfill" id="cullFill"></div></div><div class="ptext" id="cullText"></div></div>
+      <div class="thumbs" id="cullThumbs"></div>
+      <button class="btn btn-primary btn-lg" onclick="Cull.savePack()">Upload for the class</button>
+      <p class="helper">Once uploaded, the whole class can cull your photographs down to their five strongest and rank them. You will see the combined ranking in results.</p>
+    </div>
+  </section>
+
+  <!-- CULLING PLAY -->
+  <section id="cull" class="screen hidden">
+    <div class="play-head">
+      <span class="ptitle" id="cullTitle">The Culling Game</span>
+      <div class="toolbar"><span class="counter" id="cullProgress"></span><button class="btn btn-ghost" onclick="App.toStudentHome()">Quit</button></div>
+    </div>
+    <p class="duel-q" id="cullVs"></p>
+    <div class="duel">
+      <div class="fighter" id="fighterA" onclick="Cull.pick('A')"><div class="fimg"><img id="imgA" src=""></div><div class="flabel">keep this one</div></div>
+      <div class="fighter" id="fighterB" onclick="Cull.pick('B')"><div class="fimg"><img id="imgB" src=""></div><div class="flabel">keep this one</div></div>
+    </div>
+  </section>
+
+  <!-- CULLING FINAL -->
+  <section id="cfinal" class="screen hidden">
+    <div class="topline">
+      <h2>Your top five</h2>
+      <div class="actions"><button class="btn btn-solid" onclick="App.toStudentHome()">Back to the studio</button></div>
+    </div>
+    <ol class="reflect" id="finalList"></ol>
+    <div class="band-head band-gap"><h3>The class ranking</h3><span class="count" id="cfClassCount"></span></div>
+    <div class="contact" id="cfClass"></div>
+  </section>
+
+  <!-- WORKSHOP: permanent gallery of everything struck in Punctum -->
+  <section id="workshop" class="screen hidden">
+    <div class="topline">
+      <h2>Your Punctum workshop</h2>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="App.startPunctumRound()">Play Punctum again</button>
+        <button class="btn" onclick="App.openFeedback()">Feedback</button>
+        <button class="btn hidden" id="workshopStudentPunctumBtn" onclick="App.gotoStudentPunctumsTab()">Student punctums</button>
+        <button class="btn hidden" id="workshopStudentProgressBtn" onclick="App.gotoStudentProgressTab()">Student progress</button>
+        <button class="btn btn-ghost" id="workshopLevelsBtn" onclick="App.toLevels()">Levels</button>
+      </div>
+    </div>
+    <div class="learn-wide" onclick="App.showLearn('punctum','workshop')">
+      <span class="eyebrow">The idea</span>
+      <h3>The punctum</h3>
+      <p>Why a single detail in a photograph can wound you, and what Barthes meant by it.</p>
+      <span class="arrow">&#8599;</span>
+    </div>
+    <div class="workshop-howto">
+      <span class="how-num">&#8594;</span>
+      <span><b>Click a photo below, then write about it.</b> Every photograph that struck you stays here for good.</span>
+    </div>
+    <div class="prog-item" style="margin-bottom:8px;">
+      <div class="prog-head"><span>Punctum write-ups</span><span class="prog-meta"><span class="tier-pill" id="wsWrittenTier" style="--tc:var(--faint)">Blank Roll</span><span id="wsWrittenLabel">0 / 6</span></span></div>
+      <div class="pbar-track"><div class="pbar-fill" id="wsWrittenFill"></div></div>
+    </div>
+    <p class="tab-note">Write about 6 photographs to unlock the Photoshop tutorial.</p>
+    <div id="workshopGrid" class="workshop-grid"></div>
+    <p id="workshopEmpty" class="empty hidden">Nothing selected yet — play Punctum to start your collection.</p>
+  </section>
+
+  <!-- WORKSHOP EDITOR: reflect on one photo -->
+  <!-- TEACHER-SIDE: ONE UNIFIED VIEW OF A STUDENT'S PACK -->
+  <section id="studentBreakdown" class="screen hidden">
+    <div class="topline">
+      <h2 id="sbTitle">Student pack</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="App.toStudentHome()">Back</button></div>
+    </div>
+
+    <div class="band-head"><h3>Progress</h3></div>
+    <div class="progress-band" style="margin-bottom:32px;">
+      <div class="prog-item">
+        <div class="prog-head"><span>Artist packs</span><span class="prog-meta"><span class="tier-pill" id="sbArtistTier" style="--tc:var(--bone)">Blank Roll</span><span id="sbArtistLabel">0 / 0</span></span></div>
+        <div class="pbar-track"><div class="pbar-fill" id="sbArtistFill"></div></div>
+      </div>
+      <div class="prog-item">
+        <div class="prog-head"><span>Student packs</span><span class="prog-meta"><span class="tier-pill" id="sbStudentTier" style="--tc:var(--bone)">Blank Roll</span><span id="sbStudentLabel">0 / 0</span></span></div>
+        <div class="pbar-track"><div class="pbar-fill" id="sbStudentFill"></div></div>
+      </div>
+      <div class="prog-item">
+        <div class="prog-head"><span>Punctum write-ups</span><span class="prog-meta"><span class="tier-pill" id="sbPunctumTier" style="--tc:var(--bone)">Blank Roll</span><span id="sbPunctumLabel">0 / 6</span></span></div>
+        <div class="pbar-track"><div class="pbar-fill" id="sbPunctumFill"></div></div>
+      </div>
+    </div>
+
+    <div class="band-head"><h3>Punctum write-ups</h3><span class="count" id="sbPunctumCount"></span></div>
+    <div id="sbPunctumGrid" class="tsp-grid" style="margin-bottom:32px;"></div>
+    <p id="sbPunctumEmpty" class="empty hidden">This student hasn't written about any photographs yet.</p>
+
+    <div class="band-head"><h3>All photographs in this pack</h3></div>
+    <div id="sbGallery" class="gallery-grid" style="margin-bottom:32px;"></div>
+
+    <div class="band-head"><h3>The culling ranking</h3><span class="count" id="sbCullCount"></span></div>
+    <div class="contact" id="sbCullRanking"></div>
+  </section>
+
+  <section id="workshopEdit" class="screen hidden">
+    <div class="topline">
+      <h2>Reflect</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="Workshop.backToGrid()">Back to workshop</button></div>
+    </div>
+    <div class="frame"><img id="wsEditImg" src="" alt=""></div>
+    <label class="ws-plabel main">What is it about this photograph that struck you?</label>
+    <div class="keyword-row" id="keywordRow"></div>
+    <textarea id="wsNote" rows="5" placeholder="Name the detail, and try to say why it caught you and not something else."></textarea>
+    <div class="ws-prompts">
+      <div>
+        <label class="ws-plabel">What does it remind you of, or make you think about?</label>
+        <textarea id="wsPrompt3" rows="3" placeholder="A memory, another image, a feeling..."></textarea>
+      </div>
+      <div>
+        <label class="ws-plabel">If you could re-shoot this photo, what would you change, and how? (optional)</label>
+        <textarea id="wsPrompt4" rows="3" placeholder="Angle, distance, light, framing, timing..."></textarea>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-lg" onclick="Workshop.save()" style="margin-top:18px;">Save and return to workshop</button>
+    <div class="helper" id="wsMsg"></div>
+  </section>
+
+  <!-- FEEDBACK: what students think of Punctum -->
+  <section id="feedback" class="screen hidden">
+    <div class="topline">
+      <h2>Feedback</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="App.toLevels()">Levels</button></div>
+    </div>
+    <div class="panel">
+      <label>What do you think about Punctum?</label>
+      <textarea id="feedbackText" rows="6" placeholder="Good, bad, confusing, boring, your favourite bit — anything. Be honest, it helps make this better."></textarea>
+      <button class="btn btn-primary btn-lg" onclick="App.sendFeedback()" style="margin-top:16px;">Send feedback</button>
+      <div class="helper" id="feedbackMsg"></div>
+    </div>
+  </section>
+
+  <!-- LEARN: PUNCTUM -->
+  <section id="learnPunctum" class="screen hidden">
+    <div class="topline">
+      <h2>The punctum</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="App.backFromLearn()">Back</button></div>
+    </div>
+    <div class="essay">
+      <p class="lede">In 1980, in a small book called Camera Lucida, the French thinker Roland Barthes tried to name why some photographs stop us cold while thousands of others slide past unnoticed. He landed on two words.</p>
+      <h3>Studium, the part you can explain</h3>
+      <p>The <strong>studium</strong> is everything in a photograph you can read, discuss, and understand through what you already know. The subject, the setting, the historical moment, the photographer's obvious intention. It is the interest you take in an image because you recognise what it is about. Barthes called this a kind of polite, educated interest, real but cool. You can teach the studium. You can write an essay about it. Most photographs offer only this, and Barthes called them <em>unary</em>: they shout or inform, but they do not wound.</p>
+      <h3>Punctum, the part that pierces you</h3>
+      <p>The <strong>punctum</strong> is different. The word is Latin for a wound, a prick, a mark left by a pointed instrument. It is the detail that leaps out of the picture and pierces <em>you</em> personally, not because it is important or well composed, but because for reasons you often cannot explain, it catches. As Barthes wrote, <em>it is this element which rises from the scene, shoots out of it like an arrow, and pierces me.</em></p>
+      <p>The punctum is usually small and almost always accidental, something the photographer never intended you to fixate on. A pair of hands. A child's shoes. A crack of light. And it is personal: what wounds you may leave the person beside you completely untouched. <em>What I can name cannot really prick me,</em> Barthes noted. The moment you fully explain it, it stops being a punctum and becomes studium again.</p>
+      <h3>Why this game</h3>
+      <p>When you play Punctum, you are not judging whether a photo is good, or well made, or important. You are noticing something quieter and harder to fake: whether it reaches out and touches you. There is no wrong answer, and yours does not have to match anyone else's. The point is to slow down enough to feel the difference between a photograph you understand and one that gets under your skin. That distinction is the beginning of learning to look like an artist rather than a viewer.</p>
+      <p class="closing">Barthes found his own most piercing photograph was one of his mother as a child, an image so private he refused to print it in the book. The punctum, in the end, is where a photograph stops being about everyone and becomes about you.</p>
+    </div>
+  </section>
+
+  <!-- LEARN: CULL -->
+  <section id="learnCull" class="screen hidden">
+    <div class="topline">
+      <h2>The cull</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="App.backFromLearn()">Back</button></div>
+    </div>
+    <div class="essay">
+      <p class="lede">Anyone can take a photograph. The photographer's real work often begins afterwards, in the ruthless, clarifying act of deciding which few images survive. Learning to cull is learning to see your own work the way an artist does.</p>
+      <h3>The edit is where the artist appears</h3>
+      <p>A body of work, a portfolio, an exhibition, a photobook, is almost never a single image. It is a group, and a group is <em>only as strong as its weakest picture</em>. One mediocre frame left in to fill space quietly drags down everything around it. Professional editors have a blunt rule for the hesitation you will feel: if you are not sure whether an image belongs, that doubt is your answer. It goes.</p>
+      <h3>Kill your darlings</h3>
+      <p>The hardest cuts are the photos <em>you</em> love for reasons the viewer will never see, because of how hard it was to get, or the memory attached to it, or the effort it cost. None of that is visible in the frame. The fine art photographer learns to separate the story behind the picture from what the picture actually delivers to a stranger's eye. Culling means being honest about that gap, again and again.</p>
+      <h3>Choose against your best, not against the rest</h3>
+      <p>When you cull, do not ask whether a photo is decent. Almost all of them are decent. Ask whether it is stronger than the one beside it. That is exactly what this game forces: two images, one choice, no way to keep both. Each duel is a small, honest confrontation. Do it enough times and only the images with real force are left standing. Then you rank them, because even among your strongest there is an order, a single image that carries the most.</p>
+      <h3>What you are training</h3>
+      <p>Editing this way builds the muscle every serious photographer relies on: the ability to look at your own work coldly, to prefer five true images over twenty comfortable ones, and to trust your eye under pressure. The photographs you keep say something. So do the ones you are brave enough to let go.</p>
+      <p class="closing">Edit ruthlessly. It is the most common advice in fine art photography, and the hardest to follow, because it asks you to be a clear eyed critic of the thing you are most attached to. That is the skill this game is quietly teaching.</p>
+    </div>
+  </section>
+
+  <!-- ARTIST INFO / RESEARCH -->
+  <section id="artistInfo" class="screen hidden">
+    <div class="topline">
+      <h2 id="infoTitle"></h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="App.backFromInfo()">Back</button></div>
+    </div>
+    <div class="essay">
+      <p class="lede">Sources for looking further into this artist and their work. Open any of these to research beyond the photographs in the pack.</p>
+      <div id="infoLinks" class="link-list"></div>
+      <p id="infoEmpty" class="helper hidden">No research links have been added for this pack yet.</p>
+    </div>
+  </section>
+
+  <!-- STUDENT PACK GALLERY -->
+  <section id="gallery" class="screen hidden">
+    <div class="topline">
+      <h2 id="galleryTitle"></h2>
+      <div class="actions"><button class="btn hidden" id="galleryInfoBtn">More info</button><button class="btn btn-ghost" onclick="App.toStudentHome()">Back</button></div>
+    </div>
+    <div id="galleryGrid" class="gallery-grid"></div>
+  </section>
+
+  <!-- TEACHER GATE -->
+  <section id="tgate" class="stage-center hidden">
+    <div class="card">
+      <h2>Back end login</h2>
+      <p class="card-sub">Enter the password to manage packs, classes and settings.</p>
+      <label>Password</label>
+      <input type="password" id="tpass" placeholder="Password" onkeydown="if(event.key==='Enter')Teacher.enter()">
+      <div class="err" id="tErr"></div>
+      <button class="btn btn-primary btn-lg btn-block" onclick="Teacher.enter()">Sign in</button>
+      <p class="card-foot"><span class="link" onclick="Gate.logout()">Back</span></p>
+    </div>
+  </section>
+
+  <!-- TEACHER HOME -->
+  <section id="thome" class="screen hidden">
+    <div class="topline">
+      <h2>Teacher</h2>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="Teacher.newPack()">New pack</button>
+        <button class="btn" onclick="Teacher.roster()">Class list</button>
+        <button class="btn" onclick="Teacher.resetStudentScreen()">Reset a student</button>
+        <button class="btn" onclick="Teacher.openProgress()">Student progress</button>
+        <button class="btn" onclick="Teacher.openPunctumBrowse()">Student punctum notes</button>
+        <button class="btn" onclick="Teacher.openSettings()">Studio settings</button>
+        <button class="btn" onclick="Teacher.openFeedback()">Feedback</button>
+        <button class="btn btn-ghost" onclick="Gate.logout()">Sign out</button>
+      </div>
+    </div>
+    <div id="tpackList" class="plate-grid"></div>
+    <p id="tEmpty" class="empty hidden">No packs yet. Create one and upload your artist models or your own work.</p>
+  </section>
+
+  <!-- TEACHER BUILDER -->
+  <section id="tbuilder" class="screen hidden">
+    <div class="topline">
+      <h2>New pack</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="Teacher.home()">Back</button></div>
+    </div>
+    <div class="panel">
+      <label>Pack name</label>
+      <input type="text" id="tPackName" placeholder="e.g. Francesca Woodman, selected works">
+      <label>Images</label>
+      <div class="drop" id="tDrop">Click or drag photographs here</div>
+      <input type="file" id="tFile" accept="image/*" multiple class="hidden">
+      <div class="prog off" id="tBusy"><div class="ptrack"><div class="pfill" id="tFill"></div></div><div class="ptext" id="tText"></div></div>
+      <div class="thumbs" id="tThumbs"></div>
+      <label>Research links <span style="color:var(--faint); font-weight:400; text-transform:none; letter-spacing:0;">(optional, one per line: paste a web address, or a title then the address)</span></label>
+      <textarea id="tLinks" rows="6" placeholder="Tate: https://www.tate.org.uk/art/artists/...&#10;https://www.moma.org/artists/...&#10;Interview on YouTube: https://youtube.com/watch?v=..."></textarea>
+      <p class="helper" style="margin-bottom:20px;">These appear on the pack's "More info" page for students. Put a label before the address if you like, e.g. "Tate profile: https://...". Lines without an address are ignored.</p>
+      <button class="btn btn-primary btn-lg" onclick="Teacher.savePack()">Create pack and upload</button>
+    </div>
+  </section>
+
+  <!-- TEACHER ROSTER / CLASSES -->
+  <section id="troster" class="screen hidden">
+    <div class="topline">
+      <h2>Class lists</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="Teacher.home()">Back</button></div>
+    </div>
+    <div class="panel">
+      <label>Class</label>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:24px;">
+        <select id="classSelect" onchange="Teacher.pickClass()"></select>
+        <input type="text" id="newClassName" placeholder="New class name, e.g. 13APH" style="flex:1; min-width:180px; margin:0;">
+        <button class="btn" onclick="Teacher.addClass()">Add class</button>
+      </div>
+      <div id="classEditor" class="hidden">
+        <label>Rename <span id="editClassName"></span></label>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:26px;">
+          <input type="text" id="renameClassInput" placeholder="New class name" style="flex:1; min-width:180px; margin:0;">
+          <button class="btn" onclick="Teacher.renameClass()">Rename class</button>
+        </div>
+        <label>Students in <span id="editClassName2"></span>, one per line</label>
+        <textarea id="rosterText" rows="12" placeholder="Ana&#10;Ben&#10;Charlotte&#10;Daniel"></textarea>
+        <div class="helper" id="rosterCount"></div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:18px;">
+          <button class="btn btn-primary btn-lg" onclick="Teacher.saveRoster()">Save this class list</button>
+          <button class="btn btn-danger btn-lg" onclick="Teacher.deleteClass()">Delete this class</button>
+        </div>
+        <p class="helper">Students choose their class, then pick their name from it to sign in. Each class keeps its own packs history separate.</p>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:24px;">
+      <label>Teachers</label>
+      <p class="helper" style="margin-bottom:16px;">Names here sign in through the same page as students, picking "Teachers" as their class. They can see and cull work across every class, not just one.</p>
+      <textarea id="teachersRosterText" rows="8" placeholder="Ms Dwyer&#10;Mr Quinn"></textarea>
+      <div class="helper" id="teachersRosterCount"></div>
+      <button class="btn btn-primary btn-lg" onclick="Teacher.saveTeachersRoster()" style="margin-top:18px;">Save teachers list</button>
+    </div>
+  </section>
+
+  <!-- TEACHER: STUDENT PROGRESS -->
+  <section id="tprogress" class="screen hidden">
+    <div class="topline">
+      <h2>Student progress</h2>
+      <div class="actions">
+        <select id="progressClassSelect" onchange="Teacher.loadProgress()"></select>
+        <button class="btn btn-ghost" onclick="Teacher.home()">Back</button>
+      </div>
+    </div>
+    <div class="tier-key">
+      <span class="tier-pill" style="--tc:var(--bone)">Blank Roll</span>
+      <span class="tier-pill" style="--tc:#b08d57">Shooting</span>
+      <span class="tier-pill" style="--tc:#b9b9c2">Developing</span>
+      <span class="tier-pill" style="--tc:var(--safelight)">Printing</span>
+      <span class="tier-pill" style="--tc:var(--gold)">Exhibited</span>
+    </div>
+    <div id="progressList"></div>
+    <p id="progressEmpty" class="empty hidden">No students in this class yet.</p>
+    <p class="helper" style="margin-top:14px;">Tap any student to see their Punctum images and what they wrote.</p>
+  </section>
+
+  <!-- TEACHER: BROWSE STUDENT PUNCTUM NOTES BY CLASS -->
+  <section id="tpunctumBrowse" class="screen hidden">
+    <div class="topline">
+      <h2>Student punctum notes</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="Teacher.home()">Back</button></div>
+    </div>
+    <p class="tab-note">Tap a student to see everything they've picked in Punctum and what they wrote.</p>
+    <div id="punctumBrowseTabs" class="tabs" style="justify-content:flex-start; margin-bottom:20px;"></div>
+    <div id="punctumBrowseList"></div>
+    <p id="punctumBrowseEmpty" class="empty hidden">No students in this class yet.</p>
+  </section>
+
+  <!-- TEACHER: ONE STUDENT'S PUNCTUM IMAGES -->
+  <section id="tstudentPunctum" class="screen hidden">
+    <div class="topline">
+      <h2 id="tspTitle">Punctum</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="App.backFromStudentPunctum()">Back</button></div>
+    </div>
+    <div id="tspGrid" class="tsp-grid"></div>
+    <p id="tspEmpty" class="empty hidden">This student has not selected any photographs in Punctum yet.</p>
+  </section>
+
+  <!-- TEACHER: STUDIO SETTINGS -->
+  <!-- TEACHER: FEEDBACK VIEWER -->
+  <section id="tfeedback" class="screen hidden">
+    <div class="topline">
+      <h2>Feedback</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="Teacher.home()">Back</button></div>
+    </div>
+    <div id="tfeedbackList"></div>
+    <p id="tfeedbackEmpty" class="empty hidden">No feedback yet.</p>
+  </section>
+
+  <section id="tsettings" class="screen hidden">
+    <div class="topline">
+      <h2>Studio settings</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="Teacher.home()">Back</button></div>
+    </div>
+    <div class="panel">
+      <label>Photoshop slideshow link</label>
+      <input type="text" id="settingsPhotoshopUrl" placeholder="https://docs.google.com/presentation/...">
+      <button class="btn btn-primary btn-lg" onclick="Teacher.saveSettings()">Save link</button>
+      <p class="helper">Paste the link to your Photoshop slideshow (Google Slides, PowerPoint online, etc). It appears under the "Learning Photoshop" tab on the student home.</p>
+      <div class="helper" id="settingsMsg"></div>
+    </div>
+    <div class="panel" style="margin-top:24px;">
+      <label>Photoshop tutorial screenshots</label>
+      <div class="thumbs" id="ssThumbs" style="margin-bottom:16px;"></div>
+      <div class="drop" id="ssDrop">Click or drag screenshots here</div>
+      <input type="file" id="ssFile" accept="image/*" multiple class="hidden">
+      <div class="prog off" id="ssBusy"><div class="ptrack"><div class="pfill" id="ssFill"></div></div><div class="ptext" id="ssText"></div></div>
+      <p class="helper">A few screenshots from your Photoshop slides. Once a student unlocks Level 3, these quietly flash behind its tile on the Levels page.</p>
+    </div>
+  </section>
+
+  <!-- TEACHER: RESET A STUDENT -->
+  <section id="tresetstudent" class="screen hidden">
+    <div class="topline">
+      <h2>Reset a student</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="Teacher.home()">Back</button></div>
+    </div>
+    <div class="panel">
+      <label>Class</label>
+      <select id="resetClass" onchange="Teacher.loadResetNames()" style="margin-bottom:22px;"></select>
+      <label>Student</label>
+      <select id="resetName" style="margin-bottom:22px;"></select>
+      <button class="btn btn-danger btn-lg" onclick="Teacher.resetStudent()">Wipe this student's results</button>
+      <p class="helper">This clears everything for the chosen student: their punctum votes, their cullings, and their game history. Their name stays on the class list so they can play again fresh. This cannot be undone.</p>
+      <div class="helper" id="resetMsg"></div>
+    </div>
+  </section>
+
+  <!-- TEACHER: EDIT STUDENT PACK -->
+  <section id="tpackedit" class="screen hidden">
+    <div class="topline">
+      <h2 id="tpackeditTitle">Edit pack</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="App.backFromPackEdit()">Back</button></div>
+    </div>
+    <div class="panel">
+      <label>Pack name</label>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:26px;">
+        <input type="text" id="editPackName" style="flex:1; min-width:200px; margin:0;">
+        <button class="btn" onclick="Teacher.renamePack()">Save name</button>
+      </div>
+      <div id="editClassWrap">
+        <label>Class this pack belongs to <span style="color:var(--faint); font-weight:400; text-transform:none; letter-spacing:0;">(only that class's students can see it)</span></label>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:26px;">
+          <select id="editPackClass" style="flex:1; min-width:200px; margin:0;"></select>
+          <button class="btn" onclick="Teacher.savePackClass()">Save class</button>
+        </div>
+      </div>
+      <div id="editLinksWrap" class="hidden">
+        <label>Research links <span style="color:var(--faint); font-weight:400; text-transform:none; letter-spacing:0;">(shown to students as "More info" on this pack)</span></label>
+        <textarea id="editPackLinks" rows="6" placeholder="Tate: https://www.tate.org.uk/art/artists/...&#10;https://www.moma.org/artists/..." style="margin-bottom:12px;"></textarea>
+        <div style="margin-bottom:26px;"><button class="btn" onclick="Teacher.saveEditLinks()">Save links</button></div>
+      </div>
+      <label>Photographs</label>
+      <div class="thumbs" id="editThumbs" style="margin-bottom:16px;"></div>
+      <div class="drop" id="editDrop">Click or drag photographs here to add them</div>
+      <input type="file" id="editFile" accept="image/*" multiple class="hidden">
+      <div class="prog off" id="editBusy"><div class="ptrack"><div class="pfill" id="editFill"></div></div><div class="ptext" id="editText"></div></div>
+      <div style="margin-top:24px; padding-top:20px; border-top:1px solid var(--line);">
+        <button class="btn btn-danger btn-lg" onclick="Teacher.delPackFromEditor()">Delete this whole pack</button>
+      </div>
+      <div class="helper" id="editMsg"></div>
+    </div>
+  </section>
+
+  <!-- TEACHER: EDIT ARTIST PACK LINKS -->
+  <section id="tlinksedit" class="screen hidden">
+    <div class="topline">
+      <h2>Research links</h2>
+      <div class="actions"><button class="btn btn-ghost" onclick="Teacher.home()">Back</button></div>
+    </div>
+    <div class="panel">
+      <label>Pack: <span id="linksPackName" style="text-transform:none; letter-spacing:0; color:var(--bone); font-weight:700;"></span></label>
+      <textarea id="linksText" rows="8" placeholder="Tate: https://www.tate.org.uk/art/artists/...&#10;https://www.moma.org/artists/...&#10;Interview on YouTube: https://youtube.com/watch?v=..." style="margin-top:14px;"></textarea>
+      <p class="helper">One per line: a bare address, or a label then the address, e.g. "Tate profile: https://...". Lines without an address are ignored.</p>
+      <button class="btn btn-primary btn-lg" onclick="Teacher.saveLinks()">Save links</button>
+      <div class="helper" id="linksMsg"></div>
+    </div>
+  </section>
+
+  <!-- TEACHER PUNCTUM RESULTS -->
+  <section id="tresults" class="screen hidden">
+    <div class="topline">
+      <h2 id="trTitle"></h2>
+      <div class="actions">
+        <button class="btn" onclick="Teacher.openResults(App.curPack)">Refresh</button>
+        <button class="btn btn-ghost" onclick="Teacher.home()">Back</button>
+      </div>
+    </div>
+    <div class="band-head">
+      <h3>The culling ranking</h3>
+      <span class="count" id="trCullCount"></span>
+    </div>
+    <div style="margin-bottom:18px;"><button class="btn" id="trCullToggle" onclick="Teacher.toggleArtistCullView()">See each top five</button></div>
+    <div class="contact" id="trCullRanking"></div>
+    <div id="trCullIndividuals" class="hidden"></div>
+    <div class="comments-block">
+      <div class="band-head"><h3>Comments</h3><span class="count" id="trCommentCount"></span></div>
+      <p class="helper">Visible to every class. Click × to remove one.</p>
+      <div id="trCommentList"></div>
+    </div>
+  </section>
+
+  <!-- TEACHER CULLING RESULTS -->
+  <section id="tcresults" class="screen hidden">
+    <div class="topline">
+      <h2 id="tcrTitle"></h2>
+      <div class="actions">
+        <button class="btn" id="tcrToggle" onclick="Teacher.toggleCullView()">See each top five</button>
+        <button class="btn" onclick="Teacher.openCullResults(App.curPack)">Refresh</button>
+        <button class="btn btn-danger" onclick="Teacher.resetCulling(App.curPack)">Reset</button>
+        <button class="btn btn-ghost" onclick="Teacher.home()">Back</button>
+      </div>
+    </div>
+    <div class="band-head"><h3>The class ranking</h3><span class="count" id="tcrCount"></span></div>
+    <div class="contact" id="tcrRanking"></div>
+    <div id="tcrIndividuals" class="hidden"></div>
+    <div class="comments-block">
+      <div class="band-head"><h3>Comments</h3><span class="count" id="tcrCommentCount"></span></div>
+      <p class="helper">Visible to every class. Click × to remove one.</p>
+      <div id="tcrCommentList"></div>
+    </div>
+  </section>
+
+</div>
+
+<div id="lightbox" class="lightbox hidden" onclick="App.closeLightbox()"><div id="lightboxStar" class="fav-star lightbox-star hidden"></div><img id="lightboxImg" src="" alt=""></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// Fallback: if the primary CDN was blocked, pull the library from a second source before the app script runs.
+if(typeof supabase==='undefined'){
+  document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
+}
+</script>
+<script>
+/* ============================================================
+   CONFIG — paste your two Supabase values between the quotes.
+   Find them in Supabase: Project Settings → API.
+   SUPABASE_URL  = "Project URL"
+   SUPABASE_KEY  = "anon public" key (the long one labelled anon/public)
+   ============================================================ */
+const SUPABASE_URL = "https://xddjfwoppmuhyagkhalk.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGpmd29wcG11aHlhZ2toYWxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNDQ5MzMsImV4cCI6MjEwMTkyMDkzM30.uXmvMIZHbmjj_beQVm3KawhbvwtisAAFB6e-9-D9JBU";
+
+const STUDENT_PASSWORD = "1029";
+const TEACHER_PASSWORD = "Whio2243";
+/* ============================================================ */
+
+const $=id=>document.getElementById(id);
+const SECTIONS=['gate','levels','shome','choose','play','workshop','workshopEdit','discoverLevel','feedback','pdone','sresults','csetup','cull','cfinal','learnPunctum','learnCull','artistInfo','gallery','studentBreakdown','tgate','thome','tbuilder','troster','tresetstudent','tpackedit','tlinksedit','tprogress','tpunctumBrowse','tstudentPunctum','tsettings','tfeedback','tresults','tcresults'];
+function go(id){
+  SECTIONS.forEach(s=>$(s).classList.toggle('hidden',s!==id));
+  const mt=$('mastheadTitle');
+  const cullingScreens=['shome','sresults','tresults','tcresults','csetup','cull','cfinal','gallery','artistInfo','learnCull'];
+  mt && (mt.textContent = id==='levels' ? 'LEVELS' : (cullingScreens.includes(id) ? 'THE CULLING GAME' : 'PUNCTUM'));
+  updateMastheadReward();
+  window.scrollTo(0,0);
+}
+// the big reward moment: once every teacher pack is culled, the masthead title glows
+// and the tagline swaps to a congratulations line — but only while actually on the studio screen
+function updateMastheadReward(){
+  const mt=$('mastheadTitle'); const tag=$('mastheadTagline'); const home=$('shome');
+  const onShome = home && !home.classList.contains('hidden');
+  const show = onShome && !!App._level1FullyDone;
+  if(mt) mt.classList.toggle('pulse-title', show);
+  if(tag) tag.textContent = show
+    ? 'Congratulations \u2014 you\u2019ve finished culling. We are proud of you!'
+    : 'Learn to feel photographs and cull like an artist';
+}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+// safely save a roster for any class (or the special 'Teachers' list): upsert-then-remove-missing, never delete-first
+async function saveRosterSafely(cls,textareaId,countId){
+  const raw=$(textareaId).value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const seen=new Set(); const names=[]; const dupes=[];
+  raw.forEach(n=>{ const key=n.toLowerCase(); if(seen.has(key)){ dupes.push(n); } else { seen.add(key); names.push(n); } });
+  let failed=null;
+  await withBar(async()=>{
+    if(names.length){
+      const r=await sb.from('roster').upsert(names.map(name=>({name,class_name:cls})), {onConflict:'class_name,name'});
+      if(r.error){ failed='saving names: '+r.error.message; return; }
+    }
+    const {data:existing, error:exErr}=await sb.from('roster').select('name').eq('class_name',cls);
+    if(exErr){ failed='checking the current list: '+exErr.message; return; }
+    const keep=new Set(names);
+    const toRemove=(existing||[]).map(r=>r.name).filter(n=>!keep.has(n));
+    if(toRemove.length){
+      const r2=await sb.from('roster').delete().eq('class_name',cls).in('name',toRemove);
+      if(r2.error){ failed='removing old names: '+r2.error.message; return; }
+    }
+  });
+  if(failed){
+    alert('The list did not save properly — stopped while '+failed+'. Nothing already saved was lost. Tell your teacher this exact message, then try again.');
+    $(countId).textContent='Save failed — see the message that popped up.';
+    return;
+  }
+  let msg=names.length+' name'+(names.length!==1?'s':'')+' saved to '+cls+'.';
+  if(dupes.length) msg+=' ('+dupes.length+' duplicate line'+(dupes.length!==1?'s':'')+' ignored: '+dupes.join(', ')+')';
+  $(countId).textContent=msg;
+}
+// on hover, pulse a pack's cover through its own photos every second; revert on mouse leave
+function wireHoverCarousel(card,images){
+  if(!card || !images || images.length<2) return;
+  const img=card.querySelector('.cover img'); if(!img) return;
+  const original=img.getAttribute('src');
+  let timer=null, quick=null, last=-1;
+  const swap=()=>{
+    let idx=Math.floor(Math.random()*images.length);
+    if(idx===last) idx=(idx+1)%images.length;
+    last=idx;
+    img.src=images[idx];
+  };
+  card.addEventListener('mouseenter',()=>{
+    if(timer||quick) return;
+    quick=setTimeout(()=>{ swap(); quick=null; timer=setInterval(swap,1000); },180);
+  });
+  card.addEventListener('mouseleave',()=>{
+    if(quick){ clearTimeout(quick); quick=null; }
+    if(timer){ clearInterval(timer); timer=null; }
+    img.src=original;
+  });
+}
+// turn textarea lines into [{title,url}]. Accepts "Title: https://..." or a bare URL.
+function parseLinks(text){
+  const out=[];
+  (text||'').split('\n').forEach(line=>{
+    const m=line.match(/https?:\/\/[^\s]+/);
+    if(!m) return;
+    const url=m[0];
+    let title=line.slice(0,m.index).replace(/[:\-\s]+$/,'').trim();
+    if(!title){ try{ title=new URL(url).hostname.replace(/^www\./,''); }catch(e){ title=url; } }
+    out.push({title,url});
+  });
+  return out;
+}
+
+// shared tier system, used by both the teacher progress view and the student's own bars.
+// follows the darkroom process: an unshot roll, through shooting, developing, printing, to a finished exhibition print.
+function progressTier(pct){
+  if(pct>=100) return {name:'Exhibited',  color:'var(--gold)', max:true};
+  if(pct>=66)  return {name:'Printing',   color:'var(--safelight)'};
+  if(pct>=33)  return {name:'Developing', color:'#b9b9c2'};
+  if(pct>0)    return {name:'Shooting',   color:'#b08d57'};
+  return {name:'Blank Roll', color:'var(--bone)'};
+}
+
+const LB={el:null,timer:null,
+  start(){this.el=this.el||$('loadbar'); this.el.style.opacity='1'; this.el.style.width='12%'; let w=12;
+    clearInterval(this.timer); this.timer=setInterval(()=>{w=Math.min(w+Math.random()*10,88); this.el.style.width=w+'%';},160);},
+  done(){if(!this.el)return; clearInterval(this.timer); this.el.style.width='100%'; setTimeout(()=>{this.el.style.opacity='0'; setTimeout(()=>this.el.style.width='0',300);},180);}
+};
+async function withBar(fn){LB.start(); try{return await fn();} finally{LB.done();}}
+
+/* config check */
+const CONFIGURED = !SUPABASE_URL.includes("PASTE_") && !SUPABASE_KEY.includes("PASTE_");
+let sb=null;
+if(CONFIGURED){
+  if(typeof supabase!=='undefined' && supabase.createClient){
+    sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  } else {
+    // the supabase library failed to load (blocked, offline, or slow CDN)
+    document.addEventListener('DOMContentLoaded',()=>{
+      const w=$('configWarn'); if(w){ w.classList.remove('hidden');
+        w.innerHTML='<b>Could not load the database library.</b> This usually means the network blocked it or the connection dropped. Reload the page; if it keeps happening on school wifi, try again on another network.'; }
+    });
+  }
+}
+else {
+  document.addEventListener('DOMContentLoaded',()=>{
+    const w=$('configWarn'); if(w){ w.classList.remove('hidden');
+      w.innerHTML='<b>Not connected yet.</b> Paste your Supabase Project URL and anon public key into the CONFIG block, then reload.'; }
+  });
+}
+
+function resizeImage(file, maxEdge=1400, quality=0.84){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>{const img=new Image();
+      const timer=setTimeout(()=>reject(new Error('decode timeout')),12000);
+      img.onload=()=>{clearTimeout(timer);
+        try{let w=img.width,h=img.height;
+          if(!w||!h){reject(new Error('empty image'));return;}
+          if(Math.max(w,h)>maxEdge){const s=maxEdge/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s);}
+          const c=document.createElement('canvas'); c.width=w; c.height=h;
+          c.getContext('2d').drawImage(img,0,0,w,h);
+          c.toBlob(b=>b?resolve(b):reject(new Error('encode failed')),'image/jpeg',quality);
+        }catch(err){reject(err);}};
+      img.onerror=()=>{clearTimeout(timer); reject(new Error('could not decode image'));};
+      img.src=r.result;};
+    r.onerror=()=>reject(new Error('could not read file'));
+    r.readAsDataURL(file);
+  });
+}
+
+/* ============ shared helpers ============ */
+// Render a struck-tally grid (used by teacher + student punctum results)
+function renderStruckGrid(gridEl, imgs, struckBy){
+  const ranked=imgs.map(im=>({url:im.url,n:struckBy[im.id]||0})).sort((a,b)=>b.n-a.n);
+  gridEl.innerHTML='';
+  ranked.forEach((it,rank)=>{const card=document.createElement('div'); card.className='cell';
+    card.innerHTML='<div class="ci"><img src="'+it.url+'">'+(it.n&&rank<3?'<div class="rk">'+(rank+1)+'</div>':'')+'</div>'+
+      '<div class="meta"><span>'+(it.n?'struck':'untouched')+'</span><b>'+it.n+'</b></div>'; gridEl.appendChild(card);});
+}
+// Compute a class ranking for a culling pack: a photo scores 5 for a 1st place,
+// 4 for 2nd, down to 1 for 5th, summed across every student's top 5.
+function scoreCulling(imgs, cullRows){
+  const score={}, appear={};
+  (cullRows||[]).forEach(r=>{ (r.ranked||[]).slice(0,5).forEach((imgId,pos)=>{
+    score[imgId]=(score[imgId]||0)+(5-pos); appear[imgId]=(appear[imgId]||0)+1; }); });
+  return imgs.map(im=>({url:im.url, id:im.id, score:score[im.id]||0, appear:appear[im.id]||0}))
+             .sort((a,b)=>b.score-a.score);
+}
+function renderCullRanking(gridEl, ranked){
+  gridEl.innerHTML='';
+  ranked.forEach((it,rank)=>{const card=document.createElement('div'); card.className='cell';
+    card.innerHTML='<div class="ci"><img src="'+it.url+'">'+(it.score&&rank<3?'<div class="rk">'+(rank+1)+'</div>':'')+'</div>'+
+      '<div class="meta"><span>'+(it.appear?('in '+it.appear+' top fives'):'never chosen')+'</span><b>'+it.score+'</b></div>'; gridEl.appendChild(card);});
+}
+// Render each student's top-5 as labelled slots (used in both teacher results views)
+function renderIndividuals(box, imgs, culls){
+  const byId={}; (imgs||[]).forEach(im=>byId[im.id]=im.url);
+  box.innerHTML='';
+  if(!culls||!culls.length){ box.innerHTML='<p class="empty">No one has culled this pack yet.</p>'; return; }
+  culls.forEach(c=>{
+    const block=document.createElement('div'); block.className='person';
+    const slots=(c.ranked||[]).slice(0,5).map((imgId,i)=>
+      '<div class="slot" data-src="'+(byId[imgId]||'')+'"><span class="pn">'+(i+1)+'</span><img src="'+(byId[imgId]||'')+'"></div>').join('');
+    block.innerHTML='<h4>'+esc(c.student_name||'anonymous')+'</h4><div class="prow">'+slots+'</div>';
+    box.appendChild(block);
+  });
+  box.querySelectorAll('.slot').forEach(s=>s.onclick=()=>{const src=s.getAttribute('data-src'); if(src)App.openLightbox(src);});
+}
+
+const App={ student:null, curPack:null, klass:null, guest:false };
+
+// Learn pages — remember where we came from so Back returns there
+App.showLearn=function(which,from){ App._learnFrom=from||'shome'; go(which==='punctum'?'learnPunctum':'learnCull'); };
+
+/* ---- the 3-square gateway: cull all teacher picks to unlock Punctum ---- */
+App.editMyPack=function(id,name){
+  App._studentEditing=true;
+  return Teacher.editPack(id,name,'culling');
+};
+App.backFromPackEdit=function(){
+  if(App._studentEditing){ App._studentEditing=false; App.toStudentHome(); }
+  else { Teacher.home(); }
+};
+
+App.openFeedback=function(){
+  App.stopLevelCarousel();
+  $('feedbackText').value=''; $('feedbackMsg').textContent='';
+  go('feedback');
+};
+App.sendFeedback=function(){return withBar(async()=>{
+  const msg=$('feedbackText').value.trim();
+  if(!msg){ $('feedbackMsg').textContent='Write something first.'; return; }
+  const res=await sb.from('feedback').insert({student_name:App.guest?'Guest':App.student, class_name:App.klass, message:msg});
+  if(res.error){ $('feedbackMsg').textContent='Could not send: '+res.error.message; return; }
+  $('feedbackText').value='';
+  $('feedbackMsg').textContent='Thanks — sent to your teacher.';
+});};
+
+App.toLevels=function(){return withBar(async()=>{
+  go('levels');
+  const w=$('whoamiLevels'); if(w) w.textContent=App.student;
+  await App.loadGateway();
+  App.startLevelCarousel();
+});};
+App.enterLevel1=function(){ App.stopLevelCarousel(); App.toStudentHome(); };
+App.enterLevel3=function(){ App.openPhotoshopSlideshow(); };
+
+App.stopLevelCarousel=function(){
+  if(App._carouselTimers){ Object.values(App._carouselTimers).forEach(t=>clearInterval(t)); }
+  App._carouselTimers={};
+};
+App.startLevelCarousel=async function(){
+  App.stopLevelCarousel();
+  App._carouselTimers=App._carouselTimers||{};
+  const runSquare=(elId,pool)=>{
+    const el=$(elId); if(!el || !pool || !pool.length) return;
+    let last=-1;
+    const paint=()=>{
+      let idx=Math.floor(Math.random()*pool.length);
+      if(pool.length>1 && idx===last) idx=(idx+1)%pool.length;
+      last=idx;
+      el.style.backgroundImage='url("'+pool[idx]+'")';
+      el.classList.add('on');
+    };
+    paint();
+    App._carouselTimers[elId]=setInterval(paint,1000);
+  };
+
+  // level 1 always runs, mixed evenly across every artist pack — never student uploads
+  if(!App._carouselPool){
+    const {data:artistIdsData}=await sb.from('packs').select('id').neq('type','culling');
+    const artistIds=(artistIdsData||[]).map(p=>p.id);
+    let imgData=[];
+    if(artistIds.length){
+      const {data}=await sb.from('images').select('pack_id,url').in('pack_id',artistIds).limit(400);
+      imgData=data||[];
+    }
+    const byPackImg={};
+    imgData.forEach(im=>{ (byPackImg[im.pack_id]=byPackImg[im.pack_id]||[]).push(im.url); });
+    const groups=Object.values(byPackImg);
+    for(const g of groups){ for(let i=g.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [g[i],g[j]]=[g[j],g[i]]; } }
+    const mixed=[]; let round=0;
+    while(mixed.length<32){
+      let added=false;
+      for(const g of groups){ if(g[round]){ mixed.push(g[round]); added=true; if(mixed.length>=32) break; } }
+      if(!added) break;
+      round++;
+    }
+    App._carouselPool=mixed;
+  }
+  runSquare('bgCulling', App._carouselPool);
+  runSquare('bgDiscoverBtn', App._carouselPool);
+
+  // level 2: only once unlocked, and only images the student has actually punctum'd
+  if(App._punctumUnlocked && !App.guest){
+    const {data:picks}=await sb.from('punctum_picks').select('image_url').eq('student_name',App.student);
+    runSquare('bgPunctum', (picks||[]).map(p=>p.image_url));
+  }
+
+  // level 3: only once unlocked, screenshots the teacher has uploaded for the tutorial
+  if(App._photoshopUnlocked){
+    const {data:st}=await sb.from('settings').select('value').eq('key','photoshop_screenshots').maybeSingle();
+    let pool=[]; try{ pool=JSON.parse((st&&st.value)||'[]'); }catch(e){}
+    runSquare('bgPhotoshop', pool);
+  }
+};
+
+App.loadGateway=async function(){
+  const {data:artistPacks}=await sb.from('packs').select('id').neq('type','culling');
+  const total=(artistPacks||[]).length;
+  let done=0;
+  if(!App.guest && total){
+    const ids=(artistPacks||[]).map(p=>p.id);
+    let pq=sb.from('plays').select('pack_id,game').eq('student_name',App.student).in('pack_id',ids);
+    if(App.klass) pq=pq.eq('class_name',App.klass);
+    const {data:mine}=await pq;
+    done=new Set((mine||[]).map(r=>r.pack_id)).size;
+  }
+  const cp=$('gateCullProgress'); if(cp) cp.textContent=total? (done+' / '+total+' culled') : 'No teacher packs yet';
+  const REQUIRED=6;
+  const need=Math.min(REQUIRED,total);
+  const level2Unlocked=total>0 && done>=need;
+  App._punctumUnlocked=level2Unlocked;
+
+  // level 1 pulses from the start, stops once they've culled enough to unlock Punctum
+  const cullTile=$('gateCulling');
+  if(cullTile) cullTile.classList.toggle('pulse-unlock', !App.guest && !level2Unlocked);
+  const level1FullyDone=total>0 && done>=total;
+  App._level1FullyDone=level1FullyDone;
+  updateMastheadReward();
+  const cullDesc=cullTile? cullTile.querySelector('p') : null;
+  if(cullDesc){
+    cullDesc.textContent = level1FullyDone
+      ? 'Congratulations, you\u2019ve finished culling. We are proud of you! You can now enjoy culling your classmates\u2019 work.'
+      : 'Cull your teacher\u2019s picks and classmates\u2019 images down to your top five.';
+  }
+
+  const tile=$('gatePunctum');
+  if(tile) tile.classList.toggle('locked',!level2Unlocked);
+  const icon=$('punctumLockIcon'); if(icon) icon.classList.toggle('hidden',level2Unlocked);
+  const desc=$('punctumTileDesc');
+  if(desc) desc.textContent=level2Unlocked? 'Play Punctum with your own top picks.' : 'Locked until you have culled '+need+' teacher picks ('+done+'/'+need+').';
+
+  // has the student played Punctum at least once, and how many photos have they actually written about
+  let hasPlayed=false, writtenCount=0;
+  if(!App.guest){
+    let pq=sb.from('plays').select('id').eq('student_name',App.student).eq('game','punctumpool').limit(1);
+    if(App.klass) pq=pq.eq('class_name',App.klass);
+    const {data:pd}=await pq;
+    hasPlayed=!!(pd&&pd.length);
+    const {data:picks}=await sb.from('punctum_picks').select('note').eq('student_name',App.student);
+    writtenCount=(picks||[]).filter(p=>p.note && p.note.trim().length).length;
+  }
+  App._writtenCount=writtenCount;
+  // level 2 pulses once unlocked, until they've played it the first time
+  if(tile) tile.classList.toggle('pulse-unlock', level2Unlocked && !hasPlayed);
+  // "levels" nav button on the studio (level 1) page flags up that level 2 is ready
+  const shomeLevelsBtn=$('shomeLevelsBtn');
+  if(shomeLevelsBtn) shomeLevelsBtn.classList.toggle('pulse-unlock', level2Unlocked && !hasPlayed);
+
+  const NEED_WRITTEN=6;
+  const level3Unlocked=writtenCount>=NEED_WRITTEN;
+  App._photoshopUnlocked=level3Unlocked;
+  const pTile=$('gatePhotoshop');
+  if(pTile){ pTile.classList.toggle('locked',!level3Unlocked); pTile.classList.toggle('pulse-unlock',level3Unlocked); }
+  const pIcon=$('photoshopLockIcon'); if(pIcon) pIcon.classList.toggle('hidden',level3Unlocked);
+  const pDesc=$('photoshopTileDesc');
+  if(pDesc) pDesc.textContent=level3Unlocked? 'A tutorial on editing in Photoshop.' : 'Locked until you have written about '+NEED_WRITTEN+' photographs ('+writtenCount+'/'+NEED_WRITTEN+').';
+  // "levels" nav button inside the workshop flags up once level 3 is ready
+  const workshopLevelsBtn=$('workshopLevelsBtn');
+  if(workshopLevelsBtn) workshopLevelsBtn.classList.toggle('pulse-unlock', level3Unlocked);
+};
+
+App.enterPooledPunctum=function(){
+  if(App.guest){ alert('Sign in to play Punctum with your picks.'); return; }
+  if(!App._punctumUnlocked){ alert('Cull 6 teacher packs first — check the Culling Game tile for your progress.'); return; }
+  App.stopLevelCarousel();
+  return withBar(async()=>{
+    const {data:existing}=await sb.from('punctum_picks').select('id').eq('student_name',App.student).limit(1);
+    if(existing && existing.length){ App.openWorkshop(); } else { App.startPunctumRound(); }
+  });
+};
+
+App.startPunctumRound=function(){return withBar(async()=>{
+  const {data:artistPacks}=await sb.from('packs').select('id,name').neq('type','culling');
+  const ids=(artistPacks||[]).map(p=>p.id);
+  const nameById={}; (artistPacks||[]).forEach(p=>nameById[p.id]=p.name);
+  const {data:cullings}=await sb.from('cullings').select('pack_id,ranked').eq('student_name',App.student).in('pack_id',ids);
+  const imageIds=[]; const packNameByImage={};
+  (cullings||[]).forEach(c=>(c.ranked||[]).forEach(id=>{ imageIds.push(id); packNameByImage[id]=nameById[c.pack_id]; }));
+  if(!imageIds.length){ alert('Cull at least one pack first.'); App.toLevels(); return; }
+  const {data:already}=await sb.from('punctum_picks').select('image_url').eq('student_name',App.student);
+  const pickedUrls=new Set((already||[]).map(r=>r.image_url));
+  const {data:imgs}=await sb.from('images').select('id,url').in('id',imageIds);
+  const byId={}; (imgs||[]).forEach(im=>byId[im.id]=im.url);
+  let queue=imageIds.map(id=>({id,url:byId[id],packName:packNameByImage[id]})).filter(x=>x.url && !pickedUrls.has(x.url));
+  if(!queue.length){
+    alert('You have already reflected on everything you have culled so far — cull more packs to unlock new photos.');
+    if(pickedUrls.size){ App.openWorkshop(); } else { App.toLevels(); }
+    return;
+  }
+  for(let i=queue.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [queue[i],queue[j]]=[queue[j],queue[i]]; }
+  PoolPunctum.start(queue);
+});};
+
+const PoolPunctum={
+  queue:[], pos:0, struck:[],
+  start(queue){
+    this.queue=queue; this.pos=0; this.struck=[];
+    $('playTitle').textContent='Punctum — your picks';
+    go('play'); this.render();
+    $('btnStruck').onclick=()=>this.respond(true);
+    $('btnNothing').onclick=()=>this.respond(false);
+  },
+  render(){
+    const it=this.queue[this.pos];
+    $('playProgress').textContent=(this.pos+1)+' of '+this.queue.length;
+    const img=$('playImg'); img.classList.remove('in'); img.dataset.retried='';
+    img.onload=()=>img.classList.add('in');
+    img.onerror=()=>{ if(!img.dataset.retried){ img.dataset.retried='1'; setTimeout(()=>{ img.src=it.url+(it.url.includes('?')?'&':'?')+'r='+Date.now(); },400); } };
+    img.src=it.url;
+    const next=this.queue[this.pos+1];
+    if(next && !next._preloaded){ next._preloaded=true; const pre=new Image(); pre.src=next.url; }
+  },
+  respond(struck){
+    const it=this.queue[this.pos];
+    if(struck) this.struck.push(it);
+    this.pos++;
+    if(this.pos>=this.queue.length){ this.finish(); return; }
+    this.render();
+  },
+  async finish(){
+    if(!App.guest){
+      if(this.struck.length){
+        const rows=this.struck.map(x=>({student_name:App.student,class_name:App.klass,image_url:x.url,pack_name:x.packName||''}));
+        try{ await sb.from('punctum_picks').upsert(rows,{onConflict:'student_name,image_url',ignoreDuplicates:true}); }catch(e){console.error(e);}
+      }
+      try{ await sb.from('plays').insert({student_name:App.student,class_name:App.klass,pack_id:null,pack_name:'Punctum — your picks',game:'punctumpool',detail:{struck:this.struck.map(x=>x.url)}}); }catch(e){}
+    }
+    App.openWorkshop();
+  }
+};
+
+const KEYWORDS=['a gesture','the light','a texture','an absence','the gaze','stillness','tension','vulnerability','a private detail','distance','closeness','what is just out of frame','scale','the ordinary made strange','a memory it triggers','the body','movement caught','a gap in time'];
+
+App.openWorkshop=function(){return withBar(async()=>{
+  go('workshop'); await Workshop.load(); await App.loadGateway();
+  const btn=$('workshopStudentPunctumBtn'); if(btn) btn.classList.toggle('hidden', !App.isTeacherLogin);
+  const btn2=$('workshopStudentProgressBtn'); if(btn2) btn2.classList.toggle('hidden', !App.isTeacherLogin);
+});};
+
+App.gotoStudentPunctumsTab=function(){
+  App.stopLevelCarousel();
+  return withBar(async()=>{ await App.toStudentHome(); App.switchTab('studentPunctum'); });
+};
+
+App.gotoStudentProgressTab=function(){
+  App.stopLevelCarousel();
+  return withBar(async()=>{ await App.toStudentHome(); App.switchTab('studentProgress'); });
+};
+
+const Workshop={
+  picks:[], current:null,
+  async load(){
+    const {data}=await sb.from('punctum_picks').select('*').eq('student_name',App.student).order('created_at',{ascending:false});
+    this.picks=data||[];
+    const grid=$('workshopGrid'); grid.innerHTML='';
+    $('workshopEmpty').classList.toggle('hidden', this.picks.length>0);
+    this.picks.forEach(p=>{
+      const c=document.createElement('div'); c.className='wcell'+(p.note?' written':'');
+      c.innerHTML='<img src="'+p.image_url+'"><div class="wtag">'+(p.note?'Written':'Write')+'</div>';
+      c.onclick=()=>this.openEditor(p);
+      grid.appendChild(c);
+    });
+    const written=this.picks.filter(p=>p.note && p.note.trim().length).length;
+    const need=6; const pct=Math.min(100, Math.round(written/need*100));
+    const tier=progressTier(pct);
+    $('wsWrittenLabel').textContent=Math.min(written,need)+' / '+need;
+    $('wsWrittenFill').style.width=pct+'%'; $('wsWrittenFill').style.background=tier.color;
+    $('wsWrittenTier').textContent=tier.name; $('wsWrittenTier').style.setProperty('--tc',tier.color); $('wsWrittenTier').classList.toggle('pulse',written>=need);
+  },
+  openEditor(p){
+    this.current=p;
+    const img=$('wsEditImg');
+    img.classList.remove('in'); img.dataset.retried='';
+    img.onload=()=>img.classList.add('in');
+    img.onerror=()=>{ if(!img.dataset.retried){ img.dataset.retried='1'; setTimeout(()=>{ img.src=p.image_url+(p.image_url.includes('?')?'&':'?')+'r='+Date.now(); },400); } };
+    img.src=p.image_url;
+    $('wsNote').value=p.note||''; $('wsPrompt3').value=p.prompt3||''; $('wsPrompt4').value=p.prompt4||'';
+    $('wsMsg').textContent='';
+    $('keywordRow').innerHTML=KEYWORDS.map(k=>'<span class="kw-chip" data-k="'+esc(k)+'">'+esc(k)+'</span>').join('');
+    $('keywordRow').querySelectorAll('.kw-chip').forEach(el=>el.onclick=()=>{
+      const t=$('wsNote'); t.value=(t.value?t.value+' ':'')+el.getAttribute('data-k'); t.focus();
+    });
+    go('workshopEdit');
+  },
+  backToGrid(){ App.openWorkshop(); },
+  async save(){
+    const p=this.current; if(!p) return;
+    const note=$('wsNote').value.trim(), prompt3=$('wsPrompt3').value.trim(), prompt4=$('wsPrompt4').value.trim();
+    let saveErr=null;
+    await withBar(async()=>{
+      const res=await sb.from('punctum_picks').update({note,prompt3,prompt4}).eq('id',p.id);
+      if(res.error) saveErr=res.error.message;
+    });
+    if(saveErr){ $('wsMsg').textContent='Could not save: '+saveErr; alert('Could not save: '+saveErr+'\n\nTell your teacher this exact message.'); return; }
+    this.backToGrid();
+  }
+};
+App.backFromLearn=function(){ go(App._learnFrom==='gate'?'gate':(App._learnFrom==='workshop'?'workshop':'shome')); };
+
+// artist research links page
+App.showArtistInfo=function(name,links,from){
+  App._infoFrom=from||'shome';
+  $('infoTitle').textContent=name;
+  const box=$('infoLinks'); box.innerHTML='';
+  const list=Array.isArray(links)?links:[];
+  $('infoEmpty').classList.toggle('hidden',list.length>0);
+  list.forEach(l=>{
+    let host=''; try{ host=new URL(l.url).hostname.replace(/^www\./,''); }catch(e){ host=''; }
+    const a=document.createElement('a');
+    a.href=l.url; a.target='_blank'; a.rel='noopener noreferrer';
+    a.innerHTML='<span><span style="display:block;">'+esc(l.title||host||l.url)+'</span>'+(host?'<span class="host">'+esc(host)+'</span>':'')+'</span><span class="arrow">&#8599;</span>';
+    box.appendChild(a);
+  });
+  go('artistInfo');
+};
+App.backFromInfo=function(){ go(App._infoFrom||'shome'); };
+
+// large gallery view of a student pack's photos
+App.showGallery=function(id,name,links){return withBar(async()=>{
+  await App.ensureFavSet();
+  go('gallery'); $('galleryTitle').textContent=name;
+  const infoBtn=$('galleryInfoBtn');
+  if(Array.isArray(links)&&links.length){
+    infoBtn.classList.remove('hidden');
+    infoBtn.onclick=()=>App.showArtistInfo(name,links,'gallery');
+  } else {
+    infoBtn.classList.add('hidden'); infoBtn.onclick=null;
+  }
+  const {data:imgs}=await sb.from('images').select('url,position').eq('pack_id',id).order('position');
+  const grid=$('galleryGrid'); grid.innerHTML='';
+  (imgs||[]).forEach(im=>{
+    const c=document.createElement('div'); c.className='gcell';
+    c.innerHTML='<img src="'+im.url+'">'+App.starHtml(im.url);
+    c.onclick=()=>App.openLightbox(im.url,name);
+    c.querySelector('.fav-star').onclick=(e)=>{ e.stopPropagation(); App.toggleFavorite(im.url,name,c.querySelector('.fav-star')); };
+    grid.appendChild(c);
+  });
+  if(!imgs||!imgs.length) grid.innerHTML='<p class="empty" style="grid-column:1/-1;">This pack has no photographs yet.</p>';
+});};
+App.switchTab=function(which){
+  App._lastTab=which;
+  ['artist','student','studentPunctum','studentProgress','mine'].forEach(t=>{
+    $('tab'+t.charAt(0).toUpperCase()+t.slice(1)).classList.toggle('is-active',t===which);
+    $('panel'+t.charAt(0).toUpperCase()+t.slice(1)).classList.toggle('hidden',t!==which);
+  });
+  if(which==='mine'){ App.loadMyGames(); App.loadFavorites(); App.loadProfileProgress(); }
+  if(which==='studentPunctum'){ App.loadStudentPunctumList(); }
+  if(which==='studentProgress'){ App.loadStudioProgress(); }
+};
+
+App.loadStudentPunctumList=function(){return withBar(async()=>{
+  const {data}=await sb.from('punctum_picks').select('student_name,class_name,image_url,note').order('student_name');
+  const byStudent={};
+  (data||[]).forEach(p=>{
+    const s=byStudent[p.student_name]=byStudent[p.student_name]||{class_name:p.class_name,written:[]};
+    if(p.note && p.note.trim().length) s.written.push(p.image_url);
+  });
+  App._spByStudent=byStudent;
+  App._spFilter='all';
+  const classesPresent=[...new Set(Object.values(byStudent).map(s=>s.class_name).filter(Boolean))].sort();
+  const tabsBox=$('studentPunctumTabs');
+  const items=[{key:'all',label:'All classes'}, ...classesPresent.map(c=>({key:c,label:c}))];
+  tabsBox.innerHTML=items.map(it=>'<button class="tab'+(it.key==='all'?' is-active':'')+'" data-c="'+esc(it.key)+'">'+esc(it.label)+'</button>').join('');
+  tabsBox.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
+    App._spFilter=btn.getAttribute('data-c');
+    tabsBox.querySelectorAll('button').forEach(b=>b.classList.toggle('is-active',b===btn));
+    App.renderStudentPunctumRows();
+  });
+  App.renderStudentPunctumRows();
+});};
+
+App.renderStudentPunctumRows=function(){
+  const byStudent=App._spByStudent||{};
+  const names=Object.keys(byStudent).filter(n=> App._spFilter==='all' || byStudent[n].class_name===App._spFilter).sort();
+  const box=$('studentPunctumList'); box.innerHTML='';
+  $('studentPunctumEmpty').classList.toggle('hidden',names.length>0);
+  names.forEach(name=>{
+    const s=byStudent[name];
+    const thumbs=s.written.slice(0,4).map(u=>'<img src="'+u+'">').join('');
+    const row=document.createElement('div'); row.className='fb-row punctum-name-row'; row.style.cursor='pointer';
+    row.innerHTML='<div class="fb-head"><span class="fb-who">'+esc(name)+(s.class_name?' · '+esc(s.class_name):'')+'</span><span class="fb-when">'+s.written.length+' written &#8594;</span></div>'+
+      (thumbs? '<div class="pn-thumbs">'+thumbs+'</div>' : '');
+    row.onclick=()=>App.viewStudentPunctumFromStudio(name);
+    box.appendChild(row);
+  });
+};
+
+App.loadStudioProgress=function(){return withBar(async()=>{
+  const {data:cls}=await sb.from('classes').select('name').order('name');
+  const names=(cls||[]).map(c=>c.name).filter(n=>n!=='Teachers');
+  const tabsBox=$('studioProgressTabs');
+  if(!names.length){
+    tabsBox.innerHTML='';
+    $('studioProgressEmpty').classList.remove('hidden'); $('studioProgressEmpty').textContent='Create a class first, in Class list.';
+    $('studioProgressList').innerHTML='';
+    return;
+  }
+  if(!App._spgClass || !names.includes(App._spgClass)) App._spgClass=names[0];
+  tabsBox.innerHTML=names.map(n=>'<button class="tab'+(n===App._spgClass?' is-active':'')+'" data-c="'+esc(n)+'">'+esc(n)+'</button>').join('');
+  tabsBox.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
+    App._spgClass=btn.getAttribute('data-c');
+    tabsBox.querySelectorAll('button').forEach(b=>b.classList.toggle('is-active',b===btn));
+    App.renderStudioProgressRows();
+  });
+  await App.renderStudioProgressRows();
+});};
+
+App.renderStudioProgressRows=function(){return withBar(async()=>{
+  const cls=App._spgClass;
+  const box=$('studioProgressList'); box.innerHTML='';
+  if(!cls) return;
+  const {data:roster}=await sb.from('roster').select('name').eq('class_name',cls).order('name');
+  const students=(roster||[]).map(r=>r.name);
+  $('studioProgressEmpty').classList.toggle('hidden',students.length>0);
+  $('studioProgressEmpty').textContent='No students in this class yet.';
+  if(!students.length) return;
+  const {data:artistPacks}=await sb.from('packs').select('id').neq('type','culling');
+  const {data:studentPacks}=await sb.from('packs').select('id,owner_name').eq('type','culling').eq('class_name',cls);
+  const uploaders=new Set((studentPacks||[]).map(p=>p.owner_name).filter(Boolean));
+  const totalPacks=(artistPacks||[]).length+(studentPacks||[]).length;
+  const {data:plays}=await sb.from('plays').select('student_name,pack_id,game').eq('class_name',cls);
+  const byStudent={};
+  (plays||[]).forEach(pl=>{
+    const m=byStudent[pl.student_name]=byStudent[pl.student_name]||{};
+    (m[pl.pack_id]=m[pl.pack_id]||{})[pl.game]=true;
+  });
+  const {data:picks}=await sb.from('punctum_picks').select('student_name,note').eq('class_name',cls);
+  const writtenByStudent={};
+  (picks||[]).forEach(p=>{ if(p.note && p.note.trim().length) writtenByStudent[p.student_name]=(writtenByStudent[p.student_name]||0)+1; });
+  const rows=students.map(name=>{
+    const m=byStudent[name]||{};
+    const artistDone=(artistPacks||[]).filter(p=>m[p.id]&&(m[p.id].culling||m[p.id].punctum)).length;
+    const studentDone=(studentPacks||[]).filter(p=>m[p.id]&&m[p.id].culling).length;
+    const completed=artistDone+studentDone;
+    const pct=totalPacks? Math.round(completed/totalPacks*100) : 0;
+    return {name, completed, pct, uploaded:uploaders.has(name),
+      artistDone, artistTotal:(artistPacks||[]).length, studentDone, studentTotal:(studentPacks||[]).length,
+      written:writtenByStudent[name]||0};
+  });
+  rows.sort((a,b)=> b.pct-a.pct || b.completed-a.completed || a.name.localeCompare(b.name));
+  rows.forEach(r=>{
+    const tier=progressTier(r.pct);
+    const aPct=r.artistTotal? Math.round(r.artistDone/r.artistTotal*100):0;
+    const sPct=r.studentTotal? Math.round(r.studentDone/r.studentTotal*100):0;
+    const wNeed=6; const wPct=Math.min(100, Math.round(r.written/wNeed*100)); const wTier=progressTier(wPct);
+    const row=document.createElement('div'); row.className='progress-row'+(tier.max?' tier-max':''); row.style.cursor='pointer';
+    row.title='Click to see '+r.name+"'s Punctum images";
+    row.onclick=()=>{
+      App._punctumBackFn=async()=>{ await App.toStudentHome(); App.switchTab('studentProgress'); };
+      Teacher.viewStudentPunctum(r.name);
+    };
+    const tick=r.uploaded? '<span class="uploaded-tick" title="Uploaded their own pack">&#10003; uploaded</span>' : '<span class="uploaded-tick off" title="Has not uploaded a pack yet">&#9675; no upload</span>';
+    row.innerHTML='<div class="prname">'+esc(r.name)+tick+'</div>'+
+      '<div class="prow-bars">'+
+        '<div class="prow-bar-item"><span class="prow-bar-label">Artist packs '+r.artistDone+'/'+r.artistTotal+'</span><div class="pbar-track"><div class="pbar-fill" style="width:'+aPct+'%; background:'+progressTier(aPct).color+'"></div></div></div>'+
+        '<div class="prow-bar-item"><span class="prow-bar-label">Student packs '+r.studentDone+'/'+r.studentTotal+'</span><div class="pbar-track"><div class="pbar-fill" style="width:'+sPct+'%; background:'+progressTier(sPct).color+'"></div></div></div>'+
+        '<div class="prow-bar-item"><span class="prow-bar-label">Punctum write-ups '+Math.min(r.written,wNeed)+'/'+wNeed+'</span><div class="pbar-track"><div class="pbar-fill" style="width:'+wPct+'%; background:'+wTier.color+'"></div></div></div>'+
+      '</div>'+
+      '<div class="prfrac">'+r.completed+' / '+totalPacks+'</div>'+
+      '<span class="tier-pill'+(tier.max?' pulse':'')+'" style="--tc:'+tier.color+'">'+tier.name+'</span>';
+    box.appendChild(row);
+  });
+});};
+
+App.openStudentBreakdown=function(packId,packName,ownerName){return withBar(async()=>{
+  App.stopLevelCarousel();
+  go('studentBreakdown');
+  $('sbTitle').textContent=ownerName+' \u2014 '+packName;
+
+  const {data:pack}=await sb.from('packs').select('class_name').eq('id',packId).single();
+  const cls=pack&&pack.class_name;
+
+  // --- progress bars for this student ---
+  const {data:artistPacks}=await sb.from('packs').select('id').neq('type','culling');
+  const {data:studentPacks}=cls? await sb.from('packs').select('id').eq('type','culling').eq('class_name',cls) : {data:[]};
+  let pq=sb.from('plays').select('pack_id,game').eq('student_name',ownerName);
+  if(cls) pq=pq.eq('class_name',cls);
+  const {data:plays}=await pq;
+  const m={}; (plays||[]).forEach(pl=>{ (m[pl.pack_id]=m[pl.pack_id]||{})[pl.game]=true; });
+  const artistDone=(artistPacks||[]).filter(p=>m[p.id]&&(m[p.id].culling||m[p.id].punctum)).length;
+  const studentDone=(studentPacks||[]).filter(p=>m[p.id]&&m[p.id].culling).length;
+  const {data:allPicks}=await sb.from('punctum_picks').select('image_url,note,prompt2,prompt3,prompt4,created_at').eq('student_name',ownerName).order('created_at',{ascending:false});
+  const written=(allPicks||[]).filter(p=>p.note && p.note.trim().length);
+
+  const fillBar=(prefix,done,total)=>{
+    const pct=total? Math.round(done/total*100):0; const tier=progressTier(pct);
+    $('sb'+prefix+'Label').textContent=done+' / '+total;
+    $('sb'+prefix+'Fill').style.width=pct+'%'; $('sb'+prefix+'Fill').style.background=tier.color;
+    $('sb'+prefix+'Tier').textContent=tier.name; $('sb'+prefix+'Tier').style.setProperty('--tc',tier.color); $('sb'+prefix+'Tier').classList.toggle('pulse',!!tier.max);
+  };
+  fillBar('Artist',artistDone,(artistPacks||[]).length);
+  fillBar('Student',studentDone,(studentPacks||[]).length);
+  const wNeed=6; fillBar('Punctum',Math.min(written.length,wNeed),wNeed);
+
+  // --- punctum write-ups (written ones only) ---
+  $('sbPunctumCount').textContent=written.length+' written';
+  const pbox=$('sbPunctumGrid'); pbox.innerHTML='';
+  $('sbPunctumEmpty').classList.toggle('hidden',written.length>0);
+  written.forEach(p=>{
+    const card=document.createElement('div'); card.className='tsp-card';
+    const p2=p.prompt2? '<div class="tsp-prompt"><b>Detail:</b> '+esc(p.prompt2)+'</div>' : '';
+    const p3=p.prompt3? '<div class="tsp-prompt"><b>Reminds them of:</b> '+esc(p.prompt3)+'</div>' : '';
+    const p4=p.prompt4? '<div class="tsp-prompt"><b>Re-shoot:</b> '+esc(p.prompt4)+'</div>' : '';
+    card.innerHTML='<div class="tsp-img"><img src="'+p.image_url+'"></div><div class="tsp-body"><div class="tsp-note">\u201c'+esc(p.note)+'\u201d</div>'+p2+p3+p4+'</div>';
+    card.querySelector('img').onclick=()=>App.openLightbox(p.image_url);
+    pbox.appendChild(card);
+  });
+
+  // --- gallery of every photo in this pack ---
+  const {data:imgs}=await sb.from('images').select('id,url,position').eq('pack_id',packId).order('position');
+  const gbox=$('sbGallery'); gbox.innerHTML='';
+  (imgs||[]).forEach(im=>{
+    const c=document.createElement('div'); c.className='gcell';
+    c.innerHTML='<img src="'+im.url+'">';
+    c.onclick=()=>App.openLightbox(im.url);
+    gbox.appendChild(c);
+  });
+  if(!imgs||!imgs.length) gbox.innerHTML='<p class="empty" style="grid-column:1/-1;">This pack has no photographs yet.</p>';
+
+  // --- culling ranking for this pack ---
+  const {data:culls}=await sb.from('cullings').select('student_name,ranked').eq('pack_id',packId);
+  $('sbCullCount').textContent=(culls||[]).length+' student'+((culls||[]).length!==1?'s':'')+' culled this pack';
+  renderCullRanking($('sbCullRanking'), scoreCulling(imgs||[], culls));
+});};
+
+App.viewStudentPunctumFromStudio=function(name){
+  App._punctumBackFn=async()=>{ await App.toStudentHome(); App.switchTab('studentPunctum'); };
+  return Teacher.viewStudentPunctum(name);
+};
+App.backFromStudentPunctum=function(){
+  const fn=App._punctumBackFn; App._punctumBackFn=null;
+  if(fn) return fn();
+  return Teacher.home();
+};
+
+App.enterLevel4=function(){App.stopLevelCarousel(); return withBar(async()=>{ go('discoverLevel'); await App.loadDiscover(); });};
+
+App.loadProfileProgress=function(){return withBar(async()=>{
+  if(App.guest) return;
+  const {data:packs}=await sb.from('packs').select('id,name,type,owner_name,class_name').order('created_at',{ascending:false});
+  const {data:allImgs}=await sb.from('images').select('pack_id,url');
+  const byPack={}; (allImgs||[]).forEach(im=>{ (byPack[im.pack_id]=byPack[im.pack_id]||[]).push(im.url); });
+  const artist=(packs||[]).filter(p=>p.type!=='culling');
+  const student=(packs||[]).filter(p=>p.type==='culling' && (App.isTeacherLogin || (p.class_name && p.class_name===App.klass)));
+  let pq=sb.from('plays').select('pack_id,game').eq('student_name',App.student);
+  if(App.klass) pq=pq.eq('class_name',App.klass);
+  const {data:myPlays}=await pq;
+  const done={}; (myPlays||[]).forEach(pl=>{ (done[pl.pack_id]=done[pl.pack_id]||{})[pl.game]=true; });
+  const artistDoneList=artist.filter(p=>{const d=done[p.id]; return d&&(d.culling||d.punctum);});
+  const studentDoneList=student.filter(p=>{const d=done[p.id]; return d&&d.culling;});
+  const fill=(prefix,doneList,total)=>{
+    const pct=total? Math.round(doneList.length/total*100):0;
+    const tier=progressTier(pct);
+    $('prof'+prefix+'Label').textContent=doneList.length+' / '+total;
+    $('prof'+prefix+'Fill').style.width=pct+'%'; $('prof'+prefix+'Fill').style.background=tier.color;
+    $('prof'+prefix+'Tier').textContent=tier.name; $('prof'+prefix+'Tier').style.setProperty('--tc',tier.color); $('prof'+prefix+'Tier').classList.toggle('pulse',!!tier.max);
+    const box=$('prof'+prefix+'Thumbs'); box.innerHTML='';
+    doneList.forEach(p=>{
+      const u=(byPack[p.id]||[])[0];
+      if(!u) return;
+      const t=document.createElement('div'); t.className='mthumb'; t.title=p.name;
+      t.innerHTML='<img src="'+u+'">';
+      box.appendChild(t);
+    });
+  };
+  fill('Artist',artistDoneList,artist.length);
+  fill('Student',studentDoneList,student.length);
+  const uploaded=student.some(p=>p.owner_name===App.student);
+  $('profileUploadPrompt').classList.toggle('hidden',uploaded);
+});};
+
+App.loadFavorites=function(){return withBar(async()=>{
+  await App.ensureFavSet();
+  const box=$('favGrid'); box.innerHTML='';
+  if(App.guest){ $('favEmpty').classList.remove('hidden'); $('favEmpty').textContent='Sign in to save favourites.'; $('favCount').textContent=''; return; }
+  const {data}=await sb.from('favorites').select('image_url,pack_name').eq('student_name',App.student).order('created_at',{ascending:false});
+  const favs=data||[];
+  $('favEmpty').classList.toggle('hidden',favs.length>0);
+  $('favCount').textContent=favs.length? (favs.length+' saved') : '';
+  favs.forEach(f=>{
+    const c=document.createElement('div'); c.className='gcell';
+    c.innerHTML='<img src="'+f.image_url+'">'+App.starHtml(f.image_url);
+    c.onclick=()=>App.openLightbox(f.image_url,f.pack_name);
+    c.querySelector('.fav-star').onclick=(e)=>{ e.stopPropagation(); App.toggleFavorite(f.image_url,f.pack_name,c.querySelector('.fav-star')); c.remove(); $('favCount').textContent=($('favGrid').children.length)+' saved'; };
+    box.appendChild(c);
+  });
+});};
+
+App.toggleDiscoverFullscreen=function(){
+  const wrap=$('discoverFeedWrap');
+  const on=wrap.classList.toggle('is-fullscreen');
+  if(on){
+    if(document.documentElement.requestFullscreen){ document.documentElement.requestFullscreen().catch(()=>{}); }
+  } else {
+    if(document.fullscreenElement && document.exitFullscreen){ document.exitFullscreen().catch(()=>{}); }
+  }
+  const btn=$('discoverFsBtn'); if(btn) btn.textContent = on? 'Exit fullscreen' : 'Fullscreen \u2921';
+};
+document.addEventListener('fullscreenchange',()=>{
+  if(!document.fullscreenElement){ const wrap=$('discoverFeedWrap'); if(wrap) wrap.classList.remove('is-fullscreen'); const btn=$('discoverFsBtn'); if(btn) btn.textContent='Fullscreen \u2921'; }
+});
+
+App.loadDiscover=function(){return withBar(async()=>{
+  await App.ensureFavSet();
+  const box=$('discoverFeed'); box.innerHTML='';
+  const {data:packs}=await sb.from('packs').select('id,name,links').neq('type','culling');
+  const {data:imgs}=await sb.from('images').select('pack_id,url');
+  const byPack={}; (packs||[]).forEach(p=>byPack[p.id]=p);
+  let feed=(imgs||[]).filter(im=>byPack[im.pack_id]).map(im=>({url:im.url, pack:byPack[im.pack_id]}));
+  for(let i=feed.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [feed[i],feed[j]]=[feed[j],feed[i]]; }
+  $('discoverEmpty').classList.toggle('hidden',feed.length>0);
+  feed.forEach(item=>{
+    const card=document.createElement('div'); card.className='discover-card';
+    const links=Array.isArray(item.pack.links)?item.pack.links:[];
+    const btn=links.length? '<button class="dbtn" data-name="'+esc(item.pack.name)+'">Learn about</button>' : '';
+    card.innerHTML='<img src="'+item.url+'" loading="lazy">'+App.starHtml(item.url)+'<div class="dcap"><span class="dname">'+esc(item.pack.name)+'</span>'+btn+'</div>';
+    if(links.length) card.querySelector('.dbtn').onclick=()=>App.showArtistInfo(item.pack.name,links,'shome');
+    box.appendChild(card);
+  });
+  box.querySelectorAll('.fav-star').forEach((el,i)=>{ el.onclick=(e)=>{ e.stopPropagation(); const url=feed[i].url; App.toggleFavorite(url, feed[i].pack.name, el); }; });
+});};
+
+App.openPhotoshopSlideshow=function(){
+  if(!App._photoshopUnlocked){ alert('Play Punctum with your picks first to unlock this.'); return; }
+  // clicking opens a new tab and doesn't navigate away, so freeze this tile's carousel here
+  if(App._carouselTimers && App._carouselTimers['bgPhotoshop']){ clearInterval(App._carouselTimers['bgPhotoshop']); delete App._carouselTimers['bgPhotoshop']; }
+  const bg=$('bgPhotoshop'); if(bg) bg.classList.remove('on');
+  return withBar(async()=>{
+  const {data}=await sb.from('settings').select('value').eq('key','photoshop_url').maybeSingle();
+  const url=data&&data.value;
+  if(url) window.open(url,'_blank','noopener,noreferrer');
+  else alert('Your teacher has not added the slideshow yet.');
+});};
+
+App.loadMyGames=function(){return withBar(async()=>{
+  const box=$('mineList'); box.innerHTML='';
+  if(!CONFIGURED){ $('mineEmpty').classList.remove('hidden'); return; }
+  let q=sb.from('plays').select('pack_id,pack_name,game,detail,created_at').eq('student_name',App.student);
+  if(App.klass) q=q.eq('class_name',App.klass);
+  const {data:plays}=await q.order('created_at',{ascending:false});
+  $('mineEmpty').classList.toggle('hidden',(plays||[]).length>0);
+  if(!plays||!plays.length) return;
+  // gather image urls for all packs referenced, so we can show thumbnails
+  const packIds=[...new Set(plays.map(p=>p.pack_id).filter(Boolean))];
+  const urlById={};
+  if(packIds.length){
+    const {data:imgs}=await sb.from('images').select('id,url').in('pack_id',packIds);
+    (imgs||[]).forEach(im=>urlById[im.id]=im.url);
+  }
+  plays.forEach(p=>{
+    const when=new Date(p.created_at).toLocaleDateString(undefined,{day:'numeric',month:'short'});
+    const isCull=p.game==='culling';
+    const ids=isCull? (p.detail&&p.detail.ranked||[]) : (p.detail&&p.detail.struck||[]);
+    const label=isCull? 'The Culling Game' : 'Punctum';
+    const summary=isCull
+      ? 'Your top five'
+      : (ids.length? (ids.length+' photograph'+(ids.length!==1?'s':'')+' struck you') : 'Nothing struck you this time');
+    const slots=ids.slice(0,isCull?5:12).map((id,i)=>{
+      const u=urlById[id]; if(!u) return '';
+      const num=isCull? '<span class="pn">'+(i+1)+'</span>' : '';
+      return '<div class="slot" data-src="'+u+'">'+num+'<img src="'+u+'"></div>';
+    }).join('');
+    const card=document.createElement('div'); card.className='play-card';
+    card.innerHTML='<div class="play-top"><div><span class="play-game">'+label+'</span>'+
+      '<span class="play-pack">'+esc(p.pack_name||'a pack')+'</span></div><span class="play-when">'+when+'</span></div>'+
+      '<div class="play-sum">'+summary+'</div>'+
+      (slots? '<div class="prow">'+slots+'</div>' : '');
+    box.appendChild(card);
+  });
+  box.querySelectorAll('.slot').forEach(s=>s.onclick=()=>{const src=s.getAttribute('data-src'); if(src)App.openLightbox(src);});
+});};
+// Lightbox for enlarging thumbnails
+App.openLightbox=function(src,packName){
+  $('lightboxImg').src=src;
+  const star=$('lightboxStar');
+  if(packName){
+    star.classList.remove('hidden');
+    star.innerHTML=App._favSet&&App._favSet.has(src)?'&#9733;':'&#9734;';
+    star.onclick=(e)=>{ e.stopPropagation(); App.toggleFavorite(src,packName,star); };
+  } else { star.classList.add('hidden'); }
+  $('lightbox').classList.remove('hidden');
+};
+App.ensureFavSet=async function(){
+  if(App._favSet) return App._favSet;
+  App._favSet=new Set();
+  if(App.guest) return App._favSet;
+  const {data}=await sb.from('favorites').select('image_url').eq('student_name',App.student);
+  (data||[]).forEach(f=>App._favSet.add(f.image_url));
+  return App._favSet;
+};
+App.toggleFavorite=async function(url,packName,starEl){
+  if(App.guest){ alert('Sign in to save favorites.'); return; }
+  await App.ensureFavSet();
+  const on=App._favSet.has(url);
+  if(on){
+    App._favSet.delete(url);
+    if(starEl) starEl.innerHTML='&#9734;';
+    sb.from('favorites').delete().eq('student_name',App.student).eq('image_url',url).then(()=>{},()=>{});
+  } else {
+    App._favSet.add(url);
+    if(starEl) starEl.innerHTML='&#9733;';
+    sb.from('favorites').insert({student_name:App.student,class_name:App.klass,image_url:url,pack_name:packName}).then(()=>{},()=>{});
+  }
+};
+App.starHtml=function(url){
+  const on=App._favSet&&App._favSet.has(url);
+  return '<div class="fav-star'+(on?' on':'')+'" data-fav-url="'+esc(url)+'">'+(on?'&#9733;':'&#9734;')+'</div>';
+};
+App.wireFavStars=function(container,packNameFor){
+  container.querySelectorAll('[data-fav-url]').forEach(el=>{
+    el.onclick=(e)=>{ e.stopPropagation(); const url=el.getAttribute('data-fav-url'); App.toggleFavorite(url, packNameFor(url), el); el.innerHTML=(App._favSet.has(url)?'&#9733;':'&#9734;'); el.classList.toggle('on',App._favSet.has(url)); };
+  });
+};
+App.closeLightbox=function(){ $('lightbox').classList.add('hidden'); $('lightboxImg').src=''; };
+
+/* ============ GATE ============ */
+const Gate={
+  _classes:[], _classNames:[], _names:[], _hasClasses:false,
+  async prime(){ if(!CONFIGURED || !sb) return;
+    let cls=null, dbg='';
+    try{
+      const res=await sb.from('classes').select('name').order('name');
+      if(res.error){ dbg='read error: '+res.error.message; console.error('classes read failed:', res.error.message); }
+      cls=res.data;
+      dbg=dbg||('classes loaded: '+JSON.stringify((cls||[]).map(c=>c.name)));
+    }catch(e){ dbg='read threw: '+(e&&e.message); console.error('classes read threw:', e); }
+    const dbgEl=$('gateDebug'); if(dbgEl) dbgEl.textContent=dbg;
+    this._classNames=(cls||[]).map(c=>c.name);
+    this._hasClasses=this._classNames.length>0;
+    if(this._hasClasses){
+      $('gateClassWrap').classList.remove('hidden');
+      const sel=$('classInput');
+      sel.innerHTML=this._classNames.map(n=>'<option>'+esc(n)+'</option>').join('');
+      await this.loadClassNames(this._classNames[0]);
+    } else {
+      $('gateClassWrap').classList.add('hidden');
+      this._names=await this.legacyNames();
+    }
+  },
+  async loadClassNames(cls){
+    App.klass=cls;
+    const {data}=await sb.from('roster').select('name').eq('class_name',cls).order('name');
+    this._names=(data||[]).map(r=>r.name);
+  },
+  classChanged(){ this.loadClassNames($('classInput').value); $('nameInput').value=''; $('nameSuggest').classList.add('hidden'); const pl=$('passLabel'); if(pl) pl.textContent=($('classInput').value==='Teachers')? 'Teacher password' : 'Class password'; },
+  async legacyNames(){
+    try{const {data}=await sb.from('students').select('name').order('last_seen',{ascending:false}); return (data||[]).map(r=>r.name);}
+    catch(e){return [];}
+  },
+  suggest(){
+    const box=$('nameSuggest'); const v=$('nameInput').value.trim().toLowerCase();
+    if(!v||!this._names){box.classList.add('hidden'); return;}
+    const hits=this._names.filter(n=>n.toLowerCase().includes(v)).slice(0,8);
+    if(!hits.length){box.classList.add('hidden'); return;}
+    box.innerHTML=hits.map(n=>'<div>'+esc(n)+'</div>').join('');
+    box.querySelectorAll('div').forEach(d=>d.onclick=()=>{$('nameInput').value=d.textContent; box.classList.add('hidden');});
+    box.classList.remove('hidden');
+  },
+  async enter(){
+    const name=$('nameInput').value.trim(); const pass=$('passInput').value;
+    if(this._hasClasses && !$('classInput').value){$('gateErr').textContent='Choose your class.'; return;}
+    if(!name){$('gateErr').textContent='Enter your name.'; return;}
+    const chosenClass=this._hasClasses? $('classInput').value : null;
+    const expectedPass=(chosenClass==='Teachers')? TEACHER_PASSWORD : STUDENT_PASSWORD;
+    if(pass!==expectedPass){$('gateErr').textContent='Wrong password.'; return;}
+    if(this._hasClasses){
+      const match=this._names.find(n=>n.toLowerCase()===name.toLowerCase());
+      if(!match){$('gateErr').textContent='Pick your name from the class list.'; return;}
+      App.student=match; App.klass=chosenClass; App.isTeacherLogin=(App.klass==='Teachers');
+    } else {
+      App.student=name; App.klass=null;
+      if(CONFIGURED){ withBar(async()=>{ try{await sb.from('students').upsert({name:App.student,last_seen:new Date().toISOString()});}catch(e){} }); }
+    }
+    $('gateErr').textContent=''; App.guest=false; $('whoami').textContent=App.student;
+    App.toLevels();
+  },
+  guest(){
+    App.guest=true; App.student='Guest'; App.klass=null; App.isTeacherLogin=false;
+    $('gateErr').textContent=''; $('whoami').textContent='Guest';
+    App.toLevels();
+  },
+  teacher(){go('tgate');},
+  logout(){App.stopLevelCarousel(); App.student=null; App.klass=null; App.guest=false; App.isTeacherLogin=false; App._lastTab='artist'; App._punctumBackFn=null; ['tabStudent','tabMine'].forEach(id=>{const el=$(id); if(el)el.classList.remove('hidden');}); const up=document.querySelector('#shome button[onclick*="Cull.setup"]'); if(up)up.classList.remove('hidden'); $('nameInput').value=''; $('passInput').value=''; $('tpass').value=''; go('gate');}
+};
+
+/* ============ STUDENT HOME (two sections) ============ */
+App.toStudentHome=function(){return withBar(async()=>{
+  go('shome');
+  if(!CONFIGURED){$('artistEmpty').classList.remove('hidden'); $('studentEmpty').classList.remove('hidden'); $('artistList').innerHTML=''; $('studentList').innerHTML=''; App.switchTab(App._lastTab||'artist'); return;}
+  const packsRes=await sb.from('packs').select('id,name,type,owner_name,class_name,links').order('created_at',{ascending:false});
+  if(packsRes.error){
+    console.error('packs read failed:', packsRes.error.message);
+    $('artistEmpty').classList.remove('hidden'); $('artistEmpty').textContent='Could not load packs: '+packsRes.error.message+'. Tell your teacher this exact message.';
+    $('studentEmpty').classList.add('hidden'); $('artistList').innerHTML=''; $('studentList').innerHTML=''; App.switchTab(App._lastTab||'artist'); return;
+  }
+  const packs=packsRes.data;
+  // pull every image url once, then pick a random cover per pack
+  const {data:allImgs}=await sb.from('images').select('pack_id,url');
+  const byPack={}; (allImgs||[]).forEach(im=>{ (byPack[im.pack_id]=byPack[im.pack_id]||[]).push(im.url); });
+  const cover=id=>{ const a=byPack[id]; return a&&a.length? a[Math.floor(Math.random()*a.length)] : null; };
+  // which games has this student finished, per pack (skip for guests)
+  const done={};
+  if(!App.guest){
+    let pq=sb.from('plays').select('pack_id,game').eq('student_name',App.student);
+    if(App.klass) pq=pq.eq('class_name',App.klass);
+    const {data:myPlays}=await pq;
+    (myPlays||[]).forEach(pl=>{ (done[pl.pack_id]=done[pl.pack_id]||{})[pl.game]=true; });
+  }
+  const coverBox=(id,kind)=>{ const u=cover(id); const tag='<div class="kind">'+kind+'</div>';
+    return '<div class="cover">'+(u? '<img src="'+u+'">' : '<div class="nocover">no images yet</div>')+tag+'</div>'; };
+  const playedClass=(id,both)=>{ const d=done[id]||{}; return both ? (d.culling&&d.punctum) : !!d.culling; };
+  const anyPlayed=(id)=>{ const d=done[id]||{}; return !!(d.culling||d.punctum); };
+  // staff bypass: these names can view the full gallery on any pack without playing first
+  const SPECIAL_VIEWERS=['mr quinn','mrs dwyer'];
+  const isSpecialViewer=App.student && SPECIAL_VIEWERS.includes(String(App.student).trim().toLowerCase());
+  // artist packs: everyone. student packs: only from the viewer's own class.
+  const artist=(packs||[]).filter(p=>p.type!=='culling');
+  const student=(packs||[]).filter(p=>p.type==='culling' && !App.guest && (App.isTeacherLogin || (p.class_name && p.class_name===App.klass)));
+  const al=$('artistList'); al.innerHTML=''; $('artistEmpty').classList.toggle('hidden',artist.length>0);
+  artist.forEach(p=>{
+    const card=document.createElement('div'); card.className='plate'+(anyPlayed(p.id)?' played':'');
+    const hasLinks=Array.isArray(p.links)&&p.links.length;
+    const unlocked=isSpecialViewer||anyPlayed(p.id);
+    const galBtn=unlocked
+      ? '<button class="btn" data-gal="'+p.id+'">View all</button>'
+      : '<button class="btn btn-locked" disabled title="Play Punctum or the Culling Game on this pack to unlock the full gallery">View all &#128274;</button>';
+    const infoIcon=hasLinks? '<div class="info-icon" data-info="'+p.id+'" title="More info about this artist">&#9432;</div>' : '';
+    card.innerHTML=coverBox(p.id,'Artist pack')+infoIcon+
+      '<div class="body"><div class="title">'+esc(p.name)+'</div>'+
+      '<div class="row"><button class="btn btn-primary" data-play="'+p.id+'">Cull</button><button class="btn" data-res="'+p.id+'">Results</button>'+galBtn+'</div></div>';
+    const play=()=>Cull.playPack(p.id,p.name);
+    const coverClick=()=> anyPlayed(p.id) ? App.showGallery(p.id,p.name,p.links) : play();
+    card.querySelector('.cover').onclick=coverClick;
+    card.querySelector('[data-play]').onclick=(e)=>{e.stopPropagation(); play();};
+    card.querySelector('[data-res]').onclick=(e)=>{e.stopPropagation(); App.showResults(p.id,p.name,'artist');};
+    if(hasLinks) card.querySelector('[data-info]').onclick=(e)=>{e.stopPropagation(); App.showArtistInfo(p.name,p.links);};
+    if(unlocked) card.querySelector('[data-gal]').onclick=(e)=>{e.stopPropagation(); App.showGallery(p.id,p.name,p.links);};
+    wireHoverCarousel(card, byPack[p.id]);
+    al.appendChild(card);
+  });
+  const sl=$('studentList'); sl.innerHTML=''; $('studentEmpty').classList.toggle('hidden',student.length>0);
+  student.forEach(p=>{
+    const by=p.owner_name?('<div class="by">by '+esc(p.owner_name)+'</div>'):'';
+    const mine=!App.guest && p.owner_name===App.student;
+    const editBtn=mine? '<button class="btn" data-edit="'+p.id+'">Edit</button>' : '';
+    const otherBtns=App.isTeacherLogin
+      ? '<button class="btn" data-progress="'+p.id+'">Progress</button>'
+      : '<button class="btn" data-res="'+p.id+'">Results</button><button class="btn" data-gal="'+p.id+'">View all</button>';
+    const card=document.createElement('div'); card.className='plate'+(playedClass(p.id,false)?' played':'');
+    card.innerHTML=coverBox(p.id,'Student pack')+
+      '<div class="body"><div class="title">'+esc(p.name)+'</div>'+by+
+      '<div class="row"><button class="btn btn-primary" data-play="'+p.id+'">Cull</button>'+otherBtns+editBtn+'</div></div>';
+    const play=()=>Cull.playPack(p.id,p.name);
+    const openBreakdown=()=>App.openStudentBreakdown(p.id,p.name,p.owner_name||'Unknown');
+    const coverClick=()=> App.isTeacherLogin ? openBreakdown() : (playedClass(p.id,false) ? App.showGallery(p.id,p.name) : play());
+    card.querySelector('.cover').onclick=coverClick;
+    card.querySelector('[data-play]').onclick=(e)=>{e.stopPropagation(); play();};
+    if(App.isTeacherLogin){
+      card.querySelector('[data-progress]').onclick=(e)=>{e.stopPropagation(); openBreakdown();};
+    } else {
+      card.querySelector('[data-res]').onclick=(e)=>{e.stopPropagation(); App.showResults(p.id,p.name,'student');};
+      card.querySelector('[data-gal]').onclick=(e)=>{e.stopPropagation(); App.showGallery(p.id,p.name);};
+    }
+    if(mine) card.querySelector('[data-edit]').onclick=(e)=>{e.stopPropagation(); App.editMyPack(p.id,p.name);};
+    wireHoverCarousel(card, byPack[p.id]);
+    sl.appendChild(card);
+  });
+  // guests: hide the student-pack tab, upload, and my-games entirely
+  await App.loadGateway();
+  const guestHide=['tabStudent','tabMine'];
+  const homeUp=$('homeUploadBtn');
+  if(homeUp) homeUp.classList.toggle('pulse', !App.guest && !student.some(p=>p.owner_name===App.student));
+  guestHide.forEach(id=>{ const el=$(id); if(el) el.classList.toggle('hidden',!!App.guest); });
+  const spTab=$('tabStudentPunctum'); if(spTab) spTab.classList.toggle('hidden', !App.isTeacherLogin);
+  const sprTab=$('tabStudentProgress'); if(sprTab) sprTab.classList.toggle('hidden', !App.isTeacherLogin);
+  const up=document.querySelector('#shome .bar-actions button[onclick*="Cull.setup"], #shome button[onclick*="Cull.setup"]');
+  if(up) up.classList.toggle('hidden',!!App.guest);
+
+  // progress bars: teacher packs need both games, student packs need culling
+  $('progressBand').classList.toggle('hidden',!!App.guest);
+  if(!App.guest){
+    const artistDone=artist.filter(p=>anyPlayed(p.id)).length;
+    const studentDone=student.filter(p=>playedClass(p.id,false)).length;
+    const artistPct=artist.length? Math.round(artistDone/artist.length*100):0;
+    const studentPct=student.length? Math.round(studentDone/student.length*100):0;
+    const aTier=progressTier(artistPct), sTier=progressTier(studentPct);
+    $('progArtistLabel').textContent=artistDone+' / '+artist.length;
+    $('progArtistFill').style.width=artistPct+'%'; $('progArtistFill').style.background=aTier.color;
+    $('progArtistTier').textContent=aTier.name; $('progArtistTier').style.setProperty('--tc',aTier.color); $('progArtistTier').classList.toggle('pulse',!!aTier.max);
+    $('progStudentLabel').textContent=studentDone+' / '+student.length;
+    $('progStudentFill').style.width=studentPct+'%'; $('progStudentFill').style.background=sTier.color;
+    $('progStudentTier').textContent=sTier.name; $('progStudentTier').style.setProperty('--tc',sTier.color); $('progStudentTier').classList.toggle('pulse',!!sTier.max);
+  }
+  // always land back on whichever tab was open before leaving the studio, not a default
+  App.switchTab(App._lastTab||'artist');
+});};
+
+/* ---- game chooser for artist packs ---- */
+App.chooseGame=function(id,name){
+  $('chooseTitle').textContent=name;
+  const punctum=()=>App.playPack(id,name);
+  const cull=()=>Cull.playPack(id,name);
+  $('choosePunctum').onclick=(e)=>{e.stopPropagation(); punctum();};
+  $('chooseCull').onclick=(e)=>{e.stopPropagation(); cull();};
+  $('cardPunctum').onclick=punctum;
+  $('cardCull').onclick=cull;
+  go('choose');
+};
+
+/* ---- Punctum play ---- */
+App.playPack=function(id,name){return withBar(async()=>{
+  App.curPack=id;
+  const {data:imgs}=await sb.from('images').select('id,url,position').eq('pack_id',id).order('position');
+  if(!imgs||!imgs.length){alert('This pack has no images yet.'); return;}
+  Play.start(imgs,name);
+});};
+
+const Play={
+  queue:[], pos:0, name:'', mine:{},
+  start(imgs,name){this.queue=imgs; this.pos=0; this.name=name; this.mine={}; $('playTitle').textContent=name; go('play'); this.render();
+    $('btnStruck').onclick=()=>this.respond(true); $('btnNothing').onclick=()=>this.respond(false);},
+  render(){const it=this.queue[this.pos];
+    $('playProgress').textContent='Photograph '+(this.pos+1)+' of '+this.queue.length;
+    const img=$('playImg'); img.classList.remove('in'); img.onload=()=>img.classList.add('in'); img.src=it.url;},
+  respond(struck){
+    const it=this.queue[this.pos];
+    if(struck) this.mine[it.id]=true;
+    if(!App.guest) sb.from('responses').insert({image_id:it.id,pack_id:App.curPack,student_name:App.student,struck}).then(()=>{},()=>{});
+    this.pos++;
+    if(this.pos>=this.queue.length){ this.showEnd(); return; }
+    this.render();
+  },
+  async showEnd(){
+    go('pdone'); $('pdoneTitle').textContent=this.name;
+    const mineImgs=this.queue.filter(it=>this.mine[it.id]);
+    // record this play for the student's history
+    if(CONFIGURED && !App.guest){ try{ await sb.from('plays').insert({student_name:App.student,class_name:App.klass,pack_id:App.curPack,pack_name:this.name,game:'punctum',detail:{struck:mineImgs.map(it=>it.id)}}); }catch(e){} }
+    $('pdoneMineCount').textContent=mineImgs.length+' photograph'+(mineImgs.length!==1?'s':'')+' struck you';
+    const mg=$('pdoneMine'); mg.innerHTML='';
+    if(!mineImgs.length){ mg.innerHTML='<p class="empty" style="grid-column:1/-1; padding:24px;">None this time.</p>'; }
+    mineImgs.forEach(it=>{const c=document.createElement('div'); c.className='cell';
+      c.innerHTML='<div class="ci"><img src="'+it.url+'"></div>'; mg.appendChild(c);});
+    await withBar(async()=>{
+      const {data:resp}=await sb.from('responses').select('image_id,struck').eq('pack_id',App.curPack);
+      const struckBy={}; let total=0;
+      (resp||[]).forEach(r=>{ if(r.struck){struckBy[r.image_id]=(struckBy[r.image_id]||0)+1; total++;} });
+      $('pdoneClassCount').textContent=total+' punctum'+(total!==1?'s':'')+' from the class so far';
+      renderStruckGrid($('pdoneClass'), this.queue, struckBy);
+    });
+  }
+};
+
+// Combined student results. kind='artist' shows both punctum + culling; 'student' shows culling only.
+App.showResults=function(id,name,kind){App.curPack=id; App._srClassFilter=App.isTeacherLogin?'all':'mine'; return withBar(async()=>{
+  go('sresults'); $('srTitle').textContent=name;
+  const {data:imgs}=await sb.from('images').select('id,url,position').eq('pack_id',id).order('position');
+  App._srImgs=imgs||[];
+  $('srCullingWrap').classList.remove('hidden');
+  await App.loadCullResults();
+  await App.loadComments();
+});};
+
+App.loadComments=function(){return withBar(async()=>{
+  const {data}=await sb.from('pack_comments').select('*').eq('pack_id',App.curPack).order('created_at',{ascending:false});
+  const rows=data||[];
+  $('commentCount').textContent=rows.length+' comment'+(rows.length!==1?'s':'');
+  const box=$('commentList'); box.innerHTML='';
+  if(!rows.length){ box.innerHTML='<p class="empty">No comments yet — be the first.</p>'; return; }
+  rows.forEach(c=>{
+    const when=new Date(c.created_at).toLocaleDateString(undefined,{day:'numeric',month:'short'});
+    const row=document.createElement('div'); row.className='comment-row';
+    row.innerHTML='<div><div class="c-who">'+esc(c.student_name||'Anonymous')+(c.class_name?' · '+esc(c.class_name):'')+'<span class="c-when">'+when+'</span></div><div class="c-text">'+esc(c.comment)+'</div></div>';
+    box.appendChild(row);
+  });
+});};
+
+App.postComment=function(){return withBar(async()=>{
+  if(App.guest){ alert('Sign in to leave a comment.'); return; }
+  const text=$('commentText').value.trim();
+  if(!text){ $('commentMsg').textContent='Write something first.'; return; }
+  const res=await sb.from('pack_comments').insert({pack_id:App.curPack,pack_name:$('srTitle').textContent,student_name:App.student,class_name:App.klass,comment:text});
+  if(res.error){ $('commentMsg').textContent='Could not post: '+res.error.message; return; }
+  $('commentText').value=''; $('commentMsg').textContent='';
+  await App.loadComments();
+});};
+
+App.setCullClassFilter=function(mode){ App._srClassFilter=mode; App.loadCullResults(); };
+
+App.loadCullResults=function(){return withBar(async()=>{
+  const mine=App._srClassFilter!=='all';
+  $('srClassFilterMine').classList.toggle('btn-primary',mine);
+  $('srClassFilterAll').classList.toggle('btn-primary',!mine);
+  let q=sb.from('cullings').select('student_name,ranked').eq('pack_id',App.curPack);
+  if(mine && App.klass) q=q.eq('class_name',App.klass);
+  const {data:culls}=await q;
+  App._srCulls=culls||[]; App._srCullView='ranking';
+  $('srCullToggle').textContent='See each top five';
+  $('crGrid').classList.remove('hidden'); $('srCullIndividuals').classList.add('hidden');
+  const ranked=scoreCulling(App._srImgs, culls);
+  $('crCount').textContent=(culls||[]).length+' student'+((culls||[]).length!==1?'s':'')+' culled this pack'+(mine?' (your class)':' (all classes)');
+  renderCullRanking($('crGrid'), ranked);
+});};
+
+App.toggleStudentCullView=function(){
+  const showIndiv=App._srCullView!=='individuals';
+  App._srCullView=showIndiv?'individuals':'ranking';
+  $('srCullToggle').textContent=showIndiv?'See overall ranking':'See each top 5';
+  $('crGrid').classList.toggle('hidden',showIndiv);
+  $('srCullIndividuals').classList.toggle('hidden',!showIndiv);
+  if(showIndiv) renderIndividuals($('srCullIndividuals'), App._srImgs, App._srCulls);
+};
+
+/* ============ CULLING (shared packs) ============ */
+const Cull={
+  // upload state
+  draft:[],
+  // play state
+  imgs:[], pool:[], queue:[], winners:[], byes:[], a:null,b:null, finalists:[], ranked:[], ranking:false, packName:'',
+
+  // --- upload a pack for the class ---
+  setup(){this.draft=[]; $('cullPackName').value=''; $('cullThumbs').innerHTML=''; go('csetup');},
+  drawThumbs(){const el=$('cullThumbs'); el.innerHTML='';
+    this.draft.forEach((o,i)=>{const d=document.createElement('div'); d.className='thumb';
+      d.innerHTML='<img src="'+o.preview+'"><button class="rm">&times;</button>';
+      d.querySelector('.rm').onclick=()=>{this.draft.splice(i,1); this.drawThumbs();}; el.appendChild(d);});},
+  async savePack(){
+    if(this._saving) return;                     // guard against double clicks while uploading
+    const name=$('cullPackName').value.trim()||(App.student+"'s pack");
+    if(this.draft.length<3){alert('Upload at least 3 photographs.'); return;}
+    if(!CONFIGURED){alert('Not connected to Supabase yet.'); return;}
+    this._saving=true;
+    const btn=document.querySelector('#csetup .btn-primary'); if(btn){btn.disabled=true; btn.textContent='Uploading, please wait...';}
+    try{
+      await withBar(async()=>{
+        const {data:pack,error}=await sb.from('packs').insert({name,type:'culling',owner_name:App.student,class_name:App.klass}).select().single();
+        if(error){alert('Could not create pack: '+error.message); return;}
+        for(let i=0;i<this.draft.length;i++){
+          const o=this.draft[i];
+          const path=pack.id+'/'+Date.now()+'_'+i+'.jpg';
+          const {error:upErr}=await sb.storage.from('photos').upload(path,o.blob,{contentType:'image/jpeg'});
+          if(upErr){console.error(upErr); continue;}
+          const {data:pub}=sb.storage.from('photos').getPublicUrl(path);
+          await sb.from('images').insert({pack_id:pack.id,url:pub.publicUrl,position:i});
+        }
+      });
+    } finally {
+      this._saving=false;
+      if(btn){btn.disabled=false; btn.textContent='Upload for the class';}
+    }
+    App.toStudentHome();
+  },
+
+  // --- cull someone's pack ---
+  async playPack(id,name){
+    App.curPack=id; this.packName=name;
+    await withBar(async()=>{
+      const {data:imgs}=await sb.from('images').select('id,url,position').eq('pack_id',id).order('position');
+      if(!imgs||imgs.length<3){alert('This pack needs at least 3 images to cull.'); return;}
+      this.imgs=imgs.map(im=>({src:im.url,id:im.id}));
+      this.pool=this.imgs.slice(); this.ranked=[]; this.ranking=false;
+      $('cullTitle').textContent=name;
+      go('cull'); this.round();
+    });
+  },
+  round(){if(this.pool.length<=5){this.rankPhase();return;}
+    const surplus=this.pool.length-5, contest=2*surplus; const s=this.shuffle(this.pool.slice());
+    this.byes=s.slice(contest); this.queue=s.slice(0,contest); this.winners=[]; this.pair();},
+  pair(){if(this.queue.length<2){this.pool=this.byes.concat(this.winners); this.round(); return;}
+    this.a=this.queue.pop(); this.b=this.queue.pop(); this.show();
+    $('cullProgress').textContent='Narrowing down — '+this.pool.length+' still in'; $('cullVs').textContent='which one stays?';},
+  rankPhase(){this.finalists=this.pool.slice(); this.ranked=[]; this.ranking=true; this.placeNext();},
+  placeNext(){if(this.finalists.length===0||this.ranked.length>=5){this.finish();return;}
+    if(this.finalists.length===1){this.ranked.push(this.finalists[0]); this.finalists=[]; this.finish(); return;}
+    this.queue=this.shuffle(this.finalists.slice()); this.winners=[];
+    $('cullVs').textContent='choose your #'+(this.ranked.length+1)+' — the strongest of what is left';
+    $('cullProgress').textContent='Ranking your top five — '+this.ranked.length+' of 5 placed'; this.rankPair();},
+  rankPair(){if(this.queue.length<=1){if(this.queue.length===1)this.winners.push(this.queue.pop());
+      if(this.winners.length===1){const c=this.winners[0]; this.ranked.push(c); this.finalists=this.finalists.filter(f=>f.id!==c.id); this.placeNext(); return;}
+      this.queue=this.shuffle(this.winners.slice()); this.winners=[]; return this.rankPair();}
+    this.a=this.queue.pop(); this.b=this.queue.pop(); this.show();},
+  show(){const ia=$('imgA'),ib=$('imgB'); ia.style.opacity=0; ib.style.opacity=0;
+    ia.onload=()=>ia.style.opacity=1; ib.onload=()=>ib.style.opacity=1; ia.src=this.a.src; ib.src=this.b.src;},
+  pick(side){const keep=side==='A'?this.a:this.b; this.winners.push(keep); if(this.ranking)this.rankPair(); else this.pair();},
+  async finish(){
+    const top=this.ranked.slice(0,5);
+    const list=$('finalList'); list.innerHTML='';
+    top.forEach((it,i)=>{const li=document.createElement('li');
+      li.innerHTML='<div class="rn">Number '+(i+1)+'</div><div class="rf"><img src="'+it.src+'"></div>';
+      list.appendChild(li);});
+    go('cfinal');
+    // save my ranking, then show the class ranking below
+    if(CONFIGURED){
+      if(!App.guest){
+        try{await sb.from('cullings').insert({pack_id:App.curPack,student_name:App.student,ranked:top.map(x=>x.id),class_name:App.klass});}catch(e){console.error(e);}
+        try{await sb.from('plays').insert({student_name:App.student,class_name:App.klass,pack_id:App.curPack,pack_name:this.packName,game:'culling',detail:{ranked:top.map(x=>x.id)}});}catch(e){}
+      }
+      await withBar(async()=>{
+        const {data:imgs}=await sb.from('images').select('id,url').eq('pack_id',App.curPack);
+        const {data:culls}=await sb.from('cullings').select('ranked').eq('pack_id',App.curPack);
+        const ranked=scoreCulling(imgs||[], culls);
+        $('cfClassCount').textContent=(culls||[]).length+' student'+((culls||[]).length!==1?'s':'')+' have culled this pack';
+        renderCullRanking($('cfClass'), ranked);
+      });
+    }
+  },
+  shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+};
+
+/* ============ TEACHER ============ */
+const Teacher={
+  draft:[], _cullView:'ranking',
+  enter(){if($('tpass').value!==TEACHER_PASSWORD){$('tErr').textContent='Wrong password.'; return;} $('tErr').textContent=''; this.home();},
+  home(){return withBar(async()=>{
+    go('thome');
+    if(!CONFIGURED){$('tEmpty').classList.remove('hidden'); $('tpackList').innerHTML=''; return;}
+    const packsRes=await sb.from('packs').select('id,name,type,owner_name').order('created_at',{ascending:false});
+    if(packsRes.error){ console.error('teacher packs read failed:', packsRes.error.message); $('tEmpty').classList.remove('hidden'); $('tEmpty').textContent='Could not load packs: '+packsRes.error.message; $('tpackList').innerHTML=''; return; }
+    const packs=packsRes.data;
+    const list=$('tpackList'); list.innerHTML='';
+    $('tEmpty').classList.toggle('hidden',(packs||[]).length>0);
+    for(const p of (packs||[])){
+      const isCull=p.type==='culling';
+      const {data:pimgs}=await sb.from('images').select('url').eq('pack_id',p.id);
+      const count=(pimgs||[]).length;
+      const coverUrl=count? pimgs[Math.floor(Math.random()*count)].url : null;
+      const coverInner=coverUrl? '<img src="'+coverUrl+'">' : '<div class="nocover">no images yet</div>';
+      const kind=isCull?'Student pack':'Artist pack';
+      const by=isCull&&p.owner_name?('<div class="by">by '+esc(p.owner_name)+'</div>'):('<div class="by">'+count+' image'+(count!==1?'s':'')+'</div>');
+      const card=document.createElement('div'); card.className='plate';
+      card.innerHTML='<div class="cover">'+coverInner+'<div class="kind">'+kind+'</div></div>'+
+        '<div class="body"><div class="title">'+esc(p.name)+'</div>'+by+
+        '<div class="row"><button class="btn" data-res="'+p.id+'">Results</button><button class="btn" data-edit="'+p.id+'">Edit</button><button class="btn btn-danger" data-del="'+p.id+'">Delete</button></div></div>';
+      card.querySelector('[data-res]').onclick=()=> isCull ? Teacher.openCullResults(p.id,p.name) : Teacher.openResults(p.id,p.name);
+      card.querySelector('[data-edit]').onclick=()=>Teacher.editPack(p.id,p.name,p.type);
+      card.querySelector('[data-del]').onclick=()=>Teacher.delPack(p.id);
+      list.appendChild(card);
+    }
+  });},
+  newPack(){this.draft=[]; $('tPackName').value=''; $('tThumbs').innerHTML=''; const l=$('tLinks'); if(l)l.value=''; go('tbuilder');},
+  roster(){return withBar(async()=>{
+    go('troster');
+    // the 'Teachers' class always exists as the special cross-class list — create it quietly if missing
+    const {data:existing}=await sb.from('classes').select('name').eq('name','Teachers').maybeSingle();
+    if(!existing){ await sb.from('classes').insert({name:'Teachers'}); }
+    await this.loadClasses();
+    await this.loadTeachersRoster();
+  });},
+  async loadTeachersRoster(){
+    const {data}=await sb.from('roster').select('name').eq('class_name','Teachers').order('name');
+    const names=(data||[]).map(r=>r.name);
+    $('teachersRosterText').value=names.join('\n');
+    $('teachersRosterCount').textContent=names.length? (names.length+' teacher'+(names.length!==1?'s':'')+' in this list') : 'No teachers added yet.';
+  },
+  async saveTeachersRoster(){
+    await saveRosterSafely('Teachers','teachersRosterText','teachersRosterCount');
+  },
+  async loadClasses(){
+    const {data}=await sb.from('classes').select('name').order('name');
+    this._classes=(data||[]).filter(n=>n.name!=='Teachers').map(c=>c.name);
+    const sel=$('classSelect');
+    sel.innerHTML=this._classes.length? this._classes.map(n=>'<option>'+esc(n)+'</option>').join('') : '<option value="">No classes yet</option>';
+    if(this._classes.length){ await this.pickClass(); $('classEditor').classList.remove('hidden'); }
+    else { $('classEditor').classList.add('hidden'); }
+  },
+  async addClass(){
+    const name=$('newClassName').value.trim();
+    if(!name){alert('Type a class name first.'); return;}
+    await withBar(async()=>{ try{await sb.from('classes').insert({name});}catch(e){} });
+    $('newClassName').value='';
+    await this.loadClasses();
+    $('classSelect').value=name; await this.pickClass();
+    $('classEditor').classList.remove('hidden');
+  },
+  async pickClass(){
+    const cls=$('classSelect').value; if(!cls) return;
+    this._editClass=cls; $('editClassName').textContent=cls; $('editClassName2').textContent=cls;
+    $('renameClassInput').value=cls;
+    const {data}=await sb.from('roster').select('name').eq('class_name',cls).order('name');
+    const names=(data||[]).map(r=>r.name);
+    $('rosterText').value=names.join('\n');
+    $('rosterCount').textContent=names.length? (names.length+' students in this class') : 'No students in this class yet.';
+  },
+  async renameClass(){
+    const oldName=this._editClass; const newName=$('renameClassInput').value.trim();
+    if(!oldName){ alert('Pick a class first.'); return; }
+    if(!newName || newName===oldName){ return; }
+    let failed=null;
+    await withBar(async()=>{
+      const {data:clash}=await sb.from('classes').select('name').eq('name',newName).maybeSingle();
+      if(clash){ alert('A class called "'+newName+'" already exists.'); failed=true; return; }
+      let r=await sb.from('classes').insert({name:newName});
+      if(r.error){ failed='creating the new class: '+r.error.message; return; }
+      r=await sb.from('roster').update({class_name:newName}).eq('class_name',oldName);
+      if(r.error){ failed='moving the student list: '+r.error.message; return; }
+      r=await sb.from('packs').update({class_name:newName}).eq('class_name',oldName);
+      if(r.error){ failed='moving packs: '+r.error.message; return; }
+      r=await sb.from('plays').update({class_name:newName}).eq('class_name',oldName);
+      if(r.error){ failed='moving play history: '+r.error.message; return; }
+      r=await sb.from('cullings').update({class_name:newName}).eq('class_name',oldName);
+      if(r.error){ failed='moving culling history: '+r.error.message; return; }
+      // only remove the old class once every table has actually moved over
+      await sb.from('classes').delete().eq('name',oldName);
+    });
+    if(failed){
+      alert('The rename did not finish cleanly — stopped while '+failed+'. Nothing was deleted; both "'+oldName+'" and "'+newName+'" may now exist. Tell your teacher this exact message.');
+      await this.loadClasses();
+      return;
+    }
+    await this.loadClasses();
+    $('classSelect').value=newName; await this.pickClass();
+  },
+  async saveRoster(){
+    const cls=this._editClass; if(!cls){alert('Pick a class first.'); return;}
+    await saveRosterSafely(cls,'rosterText','rosterCount');
+  },
+  async deleteClass(){
+    const cls=this._editClass; if(!cls) return;
+    if(!confirm('Delete the class "'+cls+'" and its student list? Their game history stays but the class is removed.'))return;
+    await withBar(async()=>{
+      await sb.from('roster').delete().eq('class_name',cls);
+      await sb.from('classes').delete().eq('name',cls);
+    });
+    await this.loadClasses();
+  },
+  drawThumbs(){const el=$('tThumbs'); el.innerHTML='';
+    this.draft.forEach((o,i)=>{const d=document.createElement('div'); d.className='thumb';
+      d.innerHTML='<img src="'+o.preview+'"><button class="rm">&times;</button>';
+      d.querySelector('.rm').onclick=()=>{this.draft.splice(i,1); this.drawThumbs();}; el.appendChild(d);});},
+  async savePack(){
+    const name=$('tPackName').value.trim()||'Untitled pack';
+    if(!this.draft.length){alert('Add at least one image.'); return;}
+    if(!CONFIGURED){alert('Not connected to Supabase yet — paste your keys in the CONFIG block first.'); return;}
+    if(this._saving) return;
+    this._saving=true;
+    const btn=document.querySelector('#tbuilder .btn-primary'); if(btn){btn.disabled=true; btn.textContent='Uploading, please wait...';}
+    const links=parseLinks($('tLinks').value);
+    try{
+      await withBar(async()=>{
+        const {data:pack,error}=await sb.from('packs').insert({name,type:'punctum',links}).select().single();
+        if(error){alert('Could not create pack: '+error.message); return;}
+        for(let i=0;i<this.draft.length;i++){
+          const o=this.draft[i];
+          const path=pack.id+'/'+Date.now()+'_'+i+'.jpg';
+          const {error:upErr}=await sb.storage.from('photos').upload(path,o.blob,{contentType:'image/jpeg'});
+          if(upErr){console.error(upErr); continue;}
+          const {data:pub}=sb.storage.from('photos').getPublicUrl(path);
+          await sb.from('images').insert({pack_id:pack.id,url:pub.publicUrl,position:i});
+        }
+      });
+    } finally {
+      this._saving=false;
+      if(btn){btn.disabled=false; btn.textContent='Create pack and upload';}
+    }
+    this.home();
+  },
+  async delPack(id){
+    if(!confirm('Delete this pack, its images and all recorded results?'))return;
+    await withBar(async()=>{ await sb.from('packs').delete().eq('id',id); });
+    this.home();
+  },
+
+  /* ---- reset a single student ---- */
+  resetStudentScreen(){return withBar(async()=>{
+    go('tresetstudent'); $('resetMsg').textContent='';
+    const {data:cls}=await sb.from('classes').select('name').order('name');
+    const names=(cls||[]).map(c=>c.name);
+    $('resetClass').innerHTML=names.length? names.map(n=>'<option>'+esc(n)+'</option>').join('') : '<option value="">No classes yet</option>';
+    await this.loadResetNames();
+  });},
+  async loadResetNames(){
+    const cls=$('resetClass').value; if(!cls){ $('resetName').innerHTML=''; return; }
+    const {data}=await sb.from('roster').select('name').eq('class_name',cls).order('name');
+    const names=(data||[]).map(r=>r.name);
+    $('resetName').innerHTML=names.length? names.map(n=>'<option>'+esc(n)+'</option>').join('') : '<option value="">No students in this class</option>';
+  },
+  async resetStudent(){
+    const cls=$('resetClass').value; const name=$('resetName').value;
+    if(!name){ $('resetMsg').textContent='Pick a student first.'; return; }
+    if(!confirm('Wipe ALL results for '+name+' in '+cls+'? This clears their votes, cullings and history and cannot be undone.'))return;
+    await withBar(async()=>{
+      await sb.from('responses').delete().eq('student_name',name);
+      await sb.from('cullings').delete().eq('student_name',name);
+      await sb.from('punctum_picks').delete().eq('student_name',name);
+      let p=sb.from('plays').delete().eq('student_name',name);
+      if(cls) p=p.eq('class_name',cls);
+      await p;
+    });
+    $('resetMsg').textContent='Done. '+name+' has been reset and can play again fresh.';
+  },
+
+  /* ---- student progress ---- */
+  openPunctumBrowse(){return withBar(async()=>{
+    go('tpunctumBrowse');
+    const {data:cls}=await sb.from('classes').select('name').order('name');
+    const names=(cls||[]).map(c=>c.name).filter(n=>n!=='Teachers');
+    const tabsBox=$('punctumBrowseTabs');
+    if(!names.length){
+      tabsBox.innerHTML='';
+      $('punctumBrowseEmpty').classList.remove('hidden'); $('punctumBrowseEmpty').textContent='Create a class first, in Class list.';
+      $('punctumBrowseList').innerHTML='';
+      return;
+    }
+    this._pbClass=names[0];
+    tabsBox.innerHTML=names.map((n,i)=>'<button class="tab'+(i===0?' is-active':'')+'" data-c="'+esc(n)+'">'+esc(n)+'</button>').join('');
+    tabsBox.querySelectorAll('button').forEach(btn=>btn.onclick=()=>{
+      this._pbClass=btn.getAttribute('data-c');
+      tabsBox.querySelectorAll('button').forEach(b=>b.classList.toggle('is-active',b===btn));
+      this.loadPunctumBrowse();
+    });
+    await this.loadPunctumBrowse();
+  });},
+  async loadPunctumBrowse(){
+    const cls=this._pbClass;
+    const box=$('punctumBrowseList'); box.innerHTML='';
+    if(!cls){ $('punctumBrowseEmpty').classList.remove('hidden'); $('punctumBrowseEmpty').textContent='Create a class first, in Class list.'; return; }
+    const {data:roster}=await sb.from('roster').select('name').eq('class_name',cls).order('name');
+    const names=(roster||[]).map(r=>r.name);
+    $('punctumBrowseEmpty').classList.toggle('hidden',names.length>0);
+    const {data:picks}=await sb.from('punctum_picks').select('student_name,image_url,note').in('student_name',names.length?names:['\u0000']);
+    const byStudent={};
+    (picks||[]).forEach(p=>{
+      const s=byStudent[p.student_name]=byStudent[p.student_name]||{total:0,written:[]};
+      s.total++;
+      if(p.note && p.note.trim().length) s.written.push(p.image_url);
+    });
+    names.forEach(name=>{
+      const s=byStudent[name]||{total:0,written:[]};
+      const thumbs=s.written.slice(0,4).map(u=>'<img src="'+u+'">').join('');
+      const row=document.createElement('div'); row.className='fb-row punctum-name-row'; row.style.cursor='pointer';
+      row.innerHTML='<div class="fb-head"><span class="fb-who">'+esc(name)+'</span><span class="fb-when">'+s.written.length+' written &#8594;</span></div>'+
+        (thumbs? '<div class="pn-thumbs">'+thumbs+'</div>' : '');
+      row.onclick=()=>{ App._punctumBackFn=()=>Teacher.openPunctumBrowse(); Teacher.viewStudentPunctum(name); };
+      box.appendChild(row);
+    });
+  },
+  openProgress(){return withBar(async()=>{
+    go('tprogress');
+    const {data:cls}=await sb.from('classes').select('name').order('name');
+    const names=(cls||[]).map(c=>c.name);
+    $('progressClassSelect').innerHTML=names.length? names.map(n=>'<option>'+esc(n)+'</option>').join('') : '<option value="">No classes yet</option>';
+    await this.loadProgress();
+  });},
+  viewStudentPunctum(name){return withBar(async()=>{
+    go('tstudentPunctum'); $('tspTitle').textContent=name+"'s Punctum images";
+    const {data}=await sb.from('punctum_picks').select('*').eq('student_name',name).order('created_at',{ascending:false});
+    const picks=(data||[]).sort((a,b)=>{
+      const aw=a.note && a.note.trim().length ? 1 : 0;
+      const bw=b.note && b.note.trim().length ? 1 : 0;
+      return bw-aw;
+    });
+    const box=$('tspGrid'); box.innerHTML='';
+    $('tspEmpty').classList.toggle('hidden',picks.length>0);
+    picks.forEach(p=>{
+      const card=document.createElement('div'); card.className='tsp-card';
+      const noteHtml=p.note? '<div class="tsp-note">\u201c'+esc(p.note)+'\u201d</div>' : '<div class="tsp-none">No note written yet.</div>';
+      const p2=p.prompt2? '<div class="tsp-prompt"><b>Detail:</b> '+esc(p.prompt2)+'</div>' : '';
+      const p3=p.prompt3? '<div class="tsp-prompt"><b>Reminds them of:</b> '+esc(p.prompt3)+'</div>' : '';
+      const p4=p.prompt4? '<div class="tsp-prompt"><b>Re-shoot:</b> '+esc(p.prompt4)+'</div>' : '';
+      card.innerHTML='<div class="tsp-img"><img src="'+p.image_url+'"></div><div class="tsp-body">'+noteHtml+p2+p3+p4+'</div>';
+      card.querySelector('img').onclick=()=>App.openLightbox(p.image_url);
+      box.appendChild(card);
+    });
+  });},
+  async loadProgress(){
+    const cls=$('progressClassSelect').value;
+    const box=$('progressList'); box.innerHTML='';
+    if(!cls){ $('progressEmpty').classList.remove('hidden'); $('progressEmpty').textContent='Create a class first, in Class list.'; return; }
+    await withBar(async()=>{
+      const {data:roster}=await sb.from('roster').select('name').eq('class_name',cls).order('name');
+      const students=(roster||[]).map(r=>r.name);
+      $('progressEmpty').classList.toggle('hidden',students.length>0);
+      $('progressEmpty').textContent='No students in this class yet.';
+      if(!students.length) return;
+      const {data:artistPacks}=await sb.from('packs').select('id').neq('type','culling');
+      const {data:studentPacks}=await sb.from('packs').select('id,owner_name').eq('type','culling').eq('class_name',cls);
+      const uploaders=new Set((studentPacks||[]).map(p=>p.owner_name).filter(Boolean));
+      const totalPacks=(artistPacks||[]).length+(studentPacks||[]).length;
+      const {data:plays}=await sb.from('plays').select('student_name,pack_id,game').eq('class_name',cls);
+      const byStudent={};
+      (plays||[]).forEach(pl=>{
+        const m=byStudent[pl.student_name]=byStudent[pl.student_name]||{};
+        (m[pl.pack_id]=m[pl.pack_id]||{})[pl.game]=true;
+      });
+      const {data:picks}=await sb.from('punctum_picks').select('student_name,note').eq('class_name',cls);
+      const writtenByStudent={};
+      (picks||[]).forEach(p=>{ if(p.note && p.note.trim().length) writtenByStudent[p.student_name]=(writtenByStudent[p.student_name]||0)+1; });
+      const rows=students.map(name=>{
+        const m=byStudent[name]||{};
+        const artistDone=(artistPacks||[]).filter(p=>m[p.id]&&(m[p.id].culling||m[p.id].punctum)).length;
+        const studentDone=(studentPacks||[]).filter(p=>m[p.id]&&m[p.id].culling).length;
+        const completed=artistDone+studentDone;
+        const pct=totalPacks? Math.round(completed/totalPacks*100) : 0;
+        return {name, completed, pct, uploaded:uploaders.has(name),
+          artistDone, artistTotal:(artistPacks||[]).length, studentDone, studentTotal:(studentPacks||[]).length,
+          written:writtenByStudent[name]||0};
+      });
+      rows.sort((a,b)=> b.pct-a.pct || b.completed-a.completed || a.name.localeCompare(b.name));
+      rows.forEach(r=>{
+        const tier=progressTier(r.pct);
+        const aPct=r.artistTotal? Math.round(r.artistDone/r.artistTotal*100):0;
+        const sPct=r.studentTotal? Math.round(r.studentDone/r.studentTotal*100):0;
+        const wNeed=6; const wPct=Math.min(100, Math.round(r.written/wNeed*100)); const wTier=progressTier(wPct);
+        const row=document.createElement('div'); row.className='progress-row'+(tier.max?' tier-max':''); row.style.cursor='pointer';
+        row.title='Click to see '+r.name+"'s Punctum images";
+        row.onclick=()=>{ App._punctumBackFn=()=>Teacher.openProgress(); Teacher.viewStudentPunctum(r.name); };
+        const tick=r.uploaded? '<span class="uploaded-tick" title="Uploaded their own pack">&#10003; uploaded</span>' : '<span class="uploaded-tick off" title="Has not uploaded a pack yet">&#9675; no upload</span>';
+        row.innerHTML='<div class="prname">'+esc(r.name)+tick+'</div>'+
+          '<div class="prow-bars">'+
+            '<div class="prow-bar-item"><span class="prow-bar-label">Artist packs '+r.artistDone+'/'+r.artistTotal+'</span><div class="pbar-track"><div class="pbar-fill" style="width:'+aPct+'%; background:'+progressTier(aPct).color+'"></div></div></div>'+
+            '<div class="prow-bar-item"><span class="prow-bar-label">Student packs '+r.studentDone+'/'+r.studentTotal+'</span><div class="pbar-track"><div class="pbar-fill" style="width:'+sPct+'%; background:'+progressTier(sPct).color+'"></div></div></div>'+
+            '<div class="prow-bar-item"><span class="prow-bar-label">Punctum write-ups '+Math.min(r.written,wNeed)+'/'+wNeed+'</span><div class="pbar-track"><div class="pbar-fill" style="width:'+wPct+'%; background:'+wTier.color+'"></div></div></div>'+
+          '</div>'+
+          '<div class="prfrac">'+r.completed+' / '+totalPacks+'</div>'+
+          '<span class="tier-pill'+(tier.max?' pulse':'')+'" style="--tc:'+tier.color+'">'+tier.name+'</span>';
+        box.appendChild(row);
+      });
+    });
+  },
+
+  /* ---- studio settings (Photoshop slideshow link + tutorial screenshots) ---- */
+  openFeedback(){return withBar(async()=>{
+    go('tfeedback');
+    const {data}=await sb.from('feedback').select('*').order('created_at',{ascending:false});
+    const rows=data||[];
+    const box=$('tfeedbackList'); box.innerHTML='';
+    $('tfeedbackEmpty').classList.toggle('hidden',rows.length>0);
+    rows.forEach(f=>{
+      const when=new Date(f.created_at).toLocaleDateString(undefined,{day:'numeric',month:'short'});
+      const row=document.createElement('div'); row.className='fb-row';
+      row.innerHTML='<div class="fb-head"><span class="fb-who">'+esc(f.student_name||'Anonymous')+(f.class_name?' · '+esc(f.class_name):'')+'</span><span class="fb-when">'+when+'</span></div><div class="fb-text">'+esc(f.message)+'</div>';
+      box.appendChild(row);
+    });
+  });},
+
+  openSettings(){return withBar(async()=>{
+    go('tsettings'); $('settingsMsg').textContent='';
+    const {data}=await sb.from('settings').select('value').eq('key','photoshop_url').maybeSingle();
+    $('settingsPhotoshopUrl').value=(data&&data.value)||'';
+    await this.loadScreenshots();
+  });},
+  async saveSettings(){
+    const url=$('settingsPhotoshopUrl').value.trim();
+    await withBar(async()=>{ await sb.from('settings').upsert({key:'photoshop_url',value:url,updated_at:new Date().toISOString()}); });
+    $('settingsMsg').textContent=url? 'Link saved.' : 'Cleared — students will see "not added yet" until you paste a new link.';
+  },
+  async loadScreenshots(){
+    const {data}=await sb.from('settings').select('value').eq('key','photoshop_screenshots').maybeSingle();
+    let urls=[]; try{ urls=JSON.parse((data&&data.value)||'[]'); }catch(e){}
+    this._screenshots=urls;
+    const box=$('ssThumbs'); box.innerHTML='';
+    urls.forEach((u,i)=>{
+      const t=document.createElement('div'); t.className='thumb';
+      t.innerHTML='<img src="'+u+'"><div class="x" title="Remove">&times;</div>';
+      t.querySelector('.x').onclick=()=>Teacher.removeScreenshot(i);
+      box.appendChild(t);
+    });
+  },
+  async removeScreenshot(i){
+    this._screenshots.splice(i,1);
+    await withBar(async()=>{ await sb.from('settings').upsert({key:'photoshop_screenshots',value:JSON.stringify(this._screenshots),updated_at:new Date().toISOString()}); });
+    await this.loadScreenshots();
+  },
+
+  /* ---- edit a student pack ---- */
+  editPack(id,name,type){App.editPackId=id; App.editPackType=type; return withBar(async()=>{
+    go('tpackedit'); $('editMsg').textContent='';
+    $('tpackeditTitle').textContent=App._studentEditing? 'Edit your pack' : 'Edit pack';
+    $('editPackName').value=name||'';
+    const isCull=type==='culling';
+    $('editClassWrap').classList.toggle('hidden', !isCull || !!App._studentEditing);
+    $('editLinksWrap').classList.toggle('hidden',isCull);
+    if(isCull && !App._studentEditing){
+      const {data:cls}=await sb.from('classes').select('name').order('name');
+      const {data:pack}=await sb.from('packs').select('class_name').eq('id',id).single();
+      const names=(cls||[]).map(c=>c.name);
+      $('editPackClass').innerHTML='<option value="">No class (hidden from students)</option>'+
+        names.map(n=>'<option'+(pack&&pack.class_name===n?' selected':'')+'>'+esc(n)+'</option>').join('');
+    } else if(!isCull){
+      const {data:pack}=await sb.from('packs').select('links').eq('id',id).single();
+      const links=(pack&&Array.isArray(pack.links))?pack.links:[];
+      $('editPackLinks').value=links.map(l=> l.title&&l.title!==l.url ? (l.title+': '+l.url) : l.url).join('\n');
+    }
+    await this.loadEditThumbs(id);
+  });},
+  async savePackClass(){
+    const id=App.editPackId; const cls=$('editPackClass').value||null;
+    await withBar(async()=>{ await sb.from('packs').update({class_name:cls}).eq('id',id); });
+    $('editMsg').textContent=cls? ('Pack now belongs to '+cls+'.') : 'Pack has no class — students will not see it until you set one.';
+  },
+  async saveEditLinks(){
+    const id=App.editPackId;
+    const links=parseLinks($('editPackLinks').value);
+    await withBar(async()=>{ await sb.from('packs').update({links}).eq('id',id); });
+    $('editMsg').textContent=links.length? (links.length+' link'+(links.length!==1?'s':'')+' saved.') : 'Saved with no links — the info icon will stay hidden on this pack.';
+  },
+  async loadEditThumbs(id){
+    const {data:imgs}=await sb.from('images').select('id,url,position').eq('pack_id',id).order('position');
+    const box=$('editThumbs'); box.innerHTML='';
+    if(!imgs||!imgs.length){ box.innerHTML='<p class="helper" style="margin:0;">No photographs in this pack yet.</p>'; return; }
+    imgs.forEach(im=>{
+      const t=document.createElement('div'); t.className='thumb';
+      t.innerHTML='<img src="'+im.url+'"><div class="x" title="Remove">&times;</div>';
+      t.querySelector('.x').onclick=()=>this.removeImage(im.id,id);
+      box.appendChild(t);
+    });
+  },
+  async removeImage(imageId,packId){
+    if(!confirm('Remove this photograph from the pack?'))return;
+    await withBar(async()=>{ await sb.from('images').delete().eq('id',imageId); });
+    await this.loadEditThumbs(packId);
+  },
+  async renamePack(){
+    const id=App.editPackId; const name=$('editPackName').value.trim();
+    if(!name){ $('editMsg').textContent='Give the pack a name.'; return; }
+    await withBar(async()=>{ await sb.from('packs').update({name}).eq('id',id); });
+    $('editMsg').textContent='Name saved.';
+  },
+  async delPackFromEditor(){
+    const id=App.editPackId;
+    if(!confirm('Delete this whole pack, its photographs and all results? This cannot be undone.'))return;
+    await withBar(async()=>{ await sb.from('packs').delete().eq('id',id); });
+    App.backFromPackEdit();
+  },
+
+  /* ---- edit research links on an existing artist pack ---- */
+  editLinks(id,name){return withBar(async()=>{
+    App.editLinksPackId=id; $('linksMsg').textContent=''; $('linksPackName').textContent=name||'';
+    const {data:pack}=await sb.from('packs').select('links').eq('id',id).single();
+    const links=(pack&&Array.isArray(pack.links))?pack.links:[];
+    $('linksText').value=links.map(l=> l.title&&l.title!==l.url ? (l.title+': '+l.url) : l.url).join('\n');
+    go('tlinksedit');
+  });},
+  async saveLinks(){
+    const id=App.editLinksPackId; if(!id) return;
+    const links=parseLinks($('linksText').value);
+    await withBar(async()=>{ await sb.from('packs').update({links}).eq('id',id); });
+    $('linksMsg').textContent=links.length? (links.length+' link'+(links.length!==1?'s':'')+' saved.') : 'Saved with no links — the More info button will stay hidden on this pack.';
+  },
+  openResults(id,name){App.curPack=id; if(name)this._name=name; this._artistCullView='ranking'; return withBar(async()=>{
+    go('tresults'); $('trTitle').textContent=this._name||'Results';
+    const {data:imgs}=await sb.from('images').select('id,url,position').eq('pack_id',id).order('position');
+    // culling ranking
+    const {data:culls}=await sb.from('cullings').select('student_name,ranked,created_at').eq('pack_id',id).order('created_at');
+    this._artistImgs=imgs||[]; this._artistCulls=culls||[];
+    $('trCullToggle').textContent='See each top 5';
+    $('trCullRanking').classList.remove('hidden'); $('trCullIndividuals').classList.add('hidden');
+    $('trCullCount').textContent=(culls||[]).length+' student'+((culls||[]).length!==1?'s':'')+' culled this pack';
+    renderCullRanking($('trCullRanking'), scoreCulling(this._artistImgs, this._artistCulls));
+    await Teacher.loadComments(id,'trCommentList','trCommentCount');
+  });},
+  toggleArtistCullView(){
+    const showIndiv=this._artistCullView!=='individuals';
+    this._artistCullView=showIndiv?'individuals':'ranking';
+    $('trCullToggle').textContent=showIndiv?'See overall ranking':'See each top 5';
+    $('trCullRanking').classList.toggle('hidden',showIndiv);
+    $('trCullIndividuals').classList.toggle('hidden',!showIndiv);
+    if(showIndiv) renderIndividuals($('trCullIndividuals'), this._artistImgs, this._artistCulls);
+  },
+  async resetResults(id){
+    if(!confirm('Clear all recorded responses for this pack? (Punctum votes only — cullings stay.)'))return;
+    await withBar(async()=>{ await sb.from('responses').delete().eq('pack_id',id); });
+    this.openResults(id);
+  },
+  async loadComments(packId,listId,countId){
+    const {data}=await sb.from('pack_comments').select('*').eq('pack_id',packId).order('created_at',{ascending:false});
+    const rows=data||[];
+    $(countId).textContent=rows.length+' comment'+(rows.length!==1?'s':'');
+    const box=$(listId); box.innerHTML='';
+    if(!rows.length){ box.innerHTML='<p class="empty">No comments yet.</p>'; return; }
+    rows.forEach(c=>{
+      const when=new Date(c.created_at).toLocaleDateString(undefined,{day:'numeric',month:'short'});
+      const row=document.createElement('div'); row.className='comment-row';
+      row.innerHTML='<div><div class="c-who">'+esc(c.student_name||'Anonymous')+(c.class_name?' · '+esc(c.class_name):'')+'<span class="c-when">'+when+'</span></div><div class="c-text">'+esc(c.comment)+'</div></div><span class="comment-del" title="Remove">&times;</span>';
+      row.querySelector('.comment-del').onclick=()=>Teacher.deleteComment(c.id,packId,listId,countId);
+      box.appendChild(row);
+    });
+  },
+  async deleteComment(id,packId,listId,countId){
+    if(!confirm('Remove this comment?'))return;
+    await withBar(async()=>{ await sb.from('pack_comments').delete().eq('id',id); });
+    await this.loadComments(packId,listId,countId);
+  },
+  // culling results: overall ranking, with a toggle to see each student's top 5
+  openCullResults(id,name){App.curPack=id; if(name)this._cname=name; this._cullView='ranking'; return withBar(async()=>{
+    go('tcresults'); $('tcrTitle').textContent=this._cname||'Culling results';
+    $('tcrToggle').textContent='See each top 5';
+    $('tcrRanking').classList.remove('hidden'); $('tcrIndividuals').classList.add('hidden');
+    const {data:imgs}=await sb.from('images').select('id,url').eq('pack_id',id);
+    const {data:culls}=await sb.from('cullings').select('student_name,ranked,created_at').eq('pack_id',id).order('created_at');
+    this._imgs=imgs||[]; this._culls=culls||[];
+    const ranked=scoreCulling(this._imgs, this._culls);
+    $('tcrCount').textContent=this._culls.length+' student'+(this._culls.length!==1?'s':'')+' culled this pack';
+    renderCullRanking($('tcrRanking'), ranked);
+    await Teacher.loadComments(id,'tcrCommentList','tcrCommentCount');
+  });},
+  toggleCullView(){
+    const showIndiv=this._cullView==='ranking';
+    this._cullView=showIndiv?'individuals':'ranking';
+    $('tcrToggle').textContent=showIndiv?'See overall ranking':'See each top 5';
+    $('tcrRanking').classList.toggle('hidden',showIndiv);
+    $('tcrIndividuals').classList.toggle('hidden',!showIndiv);
+    if(showIndiv) renderIndividuals($('tcrIndividuals'), this._imgs, this._culls);
+  },
+  async resetCulling(id){
+    if(!confirm('Clear all recorded cullings for this pack? (The pack and its photos stay.)'))return;
+    await withBar(async()=>{ await sb.from('cullings').delete().eq('pack_id',id); });
+    this.openCullResults(id);
+  }
+};
+
+/* ============ uploads wiring ============ */
+function wireUpload(dropId,fileId,busyId,fillId,textId,onEach,onDone){
+  const drop=$(dropId),file=$(fileId),busy=$(busyId),fill=$(fillId),text=$(textId);
+  if(!drop||!file){ console.warn('wireUpload: missing element',dropId,fileId); return; }
+  const handle=async files=>{
+    const imgs=files.filter(f=>f.type&&f.type.startsWith('image/'));
+    if(!imgs.length)return;
+    busy.classList.remove('hidden-soft'); fill.style.width='0';
+    const skipped=[];
+    for(let i=0;i<imgs.length;i++){
+      text.textContent='Processing '+(i+1)+' of '+imgs.length+'...'; fill.style.width=Math.round(i/imgs.length*100)+'%';
+      try{const blob=await resizeImage(imgs[i]); await onEach(blob);}catch(e){console.warn('skip',imgs[i].name,e); skipped.push(imgs[i].name||'a file');}
+    }
+    fill.style.width='100%';
+    text.textContent=skipped.length?('Added '+(imgs.length-skipped.length)+', skipped '+skipped.length+' unreadable'):'Done';
+    setTimeout(()=>busy.classList.add('hidden-soft'), skipped.length?2400:600);
+    if(skipped.length) alert('Skipped '+skipped.length+' image(s) the browser could not read (often iPhone HEIC or TIFF): '+skipped.join(', ')+'.\n\nConvert to JPEG and try again.');
+    onDone&&onDone();
+  };
+  drop.onclick=()=>file.click();
+  drop.ondragover=e=>{e.preventDefault(); drop.classList.add('over');};
+  drop.ondragleave=()=>drop.classList.remove('over');
+  drop.ondrop=e=>{e.preventDefault(); drop.classList.remove('over'); handle(Array.from(e.dataTransfer.files));};
+  file.onchange=()=>{handle(Array.from(file.files)); file.value='';};
+}
+
+// teacher uploads: keep blob (for upload) + preview data URL (for thumbnail)
+wireUpload('tDrop','tFile','tBusy','tFill','tText',
+  async blob=>{const preview=await blobToDataURL(blob); Teacher.draft.push({blob,preview}); Teacher.drawThumbs();});
+// culling pack uploads (student): same — blob to upload, preview for thumbnail
+wireUpload('cullDrop','cullFile','cullBusy','cullFill','cullText',
+  async blob=>{const preview=await blobToDataURL(blob); Cull.draft.push({blob,preview}); Cull.drawThumbs();});
+// pack editor uploads (teacher): each photo uploads straight into the existing pack
+wireUpload('editDrop','editFile','editBusy','editFill','editText',
+  async blob=>{
+    const id=App.editPackId; if(!id) return;
+    const {data:existing}=await sb.from('images').select('position').eq('pack_id',id);
+    const nextPos=(existing||[]).reduce((m,r)=>Math.max(m,(r.position||0)+1),0);
+    const path=id+'/'+Date.now()+'_'+Math.floor(Math.random()*9999)+'.jpg';
+    const {error:upErr}=await sb.storage.from('photos').upload(path,blob,{contentType:'image/jpeg'});
+    if(upErr){console.error(upErr); return;}
+    const {data:pub}=sb.storage.from('photos').getPublicUrl(path);
+    await sb.from('images').insert({pack_id:id,url:pub.publicUrl,position:nextPos});
+  },
+  async()=>{ await Teacher.loadEditThumbs(App.editPackId); $('editMsg').textContent='Photographs added.'; });
+
+wireUpload('ssDrop','ssFile','ssBusy','ssFill','ssText',
+  async blob=>{
+    const path='photoshop-screenshots/'+Date.now()+'_'+Math.floor(Math.random()*9999)+'.jpg';
+    const {error:upErr}=await sb.storage.from('photos').upload(path,blob,{contentType:'image/jpeg'});
+    if(upErr){console.error(upErr); return;}
+    const {data:pub}=sb.storage.from('photos').getPublicUrl(path);
+    Teacher._screenshots=Teacher._screenshots||[];
+    Teacher._screenshots.push(pub.publicUrl);
+    await sb.from('settings').upsert({key:'photoshop_screenshots',value:JSON.stringify(Teacher._screenshots),updated_at:new Date().toISOString()});
+  },
+  async()=>{ await Teacher.loadScreenshots(); });
+
+function blobToDataURL(blob){return new Promise((res,rej)=>{const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob);});}
+
+/* name autocomplete */
+$('nameInput').addEventListener('input',()=>Gate.suggest());
+$('nameInput').addEventListener('blur',()=>setTimeout(()=>$('nameSuggest').classList.add('hidden'),150));
+
+/* boot */
+go('gate');
+Gate.prime();
+</script>
+</body>
+</html>

@@ -72,3 +72,10 @@ Source re-split, `npm run build` reproduces the original v15 file byte-for-byte 
 - Printed labels on the body for the blank buttons: BAG, PHOTOS, REVIEW, BRIEF, SET · SHOOT, SETUP, BACK; each is clickable and presses in.
 - B opens the camera bag (the legacy body and lens picker until the bag session). The scene stops rendering while the back is up.
 - Tests: `npm test` now runs `tests/back.mjs` too (shoot three frames, flip, every tab, exposure syncs to the viewfinder, ratings saved, bag, leave to hub).
+
+## Build stage 2: viewfinder dials (16 Oct 2026): done
+- `src/finder.js`: P raises an EVF-style finder. The scene sits in the body's frame (3:2, or 5:4 for 6x7 and 4x5) on pure black; all readouts are on the strip below (mode, shutter / aperture / ISO with the active dial as a live tape, a thirds-of-a-stop meter with an over-range warning, frame counter) with key hints under it.
+- 1 2 3 pick the dial, the scroll wheel turns it, Shift+scroll racks focus, G cycles guides (no red power-point dots). Chips with blurred plates: the active brief with its progress squares (top left), the guide name (top right). Focus brackets and a level that turns gold when the camera is level. After a shot, a toast inside the frame gives the teaching tip.
+- The lens's horizontal angle of view now fills the frame (sensor width and focal length, so crop factor frames correctly); walking uses a natural 55° eye. The shutter captures exactly the framed rectangle.
+- Camera back fixes: buttons measured onto the render (Hough circles), a slow gold breathing ring on every working button (steady on the open tab), fuller framing.
+- Note: in the headless test browser (SwiftShader) the splat renders black, including in the original v15 file, so dark test frames are the environment, not the app. Check visuals on a real PC.

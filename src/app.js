@@ -62,7 +62,7 @@
     BRIEFS.forEach(function(brf,i){ var b=document.createElement("button"); b.className="chip"+(activeBrief===i?" on":""); b.textContent=(briefDone[brf.id]?"✓ ":"")+brf.t; b.title=brf.tip; b.onclick=function(){ setBrief(i); }; el.appendChild(b); });
     var pg=$("briefProg"); if(pg) pg.textContent=briefProgText();
   }
-  function setBrief(i){ activeBrief=i; updateBriefUI(); buildBriefList(); if(i>=0) toast("Brief: "+BRIEFS[i].t+" — "+BRIEFS[i].tip); }
+  function setBrief(i){ activeBrief=i; updateBriefUI(); buildBriefList(); if(typeof vfRenderChips==="function") vfRenderChips(); if(i>=0) toast("Brief: "+BRIEFS[i].t+" — "+BRIEFS[i].tip); }
   function updateBriefUI(){
     var chip=$("briefChip"), ct=$("briefChipText"), vb=$("vfBrief"); if(!chip) return;
     if(activeBrief>=0){ var b=BRIEFS[activeBrief]; ct.textContent=b.t; chip.classList.remove("hidden"); vb.textContent=b.t+" — "+b.tip; vb.classList.remove("hidden"); }
@@ -150,7 +150,9 @@
     isoGrain=Math.min(Math.max((iso-100)/6300,0),1)*0.11 + camGrain;
     var wide=Math.min(Math.max((5.6-N)/(5.6-1.4),0),1); apVig=0.16+wide*0.22;
     dofStrength=Math.min(Math.max((8-N)/6.6,0),1);          // f/8+ = all sharp, f/1.4 = maximum background blur
-    var fov=2*Math.atan((body.sensorW||36)/(2*focalMM))*180/Math.PI; camera.fov=Math.max(6,Math.min(112,fov)); camera.updateProjectionMatrix();
+    // walking: a natural eye. Camera up: the lens's horizontal angle of view fills the viewfinder frame,
+    // so sensor size (crop factor) and focal length frame exactly like the real camera would.
+    var fov=viewfinderOn?vfFovFor(body.sensorW,focalMM):55; camera.fov=Math.max(4,Math.min(112,fov)); camera.updateProjectionMatrix();
     updateCamLabels();
   }
   function updateCamLabels(){
@@ -162,6 +164,7 @@
     $("vfExp").textContent=ev; $("vfLens").textContent=focalMM+"mm";
     if($("tagCam")) updateHoloTags();
     updateLcd(evStops);
+    if(typeof vfRefresh==="function") vfRefresh();
   }
 
   // ---- physical camera: bodies, lenses, finder ----
@@ -175,11 +178,11 @@
     b.lenses.forEach(function(mm,i){ var c=document.createElement("button"); c.className="chip"+(i===lensIdx?" on":""); c.textContent=mm+"mm"; c.onclick=function(){ selectLens(i); }; el.appendChild(c); }); }
   function captureAspect(A){ var src=renderer.domElement, W=src.width, H=src.height, cw=W, ch=H;
     if(W/H>A){ cw=H*A; } else { ch=W/A; }
-    var sx=(W-cw)/2, sy=(H-ch)/2, o=document.createElement("canvas"); o.width=Math.max(2,Math.round(cw)); o.height=Math.max(2,Math.round(ch));
+    var sx=(W-cw)/2, sy=(H-ch)/2, o=document.createElement("canvas");
+    if(viewfinderOn){ var r=vfRect(), kx=W/window.innerWidth, ky=H/window.innerHeight; sx=r.x*kx; sy=r.y*ky; cw=r.w*kx; ch=r.h*ky; }   // exactly what the frame shows
+    o.width=Math.max(2,Math.round(cw)); o.height=Math.max(2,Math.round(ch));
     o.getContext("2d").drawImage(src, sx,sy,cw,ch, 0,0,o.width,o.height); return o.toDataURL("image/png"); }
-  function sizeFinder(){ var f=$("vfFrame"); if(!f) return; var A=curBody().aspect, W=window.innerWidth, H=window.innerHeight, m=0.84;
-    var fw=W*m, fh=fw/A; if(fh>H*m){ fh=H*m; fw=fh*A; }
-    f.style.width=Math.round(fw)+"px"; f.style.height=Math.round(fh)+"px"; f.style.left=Math.round((W-fw)/2)+"px"; f.style.top=Math.round((H-fh)/2)+"px"; }
+  function sizeFinder(){ if(typeof vfLayout==="function"){ vfLayout(); vfRefresh(); } }
   function applyFinder(){ var b=curBody(), cv=renderer&&renderer.domElement, bl=$("vfBody"), md=$("vfMode"), vfEl=$("viewfinder");
     if(bl) bl.textContent=b.name;
     if(md) md.textContent=(b.finder==="waist"?"◉ WAIST-LEVEL":(b.finder==="ground"?"◉ GROUND GLASS":"◉ CAPTURE"));
@@ -369,7 +372,7 @@
   }
   function animate(){ requestAnimationFrame(animate); var dt=Math.min(clock.getDelta(),0.1);
     if(typeof cbOpen!=="undefined" && cbOpen) return;   // the camera back covers the scene: stop drawing it (big win on school PCs)
-    if(loaded) updateCamera(dt); renderFrame(dt); }
+    if(loaded) updateCamera(dt); renderFrame(dt); if(viewfinderOn) vfLevelTick(); }
   animate();
 
   // ---- loading ----
@@ -518,7 +521,7 @@
     if(mm<=24) tips.push(["Wide lens · "+mm+"mm","Takes in a lot and exaggerates depth — step in close to your subject for real drama."]);
     else if(mm>=100) tips.push(["Telephoto · "+mm+"mm","Compresses distance and lifts your subject cleanly off the background."]);
     if(!tips.length) tips.push(["Balanced exposure","A clean, neutral setup. Now change one dial — aperture, shutter or ISO — and watch what it does to the shot."]);
-    showTip(tips[0][0], tips[0][1]); }
+    if(viewfinderOn && typeof vfToast==="function") vfToast(tips[0][1]); else showTip(tips[0][0], tips[0][1]); }
 
   // ---- first-run tutorial (coach-marks) ----
   var TUT=[
@@ -541,20 +544,21 @@
 
   // ---- viewfinder + photos ----
   function raiseCamera(){ if(!loaded) return; App.note("viewfinder"); viewfinderOn=true; viewfinder.classList.add("on"); updateCrosshair(); updatePrompt(); computeCam(); applyFinder(); drawComp(); }
-  function lowerCamera(){ if(App.state==="viewfinder") App.note("scene"); viewfinderOn=false; viewfinder.classList.remove("on"); updateCrosshair(); updatePrompt(); applyFinder(); }
+  function lowerCamera(){ if(App.state==="viewfinder") App.note("scene"); var was=viewfinderOn; viewfinderOn=false; viewfinder.classList.remove("on"); updateCrosshair(); updatePrompt(); applyFinder(); if(was) computeCam(); }
   // ---- composition / framing guides (in-frame, teach composition in any scene) ----
   var COMP=["off","thirds","phi","center","diagonal","grid"], compIdx=1;
   var COMP_NAMES={off:"",thirds:"Rule of thirds",phi:"Golden ratio",center:"Centre",diagonal:"Diagonals",grid:"Grid"};
   function drawComp(){ var svg=$("vfComp"), lbl=$("vfCompLbl"); if(!svg) return; var m=COMP[compIdx], s="";
     function ln(a,b,c,d){ return '<line x1="'+a+'" y1="'+b+'" x2="'+c+'" y2="'+d+'"/>'; }
     function pt(x,y){ return '<circle class="pp" cx="'+x+'" cy="'+y+'" r="1.5"/>'; }
-    if(m==="thirds"){ s+=ln(33.33,0,33.33,100)+ln(66.66,0,66.66,100)+ln(0,33.33,100,33.33)+ln(0,66.66,100,66.66); [33.33,66.66].forEach(function(x){ [33.33,66.66].forEach(function(y){ s+=pt(x,y); }); }); }
-    else if(m==="phi"){ s+=ln(38.2,0,38.2,100)+ln(61.8,0,61.8,100)+ln(0,38.2,100,38.2)+ln(0,61.8,100,61.8); [38.2,61.8].forEach(function(x){ [38.2,61.8].forEach(function(y){ s+=pt(x,y); }); }); }
+    if(m==="thirds"){ s+=ln(33.33,0,33.33,100)+ln(66.66,0,66.66,100)+ln(0,33.33,100,33.33)+ln(0,66.66,100,66.66); }
+    else if(m==="phi"){ s+=ln(38.2,0,38.2,100)+ln(61.8,0,61.8,100)+ln(0,38.2,100,38.2)+ln(0,61.8,100,61.8); }
     else if(m==="center"){ s+=ln(50,0,50,100)+ln(0,50,100,50)+'<circle class="ctr" cx="50" cy="50" r="7"/>'; }
     else if(m==="diagonal"){ s+=ln(0,0,100,100)+ln(100,0,0,100)+ln(0,0,50,100)+ln(100,0,50,100)+ln(0,100,50,0)+ln(100,100,50,0); }
     else if(m==="grid"){ [25,50,75].forEach(function(v){ s+=ln(v,0,v,100)+ln(0,v,100,v); }); }
     svg.innerHTML=s; svg.style.opacity=(m==="off")?"0":"1";
-    if(lbl){ lbl.textContent=COMP_NAMES[m]||""; lbl.style.opacity=(m==="off")?"0":"1"; } }
+    if(lbl){ lbl.textContent=COMP_NAMES[m]||""; lbl.style.opacity=(m==="off")?"0":"1"; }
+    if(typeof vfRenderChips==="function") vfRenderChips(); }
   function cycleComp(){ compIdx=(compIdx+1)%COMP.length; drawComp(); }
   // ---- capture flourish: the shot flies to the photo counter ----
   function captureFX(url){ try{
@@ -591,7 +595,7 @@
     var brf=activeBrief>=0?BRIEFS[activeBrief]:null;
     photos.push({url:url,t:new Date(),f:APERTURES[apIdx],sh:SHUTTER_LABELS[shIdx],iso:ISOS[isoIdx],mm:focalMM,body:curBody().name,brief:brf?brf.t:null});
     if(brf){ briefDone[brf.id]=(briefDone[brf.id]||0)+1; buildBriefList(); }
-    refreshCount(); fireFlash(); shutterSound(); captureFX(url);
+    refreshCount(); fireFlash(); shutterSound(); captureFX(url); vfRefresh();
     if(brf) toast("“"+brf.t+"” captured ✓");
     photoTip(); saveSession();
   }
@@ -919,6 +923,7 @@
   function closeMenu(){ hide(menu); if(App.state==="bag") App.note("scene"); updatePrompt(); }
   function toggleMenu(){ if(!menu.classList.contains("hidden")) closeMenu(); else openMenu(); }
 @@include back.js@@
+@@include finder.js@@
   function toggleGrid(){ grid.classList.toggle("hidden"); var s=$("mGrid"); if(s)s.classList.toggle("on",!grid.classList.contains("hidden")); }
 
   // ---- wire: landing ----
@@ -1042,6 +1047,7 @@
   window.addEventListener("keydown",function(e){
     if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")) return;
     if(cbOpen){ cbKey(e); return; }
+    if(viewfinderOn && !menuOpen() && /^Digit[123]$/.test(e.code)){ vfPickDial(VF_DIALS[+e.code.slice(5)-1][0]); return; }
     keys[e.code]=true;
     if(e.code==="Escape" && anyOutputOpen()){ e.preventDefault(); ["folio","photobook","galleryshow"].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.add("hidden"); }); return; }
     if(e.code==="Space"){ e.preventDefault(); if(!loaded || anyOutputOpen() || !gallery.classList.contains("hidden") || !editor.classList.contains("hidden")) return;
@@ -1334,6 +1340,6 @@
   if(/[?&]dev/.test(location.search)){ try{ window.__ed={openEditor:openEditor,eglInit:eglInit,photos:photos,defEd:defEd,editRender:editRender,selectBody:selectBody,BODIES:BODIES,openFolio:openFolio,openPhotobook:openPhotobook,openGalleryShow:openGalleryShow,
     foPack:foPack,foShuffle:foShuffle,foSeed:foSeed,importPhotoFiles:importPhotoFiles,pbExportPDF:pbExportPDF,pbBuildPDF:pbBuildPDF,pbInit:pbInit,updateCamArt:updateCamArt,switchCamTab:switchCamTab,camArtSVG:camArtSVG,gxRender:gxRender,gxBuildLayouts:gxBuildLayouts,gxBindDrag:gxBindDrag,loadSplat:loadSplat,showHub:showHub,openSplatViewer:openSplatViewer,openStudioHome:openStudioHome,openPunctum:openPunctum,photoTip:photoTip,saveSessionNow:saveSessionNow,loadSession:loadSession,clearSession:clearSession,showTutorial:showTutorial,cycleComp:cycleComp,drawComp:drawComp,raiseCamera:raiseCamera,shutter:shutter,get foItems(){return foItems;},get pbPages(){return pbPages;},get foBW(){return foBW;},get foBH(){return foBH;}}; }catch(e){} }
   if(/[?&]dev/.test(location.search)){ window.__cb={open:openBack, close:closeBack, tab:cbSetTab, state:function(){ return App.state; },
-    cam:function(){ return {ap:APERTURES[apIdx], sh:SHUTTER_LABELS[shIdx], iso:ISOS[isoIdx], ev:+evStops.toFixed(2)}; }, open_:function(){ return cbOpen; }, photos:photos }; }
+    cam:function(){ return {ap:APERTURES[apIdx], sh:SHUTTER_LABELS[shIdx], iso:ISOS[isoIdx], ev:+evStops.toFixed(2)}; }, open_:function(){ return cbOpen; }, photos:photos, fov:function(){ return camera.fov; }, dial:function(){ return vfDial; }, focus:function(){ return focusDist; } }; }
 })();
 

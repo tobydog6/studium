@@ -9,6 +9,7 @@ Every render needs to look like it came from the same studio shoot as the mirror
 3. **Generate 4, pick 1.** Small things (wrong dial count, melted text) are cheaper to reroll than to fix.
 4. **Hero shots (three-quarter): dramatic low-key, not catalogue-flat.** Sam's pick (16 Oct) is the first DSLR attempt: shot close with a ~70 mm lens so the lens looms and the body falls away, a dark charcoal seamless with a hint of floor falling into black, warm tungsten key (~2800 K) from the upper left, golden edge highlights, strong contrast. Use that image (`design/renders/reference-vibe-dslr.png`) as the style reference. A mid-grey backdrop cuts out more cleanly but looks stale; vibe wins. Cut-outs on dark work for the dark UI (rembg isnet-general-use, then `tools/grade_render.py`).
 4b. **Straight-on views (V2 back, V3 lens off) stay long-lens and orthographic** so they line up with the UI. A dark backdrop is fine.
+4c. **Blank buttons, we label them.** Flux can't do text, and its fake labels ("TOR", "NOK") look cheap. Every back view asks for plain round, evenly spaced, unlabelled buttons in a clean real layout. Studium draws the labels (MENU, INFO, Q, ▶, AF-ON) in its own type next to each button, and they can light up when pressed.
 5. **Highest resolution you can.** At least 2048 px on the long edge. Aspect ratios are given per shot.
 6. Flux ignores "no X" phrasing, so these prompts describe what *is* there ("blank smooth nameplate") rather than what isn't.
 

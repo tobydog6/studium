@@ -48,3 +48,7 @@ Architecture: a single app-state machine (`hub | bag | viewfinder | back | studi
 
 ## Session 1 status: done
 Source re-split, `npm run build` reproduces the original v15 file byte-for-byte (sha256 prefix f9847a6488c8), and the smoke test passes. Next up: mockups of the five screens.
+
+## Mockups
+- Camera back: direction C "Analogue" chosen (16 Oct 2026). Lens-barrel tape scales with a safelight index line, needle light meter, frame counter, mono caps, dashed gold rules. Tabs Shoot / Review / Brief / Setup switch with Q / E; on-screen labels for the side buttons (Brief, Setup, Review, Back); number keys rate photos in Review. Canvas: "Studium — Camera Back" artifact.
+- Known issue: the bundled STUMP (150K splats) is too sparse to look photographic up close. Locations need denser scans or streaming.

@@ -169,7 +169,7 @@
     {k:"sound", g:"HANDLING", label:"Shutter sound",      val:soundOn?"ON":"OFF", on:soundOn},
     {k:"grid",  g:"HANDLING", label:"Grid while walking", val:grid.classList.contains("hidden")?"OFF":"ON", on:!grid.classList.contains("hidden")},
     {k:"recentre",g:"PLACE",  label:"Back to the start point", val:"↵"},
-    {k:"photos",g:"PLACE",    label:"All photos",         val:"↵"},
+    {k:"photos",g:"PLACE",    label:"Open the studio",    val:"↵"},
     {k:"leave", g:"PLACE",    label:"Leave location",     val:"↵", danger:true}]; }
   function cbSetupHtml(){ var rows=cbSetupRows(), html="", lastG="";
     rows.forEach(function(r,i){ if(r.g!==lastG){ html+='<span class="cb-g">'+r.g+'</span>'; lastG=r.g; }
@@ -188,7 +188,7 @@
     else if(r.k==="sound") soundOn=!soundOn;
     else if(r.k==="grid") toggleGrid();
     else if(enter && r.k==="recentre"){ closeBack(false); frameScene(); updateCamera(0); toast("Back to the start point"); return; }
-    else if(enter && r.k==="photos"){ closeBack(false); openGallery(); return; }
+    else if(enter && r.k==="photos"){ closeBack(false); openStudio("select"); return; }
     else if(enter && r.k==="leave"){ closeBack(false); showHub(); return; }
     else return;
     cbRender(); }
@@ -213,7 +213,7 @@
     if(c==="Space"||c==="Escape"){ e.preventDefault(); closeBack(); return true; }
     if(c==="KeyQ"){ cbCycleTab(-1); return true; } if(c==="KeyE"){ cbCycleTab(1); return true; }
     if(c==="KeyB"){ e.preventDefault(); cbPress("bag"); closeBack(false); openBag("back"); return true; }
-    if(c==="Tab"){ e.preventDefault(); closeBack(false); openGallery(); return true; }
+    if(c==="Tab"){ e.preventDefault(); closeBack(false); openStudio("select"); return true; }
     var up=c==="ArrowUp", dn=c==="ArrowDown", lf=c==="ArrowLeft", rt=c==="ArrowRight", en=(c==="Enter"||c==="NumpadEnter");
     if(up||dn||lf||rt||en) e.preventDefault();
     if(cbTab==="shoot"){ if(up) cbRow=(cbRow+2)%3, cbRender(); else if(dn) cbRow=(cbRow+1)%3, cbRender(); else if(lf) cbShootStep(-1); else if(rt) cbShootStep(1); }
@@ -232,7 +232,7 @@
     else { cbSetupChange(d,false); } }
   function cbClick(e){ var t=e.target.closest("[data-cb-tab],[data-cb-set],[data-cb-row],[data-cb-frame],[data-cb-rate],[data-cb-pick],[data-cb-brief],[data-cb-setup],[data-cb-btn]"); if(!t) return;
     if(t.hasAttribute("data-cb-btn")){ var id=t.getAttribute("data-cb-btn"); cbPress(id);
-      if(id==="back") closeBack(); else if(id==="bag"){ closeBack(false); openBag("back"); } else if(id==="photos"){ closeBack(false); openGallery(); } else cbSetTab(id); return; }
+      if(id==="back") closeBack(); else if(id==="bag"){ closeBack(false); openBag("back"); } else if(id==="photos"){ closeBack(false); openStudio("select"); } else cbSetTab(id); return; }
     if(t.hasAttribute("data-cb-tab")) return cbSetTab(t.getAttribute("data-cb-tab"));
     if(t.hasAttribute("data-cb-set")){ var p=t.getAttribute("data-cb-set").split(":"); return cbShootSet(p[0],+p[1]); }
     if(t.hasAttribute("data-cb-row")){ cbRow=+t.getAttribute("data-cb-row"); return cbRender(); }

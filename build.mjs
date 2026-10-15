@@ -3,7 +3,7 @@
 //   node build.mjs --out X    -> custom output path
 //
 // Source conventions
-//   @@include <path>@@   (alone on a line in src/index.html) is replaced by src/<path>.
+//   @@include <path>@@   (alone on a line in src/index.html, or inside an included file) is replaced by src/<path>.
 //   @@include engine@@   is replaced by the esbuild bundle of src/engine.js (three + gaussian-splats-3d).
 //   asset:<path>         inside any included file becomes a base64 data: URI of <path> (repo-relative).
 //   asset-b64:<path>     becomes the bare base64 of <path> (used for the scene data and Punctum).
@@ -40,8 +40,11 @@ async function buildEngine() {
 
 const engine = await buildEngine();
 const shell = readFileSync(join(ROOT, 'src', 'index.html'), 'utf8');
+// Included files may themselves contain @@include lines (e.g. app.js pulls in back.js inside its closure).
+const readSrc = (p) => stripNl(readFileSync(join(ROOT, 'src', p), 'utf8'))
+  .replace(/^[ \t]*@@include (\S+)@@$/gm, (_, q) => readSrc(q));
 const html = shell.replace(/^@@include (\S+)@@$/gm, (_, p) =>
-  p === 'engine' ? engine : resolveAssets(stripNl(readFileSync(join(ROOT, 'src', p), 'utf8'))));
+  p === 'engine' ? engine : resolveAssets(readSrc(p)));
 
 if (/@@include|\basset(-b64)?:[A-Za-z]/.test(html.replace(engine, ''))) throw new Error('Unresolved include or asset token');
 mkdirSync(dirname(OUT), { recursive: true });

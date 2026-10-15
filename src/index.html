@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>Splat Explorer</title>
+<title>Studium</title>
 <style id="fontface">
 @@include styles/fonts.css@@
 </style>
@@ -43,7 +43,7 @@
     <div id="photoCount"><span class="ico">◉</span> <span id="photoNum">0</span></div>
     <div id="hint">
       <span><b>WASD</b> move</span><span><b>Mouse</b> look</span><span><b>E / Q</b> up·down</span>
-      <span><b>P</b> raise camera</span><span><b>G</b> guides</span><span><b>Space</b> menu</span>
+      <span><b>P</b> raise camera</span><span><b>G</b> guides</span><span><b>Space</b> camera back</span><span><b>B</b> bag</span>
     </div>
     <button id="btnHelp" title="How it works — replay the intro">?</button>
   </div>
@@ -141,7 +141,8 @@
         <div><span class="key">Up / Down</span> <kbd>E</kbd> / <kbd>Q</kbd></div>
         <div><span class="key">Camera</span> <kbd>P</kbd> raise · click to shoot</div>
         <div><span class="key">Faster</span> hold <kbd>Shift</kbd></div>
-        <div><span class="key">Menu</span> <kbd>Space</kbd></div>
+        <div><span class="key">Camera back</span> <kbd>Space</kbd></div>
+        <div><span class="key">Camera bag</span> <kbd>B</kbd></div>
       </div>
       <p class="note" id="landingNote"></p>
     </div>
@@ -149,6 +150,16 @@
   <div id="fadeover"></div>
 
   <!-- Menu = the camera's back screen -->
+  <!-- Camera back (Space): the rear render is the menu. Built by src/back.js -->
+  <div id="camback" class="hidden" aria-label="Camera back">
+    <div class="cb-room"></div>
+    <div class="cb-stage" id="cbStage">
+      <img class="cb-render" id="cbRender" alt="" draggable="false" width="1760" height="1328">
+      <div class="cb-screen" id="cbScreen"><div class="cb-ui" id="cbUi"></div></div>
+    </div>
+    <div class="cb-hints" id="cbHints"></div>
+  </div>
+
   <div id="menu" class="overlay hidden">
     <div class="card mmenu">
       <div class="mm-top">

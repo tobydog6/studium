@@ -2,6 +2,7 @@
   "use strict";
   var THREE=window.THREE, GS=window.GaussianSplats3D;
   var $=function(id){return document.getElementById(id);};
+@@include state.js@@
   var viewport=$("viewport"), landing=$("landing"), menu=$("menu"), gallery=$("gallery"),
       hud=$("hud"), crosshair=$("crosshair"), grid=$("grid"), prompt=$("prompt"),
       viewfinder=$("viewfinder"), loader=$("loader"), loadmsg=$("loadmsg"), loadsub=$("loadsub"),
@@ -134,7 +135,7 @@
   // ---- helpers ----
   function show(el){el.classList.remove("hidden");} function hide(el){el.classList.add("hidden");}
   function anyOutputOpen(){ return ["folio","photobook","galleryshow"].some(function(id){ var e=document.getElementById(id); return e && !e.classList.contains("hidden"); }); }
-  function menuOpen(){ return !menu.classList.contains("hidden")||!gallery.classList.contains("hidden")||!landing.classList.contains("hidden")||!editor.classList.contains("hidden")||anyOutputOpen(); }
+  function menuOpen(){ return (typeof cbOpen!=="undefined"&&cbOpen)||!menu.classList.contains("hidden")||!gallery.classList.contains("hidden")||!landing.classList.contains("hidden")||!editor.classList.contains("hidden")||anyOutputOpen(); }
   var toastTimer=null;
   function toast(m){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(function(){toastEl.classList.remove("show");},3200); }
   function updatePrompt(){ if(loaded && !looking && !viewfinderOn && !menuOpen()) show(prompt); else hide(prompt); }
@@ -366,7 +367,9 @@
     seedCounter=(seedCounter+1)%9973; fsMat.uniforms.seed.value=seedCounter;
     renderer.render(fsScene,fsCam);
   }
-  function animate(){ requestAnimationFrame(animate); var dt=Math.min(clock.getDelta(),0.1); if(loaded) updateCamera(dt); renderFrame(dt); }
+  function animate(){ requestAnimationFrame(animate); var dt=Math.min(clock.getDelta(),0.1);
+    if(typeof cbOpen!=="undefined" && cbOpen) return;   // the camera back covers the scene: stop drawing it (big win on school PCs)
+    if(loaded) updateCamera(dt); renderFrame(dt); }
   animate();
 
   // ---- loading ----
@@ -439,7 +442,7 @@
       viewer=new GS.Viewer({selfDrivenMode:false,useBuiltInControls:false,renderer:renderer,camera:camera,threeScene:scene,sharedMemoryForWorkers:false});
       return viewer.addSplatScene(url,{format:format, rotation:[q.x,q.y,q.z,q.w], showLoadingUI:false, progressiveLoad:false, splatAlphaRemovalThreshold:5, onProgress:function(p,l){updateLoader(p,l);}});
     }).then(function(){
-      frameScene(); loaded=true; hideLoader(); show(hud); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
+      frameScene(); loaded=true; hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       if(!tutSeen()){ setTimeout(function(){ showTutorial(0); }, 750); } else { toast("Click to look around · P raises the camera · Space for the menu"); }
     }).catch(function(err){
@@ -452,7 +455,7 @@
   }
   function reloadWithUp(up){ if(lastSource!==null) loadSplat(lastSource,up); }
   // ---- bundled scenes (embedded in the file) ----
-  function loadBundled(sc){ try{ var bin=atob(sc.data), arr=new Uint8Array(bin.length), i; for(i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+  function loadBundled(sc){ if(sc&&sc.name) cbPlace=sc.name; try{ var bin=atob(sc.data), arr=new Uint8Array(bin.length), i; for(i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
       var f=new File([arr],(sc.id||"scene")+"."+(sc.ext||"splat"),{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown"); }
     catch(e){ toast("Couldn't open that scene."); } }
   function buildScenePicker(){ var host=$("sceneRow"); if(!host) return; var list=(window.SPLAT_SCENES||[]);
@@ -466,10 +469,11 @@
   function hubShow(id){ var e=$(id); if(e) e.classList.remove("hidden"); }
   function showHub(){ suiteFrom="scene"; if(looking){ try{document.exitPointerLock();}catch(e){} }
     viewfinderOn=false; var vf=$("viewfinder"); if(vf) vf.classList.remove("on");
-    ["landing","studio","punctum","menu","gallery","editor","folio","photobook","galleryshow","hud","prompt"].forEach(hubHide); hubShow("hub"); }
-  function openSplatViewer(){ suiteFrom="scene"; hubHide("hub"); if(loaded){ hubShow("hud"); if(typeof updatePrompt==="function") updatePrompt(); } else { hubShow("landing"); } }
-  function openStudioHome(){ hubHide("hub"); hubShow("studio"); studioSync(); }
-  function openPunctum(){ hubHide("hub"); hubShow("punctum");
+    if(typeof cbOpen!=="undefined"&&cbOpen) closeBack(false);
+    ["landing","studio","punctum","menu","gallery","editor","folio","photobook","galleryshow","hud","prompt"].forEach(hubHide); hubShow("hub"); App.go("hub"); }
+  function openSplatViewer(){ suiteFrom="scene"; hubHide("hub"); App.go(loaded?"scene":"landing"); if(loaded){ hubShow("hud"); if(typeof updatePrompt==="function") updatePrompt(); } else { hubShow("landing"); } }
+  function openStudioHome(){ hubHide("hub"); hubShow("studio"); studioSync(); App.go("studio"); }
+  function openPunctum(){ hubHide("hub"); hubShow("punctum"); App.go("punctum");
     if(!punctumLoaded){ var fr=$("punctumFrame"); if(fr && window.PUNCTUM_B64){ try{ var bin=atob(window.PUNCTUM_B64), by=new Uint8Array(bin.length), i; for(i=0;i<bin.length;i++) by[i]=bin.charCodeAt(i); fr.srcdoc=new TextDecoder("utf-8").decode(by); punctumLoaded=true; }catch(e){ toast("Couldn't open Punctum."); } } } }
   function studioSync(){ var c=$("stCount"); if(c) c.textContent=(photos.length? photos.length+" photo"+(photos.length>1?"s":"")+" ready" : "No photos yet — shoot some in the Splat viewer, or upload below"); }
   function studioReturn(){ if(suiteFrom==="studio"){ suiteFrom="scene"; hubShow("studio"); studioSync(); } }
@@ -480,7 +484,7 @@
     r.onupgradeneeded=function(e){ try{ e.target.result.createObjectStore("state"); }catch(_){} };
     r.onsuccess=function(e){ _db=e.target.result; cb(_db); }; r.onerror=function(){ cb(null); }; }catch(e){ cb(null); } }
   function sessionData(){ return { v:1, savedAt:Date.now(), studentName:studentName, briefDone:briefDone,
-    photos:photos.map(function(p){ return {url:p.url,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,uploaded:p.uploaded}; }),
+    photos:photos.map(function(p){ return {url:p.url,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick}; }),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
   function saveSessionNow(){ if(!photos.length && !(typeof foItems!=="undefined"&&foItems&&foItems.length)) return; idb(function(db){ if(!db) return; try{ db.transaction("state","readwrite").objectStore("state").put(sessionData(),"session"); }catch(e){} }); }
@@ -523,7 +527,7 @@
     {ico:'<span class="kc"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>', s:"Walk through it", b:"W A S D to move, E and Q for up and down, and hold Shift to move faster."},
     {ico:'<span class="kc"><kbd>P</kbd></span>', s:"Raise the camera", b:"Press P to bring the camera up to your eye — the viewfinder frame appears."},
     {ico:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="12" width="38" height="28" rx="3"/><path d="M5 21.3h38M5 30.6h38M17.6 12v28M30.3 12v28"/></svg>', s:"Frame and shoot", b:"Aim, then click or press Enter to take the shot. Press G to cycle composition guides like the rule of thirds."},
-    {ico:'<span class="kc"><kbd style="min-width:72px">Space</kbd></span>', s:"Your settings", b:"Press Space for the camera back — pick a body and lens, set aperture, shutter and ISO, and watch what each one does to your shot."},
+    {ico:'<span class="kc"><kbd style="min-width:72px">Space</kbd></span>', s:"Flip the camera", b:"Press Space to flip to the camera back. Set shutter, aperture and ISO with the arrows or the scroll wheel and watch the meter. Press B for the camera bag to change body or lens."},
     {ico:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="9" width="24" height="18" rx="2"/><rect x="17" y="20" width="25" height="17" rx="2"/></svg>', s:"Make something", b:"Your photos save automatically. Open Photo studio from the hub to build a folio, a photobook or a gallery show."}
   ];
   var tutI=0;
@@ -536,8 +540,8 @@
   function endTutorial(){ var e=$("tutorial"); if(e) e.classList.add("hidden"); setTutSeen(); }
 
   // ---- viewfinder + photos ----
-  function raiseCamera(){ if(!loaded) return; viewfinderOn=true; viewfinder.classList.add("on"); updateCrosshair(); updatePrompt(); computeCam(); applyFinder(); drawComp(); }
-  function lowerCamera(){ viewfinderOn=false; viewfinder.classList.remove("on"); updateCrosshair(); updatePrompt(); applyFinder(); }
+  function raiseCamera(){ if(!loaded) return; App.note("viewfinder"); viewfinderOn=true; viewfinder.classList.add("on"); updateCrosshair(); updatePrompt(); computeCam(); applyFinder(); drawComp(); }
+  function lowerCamera(){ if(App.state==="viewfinder") App.note("scene"); viewfinderOn=false; viewfinder.classList.remove("on"); updateCrosshair(); updatePrompt(); applyFinder(); }
   // ---- composition / framing guides (in-frame, teach composition in any scene) ----
   var COMP=["off","thirds","phi","center","diagonal","grid"], compIdx=1;
   var COMP_NAMES={off:"",thirds:"Rule of thirds",phi:"Golden ratio",center:"Centre",diagonal:"Diagonals",grid:"Grid"};
@@ -611,7 +615,7 @@
     Array.prototype.forEach.call(g.querySelectorAll(".del"),function(b){ b.onclick=function(){ photos.splice(+b.dataset.i,1); refreshCount(); buildGallery(); }; });
     Array.prototype.forEach.call(g.querySelectorAll(".edit"),function(b){ b.onclick=function(){ openEditor(+b.dataset.i); }; });
   }
-  function openGallery(){ if(looking) document.exitPointerLock(); lowerCamera(); buildGallery(); hide(menu); hide(editor); show(gallery); updatePrompt(); }
+  function openGallery(){ if(looking) document.exitPointerLock(); lowerCamera(); App.note("studio.photos"); buildGallery(); hide(menu); hide(editor); show(gallery); updatePrompt(); }
 
   function exportContactSheet(){
     if(!photos.length){ toast("No photos yet."); return; }
@@ -911,9 +915,10 @@
     highlightUp(lastUp); computeCam(); refreshCount();
     $("mName").value=studentName; buildBriefList(); syncLook();
   }
-  function openMenu(){ suiteFrom="scene"; if(looking) document.exitPointerLock(); lowerCamera(); syncMenu(); show(menu); if(menu){ menu.classList.remove("flipin"); void menu.offsetWidth; menu.classList.add("flipin"); } updatePrompt(); }
-  function closeMenu(){ hide(menu); updatePrompt(); }
+  function openMenu(){ App.note("bag"); suiteFrom="scene"; if(looking) document.exitPointerLock(); lowerCamera(); syncMenu(); show(menu); if(menu){ menu.classList.remove("flipin"); void menu.offsetWidth; menu.classList.add("flipin"); } updatePrompt(); }
+  function closeMenu(){ hide(menu); if(App.state==="bag") App.note("scene"); updatePrompt(); }
   function toggleMenu(){ if(!menu.classList.contains("hidden")) closeMenu(); else openMenu(); }
+@@include back.js@@
   function toggleGrid(){ grid.classList.toggle("hidden"); var s=$("mGrid"); if(s)s.classList.toggle("on",!grid.classList.contains("hidden")); }
 
   // ---- wire: landing ----
@@ -1036,9 +1041,12 @@
   // ---- keyboard ----
   window.addEventListener("keydown",function(e){
     if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")) return;
+    if(cbOpen){ cbKey(e); return; }
     keys[e.code]=true;
     if(e.code==="Escape" && anyOutputOpen()){ e.preventDefault(); ["folio","photobook","galleryshow"].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.add("hidden"); }); return; }
-    if(e.code==="Space"){ e.preventDefault(); if(loaded && !anyOutputOpen() && gallery.classList.contains("hidden") && editor.classList.contains("hidden")) toggleMenu(); return; }
+    if(e.code==="Space"){ e.preventDefault(); if(!loaded || anyOutputOpen() || !gallery.classList.contains("hidden") || !editor.classList.contains("hidden")) return;
+      if(!menu.classList.contains("hidden")) closeMenu(); else openBack(); return; }
+    if(e.code==="KeyB" && loaded && !menuOpen()){ e.preventDefault(); if(looking) document.exitPointerLock(); openMenu(); return; }
     if(menuOpen()){ if(e.code==="Escape"){ if(!editor.classList.contains("hidden")){ closeEditor(); buildGallery(); show(gallery); } else if(!gallery.classList.contains("hidden")){hide(gallery);updatePrompt();} else if(!menu.classList.contains("hidden")){closeMenu();} } return; }
     if(e.code==="KeyP"){ e.preventDefault(); toggleViewfinder(); }
     else if(e.code==="Enter"){ e.preventDefault(); shutter(); }
@@ -1325,5 +1333,7 @@
   setInterval(function(){ if(photos.length||(typeof foItems!=="undefined"&&foItems&&foItems.length)) saveSessionNow(); }, 9000);
   if(/[?&]dev/.test(location.search)){ try{ window.__ed={openEditor:openEditor,eglInit:eglInit,photos:photos,defEd:defEd,editRender:editRender,selectBody:selectBody,BODIES:BODIES,openFolio:openFolio,openPhotobook:openPhotobook,openGalleryShow:openGalleryShow,
     foPack:foPack,foShuffle:foShuffle,foSeed:foSeed,importPhotoFiles:importPhotoFiles,pbExportPDF:pbExportPDF,pbBuildPDF:pbBuildPDF,pbInit:pbInit,updateCamArt:updateCamArt,switchCamTab:switchCamTab,camArtSVG:camArtSVG,gxRender:gxRender,gxBuildLayouts:gxBuildLayouts,gxBindDrag:gxBindDrag,loadSplat:loadSplat,showHub:showHub,openSplatViewer:openSplatViewer,openStudioHome:openStudioHome,openPunctum:openPunctum,photoTip:photoTip,saveSessionNow:saveSessionNow,loadSession:loadSession,clearSession:clearSession,showTutorial:showTutorial,cycleComp:cycleComp,drawComp:drawComp,raiseCamera:raiseCamera,shutter:shutter,get foItems(){return foItems;},get pbPages(){return pbPages;},get foBW(){return foBW;},get foBH(){return foBH;}}; }catch(e){} }
+  if(/[?&]dev/.test(location.search)){ window.__cb={open:openBack, close:closeBack, tab:cbSetTab, state:function(){ return App.state; },
+    cam:function(){ return {ap:APERTURES[apIdx], sh:SHUTTER_LABELS[shIdx], iso:ISOS[isoIdx], ev:+evStops.toFixed(2)}; }, open_:function(){ return cbOpen; }, photos:photos }; }
 })();
 

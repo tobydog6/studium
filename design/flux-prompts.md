@@ -7,7 +7,8 @@ Every render needs to look like it came from the same studio shoot as the mirror
 1. **Do the 50 mm lens and the mirrorless body first.** If your Flux version takes a reference image (image prompt, Kontext or "style reference"), feed it `mirrorless-front-3q.png` for every later prompt so the materials and light stay locked.
 2. **Same seed per family.** Once a seed gives you the right light, reuse it for every view of that object.
 3. **Generate 4, pick 1.** Small things (wrong dial count, melted text) are cheaper to reroll than to fix.
-4. **Black background, then send them to me.** I'll cut each one out to a transparent PNG, align it to the UI (screen corners, mount centre) and drop it into the canvas.
+4. **Mid-grey background, then send them to me.** Black on black can't be cut out cleanly (tested 16 Oct: the AI cutter ate part of the body). Swap every prompt's background sentence for: "The camera floats in front of a flat, seamless, evenly lit neutral mid-grey backdrop, lit separately so it stays one uniform grey with no gradient, no vignette, no floor, no horizon line and no shadow cast onto it." I cut out with `rembg` (isnet-general-use) and grade with `tools/grade_render.py`.
+4b. **Richer light.** Swap the lighting sentence for the warm raking tungsten key (2800 K, grazing angle, golden edge highlights, crisp cool rim light) used in the final B0 prompt below, and frame the object at about 75 percent of the frame. I'll cut each one out to a transparent PNG, align it to the UI (screen corners, mount centre) and drop it into the canvas.
 5. **Highest resolution you can.** At least 2048 px on the long edge. Aspect ratios are given per shot.
 6. Flux ignores "no X" phrasing, so these prompts describe what *is* there ("blank smooth nameplate") rather than what isn't.
 

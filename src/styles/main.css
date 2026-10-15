@@ -586,10 +586,13 @@
 #camback .cb-ui{position:absolute;left:0;top:0;transform-origin:0 0;display:flex;flex-direction:column}
 :where(#camback) button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 /* the physical controls and their printed labels */
-#camback .cb-hot{position:absolute;border-radius:50%;transition:box-shadow .12s}
-#camback .cb-hot:hover{box-shadow:0 0 0 3px rgba(227,173,87,.35),inset 0 0 18px rgba(227,173,87,.12)}
-#camback .cb-hot.dial:hover{box-shadow:0 0 0 3px rgba(227,173,87,.35)}
+/* every working button breathes a faint gold ring so students know what can be pressed */
+#camback .cb-hot{position:absolute;border-radius:50%;animation:cbPulse 2.8s ease-in-out infinite}
+#camback .cb-hot.on{animation:none;box-shadow:0 0 0 2px rgba(227,173,87,.55),0 0 22px rgba(227,173,87,.28)}
+#camback .cb-hot:hover{animation:none;box-shadow:0 0 0 3px rgba(227,173,87,.6),0 0 26px rgba(227,173,87,.35),inset 0 0 18px rgba(227,173,87,.12)}
 #camback .cb-hot.press{animation:cbPress .16s ease}
+@keyframes cbPulse{0%,100%{box-shadow:0 0 0 1px rgba(227,173,87,.05),0 0 0 rgba(227,173,87,0)}50%{box-shadow:0 0 0 2px rgba(227,173,87,.26),0 0 16px rgba(227,173,87,.16)}}
+@media (prefers-reduced-motion:reduce){#camback .cb-hot{animation:none;box-shadow:0 0 0 1px rgba(227,173,87,.22)}}
 @keyframes cbPress{50%{box-shadow:inset 0 6px 16px rgba(0,0,0,.85),0 0 0 2px rgba(227,173,87,.5)}}
 #camback .cb-print{position:absolute;font-family:'Geist Mono',ui-monospace,monospace;font-size:12.5px;letter-spacing:.16em;color:rgba(232,226,214,.38);white-space:nowrap;pointer-events:none;transition:color .15s}
 #camback .cb-print.on{color:#e3ad57}

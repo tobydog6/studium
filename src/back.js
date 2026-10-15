@@ -10,15 +10,16 @@
   var CB_IMG={w:1760,h:1328}, CB_SCREEN={x:378,y:598,w:684,h:472}, CB_DESIGN={w:780,h:538};
   var CB_TABS=[["shoot","Shoot"],["review","Review"],["brief","Brief"],["setup","Setup"]];
   // physical controls on the body: [id, centre x, centre y, radius, printed label, label side]
-  var CB_BUTTONS=[
-    ["bag",    385, 455, 40, "BAG",     "top"],
-    ["photos", 500, 455, 40, "PHOTOS",  "top"],
-    ["review",1200, 625, 46, "REVIEW",  "right"],
-    ["brief", 1197, 725, 22, "BRIEF",   "right"],
-    ["shoot", 1270, 865, 42, "SET · SHOOT", "dial"],
-    ["setup", 1195,1055, 40, "SETUP",   "bottom"],
-    ["back",  1325,1055, 40, "BACK",    "bottom"]
+  var CB_BUTTONS=[   // centres and radii measured off the render (Hough circles), so the hit areas sit exactly on the buttons
+    ["bag",    385, 461, 37, "BAG",     "top"],
+    ["photos", 499, 461, 40, "PHOTOS",  "top"],
+    ["review",1203, 631, 47, "REVIEW",  "right"],
+    ["brief", 1199, 732, 20, "BRIEF",   "right"],
+    ["shoot", 1272, 876, 48, "SET · SHOOT", "dial"],
+    ["setup", 1195,1061, 41, "SETUP",   "bottom"],
+    ["back",  1317,1061, 40, "BACK",    "bottom"]
   ];
+
   var cbOpen=false, cbTab="shoot", cbRow=0, cbReview=-1, cbBriefSel=0, cbSetupRow=0, cbWasVF=false, cbHideT=null;
   var cbHist={}, cbPlace="The Stump";
 
@@ -28,9 +29,9 @@
   // ---- layout: scale the render so the screen dominates and the right-hand buttons stay in view ----
   function cbLayout(){ var st=$("cbStage"); if(!st) return;
     var vw=window.innerWidth, vh=window.innerHeight-44;
-    var k=Math.min(vw*0.5/CB_SCREEN.w, vh*0.55/CB_SCREEN.h);
+    var k=Math.min(vw*0.56/CB_SCREEN.w, vh*0.62/CB_SCREEN.h);
     var cx=CB_SCREEN.x+CB_SCREEN.w/2, cy=CB_SCREEN.y+CB_SCREEN.h/2;
-    var tx=vw*0.42-cx*k, ty=vh*0.52-cy*k;
+    var tx=vw*0.42-cx*k, ty=vh*0.545-cy*k;
     st.style.transform="translate("+tx.toFixed(1)+"px,"+ty.toFixed(1)+"px) scale("+k.toFixed(4)+")"; }
   function cbBuildBody(){ var st=$("cbStage"); if(!st||st.getAttribute("data-built")) return; st.setAttribute("data-built","1");
     var rd=$("cbRender"); if(rd&&!rd.getAttribute("src")) rd.src=CB_RENDER;
@@ -38,11 +39,12 @@
     var ui=$("cbUi"); ui.style.width=CB_DESIGN.w+"px"; ui.style.height=CB_DESIGN.h+"px"; ui.style.transform="scale("+(CB_SCREEN.w/CB_DESIGN.w).toFixed(5)+")";
     CB_BUTTONS.forEach(function(b){ var id=b[0], x=b[1], y=b[2], r=b[3], label=b[4], side=b[5];
       var h=document.createElement("button"); h.className="cb-hot"+(id==="shoot"?" dial":""); h.setAttribute("data-cb-btn",id); h.setAttribute("aria-label",label);
+      h.style.animationDelay=(-(CB_BUTTONS.indexOf(b)*0.37)).toFixed(2)+"s";   // the pulse ripples across the body instead of blinking in unison
       h.style.left=(x-r)+"px"; h.style.top=(y-r)+"px"; h.style.width=(2*r)+"px"; h.style.height=(2*r)+"px"; st.appendChild(h);
       var p=document.createElement("span"); p.className="cb-print"; p.textContent=label;
       if(side==="top"){ p.style.left=x+"px"; p.style.top=(y+r+8)+"px"; p.style.transform="translateX(-50%)"; }
       else if(side==="right"){ p.style.left=(x+r+16)+"px"; p.style.top=(y-9)+"px"; }
-      else if(side==="dial"){ p.style.left=x+"px"; p.style.top=(y+128)+"px"; p.style.transform="translateX(-50%)"; }
+      else if(side==="dial"){ p.style.left=x+"px"; p.style.top=(y+134)+"px"; p.style.transform="translateX(-50%)"; }
       else { p.style.left=x+"px"; p.style.top=(y+r+12)+"px"; p.style.transform="translateX(-50%)"; }
       p.setAttribute("data-cb-print",id); st.appendChild(p); });
   }
@@ -197,6 +199,7 @@
     if(focusName) return;   // don't rebuild under someone typing their name
     ui.innerHTML= cbTab==="shoot"?cbShoot() : cbTab==="review"?cbReviewHtml() : cbTab==="brief"?cbBriefHtml() : cbSetupHtml();
     Array.prototype.forEach.call(document.querySelectorAll("[data-cb-print]"),function(p){ p.classList.toggle("on", p.getAttribute("data-cb-print")===cbTab); });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-cb-btn]"),function(h){ h.classList.toggle("on", h.getAttribute("data-cb-btn")===cbTab); });
     var hints={ shoot:[["Space","Viewfinder"],["Q E","Tabs"],["↑ ↓","Select"],["Scroll","Turn dial"],["B","Camera bag"]],
       review:[["Space","Viewfinder"],["Q E","Tabs"],["← →","Step"],["1–5","Rate"],["P","Pick"]],
       brief:[["Space","Viewfinder"],["Q E","Tabs"],["↑ ↓","Choose"],["↵","Set brief"]],

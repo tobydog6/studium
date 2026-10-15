@@ -18,6 +18,9 @@ al = np.asarray(Image.fromarray((al * 255).astype(np.uint8)).filter(ImageFilter.
 m = al > 0.5; lab, n = nd.label(m); keep = lab == (1 + int(np.argmax(nd.sum(m, lab, range(1, n + 1)))))
 keep = nd.binary_dilation(nd.binary_fill_holes(keep), iterations=2)
 al = al * keep; al[al < 0.08] = 0
+# bright neutral highlights inside the object (glass, chrome rims) look like checker: fill them
+interior = nd.binary_erosion(nd.binary_fill_holes(al > 0.5), iterations=4)
+al[interior] = 1
 if a.rgb:
     rgb = np.asarray(Image.open(a.rgb).convert('RGB'), float)
 else:

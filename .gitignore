@@ -3,3 +3,4 @@ dist/
 tests/out/
 original.html
 .DS_Store
+__pycache__/

@@ -77,6 +77,20 @@ try {
 
   // Book and Gallery host the existing builders under the studio bar
   await key('KeyE', 800); ok(await page.$eval('#photobook', (e) => !e.classList.contains('hidden')), 'Book should show the photobook designer');
+
+  // Gallery: the picks hang on the rendered wall at true size; click resizes, F frames, arrows space
+  await key('KeyE', 900);
+  ok((await cb(() => window.__cb.studio())).room === 'gallery', 'E from Book should reach Gallery');
+  ok(await page.$eval('#photobook', (e) => e.classList.contains('hidden')), 'photobook should hide in Gallery');
+  ok((await page.$$('.ga-print')).length === 4, 'four picks should hang');
+  const w0 = await page.$eval('.ga-print[data-ga-print="0"]', (e) => e.offsetWidth);
+  await page.click('.ga-print[data-ga-print="0"]'); await page.waitForTimeout(200);
+  ok((await page.$eval('.ga-print[data-ga-print="0"]', (e) => e.offsetWidth)) > w0, 'clicking a print should size it up');
+  await key('KeyF'); ok(await page.$eval('[data-ga-frame="oak"]', (e) => e.classList.contains('on')), 'F should cycle the frame');
+  await key('ArrowRight'); ok((await page.textContent('.ga-gapv')).startsWith('300'), 'right arrow should widen the spacing');
+  await page.click('.ga-t'); await page.keyboard.type('Stump Light'); await page.keyboard.press('Enter');
+  await shot('6-gallery');
+  await key('KeyQ', 900); ok(await page.$eval('#photobook', (e) => !e.classList.contains('hidden')), 'Q should return to Book');
   await page.click('#pbBack'); await page.waitForTimeout(300);
   ok((await cb(() => window.__cb.studio())).room === 'select', 'Book back should return to Select');
   await key('Escape', 400);

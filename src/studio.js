@@ -19,7 +19,7 @@
   function stPlaceOf(p){ return p.place||cbPlace; }
 
   // ---- open / close / rooms ----
-  var ST_LEGACY={edit:"editor", book:"photobook", gallery:"galleryshow"};
+  var ST_LEGACY={edit:"editor", book:"photobook"};
   function openStudio(room){ var el=$("studioX"); if(!el) return;
     if(looking){ try{ document.exitPointerLock(); }catch(e){} } if(viewfinderOn) lowerCamera();
     ["hub","studio","gallery","landing","prompt"].forEach(hubHide);
@@ -29,14 +29,14 @@
     if(loaded){ hubShow("hud"); App.go("scene"); updatePrompt(); } else showHub(); }
   function stHideLegacy(){ Object.keys(ST_LEGACY).forEach(function(k){ var e=$(ST_LEGACY[k]); if(e) e.classList.add("hidden"); }); document.body.classList.remove("st-legacy"); }
   function stRoom(r){ st.room=r; App.go("studio."+r); stHideLegacy();
-    ["select","workshop","folio"].forEach(function(k){ var c=$("st-"+k); if(c) c.classList.toggle("hidden", k!==r); });
+    ["select","workshop","folio","gallery"].forEach(function(k){ var c=$("st-"+k); if(c) c.classList.toggle("hidden", k!==r); });
     var empty=!photos.length;
     if(ST_LEGACY[r]){ document.body.classList.add("st-legacy");
       if(empty){ document.body.classList.remove("st-legacy"); }
       else if(r==="edit"){ var i=st.cur>=0?st.cur:photos.length-1; openEditor(i); }
-      else if(r==="book"){ openPhotobook(); } else if(r==="gallery"){ openGalleryShow(); } }
+      else if(r==="book"){ openPhotobook(); } }
     $("stEmpty").classList.toggle("hidden", !(empty && r!=="select"));
-    stRenderBar(); if(r==="select") stRenderSelect(); else if(r==="workshop") wsRender(); else if(r==="folio") foRender(); }
+    stRenderBar(); if(r==="select") stRenderSelect(); else if(r==="workshop") wsRender(); else if(r==="folio") foRender(); else if(r==="gallery") gaRender(); }
   function stCycle(d){ var i=0; ST_ROOMS.forEach(function(x,j){ if(x[0]===st.room) i=j; }); stRoom(ST_ROOMS[(i+d+ST_ROOMS.length)%ST_ROOMS.length][0]); }
   function stRenderBar(){ var bar=$("stBar"); if(!bar) return; var places={}; photos.forEach(function(p){ places[stPlaceOf(p)]=1; });
     bar.querySelector(".st-tabs").innerHTML=ST_ROOMS.map(function(r,i){ return '<button class="st-tab'+(r[0]===st.room?' on':'')+'" data-st-room="'+r[0]+'"><span class="n">0'+(i+1)+'</span>'+r[1]+'</button>'; }).join("");
@@ -45,7 +45,7 @@
       edit:[["\\","Before / after"],["⌘Z","Undo"],["Q E","Rooms"],["Esc","Back to Select"]],
       workshop:[["T","Use this frame"],["N","New page"],["← →","Pages"],["Q E","Rooms"]],
       folio:[["Click","Choose a series"],["L","Series layout"],["Click two frames","Swap"],["Q E","Rooms"]],
-      book:[["Q E","Rooms"],["Esc","Back to Select"]], gallery:[["Q E","Rooms"],["Esc","Back to Select"]] }[st.room];
+      book:[["Q E","Rooms"],["Esc","Back to Select"]], gallery:[["Click a print","Size"],["← →","Spacing"],["F","Frame"],["W","Walk the show"],["Q E","Rooms"]] }[st.room];
     $("stHints").innerHTML=hints.map(function(h){ return '<span><kbd>'+h[0]+'</kbd>'+h[1]+'</span>'; }).join(""); }
 
   // ---- 01 SELECT: the light table ----
@@ -154,6 +154,49 @@
       im.onerror=function(){ if(--left===0) done(); }; im.src=j.url; });
     function done(){ cv.toBlob(function(b){ var a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download=namePrefix()+"folio-A0.png"; document.body.appendChild(a); a.click(); a.remove(); toast("A0 panel downloaded"); },"image/png"); } }
 
+
+  // ---- 06 GALLERY: hang the picks at true size on a rendered gallery wall ----
+  // The wall render's view is 1100 x 735 (design px); the ceiling is taken as 3.2 m, so 0.1818 px per mm and the
+  // floor line at y 658.4. Prints are centred on the 1450 mm eye line, matted and framed, spaced as you set.
+  var GA_WALL="asset:assets/gallery/wall-a.webp", GA_G=0.1818, GA_FLOOR=658.4, GA_SIZES=[400,600,900,1200];
+  var ga={frame:"black", gap:250, sizes:{}, dims:{}, title:""};
+  function gaPrints(){ var pk=stPicks(); if(!pk.length) pk=photos.map(function(_,i){ return i; }).filter(function(i){ return (photos[i].rating||0)>=3; });
+    if(!pk.length) pk=photos.map(function(_,i){ return i; }).slice(-5); return pk.slice(0,7); }
+  function gaDims(i){ var d=ga.dims[photos[i].url]; if(d) return d; var im=new Image(); im.onload=function(){ ga.dims[photos[i].url]=im.width/im.height; if(st.room==="gallery") gaRender(); }; im.src=photos[i].url; return 1.5; }
+  function gaLayout(){ var pr=gaPrints(), mat=ga.frame==="float"?0:55, fw=ga.frame==="float"?0:15, wallMM=1100/GA_G;
+    var items=pr.map(function(i,k){ var a=gaDims(i), s=ga.sizes[photos[i].url]; if(s==null) s=(k===Math.floor((pr.length-1)/2))?3:1;
+      var L=GA_SIZES[s], w=a>=1?L:Math.round(L*a), h=a>=1?Math.round(L/a):L; return {i:i, s:s, w:w, h:h, W:w+2*(mat+fw), H:h+2*(mat+fw), mat:mat, fw:fw}; });
+    var total=items.reduce(function(a,it){ return a+it.W; },0)+ga.gap*Math.max(0,items.length-1), k=Math.min(1,(wallMM*0.9)/Math.max(total,1));
+    var x=(wallMM-total*k)/2, eye=GA_FLOOR-1450*GA_G;
+    items.forEach(function(it){ it.x=x*GA_G; it.pw=it.W*k*GA_G; it.ph=it.H*k*GA_G; it.y=eye-it.ph/2; it.k=k; x+=(it.W+ga.gap)*k; });
+    return {items:items, eye:eye, endX:x*GA_G}; }
+  function gaRender(){ var box=$("st-gallery"); if(!box) return; var view=box.querySelector(".ga-wall"); var bgi=box.querySelector(".ga-bg"); if(bgi&&!bgi.getAttribute("src")) bgi.src=GA_WALL;
+    var area=box.querySelector(".ga-area"), aw=area.clientWidth, ah=area.clientHeight-30, s=Math.min(aw/1100, ah/735);
+    view.style.width=(1100*s)+"px"; view.style.height=(735*s)+"px"; var inner=view.querySelector(".ga-in"); inner.style.transform="scale("+s+")";
+    var L=gaLayout(), fc={black:"#151311",oak:"#8a6a45",white:"#f4f1ea",float:"transparent"}[ga.frame], html="";
+    L.items.forEach(function(it){ var p=photos[it.i], pad=it.fw*it.k*GA_G, mp=it.mat*it.k*GA_G;
+      html+='<span class="ga-spot" style="left:'+(it.x+it.pw/2-170)+'px;top:'+(it.y-150)+'px;height:'+(it.ph+300)+'px"></span>'
+        +'<button class="ga-print'+(ga.frame==="float"?' float':'')+'" data-ga-print="'+it.i+'" style="left:'+it.x.toFixed(1)+'px;top:'+it.y.toFixed(1)+'px;width:'+it.pw.toFixed(1)+'px;height:'+it.ph.toFixed(1)+'px;padding:'+pad.toFixed(1)+'px;background:'+fc+'">'
+        +'<span class="mat" style="padding:'+mp.toFixed(1)+'px"><img src="'+p.url+'" alt=""></span><span class="sz">'+it.w+' × '+it.h+' MM</span></button>'; });
+    var lx=Math.min(L.endX+10, 1100-80);
+    html+='<div class="ga-label" style="left:'+lx+'px;top:'+(GA_FLOOR-1300*GA_G)+'px"><div class="ga-t" contenteditable="true" data-ph="Title of the show">'+cbEsc(ga.title)+'</div><span>'+cbEsc((studentName||"YOUR NAME").toUpperCase())+'<br>'+new Date().getFullYear()+' · '+L.items.length+' PRINTS</span></div>';
+    inner.querySelector(".ga-hang").innerHTML=html; inner.querySelector(".ga-eye").style.top=L.eye+"px";
+    var t=inner.querySelector(".ga-t"); if(t){ t.oninput=function(){ ga.title=t.textContent; saveSession(); }; t.onkeydown=function(e){ e.stopPropagation(); if(e.key==="Enter"||e.key==="Escape"){ e.preventDefault(); t.blur(); } }; }
+    Array.prototype.forEach.call(box.querySelectorAll("[data-ga-frame]"),function(b){ b.classList.toggle("on", b.getAttribute("data-ga-frame")===ga.frame); });
+    box.querySelector(".ga-gapv").textContent=ga.gap+" mm"; box.querySelector(".ga-gapbar i").style.width=((ga.gap-100)/400*100)+"%"; box.querySelector(".ga-gapbar b").style.left=((ga.gap-100)/400*100)+"%";
+    box.querySelector(".ga-plan").innerHTML=L.items.map(function(it){ return '<rect x="'+(14+it.x/1100*200).toFixed(1)+'" y="17" width="'+Math.max(3,it.pw/1100*200).toFixed(1)+'" height="3" fill="#e3ad57"/>'; }).join(""); }
+  function gaCycleSize(i){ var u=photos[i].url, cur=ga.sizes[u]; if(cur==null){ var L=gaLayout(); L.items.forEach(function(it){ if(it.i===i) cur=it.s; }); } ga.sizes[u]=((cur||0)+1)%GA_SIZES.length; saveSession(); gaRender(); }
+  function gaCycleFrame(){ var F=["black","oak","white","float"]; ga.frame=F[(F.indexOf(ga.frame)+1)%F.length]; saveSession(); gaRender(); }
+  function gaExport(){ var L=gaLayout(), W=2200, H=1470, sc=W/1100, cv=document.createElement("canvas"); cv.width=W; cv.height=H; var g=cv.getContext("2d"), wall=new Image();
+    wall.onload=function(){ g.drawImage(wall,0,0,W,H); var left=L.items.length; if(!left) done();
+      L.items.forEach(function(it){ var im=new Image(); im.onload=function(){ var x=it.x*sc, y=it.y*sc, w=it.pw*sc, h=it.ph*sc, pad=it.fw*it.k*GA_G*sc, mp=it.mat*it.k*GA_G*sc;
+          g.save(); g.shadowColor="rgba(0,0,0,.45)"; g.shadowBlur=24; g.shadowOffsetY=14; g.fillStyle=ga.frame==="float"?"#000":{black:"#151311",oak:"#8a6a45",white:"#f4f1ea"}[ga.frame]; g.fillRect(x,y,w,h); g.restore();
+          if(mp){ g.fillStyle="#f7f4ee"; g.fillRect(x+pad,y+pad,w-2*pad,h-2*pad); }
+          var ix=x+pad+mp, iy=y+pad+mp, iw=w-2*(pad+mp), ih=h-2*(pad+mp), r=Math.max(iw/im.width, ih/im.height), sw=iw/r, sh=ih/r; g.drawImage(im,(im.width-sw)/2,(im.height-sh)/2,sw,sh,ix,iy,iw,ih);
+          if(--left===0) done(); }; im.onerror=function(){ if(--left===0) done(); }; im.src=photos[it.i].url; }); };
+    wall.src=GA_WALL;
+    function done(){ cv.toBlob(function(b){ var a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download=namePrefix()+"gallery-wall.png"; document.body.appendChild(a); a.click(); a.remove(); toast("Gallery wall saved"); },"image/png"); } }
+
   // ---- input ----
   function stKey(e){ var c=e.code, typing=e.target&&(e.target.tagName==="TEXTAREA"||e.target.tagName==="INPUT"||e.target.isContentEditable);
     if(typing) return true;
@@ -165,9 +208,14 @@
       else if(c==="Enter"&&photos.length) stRoom("edit"); else return true; e.preventDefault(); return true; }
     if(st.room==="workshop"){ if(c==="KeyT") wsUseFrame(); else if(c==="KeyN") wsNewPage(); else if(c==="ArrowRight"){ st.wsPage=Math.min(st.wsPages.length-1,st.wsPage+1); wsRender(); } else if(c==="ArrowLeft"){ st.wsPage=Math.max(0,st.wsPage-1); wsRender(); } return true; }
     if(st.room==="folio"){ if(c==="KeyL") foCyclePreset(); else if(/^Digit[1-3]$/.test(c)){ st.foBand=+c.slice(5)-1; foRender(); } return true; }
+    if(st.room==="gallery"){ if(c==="KeyF") gaCycleFrame(); else if(c==="ArrowRight"){ ga.gap=Math.min(500,ga.gap+50); gaRender(); } else if(c==="ArrowLeft"){ ga.gap=Math.max(100,ga.gap-50); gaRender(); }
+      else if(c==="KeyW"&&photos.length){ openGalleryShow(); document.body.classList.add("st-legacy"); } return true; }
     return true; }
-  function stClick(e){ var t=e.target.closest("[data-st-room],[data-st-frame],[data-st-rate],[data-st-act],[data-ws-page],[data-ws-act],[data-fo-cell],[data-fo-band],[data-fo-paper],[data-fo-preset],[data-fo-act],[data-st-close]"); if(!t) return;
+  function stClick(e){ var t=e.target.closest("[data-ga-print],[data-ga-frame],[data-ga-act],[data-st-room],[data-st-frame],[data-st-rate],[data-st-act],[data-ws-page],[data-ws-act],[data-fo-cell],[data-fo-band],[data-fo-paper],[data-fo-preset],[data-fo-act],[data-st-close]"); if(!t) return;
     if(t.hasAttribute("data-st-close")) return closeStudio();
+    if(t.hasAttribute("data-ga-print")) return gaCycleSize(+t.getAttribute("data-ga-print"));
+    if(t.hasAttribute("data-ga-frame")){ ga.frame=t.getAttribute("data-ga-frame"); saveSession(); return gaRender(); }
+    if(t.hasAttribute("data-ga-act")){ var ga_=t.getAttribute("data-ga-act"); if(ga_==="walk"&&photos.length){ openGalleryShow(); document.body.classList.add("st-legacy"); } else if(ga_==="export") gaExport(); return; }
     if(t.hasAttribute("data-st-room")) return stRoom(t.getAttribute("data-st-room"));
     if(t.hasAttribute("data-st-frame")){ var i=+t.getAttribute("data-st-frame"); if(e.detail>=2&&i===st.cur) return stRoom("edit"); st.cur=i; return stRenderSelect(); }
     if(t.hasAttribute("data-st-rate")) return stRate(+t.getAttribute("data-st-rate"));
@@ -180,6 +228,7 @@
     if(t.hasAttribute("data-fo-preset")){ st.foPresets[st.foBand]=t.getAttribute("data-fo-preset"); return foRender(); }
     if(t.hasAttribute("data-fo-act")) return foExport(); }
   (function wireStudio(){ var el=$("studioX"); if(!el) return; el.addEventListener("click",stClick);
-    window.addEventListener("resize",function(){ if(st.open&&st.room==="folio") foRender(); });
+    window.addEventListener("resize",function(){ if(st.open&&st.room==="folio") foRender(); if(st.open&&st.room==="gallery") gaRender(); });
     // the legacy builders' own Back buttons return to the studio's Select room
-    ["eCancel","pbBack","gxBack"].forEach(function(id){ var b=$(id); if(!b) return; b.addEventListener("click",function(ev){ if(!st.open) return; ev.stopImmediatePropagation(); stRoom("select"); },true); }); })();
+    ["eCancel","pbBack"].forEach(function(id){ var b=$(id); if(!b) return; b.addEventListener("click",function(ev){ if(!st.open) return; ev.stopImmediatePropagation(); stRoom("select"); },true); });
+    var gx=$("gxBack"); if(gx) gx.addEventListener("click",function(ev){ if(!st.open) return; ev.stopImmediatePropagation(); $("galleryshow").classList.add("hidden"); document.body.classList.remove("st-legacy"); stRoom("gallery"); },true); })();

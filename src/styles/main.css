@@ -1038,3 +1038,39 @@ body[data-state^="studio"] #viewport,body[data-state^="studio"] #hud,body[data-s
 #editor .lr-row input[type=range]::-webkit-slider-thumb{width:12px;height:12px;background:#efe9dc;border:0;margin-top:-5px;box-shadow:0 0 0 1px rgba(12,11,10,.9),0 2px 4px rgba(0,0,0,.5)}
 #editor .lr-row input[type=range]::-moz-range-thumb{background:#efe9dc;border:0;box-shadow:0 0 0 1px rgba(12,11,10,.9),0 2px 4px rgba(0,0,0,.5)}
 #editor .lr-row input[type=range]{accent-color:#e3ad57}
+/* gallery: prints on the rendered wall */
+.ga-area{flex:1;min-width:0;display:flex;align-items:center;justify-content:center}
+.ga-wall{position:relative;overflow:hidden;background:#2a221a;box-shadow:0 20px 50px -20px rgba(0,0,0,.8)}
+.ga-in{position:absolute;left:0;top:0;width:1100px;height:735px;transform-origin:0 0}
+.ga-bg{position:absolute;inset:0;width:1100px;height:735px;display:block}
+.ga-eye{position:absolute;left:0;right:0;border-top:1px dashed rgba(196,120,40,.55);pointer-events:none}
+.ga-eye span{position:absolute;left:14px;font-family:'Geist Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.14em;color:rgba(150,90,30,.85)}
+.ga-eye span:first-child{top:-15px}.ga-eye span:last-child{top:5px}
+.ga-spot{position:absolute;width:340px;pointer-events:none;background:radial-gradient(ellipse 50% 50% at 50% 42%,rgba(255,240,214,.28) 0%,rgba(255,240,214,.08) 45%,rgba(255,240,214,0) 72%)}
+.ga-print{position:absolute;box-sizing:border-box;box-shadow:0 12px 20px -10px rgba(0,0,0,.55),0 2px 3px rgba(0,0,0,.25);cursor:pointer}
+.ga-print.float{box-shadow:0 10px 18px -8px rgba(0,0,0,.45)}
+.ga-print .mat{display:block;width:100%;height:100%;box-sizing:border-box;background:#f7f4ee;box-shadow:inset 0 1px 2px rgba(0,0,0,.25)}
+.ga-print.float .mat{background:none;box-shadow:none}
+.ga-print img{width:100%;height:100%;object-fit:cover;display:block}
+.ga-print .sz{position:absolute;left:50%;top:calc(100% + 12px);transform:translateX(-50%);white-space:nowrap;padding:2px 7px;border-radius:3px;background:#17140d;font-family:'Geist Mono',ui-monospace,monospace;font-size:9.5px;letter-spacing:.08em;color:#e3ad57;opacity:0;transition:opacity .15s}
+.ga-print:hover{outline:1px solid #c47828;outline-offset:5px}.ga-print:hover .sz{opacity:1}
+.ga-label{position:absolute;width:70px;padding:7px 8px;background:#f7f4ee;box-shadow:0 1px 2px rgba(0,0,0,.2);color:#1c1915}
+.ga-label .ga-t{font-family:'Fraunces',Georgia,serif;font-size:10px;line-height:1.15;outline:none;min-height:1em}
+.ga-label .ga-t:empty::before{content:attr(data-ph);color:#a8a091}
+.ga-label span{display:block;margin-top:3px;font-family:'Geist Mono',ui-monospace,monospace;font-size:6.5px;line-height:1.5;letter-spacing:.06em;color:#5c564c}
+.ga-cap{position:absolute;left:0;right:0;bottom:14px;display:flex;justify-content:center;gap:28px;font-family:'Geist Mono',ui-monospace,monospace;font-size:9.5px;letter-spacing:.14em;color:rgba(243,239,231,.55)}
+.ga-side{width:228px;flex-shrink:0;display:flex;flex-direction:column;gap:20px}
+.ga-side .eb i{font-style:normal;color:#4f4a41;margin-left:6px}
+.ga-map{display:block;margin-top:10px}
+.ga-frames{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.ga-frames button{height:58px;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:6px;border-radius:6px;border:1px solid rgba(240,232,214,.14)!important;font-family:'Geist Mono',ui-monospace,monospace!important;font-size:9px!important;letter-spacing:.08em;color:#8d8678!important}
+.ga-frames button.on{border-color:#e3ad57!important;background:rgba(227,173,87,.08)!important;color:#e3ad57!important}
+.ga-frames i{width:18px;height:18px;box-sizing:border-box;border:3px solid;background:#f7f4ee}
+.ga-frames i.fl{border:1px dashed rgba(240,232,214,.4);background:none}
+.ga-row{display:flex;justify-content:space-between;align-items:baseline}
+.ga-gapv{font-family:'Geist Mono',ui-monospace,monospace;font-size:12px;color:#f4f1ea}
+.ga-gapbar{position:relative;height:2px;margin-top:14px;border-radius:1px;background:rgba(240,232,214,.12)}
+.ga-gapbar i{position:absolute;left:0;top:0;height:2px;border-radius:1px;background:rgba(227,173,87,.75)}
+.ga-gapbar b{position:absolute;top:-5px;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:#efe9dc;box-shadow:0 0 0 1px rgba(12,11,10,.9),0 2px 4px rgba(0,0,0,.5)}
+.ga-note{margin:14px 0 0;font-size:12px;line-height:1.5;color:#8d8678}
+body.st-legacy #galleryshow{top:64px;z-index:56}

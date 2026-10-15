@@ -485,7 +485,7 @@
     r.onsuccess=function(e){ _db=e.target.result; cb(_db); }; r.onerror=function(){ cb(null); }; }catch(e){ cb(null); } }
   function sessionData(){ return { v:1, savedAt:Date.now(), studentName:studentName, briefDone:briefDone,
     photos:photos.map(function(p){ return {url:p.url,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order}; }),
-    workshop:(typeof st!=="undefined"?st.wsPages:[]), folioPrefs:(typeof st!=="undefined"?{paper:st.foPaper,presets:st.foPresets}:null),
+    workshop:(typeof st!=="undefined"?st.wsPages:[]), folioPrefs:(typeof st!=="undefined"?{paper:st.foPaper,presets:st.foPresets}:null), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,title:ga.title}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
   function saveSessionNow(){ if(!photos.length && !(typeof foItems!=="undefined"&&foItems&&foItems.length)) return; idb(function(db){ if(!db) return; try{ db.transaction("state","readwrite").objectStore("state").put(sessionData(),"session"); }catch(e){} }); }
@@ -497,6 +497,7 @@
     if(d.studentName){ studentName=d.studentName; var nm=$("mName"); if(nm) nm.value=studentName; }
     if(d.briefDone) briefDone=d.briefDone;
     if(d.workshop&&d.workshop.length&&typeof st!=="undefined") st.wsPages=d.workshop;
+    if(d.galleryPrefs&&typeof ga!=="undefined"){ ga.frame=d.galleryPrefs.frame||"black"; ga.gap=d.galleryPrefs.gap||250; ga.sizes=d.galleryPrefs.sizes||{}; ga.title=d.galleryPrefs.title||""; }
     if(d.folioPrefs&&typeof st!=="undefined"){ st.foPaper=d.folioPrefs.paper||"white"; if(d.folioPrefs.presets) st.foPresets=d.folioPrefs.presets; }
     (d.photos||[]).forEach(function(p){ p.t=p.t?new Date(p.t):new Date(); photos.push(p); });
     if(d.folio&&d.folio.length&&typeof foItems!=="undefined") foItems=d.folio.map(function(x){ return {url:x.url,size:x.size}; });

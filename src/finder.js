@@ -5,6 +5,7 @@
   // scroll wheel turns it; Shift+scroll racks focus. What you frame is exactly what the shutter captures.
   var vfDial="sh", vfToastT=null;
   var VF_DIALS=[["sh","SHUTTER"],["ap","APERTURE"],["iso","ISO"]];
+  function vfDials(){ var d=VF_DIALS.slice(); var l=(typeof curLens==="function")?curLens():null; if(l&&l.zoom) d.push(["mm","ZOOM"]); else if(vfDial==="mm") vfDial="sh"; return d; }
 
   // the frame rectangle in CSS pixels, from the window size and the body's aspect
   function vfRect(){ var W=window.innerWidth, H=window.innerHeight, A=curBody().aspect||1.5;
@@ -21,10 +22,11 @@
     if(s){ s.style.left=r.x+"px"; s.style.width=r.w+"px"; s.style.top=(r.y+r.h+12)+"px"; }
     if(h){ h.style.top=(r.y+r.h+12+54+10)+"px"; } }
 
-  function vfScale(key){ return key==="sh"?{vals:SHUTTER_LABELS,idx:shIdx} : key==="ap"?{vals:APERTURES.map(function(a){ return String(a); }),idx:apIdx} : {vals:ISOS.map(String),idx:isoIdx}; }
-  function vfValue(key){ return key==="sh"?SHUTTER_LABELS[shIdx] : key==="ap"?"f/"+APERTURES[apIdx] : String(ISOS[isoIdx]); }
+  function vfScale(key){ if(key==="mm"){ var z=curLens().zoom; return {vals:z.map(String), idx:Math.max(0,z.indexOf(zoomMM))}; }
+    return key==="sh"?{vals:SHUTTER_LABELS,idx:shIdx} : key==="ap"?{vals:APERTURES.map(function(a){ return String(a); }),idx:apIdx} : {vals:ISOS.map(String),idx:isoIdx}; }
+  function vfValue(key){ if(key==="mm") return zoomMM+" MM"; return key==="sh"?SHUTTER_LABELS[shIdx] : key==="ap"?"f/"+APERTURES[apIdx] : String(ISOS[isoIdx]); }
   function vfRenderStrip(){ var s=$("vfStrip"); if(!s) return;
-    var dials=VF_DIALS.map(function(d,i){ var on=d[0]===vfDial, body;
+    var dl=vfDials(), dials=dl.map(function(d,i){ var on=d[0]===vfDial, body;
       if(on){ var sc=vfScale(d[0]), cells="";
         for(var o=-2;o<=2;o++){ var j=sc.idx+o, v=(j>=0&&j<sc.vals.length)?sc.vals[j]:""; cells+='<span class="'+(o===0?'cur':'')+'">'+v+'</span>'; }
         body='<div class="vf-tape">'+cells+'<i></i></div>'; }
@@ -34,7 +36,9 @@
     for(var t=-6;t<=6;t++){ ticks+='<span class="tk'+(t===0?' zero':'')+(t%3===0?' whole':'')+'">'+(t===Math.max(-6,Math.min(6,mark))?'<em class="'+(Math.abs(mark)>6?'over':'')+'"></em>':'')+'</span>'; }
     s.innerHTML='<div class="vf-mode"><span class="vf-lbl">MODE</span><span class="m">M</span></div>'+dials
       +'<div class="vf-meter"><span class="vf-lbl">METER<b class="ev">'+cbThirds(evStops).replace("+0","0").replace("−0","0")+'</b></span><div class="ticks">'+ticks+'</div></div>'
-      +'<div class="vf-frame"><span class="vf-lbl">FRAME</span><span class="vf-val gold">'+cbPad(photos.length+1)+'</span></div>'; }
+      +'<div class="vf-frame"><span class="vf-lbl">'+(curBody().film?"ROLL":"FRAME")+'</span><span class="vf-val gold">'+vfFrameCount()+'</span></div>'; }
+  function vfFrameCount(){ var b=curBody(); if(!b.film) return cbPad(photos.length+1);
+    var n=photos.filter(function(p){ return p.body===b.name; }).length, r=b.roll||10; return cbPad(n%r+1)+'<small>/'+r+'</small>'; }
   function vfRenderChips(){ var bc=$("vfBriefChip"), gc=$("vfGuideChip");
     if(bc){ if(activeBrief>=0){ var b=BRIEFS[activeBrief], n=Math.min(4,briefDone[b.id]||0), dots="";
         for(var i=0;i<4;i++) dots+='<i class="'+(i<n?'on':'')+'"></i>';
@@ -45,6 +49,7 @@
   function vfLevelTick(){ var lv=$("vfLevel"); if(lv&&viewfinderOn) lv.classList.toggle("level", Math.abs(pitch)<0.02); }
   function vfPickDial(k){ vfDial=k; vfRenderStrip(); }
   function vfTurn(d){ var sc=vfScale(vfDial), i=Math.max(0,Math.min(sc.vals.length-1,sc.idx+d)); if(i===sc.idx) return;
+    if(vfDial==="mm"){ zoomMM=curLens().zoom[i]; focalMM=zoomMM; computeCam(); return; }
     if(vfDial==="sh") shIdx=i; else if(vfDial==="ap") apIdx=i; else isoIdx=i; computeCam(); }
   function vfToast(text){ var t=$("vfToast"); if(!t) return;
     t.innerHTML='<i></i><span class="k">SHOT '+cbPad(photos.length)+'</span><span>'+cbEsc(text)+'</span>';

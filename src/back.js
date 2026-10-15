@@ -212,7 +212,7 @@
   function cbKey(e){ var c=e.code, k=e.key;
     if(c==="Space"||c==="Escape"){ e.preventDefault(); closeBack(); return true; }
     if(c==="KeyQ"){ cbCycleTab(-1); return true; } if(c==="KeyE"){ cbCycleTab(1); return true; }
-    if(c==="KeyB"){ e.preventDefault(); cbPress("bag"); closeBack(false); openMenu(); return true; }
+    if(c==="KeyB"){ e.preventDefault(); cbPress("bag"); closeBack(false); openBag("back"); return true; }
     if(c==="Tab"){ e.preventDefault(); closeBack(false); openGallery(); return true; }
     var up=c==="ArrowUp", dn=c==="ArrowDown", lf=c==="ArrowLeft", rt=c==="ArrowRight", en=(c==="Enter"||c==="NumpadEnter");
     if(up||dn||lf||rt||en) e.preventDefault();
@@ -232,7 +232,7 @@
     else { cbSetupChange(d,false); } }
   function cbClick(e){ var t=e.target.closest("[data-cb-tab],[data-cb-set],[data-cb-row],[data-cb-frame],[data-cb-rate],[data-cb-pick],[data-cb-brief],[data-cb-setup],[data-cb-btn]"); if(!t) return;
     if(t.hasAttribute("data-cb-btn")){ var id=t.getAttribute("data-cb-btn"); cbPress(id);
-      if(id==="back") closeBack(); else if(id==="bag"){ closeBack(false); openMenu(); } else if(id==="photos"){ closeBack(false); openGallery(); } else cbSetTab(id); return; }
+      if(id==="back") closeBack(); else if(id==="bag"){ closeBack(false); openBag("back"); } else if(id==="photos"){ closeBack(false); openGallery(); } else cbSetTab(id); return; }
     if(t.hasAttribute("data-cb-tab")) return cbSetTab(t.getAttribute("data-cb-tab"));
     if(t.hasAttribute("data-cb-set")){ var p=t.getAttribute("data-cb-set").split(":"); return cbShootSet(p[0],+p[1]); }
     if(t.hasAttribute("data-cb-row")){ cbRow=+t.getAttribute("data-cb-row"); return cbRender(); }

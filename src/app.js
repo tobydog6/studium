@@ -20,14 +20,11 @@
   var ISOS=[100,200,400,800,1600,3200,6400];
   var apIdx=2, shIdx=3, isoIdx=2, focalMM=50;
   // ---- camera bodies + lenses (physical cameras) ----
+  // bodies match the camera bag (src/bag.js); lenses come from its kits. sensorW sets the crop factor.
   var BODIES=[
-    {id:"canon",   name:"Canon EOS R",  fmt:"Full-frame",         sensorW:36,  aspect:1.5,  lenses:[24,35,50,85,135], grain:0.00, warm:0.00, finder:"eye"},
-    {id:"sony",    name:"Sony A7",      fmt:"Full-frame",         sensorW:36,  aspect:1.5,  lenses:[16,35,55,85],     grain:0.00, warm:-0.03,finder:"eye"},
-    {id:"fuji",    name:"Fujifilm X-T", fmt:"APS-C mirrorless",   sensorW:24,  aspect:1.5,  lenses:[16,23,35,56],     grain:0.03, warm:0.05, finder:"eye"},
-    {id:"film35",  name:"35mm film",    fmt:"35mm SLR",           sensorW:36,  aspect:1.5,  lenses:[28,50,135],       grain:0.10, warm:0.06, finder:"eye"},
-    {id:"pentax67",name:"Pentax 67",    fmt:"Medium format · 6×7",sensorW:70,  aspect:1.25, lenses:[55,90,105,165],   grain:0.02, warm:0.00, finder:"eye"},
-    {id:"rz67",    name:"Mamiya RZ67",  fmt:"Medium · waist-level",sensorW:70, aspect:1.25, lenses:[65,110,180],      grain:0.02, warm:0.02, finder:"waist"},
-    {id:"lf45",    name:"Large format", fmt:"4×5 view camera",    sensorW:127, aspect:1.25, lenses:[90,150,210,300],  grain:0.00, warm:-0.02,finder:"ground"}
+    {id:"dslr", name:"Full-frame DSLR",  fmt:"Full-frame",  sensorW:36,   aspect:1.5,  sys:"35", lenses:[50,50,85,135], grain:0.00, warm:0.00, finder:"eye", optical:true},
+    {id:"ml",   name:"APS-C mirrorless", fmt:"APS-C 1.6×",  sensorW:22.3, aspect:1.5,  sys:"35", lenses:[50,50,85,135], grain:0.02, warm:0.02, finder:"eye"},
+    {id:"67",   name:"6×7 film SLR",     fmt:"6×7 film",    sensorW:70,   aspect:1.25, sys:"67", lenses:[105,55,165],   grain:0.06, warm:0.05, finder:"eye", film:true, roll:10}
   ];
   var bodyIdx=0, lensIdx=2, camGrain=0, camWarm=0, focusDist=0.5;
   var expMult=1, evStops=0, isoGrain=0, apVig=0.16, dofStrength=0;
@@ -135,7 +132,7 @@
   // ---- helpers ----
   function show(el){el.classList.remove("hidden");} function hide(el){el.classList.add("hidden");}
   function anyOutputOpen(){ return ["folio","photobook","galleryshow"].some(function(id){ var e=document.getElementById(id); return e && !e.classList.contains("hidden"); }); }
-  function menuOpen(){ return (typeof cbOpen!=="undefined"&&cbOpen)||!menu.classList.contains("hidden")||!gallery.classList.contains("hidden")||!landing.classList.contains("hidden")||!editor.classList.contains("hidden")||anyOutputOpen(); }
+  function menuOpen(){ return (typeof cbOpen!=="undefined"&&cbOpen)||(typeof bg!=="undefined"&&bg.open)||!menu.classList.contains("hidden")||!gallery.classList.contains("hidden")||!landing.classList.contains("hidden")||!editor.classList.contains("hidden")||anyOutputOpen(); }
   var toastTimer=null;
   function toast(m){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(function(){toastEl.classList.remove("show");},3200); }
   function updatePrompt(){ if(loaded && !looking && !viewfinderOn && !menuOpen()) show(prompt); else hide(prompt); }
@@ -187,7 +184,7 @@
     if(bl) bl.textContent=b.name;
     if(md) md.textContent=(b.finder==="waist"?"◉ WAIST-LEVEL":(b.finder==="ground"?"◉ GROUND GLASS":"◉ CAPTURE"));
     if(cv){ cv.classList.toggle("finderFlipH", viewfinderOn && b.finder==="waist"); cv.classList.toggle("finderFlipHV", viewfinderOn && b.finder==="ground"); }
-    var film=(b.id!=="canon"&&b.id!=="sony"&&b.id!=="fuji"); if(vfEl) vfEl.classList.toggle("filmfinder", viewfinderOn && film);
+    var film=!!b.film; if(vfEl) vfEl.classList.toggle("filmfinder", viewfinderOn && film);
     var vf=$("vfFocus"); if(vf) vf.textContent="FOCUS "+focusBars();
     sizeFinder(); }
   function switchCamTab(name){ Array.prototype.forEach.call(document.querySelectorAll("#menu .mtab"),function(b){ b.classList.toggle("on", b.getAttribute("data-tab")===name); });
@@ -356,7 +353,7 @@
 
   // ---- render ----
   function renderFrame(dt){
-    var tgtE=viewfinderOn?expMult:1, tgtF=viewfinderOn?1:0, tgtV=viewfinderOn?apVig:0.1, tgtG=viewfinderOn?isoGrain:0, tgtD=viewfinderOn?dofStrength:0;
+    var tgtE=viewfinderOn?(curBody().optical?1:expMult):1, tgtF=viewfinderOn?1:0, tgtV=viewfinderOn?apVig:0.1, tgtG=viewfinderOn?isoGrain:0, tgtD=viewfinderOn?dofStrength:0;
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
     renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
@@ -371,7 +368,7 @@
     renderer.render(fsScene,fsCam);
   }
   function animate(){ requestAnimationFrame(animate); var dt=Math.min(clock.getDelta(),0.1);
-    if(typeof cbOpen!=="undefined" && cbOpen) return;   // the camera back covers the scene: stop drawing it (big win on school PCs)
+    if((typeof cbOpen!=="undefined" && cbOpen) || (typeof bg!=="undefined" && bg.open)) return;   // the camera back covers the scene: stop drawing it (big win on school PCs)
     if(loaded) updateCamera(dt); renderFrame(dt); if(viewfinderOn) vfLevelTick(); }
   animate();
 
@@ -590,13 +587,15 @@
   function shutter(){
     if(!loaded) return;
     if(!viewfinderOn){ raiseCamera(); return; }        // first press raises the camera
-    renderFrame(0);
-    var url; try{ url=captureAspect(curBody().aspect); }catch(e){ toast("Couldn't capture this shot."); return; }
+    var keepE=fx.exposure; fx.exposure=expMult; renderFrame(0);   // the sensor always records the real exposure, even when an optical finder hid it
+    var url; try{ url=captureAspect(curBody().aspect); }catch(e){ fx.exposure=keepE; toast("Couldn't capture this shot."); return; }
+    fx.exposure=keepE;
     var brf=activeBrief>=0?BRIEFS[activeBrief]:null;
     photos.push({url:url,t:new Date(),f:APERTURES[apIdx],sh:SHUTTER_LABELS[shIdx],iso:ISOS[isoIdx],mm:focalMM,body:curBody().name,brief:brf?brf.t:null});
     if(brf){ briefDone[brf.id]=(briefDone[brf.id]||0)+1; buildBriefList(); }
     refreshCount(); fireFlash(); shutterSound(); captureFX(url); vfRefresh();
     if(brf) toast("“"+brf.t+"” captured ✓");
+    if(curBody().film){ var onBody=photos.filter(function(p){ return p.body===curBody().name; }).length; if(onBody%(curBody().roll||10)===0) toast("Roll finished. A fresh roll is loaded."); }
     photoTip(); saveSession();
   }
   function namePrefix(){ return studentName?studentName.replace(/[^\w -]/g,"").trim().replace(/\s+/g,"-")+"-":""; }
@@ -924,6 +923,7 @@
   function toggleMenu(){ if(!menu.classList.contains("hidden")) closeMenu(); else openMenu(); }
 @@include back.js@@
 @@include finder.js@@
+@@include bag.js@@
   function toggleGrid(){ grid.classList.toggle("hidden"); var s=$("mGrid"); if(s)s.classList.toggle("on",!grid.classList.contains("hidden")); }
 
   // ---- wire: landing ----
@@ -1047,12 +1047,13 @@
   window.addEventListener("keydown",function(e){
     if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")) return;
     if(cbOpen){ cbKey(e); return; }
-    if(viewfinderOn && !menuOpen() && /^Digit[123]$/.test(e.code)){ vfPickDial(VF_DIALS[+e.code.slice(5)-1][0]); return; }
+    if(bg.open){ bagKey(e); return; }
+    if(viewfinderOn && !menuOpen() && /^Digit[1-4]$/.test(e.code)){ var dl=vfDials()[+e.code.slice(5)-1]; if(dl) vfPickDial(dl[0]); return; }
     keys[e.code]=true;
     if(e.code==="Escape" && anyOutputOpen()){ e.preventDefault(); ["folio","photobook","galleryshow"].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.add("hidden"); }); return; }
     if(e.code==="Space"){ e.preventDefault(); if(!loaded || anyOutputOpen() || !gallery.classList.contains("hidden") || !editor.classList.contains("hidden")) return;
       if(!menu.classList.contains("hidden")) closeMenu(); else openBack(); return; }
-    if(e.code==="KeyB" && loaded && !menuOpen()){ e.preventDefault(); if(looking) document.exitPointerLock(); openMenu(); return; }
+    if(e.code==="KeyB" && loaded && !menuOpen()){ e.preventDefault(); openBag(); return; }
     if(menuOpen()){ if(e.code==="Escape"){ if(!editor.classList.contains("hidden")){ closeEditor(); buildGallery(); show(gallery); } else if(!gallery.classList.contains("hidden")){hide(gallery);updatePrompt();} else if(!menu.classList.contains("hidden")){closeMenu();} } return; }
     if(e.code==="KeyP"){ e.preventDefault(); toggleViewfinder(); }
     else if(e.code==="Enter"){ e.preventDefault(); shutter(); }
@@ -1340,6 +1341,6 @@
   if(/[?&]dev/.test(location.search)){ try{ window.__ed={openEditor:openEditor,eglInit:eglInit,photos:photos,defEd:defEd,editRender:editRender,selectBody:selectBody,BODIES:BODIES,openFolio:openFolio,openPhotobook:openPhotobook,openGalleryShow:openGalleryShow,
     foPack:foPack,foShuffle:foShuffle,foSeed:foSeed,importPhotoFiles:importPhotoFiles,pbExportPDF:pbExportPDF,pbBuildPDF:pbBuildPDF,pbInit:pbInit,updateCamArt:updateCamArt,switchCamTab:switchCamTab,camArtSVG:camArtSVG,gxRender:gxRender,gxBuildLayouts:gxBuildLayouts,gxBindDrag:gxBindDrag,loadSplat:loadSplat,showHub:showHub,openSplatViewer:openSplatViewer,openStudioHome:openStudioHome,openPunctum:openPunctum,photoTip:photoTip,saveSessionNow:saveSessionNow,loadSession:loadSession,clearSession:clearSession,showTutorial:showTutorial,cycleComp:cycleComp,drawComp:drawComp,raiseCamera:raiseCamera,shutter:shutter,get foItems(){return foItems;},get pbPages(){return pbPages;},get foBW(){return foBW;},get foBH(){return foBH;}}; }catch(e){} }
   if(/[?&]dev/.test(location.search)){ window.__cb={open:openBack, close:closeBack, tab:cbSetTab, state:function(){ return App.state; },
-    cam:function(){ return {ap:APERTURES[apIdx], sh:SHUTTER_LABELS[shIdx], iso:ISOS[isoIdx], ev:+evStops.toFixed(2)}; }, open_:function(){ return cbOpen; }, photos:photos, fov:function(){ return camera.fov; }, dial:function(){ return vfDial; }, focus:function(){ return focusDist; } }; }
+    cam:function(){ return {ap:APERTURES[apIdx], sh:SHUTTER_LABELS[shIdx], iso:ISOS[isoIdx], ev:+evStops.toFixed(2), mm:focalMM, body:curBody().id, lens:lensId}; }, bag:function(){ return {open:bg.open, stage:bg.stage, body:bg.body, lens:bg.lens, busy:bg.busy}; }, open_:function(){ return cbOpen; }, photos:photos, fov:function(){ return camera.fov; }, dial:function(){ return vfDial; }, focus:function(){ return focusDist; } }; }
 })();
 

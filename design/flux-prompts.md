@@ -60,6 +60,9 @@ Studio product photograph of five matching unbranded camera lenses standing upri
 ---
 
 
+## Matched-angle set: angle update (16 Oct, after the fit test)
+The master body is `dslr-3q-nolens.png`. Its mount faces almost straight at the viewer, turned only slightly right. In every lens prompt below, replace the "Angle"/orientation sentence with: "the lens's front glass faces almost straight toward the viewer, turned only slightly, about 15 degrees, to the right, so the front element appears as a nearly round, very gently squashed circle and the side of the barrel shows only as a narrow crescent band along the left edge; the rear mount end is hidden directly behind the lens." The first 50 mm came out turned about 40 degrees and looked bent off the mount.
+
 ## Matched-angle set for the 3/4 lens swap (standalone prompts, no image editing)
 
 The swap happens in the hero view: the body stays put, the lens slides off along its axis, and the new one slides in and twists. Every lens is generated alone at the hero angle. I warp each one to fit the mount ellipse and cut it out. The same cut-outs fill the lens tray.

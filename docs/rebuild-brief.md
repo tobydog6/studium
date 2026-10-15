@@ -52,3 +52,6 @@ Source re-split, `npm run build` reproduces the original v15 file byte-for-byte 
 ## Mockups
 - Camera back: direction C "Analogue" chosen (16 Oct 2026). Lens-barrel tape scales with a safelight index line, needle light meter, frame counter, mono caps, dashed gold rules. Tabs Shoot / Review / Brief / Setup switch with Q / E; on-screen labels for the side buttons (Brief, Setup, Review, Back); number keys rate photos in Review. Canvas: "Studium — Camera Back" artifact.
 - Known issue: the bundled STUMP (150K splats) is too sparse to look photographic up close. Locations need denser scans or streaming.
+- Viewfinder: the scene sits in a 3:2 frame on black (EVF style) and all readouts sit on the black strip below it. Only guides, focus brackets, level and chips touch the scene (with halos or blurred plates). No red power-point dots. Keys 1 2 3 pick the dial and Scroll turns it.
+- Camera bag: generic body names (Full-frame mirrorless, APS-C rangefinder, 35 mm SLR, 6×7 SLR, Waist-level 6×7, 4×5 view camera), six bodies. Clicking a lens makes the menus drift off the sides, the camera turns front-on, the lens lifts off, a lens tray rises, and the chosen lens seats onto the mount.
+- Full-res STUMP (2.57M splats) renders photographically; see tools/render_splat.py.

@@ -1,7 +1,7 @@
   // ================= STUDIO (Tab, or Photos on the camera back) =================
   // The darkroom. Rooms in workflow order: Select, Edit, Workshop, Folio, Book, Gallery (Q / E to switch, Esc back
-  // to the location). Select, Workshop and Folio are drawn here; Edit, Book and Gallery host the existing develop
-  // panel, photobook designer and gallery show under the studio bar until their own restyle.
+  // to the location). Edit hosts the develop panel under the studio bar; every other room is drawn here, and
+  // Gallery's "walk the show" opens the 3D gallery show.
   var ST_ROOMS=[["select","Select"],["edit","Edit"],["workshop","Workshop"],["folio","Folio"],["book","Book"],["gallery","Gallery"]];
   var st={open:false, room:"select", cur:-1, cols:4, wsPage:0, wsPages:[], foPaper:"white", foPresets:["hero","grid","strip"], foBand:0, foSel:null};
 
@@ -17,9 +17,15 @@
     return d; }
   function stPicks(){ var a=[]; photos.forEach(function(p,i){ if(p.pick) a.push(i); }); return a; }
   function stPlaceOf(p){ return p.place||cbPlace; }
+  // a stable id per frame, so layouts survive edits and reloads without copying the image data
+  function stId(i){ var p=photos[i]; if(!p) return null; if(!p.id) p.id="p"+Date.now().toString(36)+Math.random().toString(36).slice(2,7); return p.id; }
+  function stById(id){ if(!id) return -1; for(var i=0;i<photos.length;i++) if(photos[i].id===id) return i; return -1; }
+  var stDims={};
+  function stAspect(i){ var u=photos[i].url, d=stDims[u]; if(d) return d; if(d===undefined){ stDims[u]=0; var im=new Image();
+      im.onload=function(){ stDims[u]=im.width/im.height; if(st.open&&st.room==="gallery") gaRender(); else if(st.open&&st.room==="book") bkRender(); }; im.src=u; } return 1.5; }
 
   // ---- open / close / rooms ----
-  var ST_LEGACY={edit:"editor", book:"photobook"};
+  var ST_LEGACY={edit:"editor"};
   function openStudio(room){ var el=$("studioX"); if(!el) return;
     if(looking){ try{ document.exitPointerLock(); }catch(e){} } if(viewfinderOn) lowerCamera();
     ["hub","studio","gallery","landing","prompt"].forEach(hubHide);
@@ -29,14 +35,13 @@
     if(loaded){ hubShow("hud"); App.go("scene"); updatePrompt(); } else showHub(); }
   function stHideLegacy(){ Object.keys(ST_LEGACY).forEach(function(k){ var e=$(ST_LEGACY[k]); if(e) e.classList.add("hidden"); }); document.body.classList.remove("st-legacy"); }
   function stRoom(r){ st.room=r; App.go("studio."+r); stHideLegacy();
-    ["select","workshop","folio","gallery"].forEach(function(k){ var c=$("st-"+k); if(c) c.classList.toggle("hidden", k!==r); });
+    ["select","workshop","folio","book","gallery"].forEach(function(k){ var c=$("st-"+k); if(c) c.classList.toggle("hidden", k!==r); });
     var empty=!photos.length;
     if(ST_LEGACY[r]){ document.body.classList.add("st-legacy");
       if(empty){ document.body.classList.remove("st-legacy"); }
-      else if(r==="edit"){ var i=st.cur>=0?st.cur:photos.length-1; openEditor(i); }
-      else if(r==="book"){ openPhotobook(); } }
+      else if(r==="edit"){ var i=st.cur>=0?st.cur:photos.length-1; openEditor(i); } }
     $("stEmpty").classList.toggle("hidden", !(empty && r!=="select"));
-    stRenderBar(); if(r==="select") stRenderSelect(); else if(r==="workshop") wsRender(); else if(r==="folio") foRender(); else if(r==="gallery") gaRender(); }
+    stRenderBar(); if(r==="select") stRenderSelect(); else if(r==="workshop") wsRender(); else if(r==="folio") foRender(); else if(r==="book") bkRender(); else if(r==="gallery") gaRender(); }
   function stCycle(d){ var i=0; ST_ROOMS.forEach(function(x,j){ if(x[0]===st.room) i=j; }); stRoom(ST_ROOMS[(i+d+ST_ROOMS.length)%ST_ROOMS.length][0]); }
   function stRenderBar(){ var bar=$("stBar"); if(!bar) return; var places={}; photos.forEach(function(p){ places[stPlaceOf(p)]=1; });
     bar.querySelector(".st-tabs").innerHTML=ST_ROOMS.map(function(r,i){ return '<button class="st-tab'+(r[0]===st.room?' on':'')+'" data-st-room="'+r[0]+'"><span class="n">0'+(i+1)+'</span>'+r[1]+'</button>'; }).join("");
@@ -45,7 +50,7 @@
       edit:[["\\","Before / after"],["⌘Z","Undo"],["Q E","Rooms"],["Esc","Back to Select"]],
       workshop:[["T","Use this frame"],["N","New page"],["← →","Pages"],["Q E","Rooms"]],
       folio:[["Click","Choose a series"],["L","Series layout"],["Click two frames","Swap"],["Q E","Rooms"]],
-      book:[["Q E","Rooms"],["Esc","Back to Select"]], gallery:[["Click a print","Size"],["← →","Spacing"],["F","Frame"],["W","Walk the show"],["Q E","Rooms"]] }[st.room];
+      book:[["← →","Spread"],["Drag","Place a frame"],["Click two","Swap"],["T","Template"],["B","Full bleed"],["Q E","Rooms"]], gallery:[["Click a print","Size"],["← →","Spacing"],["F","Frame"],["W","Walk the show"],["Q E","Rooms"]] }[st.room];
     $("stHints").innerHTML=hints.map(function(h){ return '<span><kbd>'+h[0]+'</kbd>'+h[1]+'</span>'; }).join(""); }
 
   // ---- 01 SELECT: the light table ----
@@ -155,16 +160,105 @@
     function done(){ cv.toBlob(function(b){ var a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download=namePrefix()+"folio-A0.png"; document.body.appendChild(a); a.click(); a.remove(); toast("A0 panel downloaded"); },"image/png"); } }
 
 
+  // ---- 05 BOOK: a lay-flat photobook, spread by spread ----
+  // Pages hold a template (blank, full bleed, centred, two-up, grid) and frame ids. Centred and two-up frames keep
+  // their own shape; bleed and grid crop to fill. The cover and back stand alone; interior pages come in spreads.
+  var BK_SIZES={"20x25":[200,250,"PORTRAIT"],"25x20":[250,200,"LANDSCAPE"],"21x21":[210,210,"SQUARE"]};
+  var BK_TPL=["blank","bleed","centre","two","grid"], BK_TPL_NAME={blank:"BLANK",bleed:"FULL BLEED",centre:"CENTRED",two:"TWO-UP",grid:"GRID"};
+  var bk={size:"20x25", pages:[], spread:1, sel:null, focus:1, bound:false};
+  function bkSource(){ var pk=stPicks(); if(!pk.length) pk=photos.map(function(_,i){ return i; }).filter(function(i){ return (photos[i].rating||0)>=3; });
+    if(!pk.length) pk=photos.map(function(_,i){ return i; }); return pk; }
+  function bkMM(){ return BK_SIZES[bk.size]||BK_SIZES["20x25"]; }
+  function bkBoxes(tpl){ var a=bkMM(), land=a[0]>a[1];
+    if(tpl==="bleed") return [[0,0,1,1,"cover"]];
+    if(tpl==="centre") return [[0.15,0.2,0.7,0.6,"fit"]];
+    if(tpl==="two") return land?[[0.07,0.16,0.4,0.68,"fit"],[0.53,0.16,0.4,0.68,"fit"]]:[[0.13,0.07,0.74,0.41,"fit"],[0.13,0.52,0.74,0.41,"fit"]];
+    if(tpl==="grid") return [[0.1,0.1,0.38,0.37,"cover"],[0.52,0.1,0.38,0.37,"cover"],[0.1,0.53,0.38,0.37,"cover"],[0.52,0.53,0.38,0.37,"cover"]];
+    return []; }
+  function bkRects(pi){ var pg=bk.pages[pi], a=bkMM(), W=a[0], H=a[1];
+    return bkBoxes(pg.tpl).map(function(b,s){ var i=stById(pg.imgs[s]), r={x:b[0],y:b[1],w:b[2],h:b[3],i:i,s:s};
+      if(b[4]==="fit"&&i>=0){ var ar=stAspect(i), bw=b[2]*W, bh=b[3]*H, w=Math.min(bw,bh*ar), h=w/ar; r.w=w/W; r.h=h/H; r.x=b[0]+(b[2]-r.w)/2; r.y=b[1]+(b[3]-r.h)/2; }
+      r.mmw=Math.round(r.w*W); r.mmh=Math.round(r.h*H); return r; }); }
+  function bkEnsure(){ if(bk.pages.length||!photos.length) return; var src=bkSource().slice(), hero=src[0];
+    src.forEach(function(i){ if((photos[i].rating||0)>(photos[hero].rating||0)) hero=i; });
+    var rest=src.filter(function(i){ return i!==hero; }).map(stId), k=0, pages=[{tpl:"bleed", imgs:[stId(hero)]}];
+    ["blank","centre","centre","bleed","bleed","centre","two","centre","blank","bleed"].forEach(function(t){ var im=[]; bkBoxes(t).forEach(function(){ im.push(rest[k++]||null); }); pages.push({tpl:t, imgs:im}); });
+    while(k<rest.length&&pages.length<41){ pages.push({tpl:"centre", imgs:[rest[k++]||null]}); pages.push({tpl:"bleed", imgs:[rest[k++]||null]}); }
+    pages.push({tpl:"blank", imgs:[], back:true}); bk.pages=pages; bk.spread=1; bk.focus=1; bk.sel=null; }
+  function bkSpreads(){ var L=bk.pages.length-1, s=[[0]]; for(var i=1;i<L;i+=2) s.push(i+1<L?[i,i+1]:[i]); s.push([L]); return s; }
+  function bkLabel(s,j,all){ return j===0?"COVER":j===all.length-1?"BACK":(s[0]+1)+(s.length>1?"–"+(s[1]+1):""); }
+  function bkPageHTML(pi, mini){ var pg=bk.pages[pi], h="";
+    bkRects(pi).forEach(function(r){ var p=r.i>=0?photos[r.i]:null, sel=!mini&&bk.sel&&bk.sel[0]===pi&&bk.sel[1]===r.s;
+      var sty='left:'+(r.x*100).toFixed(2)+'%;top:'+(r.y*100).toFixed(2)+'%;width:'+(r.w*100).toFixed(2)+'%;height:'+(r.h*100).toFixed(2)+'%';
+      if(mini){ h+=p?'<img style="'+sty+'" src="'+p.url+'" alt="">':'<i style="'+sty+'"></i>'; return; }
+      h+='<button class="bk-slot'+(p?'':' empty')+(sel?' sel':'')+'" data-bk-slot="'+pi+':'+r.s+'" style="'+sty+'">'
+        +(p?'<img src="'+p.url+'" alt="Frame '+(r.i+1)+'" draggable="false">':'<span>DROP A FRAME</span>')
+        +(sel?'<i class="h tl"></i><i class="h tr"></i><i class="h bl"></i><i class="h br"></i><span class="sz">'+r.mmw+' × '+r.mmh+' MM · '+BK_TPL_NAME[pg.tpl]+'</span>':'')+'</button>'; });
+    return h; }
+  function bkTip(cur){ var a=bk.pages[cur[0]], b=cur[1]!=null?bk.pages[cur[1]]:null, full=function(p){ return p&&p.imgs.some(function(id){ return stById(id)>=0; }); };
+    if(cur[0]===0) return "The cover is a promise. Choose the frame that sets the mood, not just your best one.";
+    if(a.back) return "The back cover is quiet. Leave it blank, or close on one small frame.";
+    if(b&&full(a)&&full(b)&&a.tpl!==b.tpl) return "The whole place on one side, a close detail on the other. The pair says more than either frame.";
+    if(b&&full(a)&&full(b)) return "Two frames face each other. Ask what the pair says that neither says alone.";
+    if(b&&(full(a)!==full(b))) return "A blank page is a pause. Use it just before a frame you want to land.";
+    return "Drag a pick onto a page, or press T to try a different template."; }
+  function bkRender(){ var box=$("st-book"); if(!box) return; bkEnsure(); bkBind(); if(!bk.pages.length) return;
+    var sp=bkSpreads(); bk.spread=Math.max(0,Math.min(sp.length-1,bk.spread)); var cur=sp[bk.spread]; if(cur.indexOf(bk.focus)<0) bk.focus=cur[cur.length>1&&bk.pages[cur[0]].tpl==="blank"?1:0];
+    var stage=box.querySelector(".bk-stage"), aw=stage.clientWidth, ah=stage.clientHeight, a=bkMM(), ar=a[0]/a[1], n=cur.length, ph=ah, pw=ph*ar;
+    if(pw*Math.max(n,2)>aw){ pw=aw/Math.max(n,2); ph=pw/ar; }
+    box.querySelector(".bk-spread").innerHTML=cur.map(function(pi,k){ var pg=bk.pages[pi], side=n===1?"single":(k===0?"l":"r");
+      return '<div class="bk-page '+side+(pi===bk.focus?' focus':'')+(pg.tpl==="bleed"?' bleed':'')+'" data-bk-page="'+pi+'" style="width:'+pw.toFixed(1)+'px;height:'+ph.toFixed(1)+'px">'
+        +bkPageHTML(pi)+'<i class="gut"></i>'+(pi>0&&!pg.back&&pg.tpl!=="bleed"?'<span class="pn">'+(pi+1)+'</span>':'')+'</div>'; }).join("");
+    box.querySelector(".bk-cap").innerHTML='<span>'+(bk.spread===0?"COVER":cur[0]===bk.pages.length-1?"BACK COVER":"PAGES "+bkLabel(cur,bk.spread,sp))+' · '+a[0]+' × '+a[1]+' MM '+a[2]+'</span><span>LAY-FLAT · MATTE</span>';
+    var tw=Math.round(50*Math.min(1,ar)), th=Math.round(50/Math.max(1,ar));
+    box.querySelector(".bk-strip").innerHTML=sp.map(function(s,j){ return '<button class="bk-thumb'+(j===bk.spread?' on':'')+'" data-bk-spread="'+j+'"><span class="pp">'
+        +s.map(function(pi){ return '<span class="mp'+(bk.pages[pi].tpl==="bleed"?' bl':'')+'" style="width:'+tw+'px;height:'+th+'px">'+bkPageHTML(pi,true)+'</span>'; }).join("")
+        +'</span><span class="l">'+bkLabel(s,j,sp)+'</span></button>'; }).join("")+'<button class="bk-add" data-bk-act="add" aria-label="Add a spread" style="height:'+th+'px">+</button>';
+    var used={}; bk.pages.forEach(function(pg){ pg.imgs.forEach(function(id){ if(id) used[id]=1; }); });
+    var src=bkSource(); box.querySelector(".bk-tray").innerHTML='<div class="bk-tray-h"><span class="eb">'+(stPicks().length?"YOUR PICKS":"YOUR FRAMES")+'</span><span class="eb">'+src.length+'</span></div>'
+      +src.map(function(i){ var id=stId(i); return '<div class="bk-pic" draggable="true" data-bk-pic="'+i+'"><img src="'+photos[i].url+'" alt="Frame '+(i+1)+'" draggable="false"><span class="m"><span>FRAME '+cbPad(i+1)+'</span>'+(used[id]?'<span class="in">IN BOOK</span>':'')+'</span></div>'; }).join("");
+    Array.prototype.forEach.call(box.querySelectorAll("[data-bk-size]"),function(b){ b.classList.toggle("on", b.getAttribute("data-bk-size")===bk.size); });
+    var ft=bk.pages[bk.focus].tpl; Array.prototype.forEach.call(box.querySelectorAll("[data-bk-tpl]"),function(b){ b.classList.toggle("on", b.getAttribute("data-bk-tpl")===ft); });
+    box.querySelector(".bk-pages").textContent=bk.pages.length; box.querySelector(".bk-tip").textContent=bkTip(cur); }
+  function bkSave(){ saveSession(); bkRender(); }
+  function bkSlotClick(pi,s){ bk.focus=pi;
+    if(!bk.sel) bk.sel=[pi,s]; else if(bk.sel[0]===pi&&bk.sel[1]===s) bk.sel=null;
+    else { var A=bk.pages[bk.sel[0]].imgs, B=bk.pages[pi].imgs, tmp=A[bk.sel[1]]||null; A[bk.sel[1]]=B[s]||null; B[s]=tmp; bk.sel=null; return bkSave(); }
+    bkRender(); }
+  function bkPlace(i, pi, s){ var id=stId(i);
+    if(s==null&&pi==null&&bk.sel){ pi=bk.sel[0]; s=bk.sel[1]; bk.sel=null; }
+    if(pi==null) pi=bk.focus; var pg=bk.pages[pi], n=bkBoxes(pg.tpl).length;
+    if(s==null){ if(!n){ pg.tpl="centre"; n=1; } for(var k=0;k<n;k++){ if(stById(pg.imgs[k])<0){ s=k; break; } } }
+    if(s==null){ toast("This page is full. Click a frame on it first, then the pick that replaces it."); return; }
+    pg.imgs[s]=id; bk.focus=pi; bkSave(); }
+  function bkSetTpl(t){ var pg=bk.pages[bk.focus]; if(!pg) return; pg.tpl=t; bk.sel=null; bkSave(); }
+  function bkCycleTpl(){ var pg=bk.pages[bk.focus]; bkSetTpl(BK_TPL[(BK_TPL.indexOf(pg.tpl)+1)%BK_TPL.length]); }
+  function bkAddSpread(){ var L=bk.pages.length-1; bk.pages.splice(L,0,{tpl:"centre",imgs:[null]},{tpl:"centre",imgs:[null]}); bk.spread=bkSpreads().length-2; bk.focus=L; bkSave(); }
+  function bkBind(){ if(bk.bound) return; bk.bound=true; var box=$("st-book");
+    box.addEventListener("dragstart",function(e){ var p=e.target.closest&&e.target.closest("[data-bk-pic]"); if(!p) return; e.dataTransfer.setData("text/plain","bk:"+p.getAttribute("data-bk-pic")); e.dataTransfer.effectAllowed="copy"; });
+    box.addEventListener("dragover",function(e){ if(e.target.closest("[data-bk-page]")){ e.preventDefault(); e.dataTransfer.dropEffect="copy"; } });
+    box.addEventListener("drop",function(e){ var d=e.dataTransfer.getData("text/plain")||""; if(d.slice(0,3)!=="bk:") return; e.preventDefault(); var i=+d.slice(3);
+      var sl=e.target.closest("[data-bk-slot]"), pg=e.target.closest("[data-bk-page]"); bk.sel=null;
+      if(sl){ var q=sl.getAttribute("data-bk-slot").split(":"); bkPlace(i,+q[0],+q[1]); } else if(pg) bkPlace(i,+pg.getAttribute("data-bk-page")); }); }
+  // export: every spread as one PDF page at 150 dpi, trimmed to the book size
+  function bkExport(){ if(!bk.pages.length) return; var sp=bkSpreads(), a=bkMM(), k=150/25.4, PW=Math.round(a[0]*k), PH=Math.round(a[1]*k), cans=[], left=0, started=false; toast("Building your book PDF…");
+    sp.forEach(function(s,j){ var cv=document.createElement("canvas"); cv.width=PW*s.length; cv.height=PH; var g=cv.getContext("2d"); g.fillStyle="#f4f1ea"; g.fillRect(0,0,cv.width,cv.height); cans[j]=cv;
+      s.forEach(function(pi,c){ var pg=bk.pages[pi];
+        if(pi>0&&!pg.back&&pg.tpl!=="bleed"){ g.fillStyle="#9a9384"; g.font=Math.round(3*k)+"px Geist Mono, monospace"; g.textAlign=c===0&&s.length>1?"left":"right"; g.fillText(String(pi+1), c===0&&s.length>1?c*PW+14*k:c*PW+PW-14*k, PH-12*k); }
+        bkRects(pi).forEach(function(r){ if(r.i<0) return; left++; started=true; var im=new Image();
+          im.onload=function(){ var x=c*PW+r.x*PW, y=r.y*PH, w=r.w*PW, h=r.h*PH, q=Math.max(w/im.width,h/im.height), sw=w/q, sh=h/q; g.drawImage(im,(im.width-sw)/2,(im.height-sh)/2,sw,sh,x,y,w,h); if(--left===0) pbBuildPDF(cans); };
+          im.onerror=function(){ if(--left===0) pbBuildPDF(cans); }; im.src=photos[r.i].url; }); }); });
+    if(!started) pbBuildPDF(cans); }
+
   // ---- 06 GALLERY: hang the picks at true size on a rendered gallery wall ----
   // The wall render's view is 1100 x 735 (design px); the ceiling is taken as 3.2 m, so 0.1818 px per mm and the
   // floor line at y 658.4. Prints are centred on the 1450 mm eye line, matted and framed, spaced as you set.
   var GA_WALL="asset:assets/gallery/wall-a.webp", GA_G=0.1818, GA_FLOOR=658.4, GA_SIZES=[400,600,900,1200];
-  var ga={frame:"black", gap:250, sizes:{}, dims:{}, title:""};
+  var ga={frame:"black", gap:250, sizes:{}, title:""};
   function gaPrints(){ var pk=stPicks(); if(!pk.length) pk=photos.map(function(_,i){ return i; }).filter(function(i){ return (photos[i].rating||0)>=3; });
     if(!pk.length) pk=photos.map(function(_,i){ return i; }).slice(-5); return pk.slice(0,7); }
-  function gaDims(i){ var d=ga.dims[photos[i].url]; if(d) return d; var im=new Image(); im.onload=function(){ ga.dims[photos[i].url]=im.width/im.height; if(st.room==="gallery") gaRender(); }; im.src=photos[i].url; return 1.5; }
   function gaLayout(){ var pr=gaPrints(), mat=ga.frame==="float"?0:55, fw=ga.frame==="float"?0:15, wallMM=1100/GA_G;
-    var items=pr.map(function(i,k){ var a=gaDims(i), s=ga.sizes[photos[i].url]; if(s==null) s=(k===Math.floor((pr.length-1)/2))?3:1;
+    var items=pr.map(function(i,k){ var a=stAspect(i), s=ga.sizes[stId(i)]; if(s==null) s=(k===Math.floor((pr.length-1)/2))?3:1;
       var L=GA_SIZES[s], w=a>=1?L:Math.round(L*a), h=a>=1?Math.round(L/a):L; return {i:i, s:s, w:w, h:h, W:w+2*(mat+fw), H:h+2*(mat+fw), mat:mat, fw:fw}; });
     var total=items.reduce(function(a,it){ return a+it.W; },0)+ga.gap*Math.max(0,items.length-1), k=Math.min(1,(wallMM*0.9)/Math.max(total,1));
     var x=(wallMM-total*k)/2, eye=GA_FLOOR-1450*GA_G;
@@ -185,7 +279,7 @@
     Array.prototype.forEach.call(box.querySelectorAll("[data-ga-frame]"),function(b){ b.classList.toggle("on", b.getAttribute("data-ga-frame")===ga.frame); });
     box.querySelector(".ga-gapv").textContent=ga.gap+" mm"; box.querySelector(".ga-gapbar i").style.width=((ga.gap-100)/400*100)+"%"; box.querySelector(".ga-gapbar b").style.left=((ga.gap-100)/400*100)+"%";
     box.querySelector(".ga-plan").innerHTML=L.items.map(function(it){ return '<rect x="'+(14+it.x/1100*200).toFixed(1)+'" y="17" width="'+Math.max(3,it.pw/1100*200).toFixed(1)+'" height="3" fill="#e3ad57"/>'; }).join(""); }
-  function gaCycleSize(i){ var u=photos[i].url, cur=ga.sizes[u]; if(cur==null){ var L=gaLayout(); L.items.forEach(function(it){ if(it.i===i) cur=it.s; }); } ga.sizes[u]=((cur||0)+1)%GA_SIZES.length; saveSession(); gaRender(); }
+  function gaCycleSize(i){ var u=stId(i), cur=ga.sizes[u]; if(cur==null){ var L=gaLayout(); L.items.forEach(function(it){ if(it.i===i) cur=it.s; }); } ga.sizes[u]=((cur||0)+1)%GA_SIZES.length; saveSession(); gaRender(); }
   function gaCycleFrame(){ var F=["black","oak","white","float"]; ga.frame=F[(F.indexOf(ga.frame)+1)%F.length]; saveSession(); gaRender(); }
   function gaExport(){ var L=gaLayout(), W=2200, H=1470, sc=W/1100, cv=document.createElement("canvas"); cv.width=W; cv.height=H; var g=cv.getContext("2d"), wall=new Image();
     wall.onload=function(){ g.drawImage(wall,0,0,W,H); var left=L.items.length; if(!left) done();
@@ -208,11 +302,22 @@
       else if(c==="Enter"&&photos.length) stRoom("edit"); else return true; e.preventDefault(); return true; }
     if(st.room==="workshop"){ if(c==="KeyT") wsUseFrame(); else if(c==="KeyN") wsNewPage(); else if(c==="ArrowRight"){ st.wsPage=Math.min(st.wsPages.length-1,st.wsPage+1); wsRender(); } else if(c==="ArrowLeft"){ st.wsPage=Math.max(0,st.wsPage-1); wsRender(); } return true; }
     if(st.room==="folio"){ if(c==="KeyL") foCyclePreset(); else if(/^Digit[1-3]$/.test(c)){ st.foBand=+c.slice(5)-1; foRender(); } return true; }
+    if(st.room==="book"){ var sn=bkSpreads().length;
+      if(c==="ArrowRight"){ bk.spread=Math.min(sn-1,bk.spread+1); bk.sel=null; bkRender(); } else if(c==="ArrowLeft"){ bk.spread=Math.max(0,bk.spread-1); bk.sel=null; bkRender(); }
+      else if(c==="KeyT") bkCycleTpl(); else if(c==="KeyB"){ bkSetTpl(bk.pages[bk.focus].tpl==="bleed"?"centre":"bleed"); }
+      else if((c==="Delete"||c==="Backspace")&&bk.sel){ bk.pages[bk.sel[0]].imgs[bk.sel[1]]=null; bk.sel=null; bkSave(); } else return true; e.preventDefault(); return true; }
     if(st.room==="gallery"){ if(c==="KeyF") gaCycleFrame(); else if(c==="ArrowRight"){ ga.gap=Math.min(500,ga.gap+50); gaRender(); } else if(c==="ArrowLeft"){ ga.gap=Math.max(100,ga.gap-50); gaRender(); }
       else if(c==="KeyW"&&photos.length){ openGalleryShow(); document.body.classList.add("st-legacy"); } return true; }
     return true; }
-  function stClick(e){ var t=e.target.closest("[data-ga-print],[data-ga-frame],[data-ga-act],[data-st-room],[data-st-frame],[data-st-rate],[data-st-act],[data-ws-page],[data-ws-act],[data-fo-cell],[data-fo-band],[data-fo-paper],[data-fo-preset],[data-fo-act],[data-st-close]"); if(!t) return;
+  function stClick(e){ var t=e.target.closest("[data-bk-slot],[data-bk-pic],[data-bk-spread],[data-bk-size],[data-bk-tpl],[data-bk-act],[data-bk-page],[data-ga-print],[data-ga-frame],[data-ga-act],[data-st-room],[data-st-frame],[data-st-rate],[data-st-act],[data-ws-page],[data-ws-act],[data-fo-cell],[data-fo-band],[data-fo-paper],[data-fo-preset],[data-fo-act],[data-st-close]"); if(!t) return;
     if(t.hasAttribute("data-st-close")) return closeStudio();
+    if(t.hasAttribute("data-bk-slot")){ var q=t.getAttribute("data-bk-slot").split(":"); return bkSlotClick(+q[0],+q[1]); }
+    if(t.hasAttribute("data-bk-page")){ bk.focus=+t.getAttribute("data-bk-page"); bk.sel=null; return bkRender(); }
+    if(t.hasAttribute("data-bk-pic")) return bkPlace(+t.getAttribute("data-bk-pic"));
+    if(t.hasAttribute("data-bk-spread")){ bk.spread=+t.getAttribute("data-bk-spread"); bk.sel=null; return bkRender(); }
+    if(t.hasAttribute("data-bk-size")){ bk.size=t.getAttribute("data-bk-size"); return bkSave(); }
+    if(t.hasAttribute("data-bk-tpl")) return bkSetTpl(t.getAttribute("data-bk-tpl"));
+    if(t.hasAttribute("data-bk-act")){ var ba=t.getAttribute("data-bk-act"); if(ba==="add") bkAddSpread(); else if(ba==="export") bkExport(); else if(ba==="rebuild"){ bk.pages=[]; bkSave(); } return; }
     if(t.hasAttribute("data-ga-print")) return gaCycleSize(+t.getAttribute("data-ga-print"));
     if(t.hasAttribute("data-ga-frame")){ ga.frame=t.getAttribute("data-ga-frame"); saveSession(); return gaRender(); }
     if(t.hasAttribute("data-ga-act")){ var ga_=t.getAttribute("data-ga-act"); if(ga_==="walk"&&photos.length){ openGalleryShow(); document.body.classList.add("st-legacy"); } else if(ga_==="export") gaExport(); return; }
@@ -228,7 +333,7 @@
     if(t.hasAttribute("data-fo-preset")){ st.foPresets[st.foBand]=t.getAttribute("data-fo-preset"); return foRender(); }
     if(t.hasAttribute("data-fo-act")) return foExport(); }
   (function wireStudio(){ var el=$("studioX"); if(!el) return; el.addEventListener("click",stClick);
-    window.addEventListener("resize",function(){ if(st.open&&st.room==="folio") foRender(); if(st.open&&st.room==="gallery") gaRender(); });
+    window.addEventListener("resize",function(){ if(st.open&&st.room==="folio") foRender(); if(st.open&&st.room==="gallery") gaRender(); if(st.open&&st.room==="book") bkRender(); });
     // the legacy builders' own Back buttons return to the studio's Select room
-    ["eCancel","pbBack"].forEach(function(id){ var b=$(id); if(!b) return; b.addEventListener("click",function(ev){ if(!st.open) return; ev.stopImmediatePropagation(); stRoom("select"); },true); });
+    ["eCancel"].forEach(function(id){ var b=$(id); if(!b) return; b.addEventListener("click",function(ev){ if(!st.open) return; ev.stopImmediatePropagation(); stRoom("select"); },true); });
     var gx=$("gxBack"); if(gx) gx.addEventListener("click",function(ev){ if(!st.open) return; ev.stopImmediatePropagation(); $("galleryshow").classList.add("hidden"); document.body.classList.remove("st-legacy"); stRoom("gallery"); },true); })();

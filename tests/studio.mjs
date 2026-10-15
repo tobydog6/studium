@@ -75,24 +75,42 @@ try {
   ok(before[0] === after[2] && before[2] === after[0], 'clicking two frames should swap them');
   await shot('5-folio-black-grid');
 
-  // Book and Gallery host the existing builders under the studio bar
-  await key('KeyE', 800); ok(await page.$eval('#photobook', (e) => !e.classList.contains('hidden')), 'Book should show the photobook designer');
+    // Book: built from the picks, spread by spread; templates, swaps, a new spread
+  await key('KeyE', 800);
+  ok((await cb(() => window.__cb.studio())).room === 'book', 'E should reach Book');
+  let book = (await cb(() => window.__cb.studio())).book;
+  ok(book.pages[0].tpl === 'bleed' && book.pages[0].imgs[0] === 3, 'cover should be the highest-rated pick, full bleed');
+  ok(book.pages.length === 12 && book.spread === 1, 'a new book has 12 pages and opens on spread 2–3');
+  ok((await page.$$('.bk-pic')).length === 4, 'tray should hold the four picks');
+  await key('ArrowRight', 300);
+  ok((await page.$$('.bk-page')).length === 2, 'a spread shows two pages');
+  const s0 = await page.$eval('.bk-page.l .bk-slot', (e) => e.getAttribute('data-bk-slot'));
+  const s1 = await page.$eval('.bk-page.r .bk-slot', (e) => e.getAttribute('data-bk-slot'));
+  await page.click(`[data-bk-slot="${s0}"]`); ok(await page.$('.bk-slot.sel .sz'), 'a selected frame shows its size');
+  await shot('6-book');
+  const pre = (await cb(() => window.__cb.studio())).book.pages;
+  await page.click(`[data-bk-slot="${s1}"]`); await page.waitForTimeout(150);
+  const post = (await cb(() => window.__cb.studio())).book.pages;
+  ok(pre[3].imgs[0] === post[4].imgs[0] && pre[4].imgs[0] === post[3].imgs[0], 'clicking two frames should swap them');
+  const order = ['blank', 'bleed', 'centre', 'two', 'grid'], f0 = post[(await cb(() => window.__cb.studio())).book.focus].tpl;
+  await key('KeyT'); const b1 = (await cb(() => window.__cb.studio())).book;
+  ok(b1.pages[b1.focus].tpl === order[(order.indexOf(f0) + 1) % 5], `T should cycle the focused page template (${f0} -> ${b1.pages[b1.focus].tpl})`);
+  await page.click('[data-bk-act="add"]'); ok((await cb(() => window.__cb.studio())).book.pages.length === 14, '+ should add a spread');
+  await page.click('[data-bk-size="21x21"]'); ok((await cb(() => window.__cb.studio())).book.size === '21x21', 'size chip should change the book size');
 
   // Gallery: the picks hang on the rendered wall at true size; click resizes, F frames, arrows space
   await key('KeyE', 900);
   ok((await cb(() => window.__cb.studio())).room === 'gallery', 'E from Book should reach Gallery');
-  ok(await page.$eval('#photobook', (e) => e.classList.contains('hidden')), 'photobook should hide in Gallery');
   ok((await page.$$('.ga-print')).length === 4, 'four picks should hang');
   const w0 = await page.$eval('.ga-print[data-ga-print="0"]', (e) => e.offsetWidth);
   await page.click('.ga-print[data-ga-print="0"]'); await page.waitForTimeout(200);
   ok((await page.$eval('.ga-print[data-ga-print="0"]', (e) => e.offsetWidth)) > w0, 'clicking a print should size it up');
   await key('KeyF'); ok(await page.$eval('[data-ga-frame="oak"]', (e) => e.classList.contains('on')), 'F should cycle the frame');
-  await key('ArrowRight'); ok((await page.textContent('.ga-gapv')).startsWith('300'), 'right arrow should widen the spacing');
+  await key('ArrowRight'); const gv = await page.textContent('#st-gallery .ga-gapv'); ok(gv.startsWith('300'), 'right arrow should widen the spacing: ' + gv);
   await page.click('.ga-t'); await page.keyboard.type('Stump Light'); await page.keyboard.press('Enter');
-  await shot('6-gallery');
-  await key('KeyQ', 900); ok(await page.$eval('#photobook', (e) => !e.classList.contains('hidden')), 'Q should return to Book');
-  await page.click('#pbBack'); await page.waitForTimeout(300);
-  ok((await cb(() => window.__cb.studio())).room === 'select', 'Book back should return to Select');
+  await shot('7-gallery');
+  await key('KeyQ', 600); ok((await cb(() => window.__cb.studio())).room === 'book', 'Q should return to Book');
+  await key('Escape', 400); ok((await cb(() => window.__cb.studio())).room === 'select', 'Esc should return to Select');
   await key('Escape', 400);
   ok(await cb(() => window.__cb.state()) === 'hub', 'Esc from Select should leave the studio (to the hub, with no location loaded)');
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));

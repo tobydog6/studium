@@ -470,7 +470,7 @@
   function showHub(){ suiteFrom="scene"; if(looking){ try{document.exitPointerLock();}catch(e){} }
     viewfinderOn=false; var vf=$("viewfinder"); if(vf) vf.classList.remove("on");
     if(typeof cbOpen!=="undefined"&&cbOpen) closeBack(false);
-    ["landing","studio","punctum","menu","gallery","editor","folio","photobook","galleryshow","hud","prompt"].forEach(hubHide); hubShow("hub"); App.go("hub"); }
+    ["landing","studio","punctum","menu","gallery","editor","folio","photobook","galleryshow","hud","prompt","signin","teacher"].forEach(hubHide); hubShow("hub"); if(!App.go("hub")&&typeof hubRender==="function") hubRender(); }
   function openSplatViewer(){ suiteFrom="scene"; hubHide("hub"); App.go(loaded?"scene":"landing"); if(loaded){ hubShow("hud"); if(typeof updatePrompt==="function") updatePrompt(); } else { hubShow("landing"); } }
   function openStudioHome(){ hubHide("hub"); hubShow("studio"); studioSync(); App.go("studio"); }
   function openPunctum(){ hubHide("hub"); hubShow("punctum"); App.go("punctum");
@@ -934,6 +934,10 @@
 @@include finder.js@@
 @@include bag.js@@
 @@include studio.js@@
+@@include sync.js@@
+@@include lesson.js@@
+@@include hub.js@@
+@@include teacher.js@@
   function toggleGrid(){ grid.classList.toggle("hidden"); var s=$("mGrid"); if(s)s.classList.toggle("on",!grid.classList.contains("hidden")); }
 
   // ---- wire: landing ----
@@ -1056,6 +1060,8 @@
   // ---- keyboard ----
   window.addEventListener("keydown",function(e){
     if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")) return;
+    if(lsKey(e)) return;                                          // the move-on card holds the keys while it's up
+    if(App.is("teacher")||App.is("signin")) return;
     if(cbOpen){ cbKey(e); return; }
     if(bg.open){ bagKey(e); return; }
     if(st.open && stKey(e)) return;
@@ -1345,12 +1351,14 @@
 
   initCameraUI();
   buildScenePicker();
-  loadSession(function(ok,n){ if(ok){ if(typeof studioSync==="function") studioSync(); toast("Restored your last session · "+n+" photo"+(n>1?"s":"")); } });
+  loadSession(function(ok,n){ if(ok){ if(typeof studioSync==="function") studioSync(); if(lsWho()) toast("Restored your last session · "+n+" photo"+(n>1?"s":"")); } if(App.is("hub")) hubRender(); });
+  if(!lsWho()) siShow(); else if(lsRole()==="teacher") openTeacher("plan"); else { if(lsWho().name) studentName=lsWho().name; hubRender(); }
   window.addEventListener("beforeunload", saveSessionNow);
   document.addEventListener("visibilitychange", function(){ if(document.hidden) saveSessionNow(); });
   setInterval(function(){ if(photos.length||(typeof foItems!=="undefined"&&foItems&&foItems.length)) saveSessionNow(); }, 9000);
   if(/[?&]dev/.test(location.search)){ try{ window.__ed={openEditor:openEditor,eglInit:eglInit,photos:photos,defEd:defEd,editRender:editRender,selectBody:selectBody,BODIES:BODIES,openFolio:openFolio,openPhotobook:openPhotobook,openGalleryShow:openGalleryShow,
     foPack:foPack,foShuffle:foShuffle,foSeed:foSeed,importPhotoFiles:importPhotoFiles,pbExportPDF:pbExportPDF,pbBuildPDF:pbBuildPDF,pbInit:pbInit,updateCamArt:updateCamArt,switchCamTab:switchCamTab,camArtSVG:camArtSVG,gxRender:gxRender,gxBuildLayouts:gxBuildLayouts,gxBindDrag:gxBindDrag,loadSplat:loadSplat,showHub:showHub,openSplatViewer:openSplatViewer,openStudioHome:openStudioHome,openPunctum:openPunctum,photoTip:photoTip,saveSessionNow:saveSessionNow,loadSession:loadSession,clearSession:clearSession,showTutorial:showTutorial,cycleComp:cycleComp,drawComp:drawComp,raiseCamera:raiseCamera,shutter:shutter,get foItems(){return foItems;},get pbPages(){return pbPages;},get foBW(){return foBW;},get foBH(){return foBH;}}; }catch(e){} }
+  if(/[?&]dev/.test(location.search)){ window.__ls={db:function(){ return lsDB; }, setClock:function(hm){ var m=/^(\d+):(\d+)$/.exec(hm), d=new Date(); d.setHours(+m[1],+m[2],0,0); lsClockOff=d.getTime()-Date.now(); lsTick(); }, tick:lsTick, who:lsWho, plan:lsPlan, cur:function(){ var p=lsPlan(); return p?lsCur(p):null; }, count:lsCount, moveOpen:lsMoveOpen, pill:function(){ return ls.pill; }, tc:tc, tcPlan:tcPlan, roster:function(){ return tcRoster(tcPlan()); }}; }
   if(/[?&]dev/.test(location.search)){ window.__cb={open:openBack, close:closeBack, tab:cbSetTab, state:function(){ return App.state; },
     cam:function(){ return {ap:APERTURES[apIdx], sh:SHUTTER_LABELS[shIdx], iso:ISOS[isoIdx], ev:+evStops.toFixed(2), mm:focalMM, body:curBody().id, lens:lensId}; }, bag:function(){ return {open:bg.open, stage:bg.stage, body:bg.body, lens:bg.lens, busy:bg.busy}; }, studio:function(){ return {open:st.open, room:st.room, cur:st.cur, pages:st.wsPages.length, presets:st.foPresets.slice(), paper:st.foPaper, book:{size:bk.size, spread:bk.spread, focus:bk.focus, sel:bk.sel, pages:bk.pages.map(function(p){ return {tpl:p.tpl, imgs:p.imgs.map(stById)}; })}}; }, addPhoto:function(p){ p.t=new Date(); photos.push(p); refreshCount(); }, open_:function(){ return cbOpen; }, photos:photos, fov:function(){ return camera.fov; }, dial:function(){ return vfDial; }, focus:function(){ return focusDist; } }; }
 })();

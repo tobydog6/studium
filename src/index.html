@@ -72,33 +72,68 @@
 
   <!-- Landing -->
   <!-- SUITE HUB -->
-  <div id="hub" class="overlay hubwrap">
-    <div class="hub-inner">
-      <div class="hub-masthead"><span class="hub-mono">◉</span><span class="hub-word">The Studio</span></div>
-      <div class="hub-sub">A photography suite · choose a tool</div>
-      <div class="hub-tiles">
-        <button class="hubtile" id="tilePunctum">
-          <div class="ht-ico"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="24" cy="24" r="18"/><circle cx="24" cy="24" r="5" fill="currentColor" stroke="none"/><path d="M24 2v8M24 38v8M2 24h8M38 24h8"/></svg></div>
-          <div class="ht-name">Punctum</div>
-          <div class="ht-desc">Read photographs — the culling game &amp; the critical eye.</div>
-          <div class="ht-go">Open →</div>
-        </button>
-        <button class="hubtile" id="tileSplat">
-          <div class="ht-ico"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M24 5l17 9.5v19L24 43 7 33.5v-19z"/><path d="M7 14.5L24 24l17-9.5M24 24v19"/></svg></div>
-          <div class="ht-name">Splat viewer</div>
-          <div class="ht-desc">Step inside a captured place and shoot it like a photographer.</div>
-          <div class="ht-go">Open →</div>
-        </button>
-        <button class="hubtile" id="tileStudio">
-          <div class="ht-ico"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="10" width="26" height="20" rx="2"/><rect x="16" y="20" width="26" height="18" rx="2"/><circle cx="13" cy="17" r="2.4" fill="currentColor" stroke="none"/></svg></div>
-          <div class="ht-name">Photo studio</div>
-          <div class="ht-desc">Edit, sequence &amp; present — folio, photobook &amp; gallery show.</div>
-          <div class="ht-go">Open →</div>
-        </button>
-      </div>
-      <div class="hub-note">Splat viewer &amp; Photo studio run fully offline · Punctum uses the web for its fonts &amp; account</div>
-    </div>
+  <!-- HUB: the class wall. Built by src/hub.js -->
+  <div id="hub" class="overlay hub6">
+    <div class="h6-wall" aria-hidden="true"></div><div class="h6-shade" aria-hidden="true"></div>
+    <header class="h6-bar">
+      <div class="h6-l"><span class="h6-word">Studium</span><span class="h6-cls"></span></div>
+      <div class="h6-clock"></div>
+      <div class="h6-r"><span class="h6-saved"><i></i>SAVED</span><button class="h6-me" data-h6="me"><span class="av"></span><span class="nm"><b></b><small></small></span></button></div>
+    </header>
+    <main class="h6-today">
+      <span class="h6-eb"></span>
+      <h1 class="h6-h"></h1>
+      <p class="h6-words"></p>
+      <div class="h6-steps"></div>
+      <div class="h6-act"><button class="h6-cta" data-h6="go"></button><span class="h6-status"></span></div>
+      <nav class="h6-nav"><span>OR GO TO</span><button id="tileSplat">Locations</button><button id="tileStudio">Studio</button><button id="tilePunctum">Punctum</button><button class="h6-tch hidden" data-h6="teacher">Teacher</button></nav>
+    </main>
+    <div class="h6-note hidden"></div>
+    <div class="h6-class"></div>
   </div>
+
+  <!-- SIGN-IN: a shared school computer -->
+  <div id="signin" class="overlay si hidden">
+    <div class="si-top"><span>STUDIUM · THIS COMPUTER</span><span class="si-time"></span></div>
+    <div class="si-mid">
+      <h1>Studium</h1>
+      <span class="si-eb"></span>
+      <p class="si-sub"></p>
+      <button class="si-g" data-si="google">CONTINUE WITH SCHOOL GOOGLE</button>
+      <button class="si-m" data-si="microsoft">CONTINUE WITH SCHOOL MICROSOFT</button>
+      <div class="si-or"><span>FIRST TIME?</span></div>
+      <div class="si-code"><input id="siCode" maxlength="6" placeholder="CLASS CODE" autocomplete="off" spellcheck="false" aria-label="Class code"><button data-si="join">JOIN</button></div>
+      <div class="si-name hidden"><input id="siName" placeholder="Your name, the way your teacher knows it" maxlength="40" autocomplete="off" aria-label="Your name"><button data-si="name">START</button></div>
+      <p class="si-help">Your teacher has it on the board. You only need it once.</p>
+    </div>
+    <div class="si-foot"><button data-si="solo">TRY IT ON YOUR OWN · FREE TRIAL</button><span>·</span><button data-si="teacher">I’M A TEACHER</button></div>
+  </div>
+
+  <!-- TEACHER: plan, live, board. Built by src/teacher.js -->
+  <div id="teacher" class="overlay tc hidden">
+    <header class="tc-bar">
+      <div class="l"><span class="w">Studium</span><span class="r">TEACHER</span></div>
+      <div class="m"><button class="tc-cls" data-tc="cls"></button><div class="tc-pop hidden"></div></div>
+      <div class="rr"><nav class="tc-tabs"><button data-tc-tab="plan">PLAN</button><button data-tc-tab="live">LIVE</button></nav><button class="tc-ghost" data-tc="preview">STUDENT VIEW</button><span class="tc-who"></span><button class="tc-ghost" data-tc="out">SIGN OUT</button></div>
+    </header>
+    <section class="tc-plan">
+      <div class="tc-head"><div><h1>Plan the period.</h1><p>Students see this on their hub, get a heads-up two minutes before each change, and a card when it’s time to move on.</p></div>
+        <div class="tc-tpls"><span class="eb">TEMPLATES</span><button data-tc-tpl="shoot">SHOOT DAY</button><button data-tc-tpl="edit">EDIT DAY</button><button data-tc-tpl="critique">CRITIQUE DAY</button></div></div>
+      <div class="tc-tl"><div class="tc-ticks"></div><div class="tc-blocks"></div><div class="tc-now hidden"></div></div>
+      <div class="tc-grid"><div class="tc-ed"></div><aside class="tc-aside"><span class="eb">STUDENTS WILL SEE</span><div class="tc-see"></div><div class="tc-during"></div></aside></div>
+      <footer class="tc-foot"><span>DRAG BLOCK EDGES TO CHANGE TIMES · CLICK A BLOCK TO EDIT IT · TAB FOR LIVE</span><button class="tc-send" data-tc="send"></button></footer>
+    </section>
+    <section class="tc-live hidden">
+      <div class="tl-top"><div class="tl-status"></div><div class="tl-ctl"><button data-tc="plus5">+5 MIN</button><button data-tc="pause">PAUSE</button><button class="o" data-tc="moveon">MOVE ON NOW</button><button class="g" data-tc="board">PROJECT TO BOARD</button></div></div>
+      <div class="tl-bar"><div class="tl-strip"></div><div class="tl-now"></div></div>
+      <div class="tl-main"><div class="tl-left"><div class="tl-filters"></div><div class="tl-grid"></div></div><aside class="tl-side"></aside></div>
+    </section>
+    <div class="tc-board hidden"></div>
+  </div>
+
+  <!-- LESSON: heads-up pill and move-on card (src/lesson.js) -->
+  <div id="lsPill" class="ls-pill" role="status" aria-live="polite"></div>
+  <div id="lsMove" class="ls-move" role="dialog" aria-label="Time to move on"></div>
 
   <!-- PHOTO STUDIO home -->
   <div id="studio" class="overlay hubwrap hidden">

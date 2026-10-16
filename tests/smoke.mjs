@@ -26,6 +26,8 @@ const ok = (cond, msg) => { if (!cond) throw new Error(msg); };
 try {
   await step('1-hub', async () => {
     await page.goto(pathToFileURL(FILE).href + '?dev');
+    await page.waitForSelector('[data-si="solo"]', { state: 'visible', timeout: 20000 });   // first run: the sign-in screen
+    await page.click('[data-si="solo"]');
     await page.waitForSelector('#tileSplat', { state: 'visible', timeout: 20000 });
     ok(await page.evaluate(() => !!(window.THREE && window.GaussianSplats3D && window.__ed)), 'engine or dev hook missing');
   });

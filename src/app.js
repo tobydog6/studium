@@ -487,7 +487,7 @@
     r.onsuccess=function(e){ _db=e.target.result; cb(_db); }; r.onerror=function(){ cb(null); }; }catch(e){ cb(null); } }
   function sessionData(){ return { v:1, savedAt:Date.now(), studentName:studentName, briefDone:briefDone,
     photos:photos.map(function(p){ return {url:p.url,orig:p.orig||null,dev:p.dev||null,id:p.id||null,copy:!!p.copy,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order}; }),
-    workshop:(typeof st!=="undefined"?st.wsPages:[]), folioPrefs:(typeof st!=="undefined"?{paper:st.foPaper,presets:st.foPresets}:null), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,title:ga.title}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
+    workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,title:ga.title}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
   function saveSessionNow(){ if(!photos.length && !(typeof foItems!=="undefined"&&foItems&&foItems.length)) return; idb(function(db){ if(!db) return; try{ db.transaction("state","readwrite").objectStore("state").put(sessionData(),"session"); }catch(e){} }); }
@@ -501,7 +501,8 @@
     if(d.workshop&&d.workshop.length&&typeof st!=="undefined") st.wsPages=d.workshop;
     if(d.book&&d.book.pages&&typeof bk!=="undefined"){ bk.size=d.book.size||"20x25"; bk.pages=d.book.pages; }
     if(d.galleryPrefs&&typeof ga!=="undefined"){ ga.frame=d.galleryPrefs.frame||"black"; ga.gap=d.galleryPrefs.gap||250; ga.sizes=d.galleryPrefs.sizes||{}; ga.title=d.galleryPrefs.title||""; }
-    if(d.folioPrefs&&typeof st!=="undefined"){ st.foPaper=d.folioPrefs.paper||"white"; if(d.folioPrefs.presets) st.foPresets=d.folioPrefs.presets; }
+    if(d.wsBoard&&typeof st!=="undefined"){ st.wsBoard=d.wsBoard; wsB.reset(d.wsBoard); }
+    if(d.foBoard&&typeof st!=="undefined"){ st.foBoard=d.foBoard; foB.reset(d.foBoard); }
     (d.photos||[]).forEach(function(p){ p.t=p.t?new Date(p.t):new Date(); photos.push(p); });
     if(d.folio&&d.folio.length&&typeof foItems!=="undefined") foItems=d.folio.map(function(x){ return {url:x.url,size:x.size}; });
     if(d.pbPages&&d.pbPages.length&&typeof pbPages!=="undefined") pbPages=d.pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; });
@@ -936,6 +937,7 @@
 @@include bag.js@@
 @@include studio.js@@
 @@include develop.js@@
+@@include board.js@@
 @@include sync.js@@
 @@include lesson.js@@
 @@include hub.js@@
@@ -1284,7 +1286,7 @@
     var n=pbSpreadCount(), specs=[], s; for(s=0;s<n;s++) specs.push(pbPagesForSpread(s));
     var cans=new Array(specs.length), done=0;
     specs.forEach(function(pl,i){ pbRenderPagesToCanvas(pl,function(cv){ cans[i]=cv; if(++done>=specs.length) pbBuildPDF(cans); }); }); }
-  function pbBuildPDF(canvases){ var imgs=[], i, durl, b64;
+  function pbBuildPDF(canvases, fname, msg){ var imgs=[], i, durl, b64;
     for(i=0;i<canvases.length;i++){ try{ durl=canvases[i].toDataURL("image/jpeg",0.9); }catch(e){ toast("Couldn't export PDF (image blocked)."); return; }
       b64=durl.substring(durl.indexOf(",")+1); imgs.push({bin:atob(b64), w:canvases[i].width, h:canvases[i].height}); }
     if(!imgs.length){ toast("Nothing to export."); return; }
@@ -1303,9 +1305,9 @@
     pdf+="trailer\n<< /Size "+(N+1)+" /Root 1 0 R >>\nstartxref\n"+xref+"\n%%EOF";
     var bytes=new Uint8Array(pdf.length); for(i=0;i<pdf.length;i++) bytes[i]=pdf.charCodeAt(i)&0xFF;
     var blob=new Blob([bytes],{type:"application/pdf"}), url=URL.createObjectURL(blob);
-    var a=document.createElement("a"); a.href=url; a.download=(namePrefix()||"")+"photobook.pdf"; document.body.appendChild(a); a.click(); a.remove();
+    var a=document.createElement("a"); a.href=url; a.download=(namePrefix()||"")+(fname||"photobook.pdf"); document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} },5000);
-    toast("Photobook PDF downloaded · "+imgs.length+" spread"+(imgs.length>1?"s":"")); }
+    toast((msg||"Photobook PDF downloaded")+" · "+imgs.length+" page"+(imgs.length>1?"s":"")); }
   var GXL=[{id:"single",name:"Single row"},{id:"salon",name:"Salon hang"},{id:"triptych",name:"Feature trio"},{id:"wrap",name:"Wrap-around"}];
   var gxLayout="single", gxRX=0, gxRY=0, gxDragBound=false;
   function openGalleryShow(){ if(!anyPhotos()){ toast("Take some photos first."); return; } openOverlayOnly($("galleryshow")); gxBuildLayouts(); gxBindDrag(); requestAnimationFrame(gxRender); }
@@ -1364,6 +1366,7 @@
     foPack:foPack,foShuffle:foShuffle,foSeed:foSeed,importPhotoFiles:importPhotoFiles,pbExportPDF:pbExportPDF,pbBuildPDF:pbBuildPDF,pbInit:pbInit,updateCamArt:updateCamArt,switchCamTab:switchCamTab,camArtSVG:camArtSVG,gxRender:gxRender,gxBuildLayouts:gxBuildLayouts,gxBindDrag:gxBindDrag,loadSplat:loadSplat,showHub:showHub,openSplatViewer:openSplatViewer,openStudioHome:openStudioHome,openPunctum:openPunctum,photoTip:photoTip,saveSessionNow:saveSessionNow,loadSession:loadSession,clearSession:clearSession,showTutorial:showTutorial,cycleComp:cycleComp,drawComp:drawComp,raiseCamera:raiseCamera,shutter:shutter,get foItems(){return foItems;},get pbPages(){return pbPages;},get foBW(){return foBW;},get foBH(){return foBH;}}; }catch(e){} }
   if(/[?&]dev/.test(location.search)){ window.__ls={db:function(){ return lsDB; }, setClock:function(hm){ var m=/^(\d+):(\d+)$/.exec(hm), d=new Date(); d.setHours(+m[1],+m[2],0,0); lsClockOff=d.getTime()-Date.now(); lsTick(); }, tick:lsTick, who:lsWho, plan:lsPlan, cur:function(){ var p=lsPlan(); return p?lsCur(p):null; }, count:lsCount, moveOpen:lsMoveOpen, pill:function(){ return ls.pill; }, tc:tc, tcPlan:tcPlan, roster:function(){ return tcRoster(tcPlan()); }}; }
   if(/[?&]dev/.test(location.search)){ window.__cb={open:openBack, close:closeBack, tab:cbSetTab, state:function(){ return App.state; },
-    cam:function(){ return {ap:APERTURES[apIdx], sh:SHUTTER_LABELS[shIdx], iso:ISOS[isoIdx], ev:+evStops.toFixed(2), mm:focalMM, body:curBody().id, lens:lensId}; }, bag:function(){ return {open:bg.open, stage:bg.stage, body:bg.body, lens:bg.lens, busy:bg.busy}; }, studio:function(){ return {open:st.open, room:st.room, cur:st.cur, pages:st.wsPages.length, presets:st.foPresets.slice(), paper:st.foPaper, book:{size:bk.size, spread:bk.spread, focus:bk.focus, sel:bk.sel, pages:bk.pages.map(function(p){ return {tpl:p.tpl, imgs:p.imgs.map(stById)}; })}}; }, addPhoto:function(p){ p.t=new Date(); photos.push(p); refreshCount(); }, open_:function(){ return cbOpen; }, photos:photos, fov:function(){ return camera.fov; }, dial:function(){ return vfDial; }, focus:function(){ return focusDist; } }; }
+    cam:function(){ return {ap:APERTURES[apIdx], sh:SHUTTER_LABELS[shIdx], iso:ISOS[isoIdx], ev:+evStops.toFixed(2), mm:focalMM, body:curBody().id, lens:lensId}; }, bag:function(){ return {open:bg.open, stage:bg.stage, body:bg.body, lens:bg.lens, busy:bg.busy}; }, studio:function(){ var bd=function(B){ var d=B.doc_(); return {cur:d.cur, paper:d.paper, pages:d.pages.map(function(p){ return p.items.map(function(it){ return {t:it.t, i:it.pid?stById(it.pid):-1, x:Math.round(it.x), y:Math.round(it.y), w:Math.round(it.w), h:Math.round(B.hOf(it)), hidden:!!it.hidden, locked:!!it.locked, f:it.f||null, text:it.text||null}; }); }), sel:B.selected()}; };
+      return {open:st.open, room:st.room, cur:st.cur, ws:bd(wsB), fo:bd(foB), book:{size:bk.size, spread:bk.spread, focus:bk.focus, sel:bk.sel, pages:bk.pages.map(function(p){ return {tpl:p.tpl, imgs:p.imgs.map(stById)}; })}}; }, addPhoto:function(p){ p.t=new Date(); photos.push(p); refreshCount(); }, open_:function(){ return cbOpen; }, photos:photos, fov:function(){ return camera.fov; }, dial:function(){ return vfDial; }, focus:function(){ return focusDist; } }; }
 })();
 

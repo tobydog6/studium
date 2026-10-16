@@ -68,7 +68,7 @@
   function lsCount(kind){ if(kind==="shots") return photos.filter(function(p){ return !p.uploaded&&!p.copy&&!(p.edited&&!p.orig); }).length;
     if(kind==="picks") return stPicks().length;
     if(kind==="edits") return photos.filter(function(p){ return p.edited; }).length;
-    if(kind==="pages") return (st.wsPages||[]).length;
+    if(kind==="pages"){ var d=st.wsBoard; return d?d.pages.filter(function(p){ return p.items.length; }).length:0; }
     if(kind==="book"){ var u={}; (bk.pages||[]).forEach(function(pg){ pg.imgs.forEach(function(id){ if(stById(id)>=0) u[id]=1; }); }); return Object.keys(u).length; }
     return 0; }
   function lsDone(ph){ var k=lsKind(ph); return k!=="none"&&ph.n>0&&lsCount(k)>=ph.n; }

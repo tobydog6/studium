@@ -53,29 +53,57 @@ try {
   ok((await cb(() => window.__cb.studio())).room === 'select', 'editor back should return to Select');
   ok(await page.$eval('#editor', (e) => e.classList.contains('hidden')), 'editor should hide');
 
-  // Workshop: an A3 page from your picks, a new page, Q/E switching
+  // Workshop: a free A3 page. Starts blank; frames keep their shape; text, layers, layouts, pages, undo
   await key('KeyE', 300); await key('KeyE', 600);
   ok((await cb(() => window.__cb.studio())).room === 'workshop', 'E twice should reach Workshop');
-  ok((await page.$$('.ws-tests img')).length === 4, 'four edit tests expected');
-  await page.click('.ws-title'); await page.keyboard.type('What makes it feel alive?'); await page.keyboard.press('Escape');
+  ok(await page.$('#st-workshop .bd-empty'), 'a new workshop page starts blank');
+  await page.click('#st-workshop [data-bd-pic="0"]'); await page.waitForTimeout(300);
+  await page.dragAndDrop('#st-workshop [data-bd-pic="7"]', '#st-workshop .bd-sheet', { targetPosition: { x: 520, y: 120 } }); await page.waitForTimeout(400);
+  let ws = (await cb(() => window.__cb.studio())).ws;
+  ok(ws.pages[0].length === 2, 'click and drag should both put frames on the page: ' + ws.pages[0].length);
+  ok(Math.abs(ws.pages[0][0].w / ws.pages[0][0].h - 1.5) < 0.03, 'a 3:2 frame stays 3:2');
+  ok(Math.abs(ws.pages[0][1].w / ws.pages[0][1].h - 0.667) < 0.03, 'a portrait frame stays 2:3: ' + JSON.stringify(ws.pages[0][1]));
+  await page.click('#st-workshop [data-bd-tpl="1"]'); await page.waitForTimeout(300);   // Hero layout
+  ws = (await cb(() => window.__cb.studio())).ws; ok(ws.pages[0][0].w > 150, 'Hero layout should make the first frame big');
+  // drag the first frame 60 px right, then pull its corner out: it grows and keeps 3:2
+  const it0 = await (await page.$('#st-workshop .bd-it[data-bd="0"]')).boundingBox();
+  await page.mouse.move(it0.x + it0.width / 2, it0.y + it0.height / 2); await page.mouse.down(); await page.mouse.move(it0.x + it0.width / 2 - 60, it0.y + it0.height / 2 + 10, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(200);
+  const moved = (await cb(() => window.__cb.studio())).ws.pages[0][0];
+  ok(moved.x !== ws.pages[0][0].x, 'dragging should move the frame');
+  const se = await (await page.$('#st-workshop .bd-it[data-bd="0"] [data-bd-h="se"]')).boundingBox();
+  await page.mouse.move(se.x + 4, se.y + 4); await page.mouse.down(); await page.mouse.move(se.x - 80, se.y - 40, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(200);
+  const sized = (await cb(() => window.__cb.studio())).ws.pages[0][0];
+  ok(sized.w < moved.w && Math.abs(sized.w / sized.h - 1.5) < 0.03, 'corner resize keeps the shape: ' + JSON.stringify(sized));
+  // text
+  await page.click('#st-workshop [data-bd-act="text"]'); await page.waitForTimeout(250);
+  await page.keyboard.type('What makes it feel alive?'); await page.keyboard.press('Escape'); await page.waitForTimeout(250);
+  ws = (await cb(() => window.__cb.studio())).ws;
+  ok(ws.pages[0].some((i) => i.t === 'text' && /alive/.test(i.text)), 'text box should keep what you typed');
+  // layers: hide the portrait frame, then undo
+  await page.click('#st-workshop [data-bd-eye="1"]'); await page.waitForTimeout(150);
+  ok((await cb(() => window.__cb.studio())).ws.pages[0][1].hidden, 'eye should hide a layer');
+  await page.keyboard.press('Control+z'); await page.waitForTimeout(150);
+  ok(!(await cb(() => window.__cb.studio())).ws.pages[0][1].hidden, 'undo should bring it back');
+  await page.click('#st-workshop [data-bd="0"]', { position: { x: 10, y: 10 } }); await page.waitForTimeout(150);
+  await page.click('#st-workshop [data-bd-f="bw"]'); await page.waitForTimeout(150);
   await shot('3-workshop');
-  await key('KeyN', 300); ok((await cb(() => window.__cb.studio())).pages === 2, 'N should add a page');
+  await page.click('#st-workshop [data-bd-act="dup"]'); await page.waitForTimeout(200);
+  ok((await cb(() => window.__cb.studio())).ws.pages.length === 2, 'COPY should make a second version of the page');
 
-  // Folio: A0 portrait, the Stump series in band one, presets, paper, swapping frames
+  // Folio: one A0 panel, no text; Series lays out each location as a band, every frame at its own shape
   await key('KeyE', 600);
   ok((await cb(() => window.__cb.studio())).room === 'folio', 'E should reach Folio');
-  ok((await page.$$('.fo-band[data-fo-band="0"] .fo-cell')).length === 4, 'band one should hold the four picks');
-  ok((await page.$$('.fo-band.empty')).length === 2, 'two empty series bands expected');
-  await shot('4-folio');
-  await key('KeyL', 300); ok((await cb(() => window.__cb.studio())).presets[0] === 'grid', 'L should cycle the layout');
-  await page.click('[data-fo-paper="black"]'); await page.waitForTimeout(200);
-  const before = await page.$$eval('.fo-band[data-fo-band="0"] .fo-cell img', (a) => a.map((i) => i.src.slice(-40)));
-  await page.click('[data-fo-cell="0:0"]'); await page.click('[data-fo-cell="0:2"]'); await page.waitForTimeout(200);
-  const after = await page.$$eval('.fo-band[data-fo-band="0"] .fo-cell img', (a) => a.map((i) => i.src.slice(-40)));
-  ok(before[0] === after[2] && before[2] === after[0], 'clicking two frames should swap them');
-  await shot('5-folio-black-grid');
+  ok(!(await page.$('#st-folio [data-bd-act="text"]')), 'the folio has no text tool');
+  await page.click('#st-folio [data-bd-tpl="0"]'); await page.waitForTimeout(400);
+  let fo = (await cb(() => window.__cb.studio())).fo;
+  ok(fo.pages[0].length === 4, 'Series should place the four picks: ' + fo.pages[0].length);
+  ok(fo.pages[0].every((i) => Math.abs(i.w / i.h - 1.5) < 0.03), 'folio frames keep their shape');
+  await page.click('#st-folio [data-bd-paper="black"]'); await page.waitForTimeout(150);
+  await page.click('#st-folio [data-bd-tpl="2"]'); await page.waitForTimeout(300);
+  await shot('5-folio');
+  ok((await cb(() => window.__cb.studio())).fo.paper === 'black', 'paper should be black');
 
-    // Book: built from the picks, spread by spread; templates, swaps, a new spread
+  // Book: built from the picks, spread by spread; templates, swaps, a new spread
   await key('KeyE', 800);
   ok((await cb(() => window.__cb.studio())).room === 'book', 'E should reach Book');
   let book = (await cb(() => window.__cb.studio())).book;

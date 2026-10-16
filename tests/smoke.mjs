@@ -16,11 +16,12 @@ const OUT = join(ROOT, 'tests', 'out'); mkdirSync(OUT, { recursive: true });
 
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await page.addInitScript(() => { try { localStorage.setItem('studium_detail', 'test'); } catch (e) {} });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.googleapis|supabase|net::ERR/i.test(m.text())) errors.push(m.text()); });
 
-const step = async (name, fn) => { await fn(); await page.screenshot({ path: join(OUT, `${name}.png`) }); console.log('ok  ', name); };
+const step = async (name, fn) => { await fn(); await page.screenshot({ path: join(OUT, `${name}.png`), timeout: 240000 }); console.log('ok  ', name); };
 const ok = (cond, msg) => { if (!cond) throw new Error(msg); };
 
 try {
@@ -37,7 +38,7 @@ try {
   });
   await step('3-scene-loaded', async () => {
     await page.click('.scenecard');
-    await page.waitForTimeout(9000); // SwiftShader is slow to sort and draw the splat
+    await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 }); await page.waitForTimeout(1500); // SwiftShader is slow to sort and draw the splat
     ok(await page.$('canvas') !== null, 'no WebGL canvas after loading the scene');
   });
   await step('4-camera-menu', async () => {

@@ -168,6 +168,7 @@
     {k:"bounds",g:"HANDLING", label:"Stay inside the scan",val:boundsOn?"ON":"OFF", on:boundsOn},
     {k:"sound", g:"HANDLING", label:"Shutter sound",      val:soundOn?"ON":"OFF", on:soundOn},
     {k:"grid",  g:"HANDLING", label:"Grid while walking", val:grid.classList.contains("hidden")?"OFF":"ON", on:!grid.classList.contains("hidden")},
+    {k:"detail",g:"HANDLING", label:"Scan detail",        val:sceneDetail==="light"?"LIGHT":"FULL", on:sceneDetail!=="light"},
     {k:"recentre",g:"PLACE",  label:"Back to the start point", val:"↵"},
     {k:"photos",g:"PLACE",    label:"Open the studio",    val:"↵"},
     {k:"leave", g:"PLACE",    label:"Leave location",     val:"↵", danger:true}]; }
@@ -187,6 +188,8 @@
     else if(r.k==="bounds") boundsOn=!boundsOn;
     else if(r.k==="sound") soundOn=!soundOn;
     else if(r.k==="grid") toggleGrid();
+    else if(r.k==="detail"){ sceneDetail=sceneDetail==="light"?"full":"light"; try{ localStorage.setItem("studium_detail",sceneDetail); }catch(e){}
+      var sc=(window.SPLAT_SCENES||[]).filter(function(s){ return s.name===cbPlace; })[0]; if(sc&&loaded){ closeBack(false); toast(sceneDetail==="light"?"Light detail: smoother on slower computers":"Full detail"); loadBundled(sc); return; } }
     else if(enter && r.k==="recentre"){ closeBack(false); frameScene(); updateCamera(0); toast("Back to the start point"); return; }
     else if(enter && r.k==="photos"){ closeBack(false); openStudio("select"); return; }
     else if(enter && r.k==="leave"){ closeBack(false); showHub(); return; }

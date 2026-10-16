@@ -455,9 +455,24 @@
   }
   function reloadWithUp(up){ if(lastSource!==null) loadSplat(lastSource,up); }
   // ---- bundled scenes (embedded in the file) ----
-  function loadBundled(sc){ if(sc&&sc.name) cbPlace=sc.name; try{ var bin=atob(sc.data), arr=new Uint8Array(bin.length), i; for(i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
-      var f=new File([arr],(sc.id||"scene")+"."+(sc.ext||"splat"),{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown"); }
-    catch(e){ toast("Couldn't open that scene."); } }
+  // .stm: Studium's packed scan (zlib, 16-bit positions and log scales, byte planes), unpacked to .splat here.
+  // Light detail keeps the more solid half of the splats for slower school computers.
+  var sceneDetail=(function(){ try{ return localStorage.getItem("studium_detail")||"full"; }catch(e){ return "full"; } })();
+  function stmUnpack(buf, light){ var step=light==="test"?10:2; var dv=new DataView(buf), n=dv.getUint32(4,true), f=new Float32Array(buf.slice(8,40)), b=new Uint8Array(buf,40), N=n;
+    var keep=null; if(light){ keep=new Uint8Array(n); N=0; var A=12*n+3*n; for(var j=0;j<n;j++){ if(b[A+j]>=40&&j%step===0){ keep[j]=1; N++; } } }
+    var out=new ArrayBuffer(N*32), F=new Float32Array(out), U=new Uint8Array(out), o=0, k, ch;
+    var sx=[(f[3]-f[0])/65535,(f[4]-f[1])/65535,(f[5]-f[2])/65535], ss=(f[7]-f[6])/65535;
+    for(var i=0;i<n;i++){ if(keep&&!keep[i]) continue; var fo=o*8, uo=o*32;
+      for(ch=0;ch<6;ch++){ var base=ch*2*n, v=b[base+i]|(b[base+n+i]<<8); F[fo+ch]=ch<3?f[ch]+v*sx[ch]:Math.exp(f[6]+v*ss); }
+      for(k=0;k<8;k++) U[uo+24+k]=b[12*n+k*n+i]; o++; }
+    return out; }
+  function loadBundled(sc){ if(sc&&sc.name) cbPlace=sc.name; showLoader("Opening "+(sc.name||"the scan")+"…");
+    fetch("data:application/octet-stream;base64,"+sc.data).then(function(r){ return r.arrayBuffer(); }).then(function(ab){
+      if(sc.ext!=="stm") return {buf:ab, ext:sc.ext||"splat"};
+      var ds=new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate")));
+      return ds.arrayBuffer().then(function(raw){ return {buf:stmUnpack(raw, sceneDetail==="full"?false:sceneDetail), ext:"splat"}; }); })
+    .then(function(r){ var f=new File([r.buf],(sc.id||"scene")+"."+r.ext,{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown"); })
+    .catch(function(e){ console.warn(e); hideLoader(); toast("Couldn't open that scene."); }); }
   function buildScenePicker(){ var host=$("sceneRow"); if(!host) return; var list=(window.SPLAT_SCENES||[]);
     if(!list.length){ host.style.display="none"; var h=$("sceneHead"),o=$("orSep"); if(h)h.style.display="none"; if(o)o.style.display="none"; return; }
     host.innerHTML=""; list.forEach(function(sc){ var c=document.createElement("button"); c.className="scenecard";

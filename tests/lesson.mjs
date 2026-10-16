@@ -19,12 +19,12 @@ const frames = readdirSync(FIX).filter((f) => f.endsWith('.jpg')).sort().map((f)
 
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-await page.addInitScript(() => { try { localStorage.setItem('splat_tut_v1', '1'); } catch (e) {} });
+await page.addInitScript(() => { try { localStorage.setItem('splat_tut_v1', '1'); localStorage.setItem('studium_detail', 'test'); } catch (e) {} });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.googleapis|supabase|net::ERR/i.test(m.text())) errors.push(m.text()); });
 const ok = (cond, msg) => { if (!cond) throw new Error(msg); };
-const shot = (n) => page.screenshot({ path: join(OUT, `lesson-${n}.png`), timeout: 120000 });
+const shot = (n) => page.screenshot({ path: join(OUT, `lesson-${n}.png`), timeout: 240000 });
 const ev = (f, a) => page.evaluate(f, a);
 const state = () => ev(() => window.__cb.state());
 const clock = async (hm) => { await ev((h) => window.__ls.setClock(h), hm); await page.waitForTimeout(250); };

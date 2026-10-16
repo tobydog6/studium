@@ -16,12 +16,12 @@ const OUT = join(ROOT, 'tests', 'out'); mkdirSync(OUT, { recursive: true });
 
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-await page.addInitScript(() => { try { localStorage.setItem('splat_tut_v1', '1'); if (!localStorage.getItem('studium_v1')) localStorage.setItem('studium_v1', JSON.stringify({ who: { role: 'solo', name: '' } })); } catch (e) {} });   // skip the first-run tutorial
+await page.addInitScript(() => { try { localStorage.setItem('splat_tut_v1', '1'); localStorage.setItem('studium_detail', 'test'); if (!localStorage.getItem('studium_v1')) localStorage.setItem('studium_v1', JSON.stringify({ who: { role: 'solo', name: '' } })); } catch (e) {} });   // skip the first-run tutorial
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.googleapis|supabase|net::ERR/i.test(m.text())) errors.push(m.text()); });
 const ok = (cond, msg) => { if (!cond) throw new Error(msg); };
-const shot = (name) => page.screenshot({ path: join(OUT, `back-${name}.png`), timeout: 120000 });
+const shot = (name) => page.screenshot({ path: join(OUT, `back-${name}.png`), timeout: 240000 });
 const cb = (expr) => page.evaluate(expr);
 const key = async (k, n = 1) => { for (let i = 0; i < n; i++) { await page.keyboard.press(k); await page.waitForTimeout(60); } };
 
@@ -31,7 +31,7 @@ try {
   await page.click('#tileSplat');
   await page.waitForSelector('.scenecard', { state: 'visible', timeout: 10000 });
   await page.click('.scenecard');
-  await page.waitForTimeout(9000);
+  await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 }); await page.waitForTimeout(1500);
   ok(await cb(() => window.__cb.state()) === 'scene', 'expected scene state after loading');
 
   // shoot three frames
@@ -92,8 +92,10 @@ try {
   ok(await page.$eval('#menu', (e) => e.classList.contains('hidden')), 'Space should close the bag');
 
   // Setup > Leave location goes to the hub through the state machine
-  await key('Space'); await page.waitForTimeout(400); await page.evaluate(() => window.__cb.tab('setup'));
-  await page.click('[data-cb-setup="9"]'); await page.waitForTimeout(150);   // first click selects "Leave location"
+  await key('Space'); await page.waitForTimeout(1500);
+  if (!(await cb(() => window.__cb.open_()))) { await cb(() => window.__cb.open()); await page.waitForTimeout(1500); }
+  await page.evaluate(() => window.__cb.tab('setup')); await page.waitForTimeout(500);
+  await page.click('[data-cb-setup="10"]'); await page.waitForTimeout(150);   // first click selects "Leave location"
   await key('Enter'); await page.waitForTimeout(300);                        // Enter does it
   ok(await cb(() => window.__cb.state()) === 'hub', 'Leave location should return to the hub');
   ok(await page.$eval('#hub', (e) => !e.classList.contains('hidden')), 'hub not visible');

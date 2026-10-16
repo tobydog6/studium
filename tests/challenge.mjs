@@ -22,20 +22,22 @@ try {
   await page.click('#tileSplat'); await page.click('.scenecard');
   await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 }); await page.waitForTimeout(1500);
   const pads = await ev(() => window.__ch.pads());
-  ok(pads.length === 3, 'three challenge spots expected, got ' + pads.length);
-  ok(await page.$eval('#chMarks', (e) => e.classList.contains('show') && e.children.length === 3), 'markers should point to the spots');
+  ok(pads.length === 5, 'five challenge frames expected, got ' + pads.length); console.log(JSON.stringify(pads.map((p) => [p.id, +p.x.toFixed(2), +p.z.toFixed(2), +p.y.toFixed(2), +p.w.toFixed(2)])));
+  ok(await page.$eval('#chMarks', (e) => e.classList.contains('show') && e.children.length === 5), 'markers should point to the frames');
   await shot('1-markers');
   // walk into the first spot
-  await ev(() => window.__ch.goto(0));
+  await ev(() => window.__ch.approach(0));   // a metre short of it, looking roughly its way: the beam should take over
   await page.waitForFunction(() => window.__ch.active() === 0, null, { timeout: 120000 }).catch(() => {});   // SwiftShader runs about 1 fps here
   ok(await ev(() => window.__ch.active()) === 0, 'standing in the spot should open challenge 1');
   ok(await page.$eval('#chCard', (e) => e.classList.contains('show')), 'the challenge card should show');
   let checks = await ev(() => window.__ch.checks());
   ok(checks.some((c) => !c.ok), 'not everything should be ticked at the start');
-  const pad0 = (await ev(() => window.__ch.pads()))[0]; ok(pad0.w > 1.2 && pad0.w < 1.6, 'a 24 mm frame a metre out should be about 1.45 m wide: ' + pad0.w);
+  const pad0 = (await ev(() => window.__ch.pads()))[0]; ok(pad0.w > 0.6 && pad0.w < 0.9, 'a 24 mm frame 55 cm out should be about 0.8 m wide: ' + pad0.w);
   // stand at the frame's eye point (crouched), look through it, 24 mm, f/8
-  await ev(() => { window.__ch.set({ mm: 24, f: 8 }); window.__ch.aim(0); });
-  await page.waitForFunction(() => { window.__ch.aim(0); return window.__ch.checks()[0].ok; }, null, { timeout: 120000, polling: 1000 });   // eyes settle down to the frame's height
+  await ev(() => { window.__ch.set({ mm: 24, f: 8 }); });
+  await page.waitForFunction(() => window.__ch.pull().locked, null, { timeout: 240000, polling: 1000 });   // pulled in, crouched and turned to fit the frame
+  await page.waitForFunction(() => window.__ch.checks()[0].ok, null, { timeout: 120000, polling: 1000 });
+  await shot('2-locked');
   let checks2 = await ev(() => window.__ch.checks());
   ok(checks2.slice(0, 3).every((c) => c.ok), 'lined up, lens and aperture should tick: ' + JSON.stringify(checks2));
   await ev(() => window.__ch.set({ meter: true })); await page.waitForTimeout(300);
@@ -43,7 +45,7 @@ try {
   await shot('2-card');
   // raise the camera and shoot
   await page.keyboard.press('KeyP'); await page.waitForFunction(() => window.__cb.state() === 'viewfinder', null, { timeout: 120000 }); await page.waitForTimeout(3000);
-  await ev(() => window.__ch.aim(0)); await page.waitForTimeout(1500);
+  await page.waitForTimeout(1500);
   const before = await ev(() => window.__cb.photos.length);
   await page.keyboard.press('Enter'); await page.waitForFunction((n) => window.__cb.photos.length > n, before, { timeout: 240000 }); await page.waitForTimeout(500);
   const last = await ev(() => { const p = window.__cb.photos; return { n: p.length, ch: p[p.length - 1].challenge || null }; });

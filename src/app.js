@@ -362,7 +362,7 @@
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
     renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
     if(viewer){ try{ viewer.update(); skyFollow(); viewer.render(); chRender(dt); }catch(e){} }
-    if(loaded&&dt>0) chTick();
+    if(loaded&&dt>0) chTick(dt);
     renderer.setRenderTarget(null);
     fsMat.uniforms.tDiffuse.value=sceneRT.texture;
     fsMat.uniforms.exposure.value=fx.exposure; fsMat.uniforms.filmic.value=fx.filmic;

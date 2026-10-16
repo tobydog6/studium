@@ -361,7 +361,8 @@
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
     renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
-    if(viewer){ try{ viewer.update(); skyFollow(); viewer.render(); }catch(e){} }
+    if(viewer){ try{ viewer.update(); skyFollow(); viewer.render(); chRender(dt); }catch(e){} }
+    if(loaded&&dt>0) chTick();
     renderer.setRenderTarget(null);
     fsMat.uniforms.tDiffuse.value=sceneRT.texture;
     fsMat.uniforms.exposure.value=fx.exposure; fsMat.uniforms.filmic.value=fx.filmic;
@@ -431,7 +432,7 @@
     camera.near=Math.max(maxDim*0.0006,0.01); camera.far=maxDim*12+100; camera.updateProjectionMatrix();
   }
 
-  function loadSplat(source, up, keepCol){ if(!keepCol){ WK.col=null; skySet(null); }
+  function loadSplat(source, up, keepCol){ if(!keepCol){ WK.col=null; skySet(null); CH.spec=null; }
     var isFile=(source instanceof File), url=source, format;
     if(isFile){ var ext=source.name.split(".").pop().toLowerCase(); format=FMT[ext];
       if(format===undefined){ toast("Unsupported file. Use a .ply, .splat or .ksplat."); return; } url=URL.createObjectURL(source);
@@ -446,7 +447,7 @@
       viewer=new GS.Viewer({selfDrivenMode:false,useBuiltInControls:false,renderer:renderer,camera:camera,threeScene:scene,sharedMemoryForWorkers:false});
       return viewer.addSplatScene(url,{format:format, rotation:[q.x,q.y,q.z,q.w], showLoadingUI:false, progressiveLoad:false, splatAlphaRemovalThreshold:5, onProgress:function(p,l){updateLoader(p,l);}});
     }).then(function(){
-      frameScene(); loaded=true; hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
+      frameScene(); chAttach(); loaded=true; hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       if(!tutSeen()){ setTimeout(function(){ showTutorial(0); }, 750); } else { toast("Click to look around · P raises the camera · Space for the menu"); }
     }).catch(function(err){
@@ -475,7 +476,7 @@
       if(sc.ext!=="stm") return {buf:ab, ext:sc.ext||"splat"};
       var ds=new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate")));
       return ds.arrayBuffer().then(function(raw){ return {buf:stmUnpack(raw, sceneDetail==="full"?false:sceneDetail), ext:"splat"}; }); })
-    .then(function(r){ skySet(sc.sky||null); return wkLoad(sc.collide).then(function(){ return r; }); })
+    .then(function(r){ skySet(sc.sky||null); CH.spec=sc; return wkLoad(sc.collide).then(function(){ return r; }); })
     .then(function(r){ var f=new File([r.buf],(sc.id||"scene")+"."+r.ext,{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown", true); })
     .catch(function(e){ console.warn(e); hideLoader(); toast("Couldn't open that scene."); }); }
   function buildScenePicker(){ var host=$("sceneRow"); if(!host) return; var list=(window.SPLAT_SCENES||[]);
@@ -506,7 +507,7 @@
     r.onupgradeneeded=function(e){ try{ e.target.result.createObjectStore("state"); }catch(_){} };
     r.onsuccess=function(e){ _db=e.target.result; cb(_db); }; r.onerror=function(){ cb(null); }; }catch(e){ cb(null); } }
   function sessionData(){ return { v:1, savedAt:Date.now(), studentName:studentName, briefDone:briefDone,
-    photos:photos.map(function(p){ return {url:p.url,orig:p.orig||null,dev:p.dev||null,id:p.id||null,copy:!!p.copy,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order}; }),
+    photos:photos.map(function(p){ return {url:p.url,orig:p.orig||null,dev:p.dev||null,id:p.id||null,copy:!!p.copy,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order,challenge:p.challenge||null}; }),
     workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
@@ -620,6 +621,7 @@
     fx.exposure=keepE;
     var brf=activeBrief>=0?BRIEFS[activeBrief]:null;
     photos.push({url:url,t:new Date(),f:APERTURES[apIdx],sh:SHUTTER_LABELS[shIdx],iso:ISOS[isoIdx],mm:focalMM,body:curBody().name,brief:brf?brf.t:null,place:cbPlace});
+    chOnShot(photos[photos.length-1]);
     if(brf){ briefDone[brf.id]=(briefDone[brf.id]||0)+1; buildBriefList(); }
     refreshCount(); fireFlash(); shutterSound(); captureFX(url); vfRefresh();
     if(brf) toast("“"+brf.t+"” captured ✓");
@@ -961,6 +963,7 @@
 @@include nav.js@@
 @@include walk.js@@
 @@include sky.js@@
+@@include challenge.js@@
 @@include sync.js@@
 @@include lesson.js@@
 @@include hub.js@@

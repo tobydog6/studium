@@ -3,7 +3,7 @@
   // around it with real counts, and one action. Behind it, a wall of frames: yours in colour with your picks framed
   // in gold, the rest dim. With a school connected the wall is the whole class's week; on its own it's yours.
   var HUB_FILL=["asset:assets/hub/f0.webp","asset:assets/hub/f1.webp","asset:assets/hub/f2.webp","asset:assets/hub/f3.webp","asset:assets/hub/f4.webp","asset:assets/hub/f5.webp","asset:assets/hub/f6.webp","asset:assets/hub/f7.webp"];
-  var hubThumbs={}, hubWallKey="";
+  var hubThumbs={}, hubWallKey="", D7_KIT="asset:assets/hub/kit.webp";
   // small JPEG thumbnails of your frames for the wall (a full frame per tile would be heavy on school PCs)
   function hubThumb(i){ var p=photos[i], id=stId(i); if(hubThumbs[id]) return hubThumbs[id]; hubThumbs[id]=p.url;
     var im=new Image(); im.onload=function(){ try{ var s=200/Math.max(im.width,im.height), c=document.createElement("canvas"); c.width=Math.round(im.width*s); c.height=Math.round(im.height*s);
@@ -26,19 +26,40 @@
       var right=k!=="none"&&ph.n>0?Math.min(have,ph.n)+' / '+ph.n:(j<cur?'':'');
       if(k==="shots"&&j<cur) right=String(have);
       return '<div class="h6-step'+(done?' done':'')+(on?' on':'')+'"><span class="b">'+(done?'✓':on?'●':'○')+'</span><span class="tt">'+cbEsc(ph.title)+'</span><span class="r">'+right+'</span></div>'; }).join(""); }
-  function hubRender(){ var h=$("hub"); if(!h) return; var who=lsWho()||{name:studentName||"", role:"solo"}, cls=lsClass(), pl=lsPlan(), steps, cur, head, eb, words, ph, next;
-    if(pl){ var c=lsCur(pl), n=pl.phases.length; steps=pl.phases; cur=Math.max(0,Math.min(n-1,c.i)); ph=steps[cur]; next=steps[cur+1];
-      eb=c.i<0?'STARTS AT '+lsHM(pl.start)+' · SET BY '+cbEsc((cls.teacher||"YOUR TEACHER").toUpperCase()):c.i>=n?'THAT’S THE PERIOD · SET BY '+cbEsc((cls.teacher||"").toUpperCase()):'TODAY · SET BY '+cbEsc((cls.teacher||"YOUR TEACHER").toUpperCase());
-      words=ph.words; }
-    else { steps=lsSoloSteps(); cur=steps.length-1; for(var j=0;j<steps.length;j++){ if(!lsDone(steps[j])){ cur=j; break; } } ph=steps[cur]; next=steps[cur+1];
-      eb=photos.length?'WHERE YOU’RE UP TO':'START HERE'; words=ph.words; }
-    head=ph.does+(next?', then '+next.title.charAt(0).toLowerCase()+next.title.slice(1):'')+'.';
-    h.querySelector(".h6-eb").innerHTML=eb; h.querySelector(".h6-h").textContent=head; h.querySelector(".h6-words").textContent=words?'“'+words+'”':'';
-    var vis=steps, off=0; if(!pl&&steps.length>3){ off=Math.max(0,Math.min(steps.length-3,cur-1)); vis=steps.slice(off,off+3); }
-    h.querySelector(".h6-steps").innerHTML=hubSteps(vis, cur-off);
-    var cta=h.querySelector(".h6-cta"); cta.innerHTML=lsCta(ph)+' <kbd>↵</kbd>'; cta.setAttribute("data-h6-go", ph.opens);
-    var place=(window.SPLAT_SCENES&&SPLAT_SCENES[0]&&SPLAT_SCENES[0].name)||"The location";
-    h.querySelector(".h6-status").innerHTML=ph.opens==="shoot"?'<i></i>'+cbEsc(place.toUpperCase())+(loaded?' IS OPEN':' IS READY'):'<i></i>'+photos.length+' FRAME'+(photos.length===1?'':'S')+' · '+stPicks().length+' PICKED';
+  // which of the three things on the desk a phase belongs to, and where it sits on the five-step rail
+  var D7_OBJ={shoot:"shoot", punctum:"critique", gallery:"studio"}, D7_STEP={shoot:0, select:1, edit:2, workshop:3, folio:3, book:3, gallery:4, punctum:4};
+  var D7_RAIL=["Shoot","Pick","Edit","Make","Show"];
+  function hubFit(){ var h=$("hub"); if(!h) return; var sg=h.querySelector(".d7-stage"), W=window.innerWidth, H=window.innerHeight, s=Math.min(W/1440, (H-60)/840);
+    sg.style.transform="translate(-50%,0) scale("+s.toFixed(4)+")"; }
+  function hubRender(){ var h=$("hub"); if(!h) return; var who=lsWho()||{name:studentName||"", role:"solo"}, cls=lsClass(), pl=lsPlan(), steps, cur, ph, c=null;
+    if(pl){ c=lsCur(pl); var n=pl.phases.length; steps=pl.phases; cur=Math.max(0,Math.min(n-1,c.i)); ph=steps[cur]; }
+    else { steps=lsSoloSteps(); cur=steps.length-1; for(var j=0;j<steps.length;j++){ if(!lsDone(steps[j])){ cur=j; break; } } ph=steps[cur]; }
+    var obj=D7_OBJ[ph.opens]||"studio", place=(window.SPLAT_SCENES&&SPLAT_SCENES[0]&&SPLAT_SCENES[0].name)||"The location";
+    h.setAttribute("data-next", obj);
+    h.querySelector(".h6-eb").textContent=pl?(c.i<0?"STARTS "+lsHM(pl.start):c.i>=pl.phases.length?"THAT’S THE PERIOD":"TODAY"):(photos.length?"NEXT":"START HERE");
+    h.querySelector(".h6-h").textContent=ph.title+".";
+    h.querySelector(".h6-words").textContent=ph.words?"“"+ph.words.replace(/\.$/,"")+"”":"";
+    // the camera
+    var shots=lsCount("shots"); h.querySelector(".d7-cam .kit").src=D7_KIT;
+    h.querySelector(".d7-cam small").textContent=(loaded?cbPlace:place).toUpperCase()+" · "+shots+" FRAME"+(shots===1?"":"S")+(obj!=="shoot"&&shots?" · DONE ✓":"");
+    // the prints: your picks first (circled), then your latest frames; blank paper before you've shot
+    var pk=stPicks().slice(-3), others=photos.map(function(_,i){ return i; }).filter(function(i){ return !photos[i].pick&&!photos[i].reject; }).slice(-5), show=pk.concat(others).slice(0,5);
+    var POS=[[30,60,230,-7],[210,20,240,5],[90,170,250,-2],[260,190,210,8],[10,250,200,4]], order=[1,0,3,4,2], html="";
+    for(var q=0;q<5;q++){ var P=POS[q], i=show[order[q]], pic=i!=null&&photos[i];
+      html+='<span class="pr" style="left:'+P[0]+'px;top:'+P[1]+'px;width:'+P[2]+'px;height:'+Math.round(P[2]*2/3)+'px;transform:rotate('+P[3]+'deg);z-index:'+(q===2?3:q===1?2:1)+'">'
+        +(pic?'<img src="'+hubThumb(i)+'" alt="" draggable="false">'+(photos[i].pick?'<svg class="ring" viewBox="0 0 100 66" preserveAspectRatio="none" aria-hidden="true"><path d="M18 9 C50 -3 104 6 103 36 C102 72 30 74 3 46 C-2 23 25 3 60 5" fill="none" stroke="#d2462a" stroke-width="2.2" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>':''):'<i></i>')+'</span>'; }
+    h.querySelector(".d7-stack").innerHTML=html;
+    // the loupe
+    var lp=stPicks(), li=lp.length?lp[lp.length-1]:(photos.length?photos.length-1:-1); h.querySelector(".d7-loupe img").src=li>=0?hubThumb(li):HUB_FILL[5];
+    var crit=""; if(pl){ var T=lsTimes(pl); pl.phases.forEach(function(p,j){ if(!crit&&p.opens==="punctum"&&j>=cur) crit=j===cur?"OPEN NOW":"OPENS AT "+lsHM(T[j].s); }); }
+    h.querySelector(".d7-loupe small").textContent=crit||"READ YOUR CLASS’S WORK";
+    // one action, under whichever thing is next
+    var k=lsKind(ph), cta=h.querySelector(".h6-cta"); cta.innerHTML=lsCta(ph)+' <kbd>↵</kbd>'; cta.setAttribute("data-h6-go", ph.opens);
+    h.querySelector(".h6-status").textContent=k!=="none"&&ph.n?Math.min(lsCount(k),ph.n)+" OF "+ph.n+" "+(k==="shots"?"SHOT":k==="picks"?"PICKED":k==="edits"?"EDITED":"DONE"):"";
+    // the five steps
+    var at=D7_STEP[ph.opens]!=null?D7_STEP[ph.opens]:1, rail="";
+    D7_RAIL.forEach(function(n,i){ rail+='<span class="st'+(i<at?' done':i===at?' on':'')+'" style="left:'+(i*25)+'%"><i>'+(i<at?'✓':'')+'</i><b>'+(i+1)+' · '+n.toUpperCase()+'</b></span>'; });
+    h.querySelector(".d7-rail").innerHTML='<span class="ln"></span><span class="ln fill" style="width:'+(at*25)+'%"></span>'+rail;
     // bar
     h.querySelector(".h6-cls").textContent=cls?(cls.name+" · "+(cls.teacher||"")).toUpperCase():(who.role==="solo"?"FREE TRIAL":"");
     var nm=who.name||"Guest"; h.querySelector(".h6-me .av").textContent=lsInitials(nm); h.querySelector(".h6-me b").textContent=nm;
@@ -48,12 +69,7 @@
     var nt=hubNote(), ne=h.querySelector(".h6-note");
     if(nt){ ne.innerHTML='<span class="k">NOTE FROM '+cbEsc(((cls&&cls.teacher)||"YOUR TEACHER").toUpperCase())+' · '+cbEsc(nt.when)+'</span><p>'+cbEsc(nt.text)+'</p><button data-h6="read">GOT IT</button>'; ne.classList.remove("hidden"); }
     else ne.classList.add("hidden");
-    // the class card
-    var nextFirm="", cc=h.querySelector(".h6-class");
-    if(pl){ var T=lsTimes(pl), cc_=lsCur(pl); pl.phases.forEach(function(p,j){ if(j>cc_.i&&p.firm&&!nextFirm) nextFirm=p.title.toUpperCase()+" "+lsHM(T[j].s); });
-      cc.innerHTML='<span class="a">'+cbEsc(cls.name)+' · CODE '+cbEsc(cls.code)+'</span><span class="b">'+(typeof Sync!=="undefined"&&Sync.on()?'CONNECTED':'THIS COMPUTER')+' · '+photos.length+' FRAMES</span><span class="c">GOLD = YOUR PICKS'+(nextFirm?' · '+nextFirm:'')+'</span>'; }
-    else cc.innerHTML='<span class="a">'+(cls?cbEsc(cls.name)+' · NO LESSON RIGHT NOW':'ON YOUR OWN')+'</span><span class="b">YOUR WALL · '+photos.length+' FRAME'+(photos.length===1?'':'S')+'</span><span class="c">GOLD = YOUR PICKS</span>';
-    hubWall(); hubTick(); }
+    hubFit(); hubTick(); }
   function hubTick(){ var h=$("hub"); if(!h||h.classList.contains("hidden")) return; var pl=lsPlan(), ck=h.querySelector(".h6-clock"), d=lsNow();
     if(pl){ var c=lsCur(pl), tot=lsTotal(pl), done=Math.max(0,Math.min(1,(c.now-pl.start)/tot)), left=Math.max(0,Math.ceil(pl.start+tot-c.now)), cls=lsClass()||{};
       ck.innerHTML='<span>'+(cls.period?'PERIOD '+cbEsc(String(cls.period)):'TODAY')+'</span><span class="tr"><i style="width:'+(done*100).toFixed(1)+'%"></i><b style="left:'+(done*100).toFixed(1)+'%"></b></span><span class="w">'+(pl.paused?'PAUSED':c.i<0?'STARTS '+lsHM(pl.start):c.i>=pl.phases.length?'DONE':left+' MIN LEFT')+'</span>';
@@ -70,7 +86,10 @@
     h.addEventListener("click",function(e){ var b=e.target.closest("[data-h6]"); if(b) hubAct(b.getAttribute("data-h6"), b); });
     window.addEventListener("keydown",function(e){ if(!App.is("hub")||h.classList.contains("hidden")||lsMoveOpen()) return; if(e.target&&(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")) return;
       if(e.code==="Enter"){ e.preventDefault(); var b=h.querySelector(".h6-cta"); if(b) hubAct("go", b); } });
-    window.addEventListener("resize",function(){ if(App.is("hub")) hubWall(); });
+    window.addEventListener("resize",function(){ if(App.is("hub")) hubFit(); });
+    h.addEventListener("click",function(e){ var o=e.target.closest("[data-d7]"); if(!o) return; var w=o.getAttribute("data-d7");
+      if(w==="shoot") openSplatViewer(); else if(w==="critique") lsGo("punctum");
+      else { var pl=lsPlan(), ph=null; if(pl){ var c=lsCur(pl); ph=c.ph; } var room=ph&&LS_PLACES[ph.opens]&&["select","edit","workshop","folio","book","gallery"].indexOf(ph.opens)>=0?ph.opens:"select"; hubHide("hub"); openStudio(room); } });
     App.on(function(next){ if(next==="hub") hubRender(); }); })();
 
   // ---- sign-in (a shared school computer) ----

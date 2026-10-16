@@ -77,24 +77,32 @@
 
   <!-- Landing -->
   <!-- SUITE HUB -->
-  <!-- HUB: the class wall. Built by src/hub.js -->
-  <div id="hub" class="overlay hub6">
-    <div class="h6-wall" aria-hidden="true"></div><div class="h6-shade" aria-hidden="true"></div>
+  <!-- HUB (home): the desk. Your camera, your prints and the loupe are the three ways in. Built by src/hub.js -->
+  <div id="hub" class="overlay hub7">
+    <div class="d7-desk" aria-hidden="true"></div>
     <header class="h6-bar">
       <div class="h6-l"><span class="h6-word">Studium</span><span class="h6-cls"></span></div>
       <div class="h6-clock"></div>
-      <div class="h6-r"><span class="h6-saved"><i></i>SAVED</span><button class="h6-me" data-h6="me"><span class="av"></span><span class="nm"><b></b><small></small></span></button></div>
+      <div class="h6-r"><span class="h6-saved"><i></i>SAVED</span><button class="h6-tch hidden" data-h6="teacher">TEACHER</button><button class="h6-me" data-h6="me"><span class="av"></span><span class="nm"><b></b><small></small></span></button></div>
     </header>
-    <main class="h6-today">
-      <span class="h6-eb"></span>
-      <h1 class="h6-h"></h1>
-      <p class="h6-words"></p>
-      <div class="h6-steps"></div>
-      <div class="h6-act"><button class="h6-cta" data-h6="go"></button><span class="h6-status"></span></div>
-      <nav class="h6-nav"><span>OR GO TO</span><button id="tileSplat">Locations</button><button id="tileStudio">Studio</button><button id="tilePunctum">Punctum</button><button class="h6-tch hidden" data-h6="teacher">Teacher</button></nav>
-    </main>
+    <div class="d7-stage">
+      <div class="d7-today"><span class="h6-eb">TODAY</span><h1 class="h6-h"></h1><span class="h6-words"></span></div>
+      <button class="d7-obj d7-cam" id="tileSplat" data-d7="shoot" aria-label="Shoot">
+        <span class="sh"></span><img class="kit" alt="" draggable="false">
+        <span class="d7-lbl"><b>Shoot</b><small></small></span>
+      </button>
+      <button class="d7-obj d7-prints" id="tileStudio" data-d7="studio" aria-label="Studio">
+        <span class="d7-stack"></span><span class="d7-glow"></span><span class="d7-next">NEXT</span>
+      </button>
+      <div class="d7-studio-lbl"><b>Studio</b></div>
+      <button class="d7-obj d7-loupe" id="tilePunctum" data-d7="critique" aria-label="Critique">
+        <span class="lens"><img alt="" draggable="false"></span>
+        <span class="d7-lbl"><b>Critique</b><small></small></span>
+      </button>
+      <div class="d7-act"><button class="h6-cta" data-h6="go"></button><span class="h6-status"></span></div>
+      <div class="d7-rail"></div>
+    </div>
     <div class="h6-note hidden"></div>
-    <div class="h6-class"></div>
   </div>
 
   <!-- SIGN-IN: a shared school computer -->
@@ -245,6 +253,7 @@
   <!-- Camera back (Space): the rear render is the menu. Built by src/back.js -->
   <div id="camback" class="hidden" aria-label="Camera back">
     <div class="cb-room"></div>
+    <button class="cb-home" data-nav="home"><svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 9.5 10 4l7 5.5V17H3z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>HOME <kbd>H</kbd></button>
     <div class="cb-stage" id="cbStage">
       <img class="cb-render" id="cbRender" alt="" draggable="false" width="1760" height="1328">
       <div class="cb-screen" id="cbScreen"><div class="cb-ui" id="cbUi"></div></div>

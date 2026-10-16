@@ -962,9 +962,6 @@
   $("btnMenuPhotos").onclick=openGallery;
   $("btnMenuLoad").onclick=function(){ hide(menu); show(landing); updatePrompt(); };
   // suite hub wiring
-  if($("tilePunctum")) $("tilePunctum").onclick=openPunctum;
-  if($("tileSplat")) $("tileSplat").onclick=openSplatViewer;
-  if($("tileStudio")) $("tileStudio").onclick=function(){ openStudio("select"); };
   if($("btnMenuHub")) $("btnMenuHub").onclick=function(){ hide(menu); showHub(); };
   Array.prototype.forEach.call(document.querySelectorAll("[data-hub]"),function(b){ b.onclick=showHub; });
   if($("stEdit")) $("stEdit").onclick=function(){ suiteFrom="studio"; hubHide("studio"); openGallery(); };

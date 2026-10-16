@@ -66,7 +66,8 @@ try {
   await ev((fs) => fs.forEach((u, i) => window.__cb.addPhoto({ url: u, f: 4, sh: '1/125', iso: 400, mm: 50, body: 'Full-frame DSLR', place: 'The Stump', pick: i % 2 === 0 })), frames);
   await ev(() => window.__ed.showHub()); await page.waitForTimeout(800);
   const h1 = await page.textContent('.h6-h');
-  ok(/Finish your Stump picks, then edit two/.test(h1), 'hub headline should come from the plan: ' + h1);
+  ok(/Pick five/.test(h1), 'hub headline should come from the plan: ' + h1);
+  ok(await page.$eval('#hub', (e) => e.getAttribute('data-next')) === 'studio', 'the prints should be the next thing on the desk');
   ok((await page.textContent('.h6-cta')).includes('PICK ONE MORE'), 'four picks of five: the action should be PICK ONE MORE');
   ok((await page.textContent('.h6-clock')).includes('MIN LEFT'), 'period clock should show minutes left');
   await shot('3-hub');

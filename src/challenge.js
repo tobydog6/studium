@@ -7,12 +7,16 @@
   var CH={spec:null, list:[], fx:null, pads:[], active:-1, done:{}, t:0, lastEval:0, cardFor:-1, pull:-1, locked:false, cool:-1, nudge:false};
   var CH_D=0.45, CH_NEAR=3.5, CH_GRAB=0.8, CH_LEAVE=1.4;
   var CH_RING_FS="uniform float alpha; uniform vec2 size; varying vec2 vUv; void main(){ vec2 p=vUv*size; float e=min(min(p.x,size.x-p.x),min(p.y,size.y-p.y)); float fw=fwidth(e); float bw=max(size.x*0.006,fw*1.2); float a=(1.0-smoothstep(bw-fw,bw+fw,e))*alpha; gl_FragColor=vec4(0.97,0.76,0.40,a); }";
-  var CH_FRAME_FS="uniform float t; uniform float done; uniform float lock; uniform float fade; uniform vec2 size; varying vec2 vUv;"
-    +"void main(){ vec2 p=vUv*size; float e=min(min(p.x,size.x-p.x),min(p.y,size.y-p.y)); float fw=fwidth(e); float bw=max(size.x*0.0045,fw*1.3);"
-    +" vec2 q=min(p,size-p); float corner=step(q.x,size.x*0.11)*step(q.y,size.x*0.11)*step(min(q.x,q.y),bw*2.2);"
+  // the frame: thin gold lines with corner brackets, and a soft halo that hugs them (inside and out) while it draws you in
+  var CH_FRAME_FS="uniform float t; uniform float done; uniform float lock; uniform float fade; uniform float glow; uniform float pad; uniform vec2 size; varying vec2 vUv;"
+    +"void main(){ vec2 p=vUv*(size+2.0*pad)-pad; vec2 dd=abs(p-size*0.5)-size*0.5; float sd=length(max(dd,0.0))+min(max(dd.x,dd.y),0.0);"
+    +" float e=abs(sd); float fw=fwidth(e); float bw=max(size.x*0.0045,fw*1.3);"
+    +" vec2 q=min(p,size-p); float corner=step(q.x,size.x*0.11)*step(q.y,size.x*0.11)*step(-sd,bw*2.2)*step(sd,bw*0.5);"
     +" float edge=max(1.0-smoothstep(bw-fw,bw+fw,e),corner); float pulse=0.75+0.25*sin(t*3.0);"
-    +" vec3 g=mix(vec3(0.95,0.72,0.36),vec3(0.86,0.84,0.80),done); float a=edge*(done>0.5?0.35:pulse)*fade*(1.0-0.35*lock);"
-    +" gl_FragColor=vec4(g,a); }";
+    +" float halo=glow*(0.26*exp(-e/(size.x*0.05))+0.16*exp(-e/(size.x*0.012)));"
+    +" vec3 g=mix(vec3(0.95,0.72,0.36),vec3(0.86,0.84,0.80),done); vec3 hc=mix(vec3(0.98,0.70,0.32),vec3(1.0,0.92,0.75),clamp(glow*0.6,0.0,1.0)*exp(-e/(size.x*0.01)));"
+    +" float ae=edge*(done>0.5?0.35:mix(pulse,1.0,clamp(glow,0.0,1.0)))*(1.0-0.35*lock*(1.0-clamp(glow,0.0,1.0)));"
+    +" float a=clamp(ae+halo*(1.0-edge),0.0,1.0)*fade; gl_FragColor=vec4(mix(hc,g,edge),a); }";
   var CH_VS="varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }";
   function chDoneSet(){ var d={}; photos.forEach(function(p){ if(p.challenge) d[p.challenge]=1; }); return d; }
   function chEquivMM(){ var b=curBody(); return Math.round(focalMM*36/(b.sensorW||36)); }
@@ -25,8 +29,8 @@
       for(var k=0;k<20&&wkBlocked(x,z,wkGround(x,z));k++){ x+=dx/L*0.2; z+=dz/L*0.2; }   // keep the eye point on clear ground
       var E=new THREE.Vector3(x, wkGround(x,z)+c.h, z), T=new THREE.Vector3(tx, wkGround(tx,tz)+c.look[1], tz), d=T.clone().sub(E).normalize();
       var w=2*CH_D*Math.tan(Math.atan(18/c.mm))*0.97, h=w/1.5, F=E.clone().addScaledVector(d,CH_D), size=new THREE.Vector2(w,h);
-      var m=new THREE.ShaderMaterial({uniforms:{t:{value:0},done:{value:CH.done[c.id]?1:0},lock:{value:0},fade:{value:1},size:{value:size}}, vertexShader:CH_VS, fragmentShader:CH_FRAME_FS, transparent:true, depthTest:false, depthWrite:false, side:THREE.DoubleSide});
-      var fr=new THREE.Mesh(new THREE.PlaneGeometry(w,h), m); fr.position.copy(F); fr.up.set(0,1,0); fr.lookAt(E); CH.fx.add(fr);
+      var pad=w*0.16, m=new THREE.ShaderMaterial({uniforms:{t:{value:0},done:{value:CH.done[c.id]?1:0},lock:{value:0},fade:{value:1},glow:{value:0},pad:{value:pad},size:{value:size}}, vertexShader:CH_VS, fragmentShader:CH_FRAME_FS, transparent:true, depthTest:false, depthWrite:false, side:THREE.DoubleSide});
+      var fr=new THREE.Mesh(new THREE.PlaneGeometry(w+2*pad,h+2*pad), m); fr.position.copy(F); fr.up.set(0,1,0); fr.lookAt(E); CH.fx.add(fr);
       // the tractor beam: outlines that drift from the frame back out towards you
       var rings=[]; for(var r=0;r<3;r++){ var rm=new THREE.ShaderMaterial({uniforms:{alpha:{value:0},size:{value:size}}, vertexShader:CH_VS, fragmentShader:CH_RING_FS, transparent:true, depthTest:false, depthWrite:false, side:THREE.DoubleSide, blending:THREE.AdditiveBlending});
         var ring=new THREE.Mesh(new THREE.PlaneGeometry(w,h), rm); ring.quaternion.copy(fr.quaternion); CH.fx.add(ring); rings.push(ring); }
@@ -36,35 +40,56 @@
     chMarkers(); }
   function chAlign(P){ var dp=P.E.clone().sub(camPos), hz=Math.hypot(dp.x,dp.z), dy=dp.y, ang=Math.acos(Math.max(-1,Math.min(1,P.d.dot(_fwd))))*180/Math.PI;
     return {hz:hz, dy:dy, ang:ang, ok:hz<0.3&&Math.abs(dy)<0.2&&ang<6}; }
-  function chRender(dt){ if(!CH.fx||!CH.pads.length||CH.capturing||viewfinderOn) return;   // camera up: nothing in the way of the picture CH.t+=dt||0.016;
-    CH.pads.forEach(function(P){ var u=P.frame.material.uniforms, a=chAlign(P), dist=P.F.distanceTo(camPos);
-      u.t.value=CH.t; u.lock.value+=((a.ok?1:0)-u.lock.value)*0.2; u.fade.value=Math.max(0.35,Math.min(1,1.4-dist/25));
-      var prox=CH.done[P.c.id]||(CH.pull>=0&&CH.pads[CH.pull]===P)?0:Math.max(0,Math.min(1,(5-dist)/2.5));   // only near it, and gone once it has you
+  function chRender(dt){ chGlowCss(); if(!CH.fx||!CH.pads.length||CH.capturing||viewfinderOn) return;   // camera up: nothing in the way of the picture
+    CH.t+=dt||0.016; var br=0.5+0.5*Math.sin(CH.t*1.7);   // a slow breath while it has you
+    CH.pads.forEach(function(P,i){ var u=P.frame.material.uniforms, a=chAlign(P), dist=P.F.distanceTo(camPos), mine=(CH.pull===i);
+      u.t.value=CH.t; u.lock.value+=((a.ok?1:0)-u.lock.value)*0.2; u.fade.value=Math.max(0.35,Math.min(1,1.4-dist/25))*(mine?1:1-0.92*CH.glow);   // the others step back while one has you
+      u.glow.value=mine?CH.glow*(0.55+0.45*br)+CH.bloom:0;
+      if(mine&&!CH.locked){   // being drawn in: soft outlines slide from you towards the frame, slowly
+        P.rings.forEach(function(R,k){ var ph=(CH.t*0.3+k/3)%1, s=1.18-0.18*ph; R.position.copy(P.F).addScaledVector(P.d,-(1-ph)*0.32); R.scale.set(s,s,1);
+          R.material.uniforms.alpha.value=Math.sin(ph*Math.PI)*0.13*CH.glow; }); return; }
+      var prox=CH.done[P.c.id]||mine?0:Math.max(0,Math.min(1,(5-dist)/2.5))*(1-CH.glow);   // only near it, and gone once it has you
       P.rings.forEach(function(R,k){ var ph=(CH.t*0.35+k/3)%1, s=1+ph*0.25; R.position.copy(P.F).addScaledVector(P.d,-ph*0.45); R.scale.set(s,s,1);
         R.material.uniforms.alpha.value=Math.sin(ph*Math.PI)*0.16*prox; }); });
     var ac=renderer.autoClear; renderer.autoClear=false; renderer.render(CH.fx, camera); renderer.autoClear=ac; }
-  // ---- each frame: are we near one? ----
-  // when you're close and facing it, the frame draws you in and fits you to it; any walking key lets go
-  // The pull: only once you're right at a frame (and facing it) does it draw you in. Touch anything (walk, crouch,
-  // look round) and it lets go straight away, and it won't take you again until you've left and come back.
-  var CH_MOVE={KeyW:1,KeyA:1,KeyS:1,KeyD:1,KeyQ:1,KeyE:1,ArrowUp:1,ArrowDown:1,ArrowLeft:1,ArrowRight:1,Space:1};
+  // ---- the pull ----
+  // Walk right up to a frame (within 0.8 m, facing it) and it draws you in: a slow, eased glide into the eye point,
+  // turning and crouching to fit. Once it starts it always finishes, and you're held for a second when you land.
+  // After that, any move (walk, crouch, look) lets go, and that frame won't take you again until you've left and come back.
+  var CH_MOVE={KeyW:1,KeyA:1,KeyS:1,KeyD:1,KeyQ:1,KeyE:1,ArrowUp:1,ArrowDown:1,ArrowLeft:1,ArrowRight:1,Space:1}, CH_GRACE=1000;
+  CH.glow=0; CH.bloom=0; CH.pt=0; CH.lockT=0;
   document.addEventListener("keydown",function(e){ if(CH_MOVE[e.code]) CH.nudge=true; });
   document.addEventListener("mousemove",function(e){ if(looking&&Math.abs(e.movementX)+Math.abs(e.movementY)>3) CH.nudge=true; });
+  // while this is true, the walk keys and mouse look do nothing (app.js asks)
+  function chHold(){ return CH.pull>=0&&(!CH.locked||performance.now()-CH.lockT<CH_GRACE); }
   function chLetGo(){ if(CH.pull>=0) CH.cool=CH.pull; CH.pull=-1; CH.locked=false; }
-  function chTractor(dt){ var nudge=CH.nudge||CH_MOVE&&Object.keys(CH_MOVE).some(function(k){ return keys[k]; }); CH.nudge=false;
+  function chWrap(a){ while(a>Math.PI) a-=2*Math.PI; while(a<-Math.PI) a+=2*Math.PI; return a; }
+  function chGrab(i){ var P=CH.pads[i], walk=!!(WK.col&&WK.mode==="walk");
+    var ty=Math.atan2(-P.d.x,-P.d.z), tp=Math.asin(Math.max(-1,Math.min(1,P.d.y))), dyaw=chWrap(ty-yaw), dist=Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z);
+    var eye0=walk?WK.eye:camPos.y, eye1=walk?P.E.y-wkGround(P.E.x,P.E.z):P.E.y;
+    CH.from={x:camPos.x, z:camPos.z, yaw:yaw, pitch:pitch, eye:eye0, walk:walk}; CH.to={dyaw:dyaw, pitch:tp, eye:eye1};
+    CH.dur=Math.max(1.3,Math.min(2.6,1.0+dist*1.1+Math.abs(dyaw)*0.35+Math.abs(eye1-eye0)*0.6));
+    CH.pull=i; CH.locked=false; CH.pt=0; _vel.set(0,0,0); }
+  function chTractor(dt){ dt=Math.min(dt||1/30,0.1);
+    var held=CH_MOVE&&Object.keys(CH_MOVE).some(function(k){ return keys[k]; }), nudge=CH.nudge||held; CH.nudge=false;
+    CH.glow+=((CH.pull>=0&&!(CH.locked&&!chHold())?1:0)-CH.glow)*(1-Math.exp(-dt*(CH.pull>=0?2.2:3.5)));
+    CH.bloom*=Math.exp(-dt*2.2);
     if(CH.cool>=0){ var C=CH.pads[CH.cool]; if(!C||Math.hypot(camPos.x-C.E.x,camPos.z-C.E.z)>CH_LEAVE) CH.cool=-1; }
-    if(CH.pull>=0&&(nudge||Math.hypot(camPos.x-CH.pads[CH.pull].E.x,camPos.z-CH.pads[CH.pull].E.z)>CH_LEAVE)){ chLetGo(); return; }
-    if(CH.pull<0){ if(nudge) return;
+    if(CH.pull>=0){ var Q=CH.pads[CH.pull];
+      if(!chHold()&&(nudge||Math.hypot(camPos.x-Q.E.x,camPos.z-Q.E.z)>CH_LEAVE)){ chLetGo(); return; } }
+    else { if(nudge) return;
       CH.pads.forEach(function(P,i){ if(CH.pull>=0||i===CH.cool||CH.done[P.c.id]) return; var hz=Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z);
         var toF=P.F.clone().sub(camPos); toF.y=0; toF.normalize(); var f=_fwd.clone(); f.y=0; f.normalize();
-        if(hz<CH_GRAB&&f.dot(toF)>0.2){ CH.pull=i; CH.locked=false; } }); }
-    if(CH.pull<0||CH.locked) return; var P=CH.pads[CH.pull];
-    var k=1-Math.exp(-5*Math.min(dt,0.05)); _vel.set(0,0,0);
-    camPos.x+=(P.E.x-camPos.x)*k; camPos.z+=(P.E.z-camPos.z)*k;
-    if(WK.col&&WK.mode==="walk") WK.eye+=((P.E.y-wkGround(P.E.x,P.E.z))-WK.eye)*k; else camPos.y+=(P.E.y-camPos.y)*k;
-    var ty=Math.atan2(-P.d.x,-P.d.z), tp=Math.asin(Math.max(-1,Math.min(1,P.d.y))), dy=ty-yaw; while(dy>Math.PI) dy-=2*Math.PI; while(dy<-Math.PI) dy+=2*Math.PI;
-    yaw+=dy*k; pitch+=(tp-pitch)*k;
-    if(Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z)<0.02&&Math.abs(dy)<0.005&&Math.abs(tp-pitch)<0.005){ camPos.x=P.E.x; camPos.z=P.E.z; yaw+=dy; pitch=tp; CH.locked=true; } }
+        if(hz<CH_GRAB&&f.dot(toF)>0.2) chGrab(i); }); }
+    if(CH.pull<0||CH.locked) return; var P=CH.pads[CH.pull], A=CH.from, B=CH.to;
+    CH.pt=Math.min(1,CH.pt+dt/CH.dur); var x=CH.pt, s=x*x*x*(x*(x*6-15)+10);   // smootherstep: eases out of where you were, settles softly
+    _vel.set(0,0,0); camPos.x=A.x+(P.E.x-A.x)*s; camPos.z=A.z+(P.E.z-A.z)*s;
+    if(A.walk) WK.eye=A.eye+(B.eye-A.eye)*s; else camPos.y=A.eye+(B.eye-A.eye)*s;
+    yaw=A.yaw+B.dyaw*s; pitch=A.pitch+(B.pitch-A.pitch)*s;
+    if(CH.pt>=1){ CH.locked=true; CH.lockT=performance.now(); CH.bloom=0.5; } }
+  // a faint gold breath at the edges of the screen while it has you, and a soft bloom as you land
+  function chGlowCss(){ var el=$("chGlow"); if(!el) return; var v=viewfinderOn||!CH.pads.length?0:Math.min(1,CH.glow*(0.35+0.25*(0.5+0.5*Math.sin(CH.t*1.7)))+CH.bloom*0.5);
+    if(Math.abs((+el.style.opacity||0)-v)>0.004) el.style.opacity=v.toFixed(3); }
   function chTick(dt){ if(!CH.pads.length||!loaded) return; var near=-1, best=1e9; chTractor(dt||1/30);
     CH.pads.forEach(function(P,i){ var d=Math.hypot(camPos.x-P.E.x, camPos.z-P.E.z); if(d<CH_NEAR&&d<best){ best=d; near=i; } });
     if(near!==CH.active){ CH.active=near; if(near>=0){ chFlash(CH.pads[near]); chCard(CH.pads[near]); } else chCard(null); }
@@ -114,4 +139,4 @@
     window.__ch.aim=function(i){ var d=CH.pads[i].d; yaw=Math.atan2(-d.x,-d.z); pitch=Math.asin(Math.max(-1,Math.min(1,d.y))); basis(); };
     window.__ch.goto=function(i){ var P=CH.pads[i]; camPos.x=P.E.x; camPos.z=P.E.z; WK.eye=P.E.y-wkGround(P.E.x,P.E.z); _vel.set(0,0,0); };
     window.__ch.approach=function(i){ var P=CH.pads[i]; camPos.x=P.E.x-P.d.x*0.6; camPos.z=P.E.z-P.d.z*0.6; yaw=Math.atan2(-P.d.x,-P.d.z)+0.3; pitch=0; _vel.set(0,0,0); };
-    window.__ch.pull=function(){ return {i:CH.pull, locked:CH.locked, cool:CH.cool}; }; window.__ch.nudge=function(){ CH.nudge=true; }; }
+    window.__ch.pull=function(){ return {i:CH.pull, locked:CH.locked, cool:CH.cool, hold:chHold()}; }; window.__ch.nudge=function(){ CH.nudge=true; }; }

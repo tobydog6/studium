@@ -329,7 +329,7 @@
   function updateCamera(dt){
     basis();
     if(dt>0){
-      var moving=(looking && !menuOpen());
+      var moving=(looking && !menuOpen() && !chHold());
       var maxV=sceneMaxDim*(0.02+moveScale*1.0); if(moving && (keys["ShiftLeft"]||keys["ShiftRight"])) maxV*=3.0;
       _mv.set(0,0,0);
       if(moving){
@@ -569,7 +569,7 @@
   function endTutorial(){ var e=$("tutorial"); if(e) e.classList.add("hidden"); setTutSeen(); }
 
   // ---- viewfinder + photos ----
-  function raiseCamera(){ if(!loaded) return; App.note("viewfinder"); viewfinderOn=true; viewfinder.classList.add("on"); updateCrosshair(); updatePrompt(); computeCam(); applyFinder(); drawComp(); }
+  function raiseCamera(){ if(!loaded) return; if(soundOn){ try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); shutterLoad(); }catch(e){} } App.note("viewfinder"); viewfinderOn=true; viewfinder.classList.add("on"); updateCrosshair(); updatePrompt(); computeCam(); applyFinder(); drawComp(); }
   function lowerCamera(){ if(App.state==="viewfinder") App.note("scene"); var was=viewfinderOn; viewfinderOn=false; viewfinder.classList.remove("on"); updateCrosshair(); updatePrompt(); applyFinder(); if(was) computeCam(); }
   // ---- composition / framing guides (in-frame, teach composition in any scene) ----
   var COMP=["off","thirds","phi","center","diagonal","grid"], compIdx=1;
@@ -601,15 +601,24 @@
   function toggleViewfinder(){ if(viewfinderOn) lowerCamera(); else raiseCamera(); }
   function fireFlash(){ var f=$("flash"); f.classList.remove("fire"); void f.offsetWidth; f.classList.add("fire");
     var b=$("shutterBlade"); b.classList.remove("fire"); void b.offsetWidth; b.classList.add("fire"); }
+  // two real shutters, taken in turn so a burst doesn't sound like one sample on repeat
+  var SHUTTER_SRC=["asset:assets/sound/shutter-a.mp3","asset:assets/sound/shutter-b.mp3"], shutterBufs=[], shutterNext=0;
+  function shutterLoad(){ if(shutterBufs.length||!audioCtx) return; shutterBufs=[null,null];
+    SHUTTER_SRC.forEach(function(u,i){ fetch(u).then(function(r){ return r.arrayBuffer(); }).then(function(ab){ return new Promise(function(ok,no){ audioCtx.decodeAudioData(ab,ok,no); }); })
+      .then(function(b){ shutterBufs[i]=b; }).catch(function(){}); }); }
   function shutterSound(){
     if(!soundOn) return;
     try{
       if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
       if(audioCtx.state==="suspended") audioCtx.resume();
-      var sr=audioCtx.sampleRate, len=Math.floor(sr*0.05), buf=audioCtx.createBuffer(1,len,sr), d=buf.getChannelData(0);
+      shutterLoad();
+      var buf=shutterBufs[shutterNext%2]||shutterBufs[(shutterNext+1)%2]; shutterNext++;
+      if(buf){ var s=audioCtx.createBufferSource(); s.buffer=buf; s.playbackRate.value=0.98+Math.random()*0.04; var g=audioCtx.createGain(); g.gain.value=0.8; s.connect(g); g.connect(audioCtx.destination); s.start(); return; }
+      // not decoded yet (the very first press): a quick synthetic slap
+      var sr=audioCtx.sampleRate, len=Math.floor(sr*0.05), nb=audioCtx.createBuffer(1,len,sr), d=nb.getChannelData(0);
       for(var i=0;i<len;i++){ var e=1-i/len; d[i]=(Math.random()*2-1)*e*e; }
-      function click(at,gain){ var s=audioCtx.createBufferSource(); s.buffer=buf; var g=audioCtx.createGain(); g.gain.value=gain; s.connect(g); g.connect(audioCtx.destination); s.start(at); }
-      var t=audioCtx.currentTime; click(t,0.28); click(t+0.055,0.2);   // mirror-up / mirror-down slap
+      function click(at,gain){ var s=audioCtx.createBufferSource(); s.buffer=nb; var g=audioCtx.createGain(); g.gain.value=gain; s.connect(g); g.connect(audioCtx.destination); s.start(at); }
+      var t=audioCtx.currentTime; click(t,0.28); click(t+0.055,0.2);
     }catch(e){}
   }
   function refreshCount(){ photoNum.textContent=photos.length; var m=$("menuPhotoCount"); if(m)m.textContent=photos.length; }
@@ -1082,7 +1091,7 @@
   viewport.addEventListener("click",function(){ if(menuOpen()||!loaded) return; if(document.pointerLockElement!==renderer.domElement){ try{renderer.domElement.requestPointerLock();}catch(e){} } });
   document.addEventListener("mousedown",function(e){ if(looking && viewfinderOn && e.button===0) shutter(); });
   document.addEventListener("pointerlockchange",function(){ looking=(document.pointerLockElement===renderer.domElement); if(!looking) lowerCamera(); updateCrosshair(); updatePrompt(); });
-  document.addEventListener("mousemove",function(e){ if(!looking) return; var fb=(viewfinderOn?curBody().finder:""), ys=(fb==="waist"||fb==="ground")?-1:1, ps=(fb==="ground")?-1:1; yaw-=e.movementX*sens*ys; var dp=e.movementY*sens*ps; pitch+=invertY?dp:-dp; var lim=1.553; if(pitch>lim)pitch=lim; if(pitch<-lim)pitch=-lim; });
+  document.addEventListener("mousemove",function(e){ if(!looking||chHold()) return; var fb=(viewfinderOn?curBody().finder:""), ys=(fb==="waist"||fb==="ground")?-1:1, ps=(fb==="ground")?-1:1; yaw-=e.movementX*sens*ys; var dp=e.movementY*sens*ps; pitch+=invertY?dp:-dp; var lim=1.553; if(pitch>lim)pitch=lim; if(pitch<-lim)pitch=-lim; });
   document.addEventListener("wheel",function(e){ if(!looking||menuOpen()) return; e.preventDefault(); var nv=Math.max(1,Math.min(100,Math.round(moveScale*100)+(e.deltaY<0?6:-6))); moveScale=nv/100; if($("mSpeed")){$("mSpeed").value=nv;$("mSpeedVal").textContent=nv;} },{passive:false});
 
   // ---- keyboard ----

@@ -17,7 +17,7 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 const argOut = process.argv.indexOf('--out');
 const OUT = argOut > -1 ? process.argv[argOut + 1] : join(ROOT, 'dist', 'studium.html');
 
-const MIME = { '.woff2': 'font/woff2', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml' };
+const MIME = { '.woff2': 'font/woff2', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg' };
 const stripNl = (s) => (s.endsWith('\n') ? s.slice(0, -1) : s);
 
 function resolveAssets(text) {

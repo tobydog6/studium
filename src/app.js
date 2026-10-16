@@ -461,8 +461,10 @@
   function buildScenePicker(){ var host=$("sceneRow"); if(!host) return; var list=(window.SPLAT_SCENES||[]);
     if(!list.length){ host.style.display="none"; var h=$("sceneHead"),o=$("orSep"); if(h)h.style.display="none"; if(o)o.style.display="none"; return; }
     host.innerHTML=""; list.forEach(function(sc){ var c=document.createElement("button"); c.className="scenecard";
-      c.innerHTML="<div class='sc-thumb'>"+(sc.thumb?"<img src='"+sc.thumb+"' alt=''>":"")+"<span class='sc-play'></span></div><div class='sc-meta'><div class='sc-name'>"+esc(sc.name||"Scene")+"</div><div class='sc-desc'>"+esc(sc.desc||"")+"</div></div>";
-      c.onclick=function(){ loadBundled(sc); }; host.appendChild(c); }); }
+      var shot=photos.filter(function(p){ return (p.place||"")===sc.name; }).length;
+      c.innerHTML="<div class='sc-thumb'>"+(sc.thumb?"<img src='"+sc.thumb+"' alt=''>":"")+"</div><div class='sc-meta'><div class='sc-name'>"+esc(sc.name||"Scene")+"</div><div class='sc-desc'>"+esc(sc.desc||"")+"</div><div class='sc-foot'><span>"+(shot?shot+" FRAME"+(shot===1?"":"S")+" SHOT HERE":"NOT SHOT YET")+"</span><span class='go'>WALK IN <kbd>↵</kbd></span></div></div>";
+      c.onclick=function(){ loadBundled(sc); }; host.appendChild(c); });
+    var nx=document.createElement("div"); nx.className="scenecard next"; nx.innerHTML="<div class='sc-thumb'><span>NEXT LOCATION</span></div><div class='sc-meta'><div class='sc-name'>More places</div><div class='sc-desc'>Your folio panel wants three series. New scans arrive here; your teacher can add their own.</div></div>"; host.appendChild(nx); }
   // ---- suite hub navigation ----
   var suiteFrom="scene", punctumLoaded=false;
   function hubHide(id){ var e=$(id); if(e) e.classList.add("hidden"); }
@@ -471,7 +473,7 @@
     viewfinderOn=false; var vf=$("viewfinder"); if(vf) vf.classList.remove("on");
     if(typeof cbOpen!=="undefined"&&cbOpen) closeBack(false);
     ["landing","studio","punctum","menu","gallery","editor","folio","photobook","galleryshow","hud","prompt","signin","teacher"].forEach(hubHide); hubShow("hub"); if(!App.go("hub")&&typeof hubRender==="function") hubRender(); }
-  function openSplatViewer(){ suiteFrom="scene"; hubHide("hub"); App.go(loaded?"scene":"landing"); if(loaded){ hubShow("hud"); if(typeof updatePrompt==="function") updatePrompt(); } else { hubShow("landing"); } }
+  function openSplatViewer(){ suiteFrom="scene"; hubHide("hub"); App.go(loaded?"scene":"landing"); if(loaded){ hubShow("hud"); if(typeof updatePrompt==="function") updatePrompt(); } else { buildScenePicker(); hubShow("landing"); } }
   function openStudioHome(){ hubHide("hub"); hubShow("studio"); studioSync(); App.go("studio"); }
   function openPunctum(){ hubHide("hub"); hubShow("punctum"); App.go("punctum");
     if(!punctumLoaded){ var fr=$("punctumFrame"); if(fr && window.PUNCTUM_B64){ try{ var bin=atob(window.PUNCTUM_B64), by=new Uint8Array(bin.length), i; for(i=0;i<bin.length;i++) by[i]=bin.charCodeAt(i); fr.srcdoc=new TextDecoder("utf-8").decode(by); punctumLoaded=true; }catch(e){ toast("Couldn't open Punctum."); } } } }
@@ -1062,6 +1064,7 @@
     if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")) return;
     if(lsKey(e)) return;                                          // the move-on card holds the keys while it's up
     if(App.is("teacher")||App.is("signin")) return;
+    if(App.is("landing")&&!landing.classList.contains("hidden")){ if(e.code==="Escape"){ e.preventDefault(); showHub(); } else if(e.code==="Enter"){ var sc0=(window.SPLAT_SCENES||[])[0]; if(sc0){ e.preventDefault(); loadBundled(sc0); } } return; }
     if(cbOpen){ cbKey(e); return; }
     if(bg.open){ bagKey(e); return; }
     if(st.open && stKey(e)) return;
@@ -1083,7 +1086,7 @@
   window.addEventListener("keyup",function(e){ keys[e.code]=false; });
   window.addEventListener("blur",function(){ keys={}; });
 
-  landingNote.innerHTML="Runs entirely on this computer — no account, no uploads, no student data collected. Your scenes stay yours.";
+  landingNote.innerHTML="Scans open on this computer. Nothing is uploaded.";
   // ================= OUTPUTS: folio board / photobook / gallery =================
   function esc(s){ return (s||"").replace(/[&<>\"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
   function openOverlayOnly(el){ if(looking) document.exitPointerLock(); hide(menu); el.classList.remove("hidden"); }

@@ -153,40 +153,31 @@
 
   <!-- PUNCTUM (isolated module) -->
   <div id="punctum" class="overlay punctumwrap hidden">
-    <button class="hubback punctum-back" data-hub>‹ Suite</button>
+    <button class="hubback punctum-back" data-hub>‹ Hub</button>
     <iframe id="punctumFrame" title="Punctum"></iframe>
   </div>
 
-  <div id="landing" class="overlay hidden">
-    <div class="card landing-card">
-      <button class="hubback" data-hub style="margin-bottom:14px">‹ Suite</button>
-      <div class="hero">
-        <svg class="aperture" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true">
-          <circle cx="50" cy="50" r="45" stroke-opacity="0.3"/>
-          <line x1="92" y1="50" x2="59.2" y2="63.1"/><line x1="71" y1="86.4" x2="43.2" y2="64.5"/>
-          <line x1="29" y1="86.4" x2="34.1" y2="51.4"/><line x1="8" y1="50" x2="40.8" y2="36.9"/>
-          <line x1="29" y1="13.6" x2="56.8" y2="35.5"/><line x1="71" y1="13.6" x2="65.9" y2="48.6"/>
-        </svg>
-        <div>
-          <h1><span class="em">Splat</span> Explorer</h1>
-          <p class="tag">Step inside a captured place — and shoot it like a photographer.</p>
+  <!-- LOCATIONS: the captured places you can step into -->
+  <div id="landing" class="overlay loc hidden">
+    <header class="loc-bar"><button class="loc-back" data-hub><kbd>ESC</kbd>HUB</button><span class="loc-word">Locations</span><span class="loc-sub">STEP IN AND SHOOT IT LIKE A PHOTOGRAPHER</span></header>
+    <div class="loc-main">
+      <div class="loc-places"><div class="scenehead" id="sceneHead">CAPTURED PLACES</div><div class="scenerow" id="sceneRow"></div></div>
+      <aside class="loc-side">
+        <span class="eb">GETTING ABOUT</span>
+        <div class="legend">
+          <div><span class="key">Look</span><span>click, then move the mouse</span></div>
+          <div><span class="key">Walk</span><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · <kbd>Shift</kbd> faster</span></div>
+          <div><span class="key">Up, down</span><span><kbd>E</kbd><kbd>Q</kbd></span></div>
+          <div><span class="key">Camera</span><span><kbd>P</kbd> raise · <kbd>↵</kbd> or click to shoot</span></div>
+          <div><span class="key">Camera back</span><span><kbd>Space</kbd></span></div>
+          <div><span class="key">Camera bag</span><span><kbd>B</kbd></span></div>
+          <div><span class="key">Studio</span><span><kbd>Tab</kbd></span></div>
         </div>
-      </div>
-      <div class="scenehead" id="sceneHead">Choose a scene to explore</div>
-      <div class="scenerow" id="sceneRow"></div>
-      <div class="orsep" id="orSep"><span>or load your own capture</span></div>
-      <div id="dropzone"><div class="big">Load your scene</div><div class="small">Drop a <b>.ply</b> · <b>.splat</b> · <b>.ksplat</b> here, or click to browse</div></div>
-      <input id="fileInput" type="file" accept=".ply,.splat,.ksplat" hidden>
-      <div class="legend">
-        <div><span class="key">Look</span> click, then move the mouse</div>
-        <div><span class="key">Move</span> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div>
-        <div><span class="key">Up / Down</span> <kbd>E</kbd> / <kbd>Q</kbd></div>
-        <div><span class="key">Camera</span> <kbd>P</kbd> raise · click to shoot</div>
-        <div><span class="key">Faster</span> hold <kbd>Shift</kbd></div>
-        <div><span class="key">Camera back</span> <kbd>Space</kbd></div>
-        <div><span class="key">Camera bag</span> <kbd>B</kbd></div>
-      </div>
-      <p class="note" id="landingNote"></p>
+        <div class="orsep" id="orSep"><span>OR BRING YOUR OWN SCAN</span></div>
+        <div id="dropzone"><div class="big">Open a scan</div><div class="small">Drop a .ply, .splat or .ksplat here, or click to choose one</div></div>
+        <input id="fileInput" type="file" accept=".ply,.splat,.ksplat" hidden>
+        <p class="note" id="landingNote"></p>
+      </aside>
     </div>
   </div>
   <div id="fadeover"></div>

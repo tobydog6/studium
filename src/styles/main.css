@@ -1416,3 +1416,45 @@ body.st-legacy #galleryshow{top:64px;z-index:56}
 .tc-board .look .cap{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px}
 .tc-board .look .cap b{font-family:'Fraunces',Georgia,serif;font-weight:400;font-size:24px}
 .tc-board .look .cap span{font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.14em;color:#6f695d}
+/* ===================== LOCATIONS ===================== */
+#landing.loc{display:block;place-items:normal;padding:0;background:radial-gradient(ellipse 62% 58% at 38% 50%,#16130f 0%,#0b0a09 72%);backdrop-filter:none;color:#f4f1ea;font-family:'Geist',ui-sans-serif,system-ui,sans-serif;overflow:auto}
+#landing.loc.hidden{display:none}
+.loc-bar{margin:0 64px;height:76px;display:flex;align-items:center;gap:22px;border-bottom:1px solid rgba(240,232,214,.07)}
+.loc-back{display:flex;align-items:center;gap:8px;background:none;border:0;cursor:pointer;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.16em;color:#8d8678}
+.loc-back:hover{color:#e3ad57}
+.loc kbd{font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;color:#d8d2c6;background:#1d1a15;border:1px solid rgba(240,232,214,.12);border-bottom-width:2px;border-radius:5px;padding:1px 7px}
+.loc-word{font-family:'Fraunces',Georgia,serif;font-size:26px}
+.loc-sub{font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.16em;color:#6f695d}
+.loc-main{margin:44px 64px 40px;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:64px}
+.loc .scenehead{text-align:left;margin:0 0 16px;font-family:'Geist Mono',ui-monospace,monospace;font-weight:400;font-size:10.5px;letter-spacing:.2em;color:#e3ad57}
+.loc .scenerow{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:28px;justify-content:start}
+.loc .scenecard{width:auto;background:none;border:0;border-radius:0;overflow:visible;padding:0;text-align:left;cursor:pointer;color:inherit;transition:none}
+.loc .scenecard:hover{transform:none;box-shadow:none}
+.loc .sc-thumb{position:relative;aspect-ratio:3/2;overflow:hidden;background:#000;box-shadow:0 30px 60px -28px rgba(0,0,0,.9)}
+.loc .sc-thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s cubic-bezier(.2,.8,.2,1)}
+.loc .scenecard:hover .sc-thumb img{transform:scale(1.03)}
+.loc .sc-thumb::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 1px rgba(240,232,214,.06)}
+.loc .scenecard:hover .sc-thumb::after{box-shadow:inset 0 0 0 1px #e3ad57}
+.loc .sc-meta{padding:16px 0 0}
+.loc .sc-name{font-family:'Fraunces',Georgia,serif;font-weight:400;font-size:30px;letter-spacing:-.01em;color:#f4f1ea}
+.loc .sc-desc{margin-top:6px;font-family:'Geist',ui-sans-serif,system-ui,sans-serif;font-size:14px;line-height:1.5;color:#a69f91}
+.loc .sc-foot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid rgba(240,232,214,.08);font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.14em;color:#6f695d}
+.loc .sc-foot .go{color:#e3ad57;display:flex;align-items:center;gap:8px}
+.loc-side{display:flex;flex-direction:column;gap:14px}
+.loc-side .eb{font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.16em;color:#8d8678}
+.loc .legend{display:flex;flex-direction:column;gap:0;margin:0;font-size:13.5px;color:#a69f91}
+.loc .legend>div{display:flex;justify-content:space-between;align-items:center;gap:12px;height:38px;border-bottom:1px solid rgba(240,232,214,.06)}
+.loc .legend .key{min-width:0;font-weight:400;color:#d8d2c6}
+.loc .legend kbd{margin-left:3px}
+.loc .orsep{margin:22px 0 4px;font-family:'Geist Mono',ui-monospace,monospace;font-size:9.5px;letter-spacing:.16em;color:#6f695d}
+.loc #dropzone{border:1px dashed rgba(240,232,214,.18);border-radius:8px;padding:18px;background:none;text-align:left}
+.loc #dropzone:hover,.loc #dropzone.hot{border-color:#e3ad57;background:rgba(227,173,87,.05)}
+.loc #dropzone .big{font-family:'Fraunces',Georgia,serif;font-weight:400;font-size:18px}
+.loc #dropzone .small{margin-top:4px;font-size:12.5px;color:#8d8678}
+.loc .note{margin:6px 0 0;font-size:12px;color:#5f594e}
+@media(max-width:1000px){.loc-main{grid-template-columns:1fr}}
+.loc .scenecard.next{cursor:default}
+.loc .scenecard.next .sc-thumb{background:none;border:1px dashed rgba(240,232,214,.14);box-shadow:none;display:flex;align-items:center;justify-content:center}
+.loc .scenecard.next .sc-thumb::after{display:none}
+.loc .scenecard.next .sc-thumb span{font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.18em;color:#4f4a41}
+.loc .scenecard.next .sc-name{color:#6f695d}.loc .scenecard.next .sc-desc{color:#5f594e}

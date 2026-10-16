@@ -134,6 +134,16 @@ try {
   await page.click('.ga-print[data-ga-print="0"]'); await page.waitForTimeout(200);
   ok((await page.$eval('.ga-print[data-ga-print="0"]', (e) => e.offsetWidth)) > w0, 'clicking a print should size it up');
   await key('KeyF'); ok(await page.$eval('[data-ga-frame="oak"]', (e) => e.classList.contains('on')), 'F should cycle the frame');
+  // drag a print up and along the wall; then a small drag back near the eye line snaps onto it
+  const pr = await (await page.$('.ga-print[data-ga-print="3"]')).boundingBox(), w1 = await page.$eval('.ga-print[data-ga-print="3"]', (e) => e.offsetWidth);
+  await page.mouse.move(pr.x + pr.width / 2, pr.y + pr.height / 2); await page.mouse.down(); await page.mouse.move(pr.x + pr.width / 2 + 120, pr.y + pr.height / 2 - 140, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(300);
+  const pr2 = await (await page.$('.ga-print[data-ga-print="3"]')).boundingBox();
+  ok(pr2.y < pr.y - 80 && pr2.x > pr.x + 60, 'dragging should move the print on the wall ' + JSON.stringify([pr, pr2]));
+  ok((await page.$eval('.ga-print[data-ga-print="3"]', (e) => e.offsetWidth)) === w1, 'a drag is not a click: the size should not change');
+  ok(await page.$eval('.ga-rehang', (e) => !e.classList.contains('hidden')), 'Re-hang evenly should appear once a print is moved');
+  await page.mouse.move(pr2.x + pr2.width / 2, pr2.y + pr2.height / 2); await page.mouse.down(); await page.mouse.move(pr2.x + pr2.width / 2, pr.y + pr.height / 2 + 4, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(300);
+  const pr3 = await (await page.$('.ga-print[data-ga-print="3"]')).boundingBox();
+  ok(Math.abs((pr3.y + pr3.height / 2) - (pr.y + pr.height / 2)) < 2, 'centre should snap back onto the eye line');
   await key('ArrowRight'); const gv = await page.textContent('#st-gallery .ga-gapv'); ok(gv.startsWith('300'), 'right arrow should widen the spacing: ' + gv);
   await page.click('.ga-t'); await page.keyboard.type('Stump Light'); await page.keyboard.press('Enter');
   await shot('7-gallery');

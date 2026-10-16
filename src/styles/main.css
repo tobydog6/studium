@@ -1561,3 +1561,7 @@ body.st-legacy #galleryshow{top:64px;z-index:56}
 .bd-chips button.del:hover{border-color:#e4552e!important;color:#e4552e!important}
 .bd-chips .sw{width:11px;height:11px;border-radius:2px;border:1px solid rgba(240,232,214,.25)}.bd-chips .sw.white{background:#eeeae1}.bd-chips .sw.black{background:#0f0e0c}
 .bd-side .bd-export{margin-top:auto;flex:none}
+.ga-print{touch-action:none}
+.ga-print.dragging{cursor:grabbing;outline:1px solid #e3ad57;outline-offset:5px;z-index:5}
+.ga-eye.hot{border-top:1px solid #e4552e}.ga-eye.hot span{color:#e4552e}
+.ga-rehang.hidden{display:none!important}

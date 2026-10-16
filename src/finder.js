@@ -8,12 +8,12 @@
   function vfDials(){ var d=VF_DIALS.slice(); var l=(typeof curLens==="function")?curLens():null; if(l&&l.zoom) d.push(["mm","ZOOM"]); else if(vfDial==="mm") vfDial="sh"; return d; }
 
   // the frame rectangle in CSS pixels, from the window size and the body's aspect
-  function vfRect(){ var W=window.innerWidth, H=window.innerHeight, A=curBody().aspect||1.5;
+  function vfRect(){ var W=window.innerWidth, H=window.innerHeight, A=curAspect();
     var top=Math.round(Math.max(16,H*0.029)), below=12+54+34;
     var fw=Math.min(W*0.81,(H-top-below)*A), fh=fw/A;
     return {x:Math.round((W-fw)/2), y:top, w:Math.round(fw), h:Math.round(fh)}; }
   // the lens's horizontal angle of view fills the frame, not the whole window
-  function vfFovFor(sensorW, mm){ var W=window.innerWidth, H=window.innerHeight, r=vfRect();
+  function vfFovFor(sensorW, mm){ var W=window.innerWidth, H=window.innerHeight, r=vfRect(); if(vertical) sensorW=(sensorW||36)/(curBody().aspect||1.5);   // turned on its side, the short edge runs across
     var halfLens=Math.atan((sensorW||36)/(2*Math.max(mm,1))), halfCanvasH=Math.atan(Math.tan(halfLens)*W/r.w);
     return 2*Math.atan(Math.tan(halfCanvasH)/(W/H))*180/Math.PI; }
 

@@ -4,7 +4,7 @@
   // you walk up behind it, it shows which way to look and how high to hold the camera. Stand at the eye point
   // (crouch or stand tall to match), look through it, and with the right lens the frame sits right on the edges of
   // your viewfinder. A card ticks off the rest (lens, aperture, exposure); shoot with everything ticked to complete it.
-  var CH={spec:null, list:[], fx:null, pads:[], active:-1, done:{}, t:0, lastEval:0, cardFor:-1, pull:-1, locked:false, cool:-1, nudge:false};
+  var CH={focus:-1, doneHold:false, doneT:0, spec:null, list:[], fx:null, pads:[], active:-1, done:{}, t:0, lastEval:0, cardFor:-1, pull:-1, locked:false, cool:-1, nudge:false};
   var CH_D=0.45, CH_NEAR=3.5, CH_GRAB=0.8, CH_LEAVE=1.4;
   var CH_RING_FS="uniform float alpha; uniform vec2 size; varying vec2 vUv; void main(){ vec2 p=vUv*size; float e=min(min(p.x,size.x-p.x),min(p.y,size.y-p.y)); float fw=fwidth(e); float bw=max(size.x*0.006,fw*1.2); float a=(1.0-smoothstep(bw-fw,bw+fw,e))*alpha; gl_FragColor=vec4(0.97,0.76,0.40,a); }";
   // the frame: thin gold lines with corner brackets, and a soft halo that hugs them (inside and out) while it draws you in
@@ -28,26 +28,28 @@
     spec.forEach(function(c){ var tx=S[0]+(c.look[0]||0), tz=S[1]+(c.look[2]||0), x=S[0]+Math.sin(c.az*Math.PI/180)*c.dist, z=S[1]+Math.cos(c.az*Math.PI/180)*c.dist, dx=x-tx, dz=z-tz, L=Math.hypot(dx,dz)||1;
       for(var k=0;k<20&&wkBlocked(x,z,wkGround(x,z));k++){ x+=dx/L*0.2; z+=dz/L*0.2; }   // keep the eye point on clear ground
       var E=new THREE.Vector3(x, wkGround(x,z)+c.h, z), T=new THREE.Vector3(tx, wkGround(tx,tz)+c.look[1], tz), d=T.clone().sub(E).normalize();
-      var w=2*CH_D*Math.tan(Math.atan(18/c.mm))*0.97, h=w/1.5, F=E.clone().addScaledVector(d,CH_D), size=new THREE.Vector2(w,h);
-      var pad=w*0.16, m=new THREE.ShaderMaterial({uniforms:{t:{value:0},done:{value:CH.done[c.id]?1:0},lock:{value:0},fade:{value:1},glow:{value:0},pad:{value:pad},size:{value:size}}, vertexShader:CH_VS, fragmentShader:CH_FRAME_FS, transparent:true, depthTest:false, depthWrite:false, side:THREE.DoubleSide});
-      var fr=new THREE.Mesh(new THREE.PlaneGeometry(w+2*pad,h+2*pad), m); fr.position.copy(F); fr.up.set(0,1,0); fr.lookAt(E); CH.fx.add(fr);
+      var D=Math.max(CH_D,Math.min(CH_D*c.mm/35,c.dist*0.6)), lo=2*D*Math.tan(Math.atan(18/c.mm))*0.97, sh=lo/(c.aspect||1.5), w=c.vert?sh:lo, h=c.vert?lo:sh;
+      var F=E.clone().addScaledVector(d,D), size=new THREE.Vector2(w,h);
+      var pad=Math.max(w,h)*0.16, m=new THREE.ShaderMaterial({uniforms:{t:{value:0},done:{value:CH.done[c.id]?1:0},lock:{value:0},fade:{value:1},glow:{value:0},pad:{value:pad},size:{value:size}}, vertexShader:CH_VS, fragmentShader:CH_FRAME_FS, transparent:true, depthTest:false, depthWrite:false, side:THREE.DoubleSide});
+      var fr=new THREE.Mesh(new THREE.PlaneGeometry(w+2*pad,h+2*pad), m), vis=CH.done[c.id]?0:1; fr.position.copy(F); fr.up.set(0,1,0); fr.lookAt(E); CH.fx.add(fr);
       // the tractor beam: outlines that drift from the frame back out towards you
       var rings=[]; for(var r=0;r<3;r++){ var rm=new THREE.ShaderMaterial({uniforms:{alpha:{value:0},size:{value:size}}, vertexShader:CH_VS, fragmentShader:CH_RING_FS, transparent:true, depthTest:false, depthWrite:false, side:THREE.DoubleSide, blending:THREE.AdditiveBlending});
         var ring=new THREE.Mesh(new THREE.PlaneGeometry(w,h), rm); ring.quaternion.copy(fr.quaternion); CH.fx.add(ring); rings.push(ring); }
-      CH.pads.push({c:c, x:x, z:z, E:E, T:T, d:d, F:F, w:w, h:h, frame:fr, rings:rings, target:T}); });
+      CH.pads.push({c:c, x:x, z:z, E:E, T:T, d:d, F:F, D:D, w:w, h:h, frame:fr, rings:rings, target:T, vis:vis}); });
     // starting inside a frame's range doesn't count as walking into it
-    CH.pads.forEach(function(P,i){ if(CH.cool<0&&Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z)<CH_LEAVE) CH.cool=i; });
+    CH.focus=-1; CH.pads.forEach(function(P,i){ if(CH.cool<0&&Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z)<CH_LEAVE) CH.cool=i; });
     chMarkers(); }
   function chAlign(P){ var dp=P.E.clone().sub(camPos), hz=Math.hypot(dp.x,dp.z), dy=dp.y, ang=Math.acos(Math.max(-1,Math.min(1,P.d.dot(_fwd))))*180/Math.PI;
     return {hz:hz, dy:dy, ang:ang, ok:hz<0.3&&Math.abs(dy)<0.2&&ang<6}; }
   function chRender(dt){ chGlowCss(); if(!CH.fx||!CH.pads.length||CH.capturing||viewfinderOn) return;   // camera up: nothing in the way of the picture
     CH.t+=dt||0.016; var br=0.5+0.5*Math.sin(CH.t*1.7);   // a slow breath while it has you
     CH.pads.forEach(function(P,i){ var u=P.frame.material.uniforms, a=chAlign(P), dist=P.F.distanceTo(camPos), mine=(CH.pull===i);
-      u.t.value=CH.t; u.lock.value+=((a.ok?1:0)-u.lock.value)*0.2; u.fade.value=Math.max(0.35,Math.min(1,1.4-dist/25))*(mine?1:1-0.92*CH.glow);   // the others step back while one has you
+      P.vis+=((CH.done[P.c.id]?0:1)-P.vis)*(1-Math.exp(-(dt||0.016)*1.4)); if(P.vis<0.01) P.vis=CH.done[P.c.id]?0:P.vis;   // a finished frame melts away
+      u.t.value=CH.t; u.lock.value+=((a.ok?1:0)-u.lock.value)*0.2; u.fade.value=Math.max(0.35,Math.min(1,1.4-dist/25))*(mine?1:1-0.92*CH.glow)*P.vis;   // the others step back while one has you
       u.glow.value=mine?CH.glow*(0.55+0.45*br)+CH.bloom:0;
       if(mine&&!CH.locked){   // being drawn in: soft outlines slide from you towards the frame, slowly
-        P.rings.forEach(function(R,k){ var ph=(CH.t*0.3+k/3)%1, s=1.18-0.18*ph; R.position.copy(P.F).addScaledVector(P.d,-(1-ph)*0.32); R.scale.set(s,s,1);
-          R.material.uniforms.alpha.value=Math.sin(ph*Math.PI)*0.13*CH.glow; }); return; }
+        P.rings.forEach(function(R,k){ var ph=(CH.t*0.3+k/3)%1, s=1.18-0.18*ph; R.position.copy(P.F).addScaledVector(P.d,-(1-ph)*P.D*0.7); R.scale.set(s,s,1);
+          R.material.uniforms.alpha.value=Math.sin(ph*Math.PI)*0.13*CH.glow*P.vis; }); return; }
       var prox=CH.done[P.c.id]||mine?0:Math.max(0,Math.min(1,(5-dist)/2.5))*(1-CH.glow);   // only near it, and gone once it has you
       P.rings.forEach(function(R,k){ var ph=(CH.t*0.35+k/3)%1, s=1+ph*0.25; R.position.copy(P.F).addScaledVector(P.d,-ph*0.45); R.scale.set(s,s,1);
         R.material.uniforms.alpha.value=Math.sin(ph*Math.PI)*0.16*prox; }); });
@@ -69,7 +71,8 @@
     var eye0=walk?WK.eye:camPos.y, eye1=walk?P.E.y-wkGround(P.E.x,P.E.z):P.E.y;
     CH.from={x:camPos.x, z:camPos.z, yaw:yaw, pitch:pitch, eye:eye0, walk:walk}; CH.to={dyaw:dyaw, pitch:tp, eye:eye1};
     CH.dur=Math.max(1.3,Math.min(2.6,1.0+dist*1.1+Math.abs(dyaw)*0.35+Math.abs(eye1-eye0)*0.6));
-    CH.pull=i; CH.locked=false; CH.pt=0; _vel.set(0,0,0); }
+    CH.pull=i; CH.locked=false; CH.pt=0; _vel.set(0,0,0);
+    if(CH.focus!==i){ CH.focus=i; chFlash(P); } chCard(P); }
   function chTractor(dt){ dt=Math.min(dt||1/30,0.1);
     var held=CH_MOVE&&Object.keys(CH_MOVE).some(function(k){ return keys[k]; }), nudge=CH.nudge||held; CH.nudge=false;
     CH.glow+=((CH.pull>=0&&!(CH.locked&&!chHold())?1:0)-CH.glow)*(1-Math.exp(-dt*(CH.pull>=0?2.2:3.5)));
@@ -77,7 +80,7 @@
     if(CH.cool>=0){ var C=CH.pads[CH.cool]; if(!C||Math.hypot(camPos.x-C.E.x,camPos.z-C.E.z)>CH_LEAVE) CH.cool=-1; }
     if(CH.pull>=0){ var Q=CH.pads[CH.pull];
       if(!chHold()&&(nudge||Math.hypot(camPos.x-Q.E.x,camPos.z-Q.E.z)>CH_LEAVE)){ chLetGo(); return; } }
-    else { if(nudge) return;
+    else { if(nudge||CH.cool>=0) return;   // just let go of one: walk clear of it before another can take you
       CH.pads.forEach(function(P,i){ if(CH.pull>=0||i===CH.cool||CH.done[P.c.id]) return; var hz=Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z);
         var toF=P.F.clone().sub(camPos); toF.y=0; toF.normalize(); var f=_fwd.clone(); f.y=0; f.normalize();
         if(hz<CH_GRAB&&f.dot(toF)>0.2) chGrab(i); }); }
@@ -90,9 +93,14 @@
   // a faint gold breath at the edges of the screen while it has you, and a soft bloom as you land
   function chGlowCss(){ var el=$("chGlow"); if(!el) return; var v=viewfinderOn||!CH.pads.length?0:Math.min(1,CH.glow*(0.35+0.25*(0.5+0.5*Math.sin(CH.t*1.7)))+CH.bloom*0.5);
     if(Math.abs((+el.style.opacity||0)-v)>0.004) el.style.opacity=v.toFixed(3); }
-  function chTick(dt){ if(!CH.pads.length||!loaded) return; var near=-1, best=1e9; chTractor(dt||1/30);
-    CH.pads.forEach(function(P,i){ var d=Math.hypot(camPos.x-P.E.x, camPos.z-P.E.z); if(d<CH_NEAR&&d<best){ best=d; near=i; } });
-    if(near!==CH.active){ CH.active=near; if(near>=0){ chFlash(CH.pads[near]); chCard(CH.pads[near]); } else chCard(null); }
+  // The card (and the title) only appear once a frame starts drawing you in. They stay while you work near it,
+  // and go when you walk off or finish it.
+  function chTick(dt){ if(!CH.pads.length||!loaded) return; chTractor(dt||1/30);
+    var f=CH.pull>=0?CH.pull:CH.focus;
+    if(f<0) CH.pads.forEach(function(P,i){ if(f<0&&!CH.done[P.c.id]&&Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z)<0.3) f=i; });   // walked straight in without the pull
+    if(f>=0){ var Q=CH.pads[f]; if(CH.pull!==f&&(Math.hypot(camPos.x-Q.E.x,camPos.z-Q.E.z)>CH_NEAR*0.7||(CH.done[Q.c.id]&&!CH.doneHold))) f=-1; }
+    CH.focus=f;
+    if(f!==CH.active){ CH.active=f; chCard(f>=0?CH.pads[f]:null); }
     var now=performance.now(); if(CH.active>=0&&now-CH.lastEval>160){ CH.lastEval=now; chCard(CH.pads[CH.active], true); }
     chMarkers(); }
   function chChecks(P){ var c=P.c, out=[], mm=chEquivMM(), f=chFStop(), a=chAlign(P), now;
@@ -101,7 +109,12 @@
     (c.need||[]).forEach(function(n){ var ok=false, nw="";
       if(n.k==="mm"){ ok=(n.max==null||mm<=n.max)&&(n.min==null||mm>=n.min); nw=mm+" MM"; }
       else if(n.k==="f"){ ok=(n.max==null||f<=n.max)&&(n.min==null||f>=n.min); nw="f/"+f; }
-      else if(n.k==="ev"){ ok=Math.abs(evStops)<=n.tol; nw=(evStops>=0?"+":"")+evStops.toFixed(1)+" EV"; }
+      else if(n.k==="ev"){ ok=n.tol!=null?Math.abs(evStops)<=n.tol:(evStops>=n.min&&evStops<=n.max); nw=(evStops>=0?"+":"")+evStops.toFixed(1)+" EV"; }
+      else if(n.k==="body"){ var b=curBody(); ok=b.id===n.id; nw=(b.fmt||b.name).toUpperCase(); }
+      else if(n.k==="lens"){ ok=Math.round(focalMM)===n.mm; nw=Math.round(focalMM)+" MM"; }
+      else if(n.k==="vert"){ ok=!!vertical; nw=vertical?"VERTICAL":"HORIZONTAL"; }
+      else if(n.k==="iso"){ var iso=ISOS[isoIdx]; ok=(n.max==null||iso<=n.max)&&(n.min==null||iso>=n.min); nw="ISO "+iso; }
+      else if(n.k==="sh"){ var t=SHUTTERS[shIdx]; ok=(n.max==null||t<=n.max*1.001)&&(n.min==null||t>=n.min*0.999); nw=SHUTTER_LABELS[shIdx]; }
       out.push({label:n.label, ok:ok, now:nw}); });
     return out; }
   // ---- the card, the title flash, the done stamp ----
@@ -118,7 +131,8 @@
     p.challenge=P.c.id; var first=!CH.done[P.c.id]; CH.done[P.c.id]=1; P.frame.material.uniforms.done.value=1; saveSession();
     var n=Object.keys(CH.done).filter(function(k){ return CH.list.some(function(c){ return c.id===k; }); }).length, s=$("chDone");
     s.innerHTML='<span class="k">'+(first?'CHALLENGE COMPLETE':'DONE AGAIN')+'</span><b>'+cbEsc(P.c.title)+'</b><img src="'+p.url+'" alt=""><span class="n">'+n+' OF '+CH.pads.length+' AT '+cbEsc((cbPlace||"").toUpperCase())+'</span>';
-    s.classList.remove("show"); void s.offsetWidth; s.classList.add("show"); chCard(P); }
+    s.classList.remove("show"); void s.offsetWidth; s.classList.add("show"); chCard(P);
+    if(CH.pull>=0&&CH.pads[CH.pull]===P) chLetGo(); CH.doneHold=true; clearTimeout(CH.doneT); CH.doneT=setTimeout(function(){ CH.doneHold=false; }, 2600); }
   // ---- on-screen markers that point to the frames ----
   var _chV=new THREE.Vector3();
   function chMarkers(){ var host=$("chMarks"); if(!host) return; var show=loaded&&App.is("scene")&&CH.pads.length;
@@ -127,16 +141,16 @@
     var W=window.innerWidth, H=window.innerHeight, nearest=-1, nd=1e9;
     CH.pads.forEach(function(P,i){ var d=Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z); if(!CH.done[P.c.id]&&d<nd){ nd=d; nearest=i; } });
     CH.pads.forEach(function(P,i){ var el=host.children[i], done=CH.done[P.c.id], d=Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z);
-      if(CH.active>=0||(done&&d>6)){ el.style.display="none"; return; } el.style.display=""; el.classList.toggle("lbl", i===nearest);
+      if(CH.active>=0||done){ el.style.display="none"; return; } el.style.display=""; el.classList.toggle("lbl", i===nearest);
       _chV.set(P.F.x, P.F.y+P.h/2+0.3, P.F.z).project(camera); var behind=_chV.z>1, x=(_chV.x*0.5+0.5)*W, y=(-_chV.y*0.5+0.5)*H, off=behind||x<40||x>W-40||y<60||y>H-90;
       if(behind){ x=W-x; y=H-y; } if(off){ x=Math.max(90,Math.min(W-90,x)); y=Math.max(120,Math.min(H-120,behind?H-120:y)); }
       el.style.transform="translate("+x.toFixed(0)+"px,"+y.toFixed(0)+"px)"; el.classList.toggle("off", off); el.classList.toggle("done", !!done);
-      el.querySelector("b").textContent=(done?"✓ ":"")+P.c.title.toUpperCase()+" · "+Math.round(d)+" M"; }); }
+      el.querySelector("b").textContent=Math.round(d)+" M"; }); }
   if(/[?&]dev/.test(location.search)){ window.__ch={ pads:function(){ return CH.pads.map(function(P){ return {id:P.c.id, x:P.E.x, z:P.E.z, y:P.E.y, w:P.w, done:!!CH.done[P.c.id]}; }); }, active:function(){ return CH.active; },
       checks:function(){ return CH.active>=0?chChecks(CH.pads[CH.active]):null; } };
     window.__ch.set=function(o){ if(o.mm!=null){ focalMM=o.mm; zoomMM=o.mm; } if(o.f!=null){ var j=APERTURES.indexOf(o.f); if(j>=0) apIdx=j; } if(o.eye!=null) WK.eye=o.eye; computeCam();
       if(o.meter){ var best=shIdx, bv=1e9; for(var s=0;s<SHUTTER_LABELS.length;s++){ shIdx=s; computeCam(); if(Math.abs(evStops)<bv){ bv=Math.abs(evStops); best=s; } } shIdx=best; computeCam(); } };
     window.__ch.aim=function(i){ var d=CH.pads[i].d; yaw=Math.atan2(-d.x,-d.z); pitch=Math.asin(Math.max(-1,Math.min(1,d.y))); basis(); };
-    window.__ch.goto=function(i){ var P=CH.pads[i]; camPos.x=P.E.x; camPos.z=P.E.z; WK.eye=P.E.y-wkGround(P.E.x,P.E.z); _vel.set(0,0,0); };
+    window.__ch.goto=function(i){ var P=CH.pads[i]; CH.pull=-1; CH.locked=false; CH.cool=i; camPos.x=P.E.x; camPos.z=P.E.z; WK.eye=P.E.y-wkGround(P.E.x,P.E.z); _vel.set(0,0,0); };
     window.__ch.approach=function(i){ var P=CH.pads[i]; camPos.x=P.E.x-P.d.x*0.6; camPos.z=P.E.z-P.d.z*0.6; yaw=Math.atan2(-P.d.x,-P.d.z)+0.3; pitch=0; _vel.set(0,0,0); };
     window.__ch.pull=function(){ return {i:CH.pull, locked:CH.locked, cool:CH.cool, hold:chHold()}; }; window.__ch.nudge=function(){ CH.nudge=true; }; }

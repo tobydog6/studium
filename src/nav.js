@@ -28,7 +28,7 @@
     if(ph){ var k=lsKind(ph); task.innerHTML='<i></i><span class="t">'+cbEsc(ph.title)+'</span>'+(k!=="none"&&ph.n?'<span class="n">· '+Math.min(lsCount(k),ph.n)+' / '+ph.n+'</span>':''); task.classList.remove("empty"); } else task.classList.add("empty");
     var coach=$("navCoach"); if(coach) coach.classList.toggle("show", !looking&&!navSeenLook()); }
   function navSeenLook(){ try{ return localStorage.getItem("studium_looked")==="1"; }catch(e){ return true; } }
-  function navAct(a){ if(a==="raise"){ toggleViewfinder(); } else if(a==="back"){ openBack(); } else if(a==="bag"){ openBag(); } else if(a==="studio"){ openStudio("select"); } navRender(); }
+  function navAct(a){ if(a==="raise"){ toggleViewfinder(); } else if(a==="back"){ openBack(); } else if(a==="bag"){ openBag(); } else if(a==="studio"){ openStudio("select"); } else if(a==="vert"){ setVertical(!vertical); } navRender(); }
   (function wireNav(){
     document.addEventListener("click",function(e){ var b=e.target.closest("[data-nav]"); if(b){ e.preventDefault(); navGo(b.getAttribute("data-nav")); return; }
       var a=e.target.closest("[data-nav-act]"); if(a){ e.preventDefault(); e.stopPropagation(); navAct(a.getAttribute("data-nav-act")); } });

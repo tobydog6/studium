@@ -22,8 +22,8 @@ try {
   await page.click('#tileSplat'); await page.click('.scenecard');
   await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 }); await page.waitForTimeout(1500);
   const pads = await ev(() => window.__ch.pads());
-  ok(pads.length === 5, 'five challenge frames expected, got ' + pads.length); console.log(JSON.stringify(pads.map((p) => [p.id, +p.x.toFixed(2), +p.z.toFixed(2), +p.y.toFixed(2), +p.w.toFixed(2)])));
-  ok(await page.$eval('#chMarks', (e) => e.classList.contains('show') && e.children.length === 5), 'markers should point to the frames');
+  ok(pads.length === 6, 'six challenge frames expected, got ' + pads.length); console.log(JSON.stringify(pads.map((p) => [p.id, +p.x.toFixed(2), +p.z.toFixed(2), +p.y.toFixed(2), +p.w.toFixed(2)])));
+  ok(await page.$eval('#chMarks', (e) => e.classList.contains('show') && e.children.length === 6), 'markers should point to the frames');
   await shot('1-markers');
   // walk into the first spot
   await ev(() => window.__ch.approach(0));   // a metre short of it, looking roughly its way: the beam should take over
@@ -34,7 +34,7 @@ try {
   ok(checks.some((c) => !c.ok), 'not everything should be ticked at the start');
   const pad0 = (await ev(() => window.__ch.pads()))[0]; ok(pad0.w > 0.55 && pad0.w < 0.8, 'a 24 mm frame 45 cm out should be about 0.65 m wide: ' + pad0.w);
   // stand at the frame's eye point (crouched), look through it, 24 mm, f/8
-  await ev(() => { window.__ch.set({ mm: 24, f: 8 }); });
+  await ev(() => { window.__ch.set({ mm: 24, f: 11 }); });
   // once it starts pulling, a nudge doesn't break it: it finishes, then holds you for a second
   await page.waitForFunction(() => window.__ch.pull().i === 0, null, { timeout: 120000, polling: 500 });
   if (!(await ev(() => window.__ch.pull().locked))) { await ev(() => window.__ch.nudge()); await page.waitForTimeout(1500); ok((await ev(() => window.__ch.pull())).i === 0, 'a touch mid-pull should not break it'); }
@@ -51,7 +51,7 @@ try {
   await ev(() => { window.__ch.goto(0); window.__ch.aim(0); });   // line back up by hand
   await page.waitForFunction(() => window.__ch.checks()[0].ok, null, { timeout: 120000, polling: 1000 });
   let checks2 = await ev(() => window.__ch.checks());
-  ok(checks2.slice(0, 3).every((c) => c.ok), 'lined up, lens and aperture should tick: ' + JSON.stringify(checks2));
+  ok(checks2.slice(0, 4).every((c) => c.ok), 'lined up, lens and aperture should tick: ' + JSON.stringify(checks2));
   await ev(() => window.__ch.set({ meter: true })); await page.waitForTimeout(300);
   ok(await ev(() => window.__ch.checks().every((c) => c.ok)), 'metering should tick the exposure too: ' + JSON.stringify(await ev(() => window.__ch.checks())));
   await shot('2-card');
@@ -62,9 +62,15 @@ try {
   await page.keyboard.press('Enter'); await page.waitForFunction((n) => window.__cb.photos.length > n, before, { timeout: 240000 }); await page.waitForTimeout(500);
   const last = await ev(() => { const p = window.__cb.photos; return { n: p.length, ch: p[p.length - 1].challenge || null }; });
   ok(last.n === before + 1, 'a photo should be taken');
-  ok(last.ch === 'stump-worm', 'the shot should complete the challenge: ' + JSON.stringify(last));
+  ok(last.ch === 'stump-fgbg', 'the shot should complete the challenge: ' + JSON.stringify(last));
   ok((await ev(() => window.__ch.pads()))[0].done, 'the spot should be marked done');
   await page.waitForTimeout(200); await shot('3-complete');
+  // X turns the camera vertical: the finder frame stands on end
+  await page.keyboard.press('KeyX'); await page.waitForTimeout(1500);
+  const fr = await page.$eval('#vfFrame', (e) => ({ w: e.offsetWidth, h: e.offsetHeight }));
+  ok(fr.h > fr.w, 'vertical should make the frame taller than wide: ' + JSON.stringify(fr));
+  await shot('4-vertical');
+  await page.keyboard.press('KeyX');
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));
   console.log(`PASS  challenge (${FILE})`);
 } catch (e) { console.error('FAIL ', e.message); if (errors.length) console.error(errors.join('\n')); process.exitCode = 1; }

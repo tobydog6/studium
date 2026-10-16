@@ -26,6 +26,7 @@
     {id:"ml",   name:"APS-C mirrorless", fmt:"APS-C 1.6×",  sensorW:22.3, aspect:1.5,  sys:"35", lenses:[50,50,85,135], grain:0.02, warm:0.02, finder:"eye"},
     {id:"67",   name:"6×7 film SLR",     fmt:"6×7 film",    sensorW:70,   aspect:1.25, sys:"67", lenses:[105,55,165],   grain:0.06, warm:0.05, finder:"eye", film:true, roll:10}
   ];
+  var vertical=false;   // camera turned on its side (X)
   var bodyIdx=0, lensIdx=2, camGrain=0, camWarm=0, focusDist=0.5;
   var expMult=1, evStops=0, isoGrain=0, apVig=0.16, dofStrength=0;
   var audioCtx=null, soundOn=true;
@@ -166,6 +167,10 @@
 
   // ---- physical camera: bodies, lenses, finder ----
   function curBody(){ return BODIES[bodyIdx]||BODIES[0]; }
+  function curAspect(){ var A=curBody().aspect||1.5; return vertical?1/A:A; }
+  function setVertical(v){ vertical=!!v; computeCam(); applyFinder(); if(typeof drawComp==="function") drawComp();
+    var b=$("navVert"); if(b) b.classList.toggle("on", vertical); var c=$("vfVert"); if(c) c.classList.toggle("on", vertical);
+    if(viewfinderOn&&typeof vfToast==="function") vfToast(vertical?"VERTICAL":"HORIZONTAL"); else toast(vertical?"Camera turned vertical":"Camera back to horizontal"); }
   function selectBody(i){ bodyIdx=Math.max(0,Math.min(BODIES.length-1,i)); var b=curBody(); if(lensIdx>b.lenses.length-1) lensIdx=Math.min(2,b.lenses.length-1); focalMM=b.lenses[lensIdx]; buildBodyPicker(); buildLensPicker(); computeCam(); applyFinder(); updateCamArt(); updateHoloTags(); }
   function selectLens(i){ var b=curBody(); lensIdx=Math.max(0,Math.min(b.lenses.length-1,i)); focalMM=b.lenses[lensIdx]; buildLensPicker(); computeCam(); applyFinder(); updateHoloTags(); }
   function buildBodyPicker(){ var el=$("bodyList"); if(!el) return; el.innerHTML="";
@@ -626,7 +631,7 @@
     if(!loaded) return;
     if(!viewfinderOn){ raiseCamera(); return; }        // first press raises the camera
     var keepE=fx.exposure; fx.exposure=expMult; CH.capturing=true; renderFrame(0); CH.capturing=false;   // challenge frames never end up in the photo   // the sensor always records the real exposure, even when an optical finder hid it
-    var url; try{ url=captureAspect(curBody().aspect); }catch(e){ fx.exposure=keepE; toast("Couldn't capture this shot."); return; }
+    var url; try{ url=captureAspect(curAspect()); }catch(e){ fx.exposure=keepE; toast("Couldn't capture this shot."); return; }
     fx.exposure=keepE;
     var brf=activeBrief>=0?BRIEFS[activeBrief]:null;
     photos.push({url:url,t:new Date(),f:APERTURES[apIdx],sh:SHUTTER_LABELS[shIdx],iso:ISOS[isoIdx],mm:focalMM,body:curBody().name,brief:brf?brf.t:null,place:cbPlace});
@@ -1113,6 +1118,7 @@
     if(e.code==="KeyP"){ e.preventDefault(); toggleViewfinder(); }
     else if(e.code==="Enter"){ e.preventDefault(); shutter(); }
     else if(e.code==="KeyG"){ if(viewfinderOn) cycleComp(); else toggleGrid(); }
+    else if(e.code==="KeyX"){ e.preventDefault(); if(loaded) setVertical(!vertical); }
     else if(e.code==="Tab"){ e.preventDefault(); openStudio("select"); }
     else if(e.code==="ArrowUp"){ e.preventDefault(); setFocus(focusDist+0.05); }
     else if(e.code==="ArrowDown"){ e.preventDefault(); setFocus(focusDist-0.05); }

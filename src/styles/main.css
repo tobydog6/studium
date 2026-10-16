@@ -1598,7 +1598,7 @@ body.nav-looking .nav-coach{opacity:0}
 .nav-coach span{padding:10px 16px;border-radius:8px;background:rgba(23,20,15,.88);border:1px solid rgba(240,232,214,.14);font-size:14px;color:#f4f1ea;backdrop-filter:blur(10px)}
 .nav-coach em{font-style:normal;color:#a69f91}
 .nav-acts{left:50%;bottom:36px;transform:translateX(-50%);display:flex;gap:8px}
-.nav-acts button{display:flex;align-items:center;gap:10px;height:46px;padding:0 18px;border-radius:8px;cursor:pointer;border:1px solid rgba(240,232,214,.14);background:rgba(23,20,15,.85);color:#f4f1ea;font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;backdrop-filter:blur(10px)}
+.nav-acts button{display:flex;align-items:center;gap:10px;white-space:nowrap;height:46px;padding:0 18px;border-radius:8px;cursor:pointer;border:1px solid rgba(240,232,214,.14);background:rgba(23,20,15,.85);color:#f4f1ea;font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;backdrop-filter:blur(10px)}
 .nav-acts button span{font-size:10px;opacity:.55}
 .nav-acts button:hover{border-color:#e3ad57}
 .nav-acts button.hot{background:#e3ad57;border-color:#e3ad57;color:#17140d}
@@ -1711,3 +1711,17 @@ body[data-state="back"] .ch-card,body[data-state="bag"] .ch-card,body[data-state
 
 /* the pull: a faint gold breath from the edges of the screen */
 .ch-glow{position:fixed;inset:0;z-index:4;pointer-events:none;opacity:0;mix-blend-mode:screen;background:radial-gradient(ellipse 75% 70% at 50% 50%,rgba(0,0,0,0) 52%,rgba(227,173,87,.10) 74%,rgba(240,190,105,.30) 100%);box-shadow:inset 0 0 120px 10px rgba(227,173,87,.18)}
+
+/* vertical (X): lit when the camera is on its side */
+.nav-acts button.vert.on{border-color:#e3ad57;color:#e3ad57}
+#vfHints .vfvert.on,#vfHints .vfvert.on b{color:#e3ad57}
+/* challenge card: bigger, easier to read at a glance */
+.ch-card{width:360px;padding:20px 22px 18px;border-radius:12px}
+.ch-card .k{font-size:11px}
+.ch-card .t{margin-top:8px;font-size:32px}
+.ch-card p{margin-top:10px;font-size:14.5px;line-height:1.5}
+.ch-card .ck{margin-top:14px}
+.ch-card .ck div{min-height:38px;gap:11px;font-size:14px;padding:4px 0}
+.ch-card .ck i{width:18px;height:18px;font-size:11px}
+.ch-card .ck em{font-size:11px}
+.ch-card .go{margin-top:14px;font-size:11px}

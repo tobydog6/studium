@@ -95,7 +95,7 @@ try {
   await key('Space'); await page.waitForTimeout(1500);
   if (!(await cb(() => window.__cb.open_()))) { await cb(() => window.__cb.open()); await page.waitForTimeout(1500); }
   await page.evaluate(() => window.__cb.tab('setup')); await page.waitForTimeout(500);
-  await page.click('[data-cb-setup="10"]'); await page.waitForTimeout(150);   // first click selects "Leave location"
+  await page.click('[data-cb-setup="11"]'); await page.waitForTimeout(150);   // first click selects "Leave location"
   await key('Enter'); await page.waitForTimeout(300);                        // Enter does it
   ok(await cb(() => window.__cb.state()) === 'hub', 'Leave location should return to the hub');
   ok(await page.$eval('#hub', (e) => !e.classList.contains('hidden')), 'hub not visible');

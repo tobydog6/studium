@@ -334,19 +334,23 @@
       _mv.set(0,0,0);
       if(moving){
         var fb=(viewfinderOn?curBody().finder:""), rs=(fb==="waist"||fb==="ground")?-1:1, us=(fb==="ground")?-1:1;
-        if(keys["KeyW"]) _mv.addScaledVector(_fwd,1); if(keys["KeyS"]) _mv.addScaledVector(_fwd,-1);
+        var walking=!!(WK.col&&WK.mode==="walk"), fw=walking?_fwd.clone().setY(0).normalize():_fwd;
+        if(keys["KeyW"]) _mv.addScaledVector(fw,1); if(keys["KeyS"]) _mv.addScaledVector(fw,-1);
         if(keys["KeyD"]) _mv.addScaledVector(_right,rs); if(keys["KeyA"]) _mv.addScaledVector(_right,-rs);
-        if(keys["KeyE"]) _mv.addScaledVector(UPY,us); if(keys["KeyQ"]) _mv.addScaledVector(UPY,-us);
+        if(walking){ if(keys["KeyE"]) wkEye(us,dt); if(keys["KeyQ"]) wkEye(-us,dt); }
+        else { if(keys["KeyE"]) _mv.addScaledVector(UPY,us); if(keys["KeyQ"]) _mv.addScaledVector(UPY,-us); }
       }
       if(_mv.lengthSq()>0) _mv.normalize().multiplyScalar(maxV);   // target velocity
       // frame-rate-independent smoothing: ease velocity toward target (smooth accel + glide to stop)
       var resp=moving?11.0:8.0, t=1-Math.exp(-resp*Math.min(dt,0.05));
       _vel.x+=(_mv.x-_vel.x)*t; _vel.y+=(_mv.y-_vel.y)*t; _vel.z+=(_mv.z-_vel.z)*t;
+      if(WK.col&&WK.mode==="walk") _vel.y=0;
       if(_vel.lengthSq()>1e-10){
-        camPos.addScaledVector(_vel, dt);
+        if(WK.col) wkMove(dt); else camPos.addScaledVector(_vel, dt);
         if(boundsOn){ camPos.x=Math.min(Math.max(camPos.x,boxMin.x),boxMax.x); camPos.y=Math.min(Math.max(camPos.y,boxMin.y),boxMax.y); camPos.z=Math.min(Math.max(camPos.z,boxMin.z),boxMax.z); }
       }
     }
+    if(dt>0) wkSettle(dt);
     camera.up.set(0,1,0); camera.position.copy(camPos);
     camera.lookAt(camPos.x+_fwd.x, camPos.y+_fwd.y, camPos.z+_fwd.z);
   }
@@ -423,11 +427,11 @@
     boxMin.copy(rmin); boxMax.copy(rmax);
     camPos.copy(center);
     camPos.y = center.y + (rmax.y-rmin.y)*0.12;   // lift off the ground to a natural standing eye height
-    yaw=0; pitch=0;
+    yaw=0; pitch=0; if(WK.col) wkSpawn(center);
     camera.near=Math.max(maxDim*0.0006,0.01); camera.far=maxDim*12+100; camera.updateProjectionMatrix();
   }
 
-  function loadSplat(source, up){
+  function loadSplat(source, up, keepCol){ if(!keepCol) WK.col=null;
     var isFile=(source instanceof File), url=source, format;
     if(isFile){ var ext=source.name.split(".").pop().toLowerCase(); format=FMT[ext];
       if(format===undefined){ toast("Unsupported file. Use a .ply, .splat or .ksplat."); return; } url=URL.createObjectURL(source);
@@ -471,7 +475,8 @@
       if(sc.ext!=="stm") return {buf:ab, ext:sc.ext||"splat"};
       var ds=new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate")));
       return ds.arrayBuffer().then(function(raw){ return {buf:stmUnpack(raw, sceneDetail==="full"?false:sceneDetail), ext:"splat"}; }); })
-    .then(function(r){ var f=new File([r.buf],(sc.id||"scene")+"."+r.ext,{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown"); })
+    .then(function(r){ return wkLoad(sc.collide).then(function(){ return r; }); })
+    .then(function(r){ var f=new File([r.buf],(sc.id||"scene")+"."+r.ext,{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown", true); })
     .catch(function(e){ console.warn(e); hideLoader(); toast("Couldn't open that scene."); }); }
   function buildScenePicker(){ var host=$("sceneRow"); if(!host) return; var list=(window.SPLAT_SCENES||[]);
     if(!list.length){ host.style.display="none"; var h=$("sceneHead"),o=$("orSep"); if(h)h.style.display="none"; if(o)o.style.display="none"; return; }
@@ -954,6 +959,7 @@
 @@include develop.js@@
 @@include board.js@@
 @@include nav.js@@
+@@include walk.js@@
 @@include sync.js@@
 @@include lesson.js@@
 @@include hub.js@@

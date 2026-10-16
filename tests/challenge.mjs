@@ -32,19 +32,18 @@ try {
   ok(await page.$eval('#chCard', (e) => e.classList.contains('show')), 'the challenge card should show');
   let checks = await ev(() => window.__ch.checks());
   ok(checks.some((c) => !c.ok), 'not everything should be ticked at the start');
-  // crouch, 24 mm, f/8, aim at the top of the stump
-  await ev(() => { window.__ch.set({ eye: 0.4, mm: 24, f: 8 }); });
-  await page.waitForFunction(() => window.__ch.checks()[0].ok, null, { timeout: 120000 });   // eyes settle down to 0.4 m
-  await ev(() => window.__ch.aim(0)); await page.waitForTimeout(400);
-  checks = await ev(() => window.__ch.checks());
-  const notOk = checks.filter((c) => !c.ok && !/Exposure/.test(c.label));
-  ok(notOk.length === 0, 'eye, lens, aperture and aim should tick: ' + JSON.stringify(checks));
+  const pad0 = (await ev(() => window.__ch.pads()))[0]; ok(pad0.w > 1.2 && pad0.w < 1.6, 'a 24 mm frame a metre out should be about 1.45 m wide: ' + pad0.w);
+  // stand at the frame's eye point (crouched), look through it, 24 mm, f/8
+  await ev(() => { window.__ch.set({ mm: 24, f: 8 }); window.__ch.aim(0); });
+  await page.waitForFunction(() => { window.__ch.aim(0); return window.__ch.checks()[0].ok; }, null, { timeout: 120000, polling: 1000 });   // eyes settle down to the frame's height
+  let checks2 = await ev(() => window.__ch.checks());
+  ok(checks2.slice(0, 3).every((c) => c.ok), 'lined up, lens and aperture should tick: ' + JSON.stringify(checks2));
   await ev(() => window.__ch.set({ meter: true })); await page.waitForTimeout(300);
   ok(await ev(() => window.__ch.checks().every((c) => c.ok)), 'metering should tick the exposure too: ' + JSON.stringify(await ev(() => window.__ch.checks())));
   await shot('2-card');
   // raise the camera and shoot
   await page.keyboard.press('KeyP'); await page.waitForFunction(() => window.__cb.state() === 'viewfinder', null, { timeout: 120000 }); await page.waitForTimeout(3000);
-  await ev(() => window.__ch.aim(0)); await page.waitForTimeout(300);
+  await ev(() => window.__ch.aim(0)); await page.waitForTimeout(1500);
   const before = await ev(() => window.__cb.photos.length);
   await page.keyboard.press('Enter'); await page.waitForFunction((n) => window.__cb.photos.length > n, before, { timeout: 240000 }); await page.waitForTimeout(500);
   const last = await ev(() => { const p = window.__cb.photos; return { n: p.length, ch: p[p.length - 1].challenge || null }; });

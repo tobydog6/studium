@@ -616,7 +616,7 @@
   function shutter(){
     if(!loaded) return;
     if(!viewfinderOn){ raiseCamera(); return; }        // first press raises the camera
-    var keepE=fx.exposure; fx.exposure=expMult; renderFrame(0);   // the sensor always records the real exposure, even when an optical finder hid it
+    var keepE=fx.exposure; fx.exposure=expMult; CH.capturing=true; renderFrame(0); CH.capturing=false;   // challenge frames never end up in the photo   // the sensor always records the real exposure, even when an optical finder hid it
     var url; try{ url=captureAspect(curBody().aspect); }catch(e){ fx.exposure=keepE; toast("Couldn't capture this shot."); return; }
     fx.exposure=keepE;
     var brf=activeBrief>=0?BRIEFS[activeBrief]:null;

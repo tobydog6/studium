@@ -45,7 +45,12 @@
 
   <div id="prompt" class="hidden"><div class="pill"><span class="dot"></span>Click to look around</div></div>
 
+  <div id="dock" class="dock" aria-label="Places"></div>
   <div id="hud" class="hidden">
+    <div id="navTop" class="nav-top"><button data-nav="home">‹ HOME <kbd>H</kbd></button><span class="pl"></span><span class="fr"></span></div>
+    <div id="navTask" class="nav-task"></div>
+    <div id="navCoach" class="nav-coach"><i></i><span>Click to look around. <em>Walk with</em> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></div>
+    <div id="navActs" class="nav-acts"><button class="hot" data-nav-act="raise">RAISE CAMERA <span>P</span></button><button data-nav-act="back">CAMERA BACK <span>Space</span></button><button data-nav-act="bag">CAMERA BAG <span>B</span></button><button data-nav-act="studio">STUDIO <span>Tab</span></button></div>
     <div id="briefChip" class="hidden"><span>📋</span> <span class="t" id="briefChipText"></span></div>
     <div id="photoCount"><span class="ico">◉</span> <span id="photoNum">0</span></div>
     <div id="hint">
@@ -188,7 +193,7 @@
     <div class="st-bar" id="stBar">
       <div class="st-l"><span class="st-word">STUDIO</span><span class="st-sub"></span></div>
       <div class="st-tabs"></div>
-      <button class="st-esc" data-st-close><kbd>ESC</kbd>BACK TO THE LOCATION</button>
+      <div class="st-esc"><button class="st-nav" data-nav="home"><svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 9.5 10 4l7 5.5V17H3z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>HOME <kbd>H</kbd></button><button class="st-nav" data-nav="shoot"><svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="6" width="15" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="10" cy="11" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>SHOOT</button></div>
     </div>
     <div id="st-select" class="st-room"><div class="st-sheet"></div><aside class="st-loupe"></aside></div>
     <div id="st-workshop" class="st-room bd-room hidden">

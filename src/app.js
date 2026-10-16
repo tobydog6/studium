@@ -938,6 +938,7 @@
 @@include studio.js@@
 @@include develop.js@@
 @@include board.js@@
+@@include nav.js@@
 @@include sync.js@@
 @@include lesson.js@@
 @@include hub.js@@

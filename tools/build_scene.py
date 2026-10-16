@@ -30,14 +30,16 @@ k=((Ws[:,2]-z0)/cell).astype(int)*nx+((Ws[:,0]-x0)/cell).astype(int)
 order=np.lexsort((Ws[:,1],k)); ks=k[order]; ys=Ws[order,1]
 st=np.searchsorted(ks,np.arange(nx*nz)); en=np.searchsorted(ks,np.arange(nx*nz),side='right')
 g=np.full(nx*nz,np.nan)
-for i in np.where(en-st>=5)[0]: g[i]=ys[st[i]+int((en[i]-st[i])*0.12)]
+for i in np.where(en-st>=5)[0]: g[i]=ys[st[i]+int((en[i]-st[i])*0.04)]
 g=g.reshape(nz,nx)
 plane=float(np.nanmedian(g[100:140,100:140])); print('ground plane y',plane)
 g[(g>plane+0.6)|(g<plane-0.6)]=np.nan                  # canopy-only cells are not ground
-# fill holes outward (nearest known), then smooth
 from scipy import ndimage
 mask=np.isnan(g); ii=ndimage.distance_transform_edt(mask,return_distances=False,return_indices=True)
-gf=g[tuple(ii)]; gf=ndimage.median_filter(gf,5); gf=ndimage.gaussian_filter(gf,1.2)
+gf=g[tuple(ii)]
+# the ground is the lower envelope: an opening wipes out anything narrower than ~1.3 m standing on it (the stump,
+# posts, trunks) so they become obstacles rather than raised ground; then keep it gentle
+gf=ndimage.grey_opening(gf,size=(13,13)); gf=np.clip(gf,plane-0.3,plane+0.3); gf=ndimage.gaussian_filter(gf,3)
 far=ndimage.distance_transform_edt(mask)>15; gf[far]=plane    # far from any data: the plane
 # obstacles: solid stuff 0.35 m to 2.5 m above the local ground
 gi=gf.reshape(-1)[k]; hh=Ws[:,1]-gi

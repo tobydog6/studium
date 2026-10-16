@@ -4,8 +4,8 @@
   // you walk up behind it, it shows which way to look and how high to hold the camera. Stand at the eye point
   // (crouch or stand tall to match), look through it, and with the right lens the frame sits right on the edges of
   // your viewfinder. A card ticks off the rest (lens, aperture, exposure); shoot with everything ticked to complete it.
-  var CH={spec:null, list:[], fx:null, pads:[], active:-1, done:{}, t:0, lastEval:0, cardFor:-1, pull:-1, locked:false, cool:-1};
-  var CH_D=0.55, CH_NEAR=3.5, CH_GRAB=1.4;
+  var CH={spec:null, list:[], fx:null, pads:[], active:-1, done:{}, t:0, lastEval:0, cardFor:-1, pull:-1, locked:false, cool:-1, nudge:false};
+  var CH_D=0.45, CH_NEAR=3.5, CH_GRAB=0.8, CH_LEAVE=1.4;
   var CH_RING_FS="uniform float alpha; uniform vec2 size; varying vec2 vUv; void main(){ vec2 p=vUv*size; float e=min(min(p.x,size.x-p.x),min(p.y,size.y-p.y)); float fw=fwidth(e); float bw=max(size.x*0.006,fw*1.2); float a=(1.0-smoothstep(bw-fw,bw+fw,e))*alpha; gl_FragColor=vec4(0.97,0.76,0.40,a); }";
   var CH_FRAME_FS="uniform float t; uniform float done; uniform float lock; uniform float fade; uniform vec2 size; varying vec2 vUv;"
     +"void main(){ vec2 p=vUv*size; float e=min(min(p.x,size.x-p.x),min(p.y,size.y-p.y)); float fw=fwidth(e); float bw=max(size.x*0.0045,fw*1.3);"
@@ -17,7 +17,7 @@
   function chDoneSet(){ var d={}; photos.forEach(function(p){ if(p.challenge) d[p.challenge]=1; }); return d; }
   function chEquivMM(){ var b=curBody(); return Math.round(focalMM*36/(b.sensorW||36)); }
   function chFStop(){ return APERTURES[apIdx]; }
-  function chAttach(){ CH.fx=new THREE.Scene(); CH.pads=[]; CH.active=-1; CH.cardFor=-1; chCard(null);
+  function chAttach(){ CH.fx=new THREE.Scene(); CH.pads=[]; CH.active=-1; CH.cardFor=-1; CH.pull=-1; CH.locked=false; CH.cool=-1; chCard(null);
     var spec=(CH.spec&&CH.spec.challenges)||[]; CH.list=spec; if(!spec.length||!WK.col) return;
     CH.done=chDoneSet();
     var S=CH.spec.subject||[0,0];
@@ -31,6 +31,8 @@
       var rings=[]; for(var r=0;r<3;r++){ var rm=new THREE.ShaderMaterial({uniforms:{alpha:{value:0},size:{value:size}}, vertexShader:CH_VS, fragmentShader:CH_RING_FS, transparent:true, depthTest:false, depthWrite:false, side:THREE.DoubleSide, blending:THREE.AdditiveBlending});
         var ring=new THREE.Mesh(new THREE.PlaneGeometry(w,h), rm); ring.quaternion.copy(fr.quaternion); CH.fx.add(ring); rings.push(ring); }
       CH.pads.push({c:c, x:x, z:z, E:E, T:T, d:d, F:F, w:w, h:h, frame:fr, rings:rings, target:T}); });
+    // starting inside a frame's range doesn't count as walking into it
+    CH.pads.forEach(function(P,i){ if(CH.cool<0&&Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z)<CH_LEAVE) CH.cool=i; });
     chMarkers(); }
   function chAlign(P){ var dp=P.E.clone().sub(camPos), hz=Math.hypot(dp.x,dp.z), dy=dp.y, ang=Math.acos(Math.max(-1,Math.min(1,P.d.dot(_fwd))))*180/Math.PI;
     return {hz:hz, dy:dy, ang:ang, ok:hz<0.3&&Math.abs(dy)<0.2&&ang<6}; }
@@ -43,19 +45,26 @@
     var ac=renderer.autoClear; renderer.autoClear=false; renderer.render(CH.fx, camera); renderer.autoClear=ac; }
   // ---- each frame: are we near one? ----
   // when you're close and facing it, the frame draws you in and fits you to it; any walking key lets go
-  function chTractor(dt){ var walk=keys["KeyW"]||keys["KeyA"]||keys["KeyS"]||keys["KeyD"];
-    if(CH.cool>=0){ var C=CH.pads[CH.cool]; if(!C||Math.hypot(camPos.x-C.E.x,camPos.z-C.E.z)>CH_GRAB+0.8) CH.cool=-1; }
-    if(CH.pull<0){ CH.pads.forEach(function(P,i){ if(CH.pull>=0||i===CH.cool) return; var hz=Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z);
+  // The pull: only once you're right at a frame (and facing it) does it draw you in. Touch anything (walk, crouch,
+  // look round) and it lets go straight away, and it won't take you again until you've left and come back.
+  var CH_MOVE={KeyW:1,KeyA:1,KeyS:1,KeyD:1,KeyQ:1,KeyE:1,ArrowUp:1,ArrowDown:1,ArrowLeft:1,ArrowRight:1,Space:1};
+  document.addEventListener("keydown",function(e){ if(CH_MOVE[e.code]) CH.nudge=true; });
+  document.addEventListener("mousemove",function(e){ if(looking&&Math.abs(e.movementX)+Math.abs(e.movementY)>3) CH.nudge=true; });
+  function chLetGo(){ if(CH.pull>=0) CH.cool=CH.pull; CH.pull=-1; CH.locked=false; }
+  function chTractor(dt){ var nudge=CH.nudge||CH_MOVE&&Object.keys(CH_MOVE).some(function(k){ return keys[k]; }); CH.nudge=false;
+    if(CH.cool>=0){ var C=CH.pads[CH.cool]; if(!C||Math.hypot(camPos.x-C.E.x,camPos.z-C.E.z)>CH_LEAVE) CH.cool=-1; }
+    if(CH.pull>=0&&(nudge||Math.hypot(camPos.x-CH.pads[CH.pull].E.x,camPos.z-CH.pads[CH.pull].E.z)>CH_LEAVE)){ chLetGo(); return; }
+    if(CH.pull<0){ if(nudge) return;
+      CH.pads.forEach(function(P,i){ if(CH.pull>=0||i===CH.cool||CH.done[P.c.id]) return; var hz=Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z);
         var toF=P.F.clone().sub(camPos); toF.y=0; toF.normalize(); var f=_fwd.clone(); f.y=0; f.normalize();
-        if(hz<CH_GRAB&&f.dot(toF)>0.3){ CH.pull=i; CH.locked=false; toast("Lining you up with the frame. Walk to break away."); } }); }
-    if(CH.pull<0) return; var P=CH.pads[CH.pull];
-    if(walk&&CH.locked){ CH.cool=CH.pull; CH.pull=-1; CH.locked=false; return; }
-    var k=1-Math.exp(-4.5*Math.min(dt,0.05)); _vel.set(0,0,0);
+        if(hz<CH_GRAB&&f.dot(toF)>0.2){ CH.pull=i; CH.locked=false; } }); }
+    if(CH.pull<0||CH.locked) return; var P=CH.pads[CH.pull];
+    var k=1-Math.exp(-5*Math.min(dt,0.05)); _vel.set(0,0,0);
     camPos.x+=(P.E.x-camPos.x)*k; camPos.z+=(P.E.z-camPos.z)*k;
     if(WK.col&&WK.mode==="walk") WK.eye+=((P.E.y-wkGround(P.E.x,P.E.z))-WK.eye)*k; else camPos.y+=(P.E.y-camPos.y)*k;
-    if(!CH.locked){ var ty=Math.atan2(-P.d.x,-P.d.z), tp=Math.asin(Math.max(-1,Math.min(1,P.d.y))), dy=ty-yaw; while(dy>Math.PI) dy-=2*Math.PI; while(dy<-Math.PI) dy+=2*Math.PI;
-      yaw+=dy*k; pitch+=(tp-pitch)*k;
-      if(Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z)<0.03&&Math.abs(dy)<0.01&&Math.abs(tp-pitch)<0.01) CH.locked=true; } }
+    var ty=Math.atan2(-P.d.x,-P.d.z), tp=Math.asin(Math.max(-1,Math.min(1,P.d.y))), dy=ty-yaw; while(dy>Math.PI) dy-=2*Math.PI; while(dy<-Math.PI) dy+=2*Math.PI;
+    yaw+=dy*k; pitch+=(tp-pitch)*k;
+    if(Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z)<0.02&&Math.abs(dy)<0.005&&Math.abs(tp-pitch)<0.005){ camPos.x=P.E.x; camPos.z=P.E.z; yaw+=dy; pitch=tp; CH.locked=true; } }
   function chTick(dt){ if(!CH.pads.length||!loaded) return; var near=-1, best=1e9; chTractor(dt||1/30);
     CH.pads.forEach(function(P,i){ var d=Math.hypot(camPos.x-P.E.x, camPos.z-P.E.z); if(d<CH_NEAR&&d<best){ best=d; near=i; } });
     if(near!==CH.active){ CH.active=near; if(near>=0){ chFlash(CH.pads[near]); chCard(CH.pads[near]); } else chCard(null); }
@@ -104,5 +113,5 @@
       if(o.meter){ var best=shIdx, bv=1e9; for(var s=0;s<SHUTTER_LABELS.length;s++){ shIdx=s; computeCam(); if(Math.abs(evStops)<bv){ bv=Math.abs(evStops); best=s; } } shIdx=best; computeCam(); } };
     window.__ch.aim=function(i){ var d=CH.pads[i].d; yaw=Math.atan2(-d.x,-d.z); pitch=Math.asin(Math.max(-1,Math.min(1,d.y))); basis(); };
     window.__ch.goto=function(i){ var P=CH.pads[i]; camPos.x=P.E.x; camPos.z=P.E.z; WK.eye=P.E.y-wkGround(P.E.x,P.E.z); _vel.set(0,0,0); };
-    window.__ch.approach=function(i){ var P=CH.pads[i]; camPos.x=P.E.x-P.d.x*1.0; camPos.z=P.E.z-P.d.z*1.0; yaw=Math.atan2(-P.d.x,-P.d.z)+0.3; pitch=0; _vel.set(0,0,0); };
-    window.__ch.pull=function(){ return {i:CH.pull, locked:CH.locked}; }; }
+    window.__ch.approach=function(i){ var P=CH.pads[i]; camPos.x=P.E.x-P.d.x*0.6; camPos.z=P.E.z-P.d.z*0.6; yaw=Math.atan2(-P.d.x,-P.d.z)+0.3; pitch=0; _vel.set(0,0,0); };
+    window.__ch.pull=function(){ return {i:CH.pull, locked:CH.locked, cool:CH.cool}; }; window.__ch.nudge=function(){ CH.nudge=true; }; }

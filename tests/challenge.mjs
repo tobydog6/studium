@@ -32,12 +32,19 @@ try {
   ok(await page.$eval('#chCard', (e) => e.classList.contains('show')), 'the challenge card should show');
   let checks = await ev(() => window.__ch.checks());
   ok(checks.some((c) => !c.ok), 'not everything should be ticked at the start');
-  const pad0 = (await ev(() => window.__ch.pads()))[0]; ok(pad0.w > 0.6 && pad0.w < 0.9, 'a 24 mm frame 55 cm out should be about 0.8 m wide: ' + pad0.w);
+  const pad0 = (await ev(() => window.__ch.pads()))[0]; ok(pad0.w > 0.55 && pad0.w < 0.8, 'a 24 mm frame 45 cm out should be about 0.65 m wide: ' + pad0.w);
   // stand at the frame's eye point (crouched), look through it, 24 mm, f/8
   await ev(() => { window.__ch.set({ mm: 24, f: 8 }); });
   await page.waitForFunction(() => window.__ch.pull().locked, null, { timeout: 240000, polling: 1000 });   // pulled in, crouched and turned to fit the frame
   await page.waitForFunction(() => window.__ch.checks()[0].ok, null, { timeout: 120000, polling: 1000 });
   await shot('2-locked');
+  // any move lets go, and it won't grab again until you've left its range
+  await ev(() => window.__ch.nudge());
+  await page.waitForFunction(() => window.__ch.pull().i === -1, null, { timeout: 60000, polling: 500 });
+  await page.waitForTimeout(4000);
+  const p2 = await ev(() => window.__ch.pull()); ok(p2.i === -1 && p2.cool === 0, 'should stay released while still in range: ' + JSON.stringify(p2));
+  await ev(() => { window.__ch.goto(0); window.__ch.aim(0); });   // line back up by hand
+  await page.waitForFunction(() => window.__ch.checks()[0].ok, null, { timeout: 120000, polling: 1000 });
   let checks2 = await ev(() => window.__ch.checks());
   ok(checks2.slice(0, 3).every((c) => c.ok), 'lined up, lens and aperture should tick: ' + JSON.stringify(checks2));
   await ev(() => window.__ch.set({ meter: true })); await page.waitForTimeout(300);

@@ -65,7 +65,7 @@
   function lsMoveOn(pl, clock){ var c=lsCur(pl, clock); if(c.i<0){ pl.start=Math.floor(c.now); } else if(c.i<pl.phases.length){ pl.phases[c.i].dur=Math.max(0.1, c.now-c.T[c.i].s); } lsSave(); }
 
   // ---- what a student has done (whole session, so it never goes backwards) ----
-  function lsCount(kind){ if(kind==="shots") return photos.filter(function(p){ return !p.uploaded&&!p.edited; }).length;
+  function lsCount(kind){ if(kind==="shots") return photos.filter(function(p){ return !p.uploaded&&!p.copy&&!(p.edited&&!p.orig); }).length;
     if(kind==="picks") return stPicks().length;
     if(kind==="edits") return photos.filter(function(p){ return p.edited; }).length;
     if(kind==="pages") return (st.wsPages||[]).length;

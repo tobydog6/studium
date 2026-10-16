@@ -367,10 +367,17 @@
           </div>
           <div class="lr-topright">
             <button class="lr-ghost" id="eReset">Reset</button>
-            <button class="lr-save" id="eSave">Save copy</button>
+            <button class="lr-ghost" id="eCopy" title="A second frame with this edit">Make a copy</button>
+            <button class="lr-save" id="eSave">Done</button>
           </div>
         </div>
-        <div id="editStage"><canvas id="editCanvas"></canvas><div id="editHint">drag to reposition · scroll to zoom</div></div>
+        <div id="editStage"><canvas id="editCanvas"></canvas><div id="editHint">drag to reposition · scroll to zoom</div>
+          <button class="dv-nav prev" id="dvPrev" aria-label="Previous frame">‹</button><button class="dv-nav next" id="dvNext" aria-label="Next frame">›</button></div>
+        <div class="dv-bar">
+          <div class="dv-top"><span id="dvCount" class="dv-count"></span><span class="dv-help">CLICK A FRAME TO EDIT IT · CTRL-CLICK OR SHIFT-CLICK TO SELECT MORE, THEN SYNC</span>
+            <div class="dv-acts"><button id="dvCopy">COPY <kbd>⌘C</kbd></button><button id="dvPaste" disabled>PASTE <kbd>⌘V</kbd></button><button id="dvSync" class="sync" disabled>SYNC</button></div></div>
+          <div class="dv-film" id="dvFilm"></div>
+        </div>
       </div>
       <aside class="lr-panel">
         <div class="lr-hist"><canvas id="lrHist" width="372" height="150"></canvas>

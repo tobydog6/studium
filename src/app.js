@@ -486,7 +486,7 @@
     r.onupgradeneeded=function(e){ try{ e.target.result.createObjectStore("state"); }catch(_){} };
     r.onsuccess=function(e){ _db=e.target.result; cb(_db); }; r.onerror=function(){ cb(null); }; }catch(e){ cb(null); } }
   function sessionData(){ return { v:1, savedAt:Date.now(), studentName:studentName, briefDone:briefDone,
-    photos:photos.map(function(p){ return {url:p.url,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order}; }),
+    photos:photos.map(function(p){ return {url:p.url,orig:p.orig||null,dev:p.dev||null,id:p.id||null,copy:!!p.copy,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order}; }),
     workshop:(typeof st!=="undefined"?st.wsPages:[]), folioPrefs:(typeof st!=="undefined"?{paper:st.foPaper,presets:st.foPresets}:null), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,title:ga.title}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
@@ -851,7 +851,7 @@
     E.tint=Math.round(Math.max(-50,Math.min(50,(mg-(mr+mb)/2)/255*120)));
     syncEditUI(); queueRender();
   }
-  function saveEdit(){
+  function saveEdit(){   // "Make a copy": a second, separate frame with this edit (the original keeps its own)
     if(!edState) return; var cr=cropRect(), ow=Math.max(2,Math.round(cr.w)), oh=Math.max(2,Math.round(cr.h)), url=null;
     if(egl && !eglBad){
       glc.width=ow; glc.height=oh; egl.viewport(0,0,ow,oh); egl.useProgram(eglProg); egl.bindTexture(egl.TEXTURE_2D,eglTex);
@@ -859,12 +859,10 @@
       try{ url=glc.toDataURL("image/png"); }catch(e){ url=null; }
     }
     if(!url){ var out=document.createElement("canvas"); edRender2D(cr,ow,oh,out); try{ url=out.toDataURL("image/png"); }catch(e2){ toast("Couldn't save the edit."); return; } }
-    var o=photos[edState.i]||{}; photos.push({url:url,t:new Date(),f:o.f,sh:o.sh,iso:o.iso,mm:o.mm,body:o.body,brief:o.brief,place:o.place,edited:true,
-      pick:!!o.pick, rating:o.rating||0, note:o.note||"", order:(o.order==null?edState.i:o.order)});
-    if(o.pick) o.pick=false;   // the edit takes the original's place in your picks
-    refreshCount(); hide(editor);
-    if(typeof st!=="undefined"&&st.open){ st.cur=photos.length-1; stRoom("select"); } else { buildGallery(); show(gallery); }
-    toast("Edited copy saved, and it takes the original’s place in your picks");
+    var o=photos[edState.i]||{}; photos.push({url:url,t:new Date(),f:o.f,sh:o.sh,iso:o.iso,mm:o.mm,body:o.body,brief:o.brief,place:o.place,edited:true,copy:true,
+      pick:false, rating:o.rating||0, note:o.note||"", order:null});
+    refreshCount(); devSel={}; openEditor(photos.length-1); if(typeof st!=="undefined"&&st.open) st.cur=photos.length-1;
+    toast("Copy made. You're now editing the copy; the original is left as it was.");
     if(!eglBad&&egl) editRender();
     saveSession();
   }
@@ -890,10 +888,11 @@
   }
   function openEditor(i){
     if(looking) document.exitPointerLock();
-    edState=defEd(i); edSrc=new Image();
-    edSrc.onload=function(){ hide(gallery); hide(menu); show(editor); eglInit(); buildRotated(); edShowOrig=false; edResetView(); syncEditUI(); editRender(); edHist=[JSON.stringify(edState)]; edHistI=0; setTimeout(drawHist,150); };
-    edSrc.onerror=function(){ toast("Couldn't open that photo to edit."); };
-    edSrc.src=photos[i].url;
+    var p=photos[i]; if(!p) return; var E=p.dev?devClone(p.dev):defEd(i); E.i=i;   // edits live on the frame (develop.js)
+    var img=new Image();
+    img.onload=function(){ edState=E; edSrc=img; hide(gallery); hide(menu); show(editor); eglInit(); buildRotated(); edShowOrig=false; edResetView(); syncEditUI(); editRender(); edHist=[JSON.stringify(edState)]; edHistI=0; setTimeout(drawHist,150); devStrip(); };
+    img.onerror=function(){ toast("Couldn't open that photo to edit."); };
+    img.src=p.orig||p.url;
   }
   function closeEditor(){ hide(editor); }
 
@@ -936,6 +935,7 @@
 @@include finder.js@@
 @@include bag.js@@
 @@include studio.js@@
+@@include develop.js@@
 @@include sync.js@@
 @@include lesson.js@@
 @@include hub.js@@
@@ -1029,8 +1029,9 @@
     if($("eRotL")) $("eRotL").onclick=function(){ edState.rot=(edState.rot+270)%360; edState.cx=0.5; edState.cy=0.5; buildRotated(); queueRender(); edPushHist(); };
     if($("eRotR")) $("eRotR").onclick=function(){ edState.rot=(edState.rot+90)%360; edState.cx=0.5; edState.cy=0.5; buildRotated(); queueRender(); edPushHist(); };
     if($("eReset")) $("eReset").onclick=function(){ var i=edState.i; edState=defEd(i); buildRotated(); edResetView(); syncEditUI(); queueRender(); edPushHist(); setTimeout(drawHist,140); };
-    if($("eCancel")) $("eCancel").onclick=function(){ closeEditor(); buildGallery(); show(gallery); };
-    if($("eSave")) $("eSave").onclick=saveEdit;
+    if($("eCancel")) $("eCancel").onclick=function(){ devCommit(); closeEditor(); buildGallery(); show(gallery); };
+    if($("eSave")) $("eSave").onclick=function(){ devCommit(); if(typeof st!=="undefined"&&st.open){ stRoom("select"); } else { closeEditor(); buildGallery(); show(gallery); } };
+    if($("eCopy")) $("eCopy").onclick=function(){ devCommit(); saveEdit(); };
     var cnv=$("editCanvas"), dragging=false, lx=0, ly=0;
     if(cnv){
       cnv.addEventListener("pointerdown",function(e){ dragging=true; lx=e.clientX; ly=e.clientY; try{cnv.setPointerCapture(e.pointerId);}catch(err){} });

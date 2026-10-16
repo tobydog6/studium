@@ -33,7 +33,7 @@
     el.classList.remove("hidden"); stRoom(room||st.room||"select"); updatePrompt(); }
   function closeStudio(){ if(!st.open) return; stHideLegacy(); st.open=false; $("studioX").classList.add("hidden");
     if(loaded){ hubShow("hud"); App.go("scene"); updatePrompt(); } else showHub(); }
-  function stHideLegacy(){ Object.keys(ST_LEGACY).forEach(function(k){ var e=$(ST_LEGACY[k]); if(e) e.classList.add("hidden"); }); document.body.classList.remove("st-legacy"); }
+  function stHideLegacy(){ var ed=$("editor"); if(ed&&!ed.classList.contains("hidden")&&typeof devCommit==="function") devCommit(); Object.keys(ST_LEGACY).forEach(function(k){ var e=$(ST_LEGACY[k]); if(e) e.classList.add("hidden"); }); document.body.classList.remove("st-legacy"); }
   function stRoom(r){ st.room=r; App.go("studio."+r); stHideLegacy();
     ["select","workshop","folio","book","gallery"].forEach(function(k){ var c=$("st-"+k); if(c) c.classList.toggle("hidden", k!==r); });
     var empty=!photos.length;

@@ -1725,3 +1725,6 @@ body[data-state="back"] .ch-card,body[data-state="bag"] .ch-card,body[data-state
 .ch-card .ck i{width:18px;height:18px;font-size:11px}
 .ch-card .ck em{font-size:11px}
 .ch-card .go{margin-top:14px;font-size:11px}
+
+/* shutter slower than the handheld limit for this lens */
+#vfStrip .vf-shake{font-style:normal;margin-left:4px;padding:1px 5px;border-radius:3px;font-size:9px;letter-spacing:.1em;color:#17140d;background:#e3ad57;white-space:nowrap}

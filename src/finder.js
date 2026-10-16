@@ -31,7 +31,8 @@
         for(var o=-2;o<=2;o++){ var j=sc.idx+o, v=(j>=0&&j<sc.vals.length)?sc.vals[j]:""; cells+='<span class="'+(o===0?'cur':'')+'">'+v+'</span>'; }
         body='<div class="vf-tape">'+cells+'<i></i></div>'; }
       else body='<span class="vf-val">'+vfValue(d[0])+'</span>';
-      return '<div class="vf-dial'+(on?' on':'')+'"><span class="vf-lbl"><b>'+(i+1)+'</b>'+d[1]+'</span>'+body+'</div>'; }).join("");
+      var warn=(d[0]==="sh"&&shakeRisk())?'<em class="vf-shake" title="Slower than you can hand-hold this lens">SHAKE · '+handheldLimit().label+'+</em>':'';
+      return '<div class="vf-dial'+(on?' on':'')+'"><span class="vf-lbl"><b>'+(i+1)+'</b>'+d[1]+warn+'</span>'+body+'</div>'; }).join("");
     var mark=Math.round(evStops*3), ticks="";
     for(var t=-6;t<=6;t++){ ticks+='<span class="tk'+(t===0?' zero':'')+(t%3===0?' whole':'')+'">'+(t===Math.max(-6,Math.min(6,mark))?'<em class="'+(Math.abs(mark)>6?'over':'')+'"></em>':'')+'</span>'; }
     s.innerHTML='<div class="vf-mode"><span class="vf-lbl">MODE</span><span class="m">M</span></div>'+dials

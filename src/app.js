@@ -168,6 +168,17 @@
   // ---- physical camera: bodies, lenses, finder ----
   function curBody(){ return BODIES[bodyIdx]||BODIES[0]; }
   function curAspect(){ var A=curBody().aspect||1.5; return vertical?1/A:A; }
+  // ---- handheld shake ----
+  // Hands wobble by a roughly constant angle, so the longer the lens the further that wobble moves across the frame,
+  // and the longer the shutter is open the more of it is recorded. Rule of thumb: 1 / (equivalent focal length) or faster.
+  function camEquiv(){ return focalMM*36/(curBody().sensorW||36); }
+  function handheldLimit(){ var eq=camEquiv(), i=0; for(var k=0;k<SHUTTERS.length;k++) if(SHUTTERS[k]<=1/eq*1.15) i=k; return {i:i, t:SHUTTERS[i], label:SHUTTER_LABELS[i]}; }
+  function shakeRisk(){ return SHUTTERS[shIdx]>handheldLimit().t*1.01; }
+  function shakeAmount(){ return 0.0008*SHUTTERS[shIdx]*camEquiv(); }   // blur length as a fraction of the frame width, before luck
+  var lastShake=0;
+  // a slow drift in the viewfinder: barely there on a wide lens, a visible float on a long one
+  function swayOff(){ if(!viewfinderOn) return null; var t=performance.now()/1000, a=0.0016;
+    return {y:a*(0.6*Math.sin(t*1.31)+0.35*Math.sin(t*2.83+1.7)+0.45*Math.sin(t*0.53+0.4)), p:a*(0.55*Math.sin(t*1.07+2.1)+0.3*Math.sin(t*3.17+0.6)+0.4*Math.sin(t*0.61+1.2))}; }
   function setVertical(v){ vertical=!!v; computeCam(); applyFinder(); if(typeof drawComp==="function") drawComp();
     var b=$("navVert"); if(b) b.classList.toggle("on", vertical); var c=$("vfVert"); if(c) c.classList.toggle("on", vertical);
     if(viewfinderOn&&typeof vfToast==="function") vfToast(vertical?"VERTICAL":"HORIZONTAL"); else toast(vertical?"Camera turned vertical":"Camera back to horizontal"); }
@@ -178,12 +189,21 @@
       d.innerHTML="<span class='bn'>"+b.name+"</span><span class='bf'>"+b.fmt+"</span>"; d.onclick=function(){ selectBody(i); }; el.appendChild(d); }); }
   function buildLensPicker(){ var el=$("lensList"); if(!el) return; el.innerHTML=""; var b=curBody();
     b.lenses.forEach(function(mm,i){ var c=document.createElement("button"); c.className="chip"+(i===lensIdx?" on":""); c.textContent=mm+"mm"; c.onclick=function(){ selectLens(i); }; el.appendChild(c); }); }
-  function captureAspect(A){ var src=renderer.domElement, W=src.width, H=src.height, cw=W, ch=H;
+  function gauss(){ var u=1-Math.random(), v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+  function captureAspect(A, shake){ var src=renderer.domElement, W=src.width, H=src.height, cw=W, ch=H;
     if(W/H>A){ cw=H*A; } else { ch=W/A; }
     var sx=(W-cw)/2, sy=(H-ch)/2, o=document.createElement("canvas");
     if(viewfinderOn){ var r=vfRect(), kx=W/window.innerWidth, ky=H/window.innerHeight; sx=r.x*kx; sy=r.y*ky; cw=r.w*kx; ch=r.h*ky; }   // exactly what the frame shows
     o.width=Math.max(2,Math.round(cw)); o.height=Math.max(2,Math.round(ch));
-    o.getContext("2d").drawImage(src, sx,sy,cw,ch, 0,0,o.width,o.height); return o.toDataURL("image/png"); }
+    var g=o.getContext("2d"); g.drawImage(src, sx,sy,cw,ch, 0,0,o.width,o.height);
+    var L=(shake||0)*o.width;   // blur length in output pixels
+    if(L>0.8){   // the shutter was open while the camera wandered: average the frame along a wobbly path
+      var n=Math.max(8,Math.min(32,Math.round(L/1.2))), a=Math.random()*Math.PI*2, vx=Math.cos(a), vy=Math.sin(a), x=0, y=0, pts=[[0,0]], len=0;
+      for(var k=1;k<n;k++){ vx+=gauss()*0.55; vy+=gauss()*0.55; var m=Math.hypot(vx,vy)||1; vx/=m; vy/=m; x+=vx; y+=vy; len+=1; pts.push([x,y]); }
+      var mx=0, my=0; pts.forEach(function(p){ mx+=p[0]; my+=p[1]; }); mx/=n; my/=n; var s=L/len, kx=cw/o.width, ky=ch/o.height;
+      for(k=0;k<n;k++){ var dx=(pts[k][0]-mx)*s*kx, dy=(pts[k][1]-my)*s*ky; g.globalAlpha=1/(k+1); g.drawImage(src, sx+dx,sy+dy,cw,ch, 0,0,o.width,o.height); }
+      g.globalAlpha=1; }
+    return o.toDataURL("image/png"); }
   function sizeFinder(){ if(typeof vfLayout==="function"){ vfLayout(); vfRefresh(); } }
   function applyFinder(){ var b=curBody(), cv=renderer&&renderer.domElement, bl=$("vfBody"), md=$("vfMode"), vfEl=$("viewfinder");
     if(bl) bl.textContent=b.name;
@@ -327,9 +347,10 @@
   // ---- camera basis (level FPS) ----
   var _fwd=new THREE.Vector3(), _right=new THREE.Vector3(), _qy=new THREE.Quaternion(), _qp=new THREE.Quaternion(), _mv=new THREE.Vector3();
   function basis(){
-    _fwd.set(0,0,-1); _qy.setFromAxisAngle(UPY,yaw); _fwd.applyQuaternion(_qy);
+    var sw=swayOff(), yw=yaw+(sw?sw.y:0), pt=pitch+(sw?sw.p:0);
+    _fwd.set(0,0,-1); _qy.setFromAxisAngle(UPY,yw); _fwd.applyQuaternion(_qy);
     _right.crossVectors(_fwd,UPY).normalize();
-    _qp.setFromAxisAngle(_right,pitch); _fwd.applyQuaternion(_qp).normalize();
+    _qp.setFromAxisAngle(_right,pt); _fwd.applyQuaternion(_qp).normalize();
   }
   function updateCamera(dt){
     basis();
@@ -551,6 +572,9 @@
     if(iso>=3200) tips.push(["High ISO · "+iso,"Brighter in low light, but you'll see more grain. Bring it down when there's enough light."]);
     if(mm<=24) tips.push(["Wide lens · "+mm+"mm","Takes in a lot and exaggerates depth — step in close to your subject for real drama."]);
     else if(mm>=100) tips.push(["Telephoto · "+mm+"mm","Compresses distance and lifts your subject cleanly off the background."]);
+    var lim=handheldLimit(), eqmm=Math.round(camEquiv());
+    if(lastShake>0.0025) tips.unshift(["Camera shake · "+sh+" at "+eqmm+" mm","Too slow to hold this lens steady, so the whole frame smeared. Rule of thumb: 1 over the focal length. Try "+lim.label+" or faster, and open the aperture or raise the ISO to keep the exposure."]);
+    else if(shakeRisk()) tips.unshift(["Lucky · "+sh+" at "+eqmm+" mm","You got away with it this time, but that's slower than you can reliably hand-hold. "+lim.label+" or faster is the safe speed for this lens."]);
     if(!tips.length) tips.push(["Balanced exposure","A clean, neutral setup. Now change one dial — aperture, shutter or ISO — and watch what it does to the shot."]);
     if(viewfinderOn && typeof vfToast==="function") vfToast(tips[0][1]); else showTip(tips[0][0], tips[0][1]); }
 
@@ -631,10 +655,11 @@
     if(!loaded) return;
     if(!viewfinderOn){ raiseCamera(); return; }        // first press raises the camera
     var keepE=fx.exposure; fx.exposure=expMult; CH.capturing=true; renderFrame(0); CH.capturing=false;   // challenge frames never end up in the photo   // the sensor always records the real exposure, even when an optical finder hid it
-    var url; try{ url=captureAspect(curAspect()); }catch(e){ fx.exposure=keepE; toast("Couldn't capture this shot."); return; }
+    lastShake=Math.min(0.06, shakeAmount()*Math.exp(gauss()*0.35));   // some slow shots come out sharper than others
+    var url; try{ url=captureAspect(curAspect(), lastShake); }catch(e){ fx.exposure=keepE; toast("Couldn't capture this shot."); return; }
     fx.exposure=keepE;
     var brf=activeBrief>=0?BRIEFS[activeBrief]:null;
-    photos.push({url:url,t:new Date(),f:APERTURES[apIdx],sh:SHUTTER_LABELS[shIdx],iso:ISOS[isoIdx],mm:focalMM,body:curBody().name,brief:brf?brf.t:null,place:cbPlace});
+    photos.push({url:url,t:new Date(),f:APERTURES[apIdx],sh:SHUTTER_LABELS[shIdx],iso:ISOS[isoIdx],mm:focalMM,body:curBody().name,brief:brf?brf.t:null,place:cbPlace,shake:+lastShake.toFixed(4)});
     chOnShot(photos[photos.length-1]);
     if(brf){ briefDone[brf.id]=(briefDone[brf.id]||0)+1; buildBriefList(); }
     refreshCount(); fireFlash(); shutterSound(); captureFX(url); vfRefresh();
@@ -642,6 +667,7 @@
     if(curBody().film){ var onBody=photos.filter(function(p){ return p.body===curBody().name; }).length; if(onBody%(curBody().roll||10)===0) toast("Roll finished. A fresh roll is loaded."); }
     photoTip(); saveSession();
   }
+  if(/[?&]dev/.test(location.search)) window.__shake={ capture:function(k){ renderFrame(0); return captureAspect(curAspect(), k); }, risk:function(){ return shakeRisk(); }, limit:function(){ return handheldLimit().label; } };
   function namePrefix(){ return studentName?studentName.replace(/[^\w -]/g,"").trim().replace(/\s+/g,"-")+"-":""; }
   function fileName(i){ return namePrefix()+"splat-photo-"+String(i+1).padStart(2,"0")+".png"; }
 

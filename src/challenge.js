@@ -148,7 +148,7 @@
       el.querySelector("b").textContent=Math.round(d)+" M"; }); }
   if(/[?&]dev/.test(location.search)){ window.__ch={ pads:function(){ return CH.pads.map(function(P){ return {id:P.c.id, x:P.E.x, z:P.E.z, y:P.E.y, w:P.w, done:!!CH.done[P.c.id]}; }); }, active:function(){ return CH.active; },
       checks:function(){ return CH.active>=0?chChecks(CH.pads[CH.active]):null; } };
-    window.__ch.set=function(o){ if(o.mm!=null){ focalMM=o.mm; zoomMM=o.mm; } if(o.f!=null){ var j=APERTURES.indexOf(o.f); if(j>=0) apIdx=j; } if(o.eye!=null) WK.eye=o.eye; computeCam();
+    window.__ch.set=function(o){ if(o.mm!=null){ focalMM=o.mm; zoomMM=o.mm; } if(o.f!=null){ var j=APERTURES.indexOf(o.f); if(j>=0) apIdx=j; } if(o.eye!=null) WK.eye=o.eye; if(o.sh!=null){ var q=SHUTTER_LABELS.indexOf(o.sh); if(q>=0) shIdx=q; } computeCam();
       if(o.meter){ var best=shIdx, bv=1e9; for(var s=0;s<SHUTTER_LABELS.length;s++){ shIdx=s; computeCam(); if(Math.abs(evStops)<bv){ bv=Math.abs(evStops); best=s; } } shIdx=best; computeCam(); } };
     window.__ch.aim=function(i){ var d=CH.pads[i].d; yaw=Math.atan2(-d.x,-d.z); pitch=Math.asin(Math.max(-1,Math.min(1,d.y))); basis(); };
     window.__ch.goto=function(i){ var P=CH.pads[i]; CH.pull=-1; CH.locked=false; CH.cool=i; camPos.x=P.E.x; camPos.z=P.E.z; WK.eye=P.E.y-wkGround(P.E.x,P.E.z); _vel.set(0,0,0); };

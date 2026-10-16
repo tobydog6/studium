@@ -361,7 +361,7 @@
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
     renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
-    if(viewer){ try{ viewer.update(); viewer.render(); }catch(e){} }
+    if(viewer){ try{ viewer.update(); skyFollow(); viewer.render(); }catch(e){} }
     renderer.setRenderTarget(null);
     fsMat.uniforms.tDiffuse.value=sceneRT.texture;
     fsMat.uniforms.exposure.value=fx.exposure; fsMat.uniforms.filmic.value=fx.filmic;
@@ -431,7 +431,7 @@
     camera.near=Math.max(maxDim*0.0006,0.01); camera.far=maxDim*12+100; camera.updateProjectionMatrix();
   }
 
-  function loadSplat(source, up, keepCol){ if(!keepCol) WK.col=null;
+  function loadSplat(source, up, keepCol){ if(!keepCol){ WK.col=null; skySet(null); }
     var isFile=(source instanceof File), url=source, format;
     if(isFile){ var ext=source.name.split(".").pop().toLowerCase(); format=FMT[ext];
       if(format===undefined){ toast("Unsupported file. Use a .ply, .splat or .ksplat."); return; } url=URL.createObjectURL(source);
@@ -442,7 +442,7 @@
     var q=upQuat(lastUp);
     var disposeOld=viewer?Promise.resolve(viewer.dispose()).catch(function(){}):Promise.resolve();
     disposeOld.then(function(){
-      viewer=null; loaded=false; scene=new THREE.Scene();
+      viewer=null; loaded=false; scene=new THREE.Scene(); skyAttach(scene);
       viewer=new GS.Viewer({selfDrivenMode:false,useBuiltInControls:false,renderer:renderer,camera:camera,threeScene:scene,sharedMemoryForWorkers:false});
       return viewer.addSplatScene(url,{format:format, rotation:[q.x,q.y,q.z,q.w], showLoadingUI:false, progressiveLoad:false, splatAlphaRemovalThreshold:5, onProgress:function(p,l){updateLoader(p,l);}});
     }).then(function(){
@@ -475,7 +475,7 @@
       if(sc.ext!=="stm") return {buf:ab, ext:sc.ext||"splat"};
       var ds=new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate")));
       return ds.arrayBuffer().then(function(raw){ return {buf:stmUnpack(raw, sceneDetail==="full"?false:sceneDetail), ext:"splat"}; }); })
-    .then(function(r){ return wkLoad(sc.collide).then(function(){ return r; }); })
+    .then(function(r){ skySet(sc.sky||null); return wkLoad(sc.collide).then(function(){ return r; }); })
     .then(function(r){ var f=new File([r.buf],(sc.id||"scene")+"."+r.ext,{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown", true); })
     .catch(function(e){ console.warn(e); hideLoader(); toast("Couldn't open that scene."); }); }
   function buildScenePicker(){ var host=$("sceneRow"); if(!host) return; var list=(window.SPLAT_SCENES||[]);
@@ -960,6 +960,7 @@
 @@include board.js@@
 @@include nav.js@@
 @@include walk.js@@
+@@include sky.js@@
 @@include sync.js@@
 @@include lesson.js@@
 @@include hub.js@@

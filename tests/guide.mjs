@@ -34,7 +34,8 @@ try {
   ok(/challenges/i.test(await page.$eval('#gdCard', (e) => e.textContent)), 'card lists the challenges');
   await shot('2-card');
   // challenges done (simulated) → free shoot
-  await ev(() => window.__gd.set(1)); await waitStep('shoot'); await shot('3-shoot');
+  // SKIP on the tracker moves straight on to the next step
+  await page.click('#gdCard [data-gd="next"]'); await waitStep('shoot'); await shot('3-shoot');
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(300);
   const lenses = ['2470', '50', '85', '135'], fs = [2.8, 8, 16], shs = ['1/500', '1/60', '1/15'], isos = [100, 400, 1600];
   await ev((a) => { for (let i = 0; i < 15; i++) window.__cb.addPhoto({ url: a.frames[i % a.frames.length], f: a.fs[i % 3], sh: a.shs[i % 3], iso: a.isos[i % 3], mm: 50, lens: a.lenses[i % 4], body: 'Full-frame DSLR', place: 'The Stump' }); }, { frames, fs, shs, isos, lenses });
@@ -67,6 +68,10 @@ try {
   await waitStep('done'); await shot('8-done');
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(500);
   ok((await gd()).step === -1 && !(await page.$('#gdCard.show')), 'finishing turns the guide off');
+  // Skip this step on a popup does the same
+  await ev(() => window.__gd.set(2)); await waitStep('select');
+  await page.click('#gdPop [data-gd="next"]'); await waitStep('edit');
+  ok(await page.$('#gdPop.show'), 'the next step pops up after a skip');
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));
   console.log(`PASS  guide (${FILE})`);
 } catch (e) { console.error('FAIL ', e.message); if (errors.length) console.error(errors.join('\n')); process.exitCode = 1; await shot('fail').catch(() => {}); }

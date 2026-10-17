@@ -75,15 +75,16 @@
       +(s.controls?'<div class="gd-keys">'+s.controls.map(function(c){ return '<span><kbd>'+c[0]+'</kbd>'+c[1]+'</span>'; }).join("")+'</div>':'')
       +(checks.length?'<div class="gd-list">'+checks.map(function(c){ return '<span><i></i>'+cbEsc(c.t)+'</span>'; }).join("")+'</div>':'')
       +(s.final?'<div class="gd-two"><button data-gd="book">OPEN THE BOOK</button><button data-gd="gallery">OPEN THE GALLERY</button></div>':'')
-      +'<div class="gd-acts"><button class="gd-skip" data-gd="skip">'+(s.final?'':'Skip the guide')+'</button><button class="gd-go" data-gd="go">'+s.btn+'</button></div></div>';
+      +'<div class="gd-acts"><button class="gd-skip" data-gd="skip">'+(s.final?'':'Skip the guide')+'</button>'+(s.final?'':'<button class="gd-skip gd-next" data-gd="next" title="Move on to the next step without doing this one">Skip this step ›</button>')+'<button class="gd-go" data-gd="go">'+s.btn+'</button></div></div>';
     el.classList.add("show"); GD.open=true; GD.shown=GD.step; gdSave(); }
   function gdClose(){ var el=$("gdPop"); if(el) el.classList.remove("show"); GD.open=false; gdCard(); }
   function gdCard(){ var el=gdEl("gdCard","gd-track"), s=GD_STEPS[GD.step];
     if(!gdActive()||!s||s.final||GD.open){ el.classList.remove("show"); return; }
     var checks=s.checks(), done=checks.filter(function(c){ return c.ok; }).length;
-    el.innerHTML='<div class="hd"><span class="k">STEP '+(GD.step+1)+' · '+cbEsc(s.title.toUpperCase())+'</span><span class="fr">'+done+' / '+checks.length+'</span><button data-gd="help" title="Show this step again">?</button></div>'
+    var html='<div class="hd"><span class="k">STEP '+(GD.step+1)+' · '+cbEsc(s.title.toUpperCase())+'</span><span class="fr">'+done+' / '+checks.length+'</span><button data-gd="help" title="Show this step again">?</button><button class="nx" data-gd="next" title="Skip this step">SKIP ›</button></div>'
       +checks.map(function(c){ return '<div class="ck'+(c.ok?' ok':'')+'"><i>'+(c.ok?'✓':'')+'</i><span>'+cbEsc(c.t)+'</span>'+(c.now?'<em>'+c.now+'</em>':'')+'</div>'; }).join("")
       +'<div class="bar"><b style="width:'+(checks.length?done/checks.length*100:0).toFixed(0)+'%"></b></div>';
+    if(el._html!==html){ el.innerHTML=html; el._html=html; }   // only when it changes, so its buttons stay clickable
     el.classList.add("show"); }
   function gdNext(){ GD.step++; GD.flags={}; var s=GD_STEPS[GD.step]; if(s&&s.onStart) s.onStart(); gdSave(); if(s) setTimeout(gdPop, 500); else gdCard(); }
   function gdTick(){ if(!gdActive()){ var c=$("gdCard"); if(c) c.classList.remove("show"); return; } var s=GD_STEPS[GD.step];
@@ -96,6 +97,7 @@
   document.addEventListener("click",function(e){ var b=e.target.closest&&e.target.closest("[data-gd]"); if(!b) return; var a=b.getAttribute("data-gd"), s=GD_STEPS[GD.step];
     if(a==="skip"){ GD.step=-1; gdSave(); gdClose(); toast("Guide off. Turn it back on from the ? button."); return; }
     if(a==="help"){ gdPop(); return; }
+    if(a==="next"){ if(!s||s.final) return; gdClose(); toast("Skipped: "+s.title); gdNext(); return; }   // move on without doing it (handy for trying the steps out)
     if(a==="book"||a==="gallery"){ GD.step=-1; gdSave(); gdClose(); openStudio(a); return; }
     if(a==="go"){ gdClose(); if(s&&s.final){ GD.step=-1; gdSave(); return; } if(s&&s.go) s.go(); } });
   // the ? button: show the current step, or start the guide again

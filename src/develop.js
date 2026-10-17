@@ -60,3 +60,4 @@
       if(mod&&(e.key==="a"||e.key==="A")){ e.preventDefault(); devSelectAll(); return; }
       if(tag==="INPUT") return;   // arrows on a focused slider move the slider
       if(e.key==="ArrowRight"){ e.preventDefault(); devStep(1); } else if(e.key==="ArrowLeft"){ e.preventDefault(); devStep(-1); } }); })();
+  if(/[?&]dev/.test(location.search)) window.__dev={ bake:function(o){ if(!edState) return null; var keep=JSON.stringify(edState); for(var k in o) edState[k]=o[k]; var u=devBake(); var E=JSON.parse(keep); for(var k2 in E) edState[k2]=E[k2]; return u; } };

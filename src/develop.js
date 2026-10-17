@@ -8,17 +8,24 @@
   function devClone(E){ var o={}; for(var k in EDEF) o[k]=E[k]; return o; }
   function devIsDefault(E){ for(var k in EDEF){ if(DEV_VIEW.indexOf(k)>=0) continue; if(E[k]!==EDEF[k]) return false; } return true; }
   function devSettings(E){ var o={}; for(var k in EDEF){ if(DEV_CROP.indexOf(k)<0) o[k]=E[k]; } return o; }
-  function devBake(){ var cr=cropRect(), ow=Math.max(2,Math.round(cr.w)), oh=Math.max(2,Math.round(cr.h)), url=null, keep=edShowOrig; edShowOrig=false;
-    if(egl&&!eglBad){ glc.width=ow; glc.height=oh; egl.viewport(0,0,ow,oh); egl.useProgram(eglProg); egl.bindTexture(egl.TEXTURE_2D,eglTex); setEglUniforms(cr); egl.drawArrays(egl.TRIANGLES,0,3);
-      try{ url=glc.toDataURL("image/jpeg",0.92); }catch(e){} }
-    if(!url){ var out=document.createElement("canvas"); edRender2D(cr,ow,oh,out); try{ url=out.toDataURL("image/jpeg",0.92); }catch(e){} }
-    edShowOrig=keep; return url; }
+  // Rendering at full size runs in background workers (crdev.js): the frame keeps its settings at once and its
+  // picture updates a moment later. p.baked records which settings the current picture was made with.
+  var devTok=typeof WeakMap!=="undefined"?new WeakMap():null, devPendingN=0, devSyncN=0;
+  function devPending(){ return devPendingN; }
+  function devQueue(i){ var p=photos[i]; if(!p||!p.dev||!p.orig) return; var key=JSON.stringify(p.dev); if(devTok) devTok.set(p,key); devPendingN++;
+    var img=new Image(); img.onload=function(){ crBake(img,p.dev,function(url){ devPendingN--;
+        if(url&&(!devTok||devTok.get(p)===key)&&p.dev&&JSON.stringify(p.dev)===key){ p.url=url; p.baked=key; p.edited=true; devChanged(p); devAfterBake(); } else if(!devPendingN) devAfterBake(); }); };
+    img.onerror=function(){ devPendingN--; }; img.src=p.orig; }
+  function devAfterBake(){ if(editor&&!editor.classList.contains("hidden")) devStrip();
+    if(typeof st!=="undefined"&&st.open&&st.room==="select"&&typeof stRenderSelect==="function"&&!(editor&&!editor.classList.contains("hidden"))) stRenderSelect();
+    if(!devPendingN&&devSyncN){ toast("Synced "+devSyncN+" frame"+(devSyncN===1?"":"s")); devSyncN=0; } }
+  function devResume(){ photos.forEach(function(p,i){ if(p.dev&&p.orig&&p.baked!==JSON.stringify(p.dev)) devQueue(i); }); }
   function devChanged(p){ if(p.id&&typeof hubThumbs!=="undefined") delete hubThumbs[p.id]; saveSession(); }
   // write the open frame's edit into the photo
   function devCommit(){ if(!edState||!edRC) return; var p=photos[edState.i]; if(!p) return;
-    if(devIsDefault(edState)){ if(p.orig){ p.url=p.orig; delete p.orig; delete p.dev; p.edited=false; devChanged(p); } return; }
+    if(devIsDefault(edState)){ if(p.orig){ p.url=p.orig; delete p.orig; delete p.dev; delete p.baked; p.edited=false; devChanged(p); } return; }
     var d=devClone(edState); if(p.dev&&p.orig&&JSON.stringify(p.dev)===JSON.stringify(d)) return;
-    var url=devBake(); if(!url) return; if(!p.orig) p.orig=p.url; p.url=url; p.dev=d; p.edited=true; devChanged(p); }
+    if(!p.orig) p.orig=p.url; p.dev=d; p.edited=true; devChanged(p); devQueue(edState.i); }
   function devOpenIdx(){ return edState?edState.i:-1; }
   function devGo(to){ if(devBusy||to<0||to>=photos.length||to===devOpenIdx()) return; devCommit(); if(typeof st!=="undefined"&&st.open) st.cur=to; openEditor(to); }
   function devStep(d){ devSel={}; var L=devList(), j=L.indexOf(devOpenIdx()); if(j<0){ devGo(L[0]); return; } var to=L[j+d]; if(to!=null) devGo(to); }
@@ -39,16 +46,14 @@
   function devPaste(){ if(!edState||!devClip) return; for(var k in devClip) edState[k]=devClip[k]; syncEditUI(); queueRender(); edPushHist(); setTimeout(drawHist,140); toast("Settings pasted"); }
   function devSelectAll(){ devSel={}; devList().forEach(function(i){ devSel[i]=true; }); devStrip(); }
   // render other frames with this frame's settings, one at a time, then put the open frame back
-  function devSync(){ if(devBusy||!edState) return; var cur=devOpenIdx(), set=devSettings(edState), q=[];
+  // put this frame's settings (not its crop) on the selected frames; they render in the background
+  function devSync(){ if(!edState) return; var cur=devOpenIdx(), set=devSettings(edState), q=[];
     for(var k in devSel) if(devSel[k]&&+k!==cur) q.push(+k); if(!q.length) return;
-    devCommit(); devBusy=true; var keep={E:edState, S:edSrc}, done=0; toast("Syncing "+q.length+" frame"+(q.length===1?"":"s")+"…");
-    (function next(){ if(!q.length){ edState=keep.E; edSrc=keep.S; buildRotated(); editRender(); devBusy=false; devStrip(); if(typeof stRenderSelect==="function"&&st.open&&st.room==="select") stRenderSelect(); toast("Synced "+done+" frame"+(done===1?"":"s")); if(done&&typeof GD!=="undefined") GD.flags.synced=1; return; }
-      var i=q.shift(), p=photos[i], img=new Image();
-      img.onload=function(){ var E=p.dev?devClone(p.dev):defEd(i); for(var s in set) E[s]=set[s]; E.i=i; edState=E; edSrc=img; buildRotated();
-        if(devIsDefault(E)){ if(p.orig){ p.url=p.orig; delete p.orig; delete p.dev; p.edited=false; } }
-        else { var url=devBake(); if(url){ if(!p.orig) p.orig=p.url; p.url=url; p.dev=devClone(E); p.edited=true; } }
-        devChanged(p); done++; next(); };
-      img.onerror=function(){ next(); }; img.src=p.orig||p.url; })(); }
+    devCommit(); toast("Syncing "+q.length+" frame"+(q.length===1?"":"s")+"…");
+    q.forEach(function(i){ var p=photos[i]; if(!p) return; var E=p.dev?devClone(p.dev):defEd(i); for(var s in set) E[s]=set[s];
+      if(devIsDefault(E)){ if(p.orig){ p.url=p.orig; delete p.orig; delete p.dev; delete p.baked; p.edited=false; devChanged(p); } return; }
+      if(!p.orig) p.orig=p.url; p.dev=devClone(E); p.edited=true; devSyncN++; devQueue(i); });
+    if(!devSyncN) toast("Synced"); if(typeof GD!=="undefined") GD.flags.synced=1; devStrip(); }
   (function wireDevelop(){ var f=$("dvFilm"); if(f) f.addEventListener("click",function(e){ var b=e.target.closest("[data-dv]"); if(b) devClick(+b.getAttribute("data-dv"), e); });
     var b; if((b=$("dvCopy"))) b.onclick=devCopy; if((b=$("dvPaste"))) b.onclick=devPaste; if((b=$("dvSync"))) b.onclick=devSync;
     if((b=$("dvPrev"))) b.onclick=function(){ devStep(-1); }; if((b=$("dvNext"))) b.onclick=function(){ devStep(1); };
@@ -60,4 +65,6 @@
       if(mod&&(e.key==="a"||e.key==="A")){ e.preventDefault(); devSelectAll(); return; }
       if(tag==="INPUT") return;   // arrows on a focused slider move the slider
       if(e.key==="ArrowRight"){ e.preventDefault(); devStep(1); } else if(e.key==="ArrowLeft"){ e.preventDefault(); devStep(-1); } }); })();
-  if(/[?&]dev/.test(location.search)) window.__dev={ bake:function(o){ if(!edState) return null; var keep=JSON.stringify(edState); for(var k in o) edState[k]=o[k]; var u=devBake(); var E=JSON.parse(keep); for(var k2 in E) edState[k2]=E[k2]; return u; } };
+  if(/[?&]dev/.test(location.search)) window.__crv=function(){ return {busy:crv.busy,pend:!!crv.pend,shown:crv.shown,ms:crv.ms}; };
+  if(/[?&]dev/.test(location.search)) window.__dev={ pending:devPending, params:function(o){ var E=devClone(edState||defEd(0)); for(var k in o) E[k]=o[k]; return crParams(E); },
+    bake:function(o,cb){ if(!edState||!edSrc) return null; var E=devClone(edState); for(var k in o) E[k]=o[k]; crBake(edSrc,E,cb); } };

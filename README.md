@@ -22,6 +22,9 @@ Open `dist/studium.html` directly in Chrome (file:// works). Add `?dev` to expos
 | `src/app.js` | The app: movement, camera sim, menu, editor, folio, photobook, gallery, hub, save/resume. |
 | `src/engine.js` | Entry for three.js + @mkkellogg/gaussian-splats-3d, bundled by esbuild. |
 | `src/scenes.js` | `SPLAT_SCENES` list (metadata; data comes from `assets/scenes/`). |
+| `src/crdev.js` | Develop engine: a JavaScript port of PhotoCraft's Camera Raw pipeline (Highlights/Shadows as a local Laplacian filter, measured Whites/Blacks curves, Dehaze, Clarity, Texture, tone curves, colour mixer, grading, detail), run in Web Workers. Previews and full-size renders. |
+| `src/crtables.js` | PhotoCraft's measured Whites/Blacks curve tables. |
+| `licenses/` | Licences for code Studium includes from other projects. |
 | `src/punctum.js` | Loads Punctum into its iframe from `vendor/punctum.html`. |
 | `assets/` | Binary files (fonts, camera renders, scene `.splat` files and thumbnails). |
 | `vendor/punctum.html` | Punctum build, maintained in its own project. Drop a newer one here to update it. |

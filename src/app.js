@@ -533,7 +533,7 @@
     r.onupgradeneeded=function(e){ try{ e.target.result.createObjectStore("state"); }catch(_){} };
     r.onsuccess=function(e){ _db=e.target.result; cb(_db); }; r.onerror=function(){ cb(null); }; }catch(e){ cb(null); } }
   function sessionData(){ return { v:1, savedAt:Date.now(), studentName:studentName, briefDone:briefDone,
-    photos:photos.map(function(p){ return {url:p.url,orig:p.orig||null,dev:p.dev||null,id:p.id||null,copy:!!p.copy,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order,challenge:p.challenge||null,lens:p.lens||null,shake:p.shake||0}; }),
+    photos:photos.map(function(p){ return {url:p.url,orig:p.orig||null,dev:p.dev||null,id:p.id||null,copy:!!p.copy,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,baked:p.baked||null,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order,challenge:p.challenge||null,lens:p.lens||null,shake:p.shake||0}; }),
     workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), projects:(typeof st!=="undefined"?st.projects:[]), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
@@ -554,7 +554,7 @@
     (d.photos||[]).forEach(function(p){ p.t=p.t?new Date(p.t):new Date(); photos.push(p); });
     if(d.folio&&d.folio.length&&typeof foItems!=="undefined") foItems=d.folio.map(function(x){ return {url:x.url,size:x.size}; });
     if(d.pbPages&&d.pbPages.length&&typeof pbPages!=="undefined") pbPages=d.pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; });
-    sessionRestored=true; refreshCount();
+    sessionRestored=true; refreshCount(); if(typeof devResume==="function") setTimeout(devResume,1200);
   }catch(e){} }
   function clearSession(){ idb(function(db){ if(db){ try{ db.transaction("state","readwrite").objectStore("state").delete("session"); }catch(e){} } });
     photos.length=0; if(typeof foItems!=="undefined") foItems=[]; if(typeof pbPages!=="undefined") pbPages=[];
@@ -720,167 +720,37 @@
   // ---- editor (Lightroom-style Develop panel, WebGL processing) ----
   var edState=null, edSrc=null, edRC=null, rcW=1, rcH=1;
   var edShowOrig=false, edVZoom=1, edVX=0, edVY=0, edHist=[], edHistI=-1, edRestoring=false;
-  var egl=null, glc=null, eglProg=null, eglTex=null, eglBuf=null, eglU={}, eglBad=false, eglReadBuf=null;
   var edRafPending=false, edHistTimer=0, edHover=false;
-  var PROFILES={ color:{sat:0,con:0,warm:0}, mono:{sat:0,con:0,warm:0}, vivid:{sat:0.18,con:0.10,warm:0}, flat:{sat:-0.25,con:-0.12,warm:0}, portrait:{sat:-0.05,con:-0.03,warm:0.12} };
   var EDEF={ exposure:0,contrast:0,highlights:0,shadows:0,whites:0,blacks:0, temp:0,tint:0,vibrance:0,saturation:0,
     texture:0,clarity:0,dehaze:0,vignette:0,grain:0,grainSize:25,grainRough:50,glow:0,
     mono:0,hdr:0,profile:"color",wb:"asshot", aspect:"free",zoom:1,rot:0,cx:0.5,cy:0.5, secLight:1,secColor:1,secEffects:1 };
   function defEd(i){ var o={},k; for(k in EDEF) o[k]=EDEF[k]; o.i=i; return o; }
-  var EV_VS="attribute vec2 aPos;varying vec2 vUv;void main(){ vUv=aPos*0.5+0.5; gl_Position=vec4(aPos,0.0,1.0); }";
-  var EV_FS=[
-    "precision highp float;",
-    "varying vec2 vUv;",
-    "uniform sampler2D tex;",
-    "uniform vec2 cropOff, cropScale, uTexel;",
-    "uniform float exposure, contrast, highlights, shadows, whites, blacks;",
-    "uniform float temp, tint, vibrance, saturation;",
-    "uniform float texturef, clarity, dehaze, vignette, grain, grainSize, grainRough, glow;",
-    "uniform float mono, hdr, seed, pSat, pCon, pWarm, bypass;",
-    "float luma(vec3 c){ return dot(c, vec3(0.299,0.587,0.114)); }",
-    "float hash(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+45.32); return fract(p.x*p.y); }",
-    "vec2 sUV(vec2 uv){ return cropOff + uv*cropScale; }",
-    "vec3 blurRing(vec2 uv, float rad){ vec2 s=sUV(uv); vec3 a=texture2D(tex,s).rgb; for(int i=0;i<8;i++){ float an=float(i)*0.785398; vec2 o=vec2(cos(an),sin(an))*rad*uTexel; a+=texture2D(tex,s+o).rgb; } return a*0.111111; }",
-    "void main(){",
-    "  vec3 c = texture2D(tex, sUV(vUv)).rgb;",
-    "  if(bypass>0.5){ gl_FragColor=vec4(c,1.0); return; }",
-    "  c *= exp2(exposure*2.0);",
-    "  c.r += temp*0.09; c.b -= temp*0.09;",
-    "  c.r += tint*0.04; c.b += tint*0.04; c.g -= tint*0.06;",
-    "  c.r += pWarm*0.06; c.b -= pWarm*0.06;",
-    "  c = max(c, 0.0);",
-    "  float l = luma(c);",
-    "  float nl = l;",
-    "  nl += highlights*0.16*smoothstep(0.25,1.0,l)*(1.0-0.5*smoothstep(0.9,1.0,l));",
-    "  nl += shadows*0.16*(1.0-smoothstep(0.0,0.6,l));",
-    "  nl += whites*0.13*smoothstep(0.55,1.0,l);",
-    "  nl += blacks*0.13*(1.0-smoothstep(0.0,0.30,l));",
-    "  nl = max(nl,0.0); c *= (l>0.0008)? nl/l : 1.0;",
-    "  float con = contrast + pCon;",
-    "  if(con>0.001){ vec3 s=clamp(c,0.0,1.0); s=s*s*(3.0-2.0*s); c=mix(c,s,con*0.45); }",
-    "  else if(con<-0.001){ c=(c-0.5)*(1.0+con*0.6)+0.5; }",
-    "  if(abs(dehaze)>0.001){ c=(c-0.5)*(1.0+dehaze*0.35)+0.5; c.b -= dehaze*0.025; }",
-    "  if(abs(texturef)>0.001){ vec3 lo=blurRing(vUv,2.2); c += (c-lo)*texturef*0.9; }",
-    "  if(abs(clarity)>0.001){ vec3 lo=blurRing(vUv,7.0); float mw=1.0-abs(luma(c)*2.0-1.0); c += (c-lo)*clarity*0.75*(0.4+0.6*mw); }",
-    "  if(glow>0.001){ vec3 b=blurRing(vUv,11.0); vec3 hi=max(b-0.6,0.0); c += hi*glow*1.3; }",
-    "  c = max(c,0.0);",
-    "  float l2=luma(c);",
-    "  c = mix(vec3(l2), c, 1.0+(saturation+pSat)*0.8);",
-    "  float mx=max(max(c.r,c.g),c.b), mn=min(min(c.r,c.g),c.b);",
-    "  c = mix(vec3(luma(c)), c, 1.0+vibrance*(1.0-(mx-mn))*0.9);",
-    "  c = c/(1.0+max(c-0.72,0.0)*1.3);",
-    "  if(hdr>0.5){ vec3 x=max(c,0.0); c=(x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14); c*=1.06; }",
-    "  if(mono>0.5){ c=vec3(luma(c)); }",
-    "  float d=distance(vUv, vec2(0.5))*1.42;",
-    "  c *= 1.0 + vignette*0.9*smoothstep(0.35,1.0,d);",
-    "  if(grain>0.001){ float sc=mix(1.0,4.0,1.0-grainSize); float n=hash(floor(gl_FragCoord.xy/max(sc,0.5))+seed); n=mix(0.5,n,0.55+0.9*grainRough); c += (n-0.5)*grain*0.28; }",
-    "  gl_FragColor = vec4(clamp(c,0.0,1.0), 1.0);",
-    "}"
-  ].join("\n");
-  function eglInit(){
-    if(egl||eglBad) return;
-    try{
-      glc=document.createElement("canvas");
-      egl=glc.getContext("webgl",{preserveDrawingBuffer:true,antialias:false,premultipliedAlpha:false})||glc.getContext("experimental-webgl",{preserveDrawingBuffer:true});
-      if(!egl){ eglBad=true; return; }
-      var mk=function(t,s){ var sh=egl.createShader(t); egl.shaderSource(sh,s); egl.compileShader(sh);
-        if(!egl.getShaderParameter(sh,egl.COMPILE_STATUS)){ console.warn("edit shader:",egl.getShaderInfoLog(sh)); throw "compile"; } return sh; };
-      var p=egl.createProgram(); egl.attachShader(p,mk(egl.VERTEX_SHADER,EV_VS)); egl.attachShader(p,mk(egl.FRAGMENT_SHADER,EV_FS));
-      egl.bindAttribLocation(p,0,"aPos"); egl.linkProgram(p);
-      if(!egl.getProgramParameter(p,egl.LINK_STATUS)){ console.warn("edit link:",egl.getProgramInfoLog(p)); throw "link"; }
-      eglProg=p; egl.useProgram(p);
-      eglBuf=egl.createBuffer(); egl.bindBuffer(egl.ARRAY_BUFFER,eglBuf);
-      egl.bufferData(egl.ARRAY_BUFFER,new Float32Array([-1,-1, 3,-1, -1,3]),egl.STATIC_DRAW);
-      egl.enableVertexAttribArray(0); egl.vertexAttribPointer(0,2,egl.FLOAT,false,0,0);
-      eglTex=egl.createTexture(); egl.bindTexture(egl.TEXTURE_2D,eglTex);
-      egl.texParameteri(egl.TEXTURE_2D,egl.TEXTURE_WRAP_S,egl.CLAMP_TO_EDGE);
-      egl.texParameteri(egl.TEXTURE_2D,egl.TEXTURE_WRAP_T,egl.CLAMP_TO_EDGE);
-      egl.texParameteri(egl.TEXTURE_2D,egl.TEXTURE_MIN_FILTER,egl.LINEAR);
-      egl.texParameteri(egl.TEXTURE_2D,egl.TEXTURE_MAG_FILTER,egl.LINEAR);
-      egl.uniform1i(egl.getUniformLocation(p,"tex"),0);
-      ["cropOff","cropScale","uTexel","exposure","contrast","highlights","shadows","whites","blacks","temp","tint","vibrance","saturation","texturef","clarity","dehaze","vignette","grain","grainSize","grainRough","glow","mono","hdr","bypass","seed","pSat","pCon","pWarm"].forEach(function(n){ eglU[n]=egl.getUniformLocation(p,n); });
-    }catch(e){ console.warn("edit gl init failed",e); eglBad=true; egl=null; }
-  }
+  // Processing is Camera Raw–style, in crdev.js (a port of PhotoCraft's pipeline), off the main thread.
+  function eglInit(){}
   function buildRotated(){
     var iw=edSrc.naturalWidth, ih=edSrc.naturalHeight, rot=edState?edState.rot:0;
     var rw=(rot%180===0)?iw:ih, rh=(rot%180===0)?ih:iw;
     edRC=document.createElement("canvas"); edRC.width=rw; edRC.height=rh;
     var c=edRC.getContext("2d"); c.save(); c.translate(rw/2,rh/2); c.rotate(rot*Math.PI/180); c.drawImage(edSrc,-iw/2,-ih/2); c.restore();
     rcW=rw; rcH=rh;
-    if(egl && !eglBad && eglTex){ egl.bindTexture(egl.TEXTURE_2D,eglTex); egl.pixelStorei(egl.UNPACK_FLIP_Y_WEBGL,true);
-      try{ egl.texImage2D(egl.TEXTURE_2D,0,egl.RGBA,egl.RGBA,egl.UNSIGNED_BYTE,edRC); }catch(e){ console.warn("tex upload",e); } }
   }
-  function cropRect(){
-    var rw=rcW, rh=rcH;
-    var A=(edState.aspect==="free")?(rw/rh):parseFloat(edState.aspect);
+  function cropRect(){ return cropRectFor(edState,rcW,rcH); }
+  function cropRectFor(E,rw,rh){
+    var A=(E.aspect==="free")?(rw/rh):parseFloat(E.aspect);
     var fw,fh; if(rw/rh>A){ fh=rh; fw=rh*A; } else { fw=rw; fh=rw/A; }
-    fw/=edState.zoom; fh/=edState.zoom;
-    var x=edState.cx*rw-fw/2, y=edState.cy*rh-fh/2;
+    fw/=E.zoom; fh/=E.zoom;
+    var x=E.cx*rw-fw/2, y=E.cy*rh-fh/2;
     x=Math.min(Math.max(x,0),rw-fw); y=Math.min(Math.max(y,0),rh-fh);
     return {x:x,y:y,w:fw,h:fh};
   }
-  function setEglUniforms(cr){
-    var E=edState, U=eglU, g=egl, prof=PROFILES[E.profile]||PROFILES.color;
-    var lm=E.secLight?1:0, cm=E.secColor?1:0, fm=E.secEffects?1:0;
-    g.uniform2f(U.cropOff, cr.x/rcW, 1-(cr.y+cr.h)/rcH);
-    g.uniform2f(U.cropScale, cr.w/rcW, cr.h/rcH);
-    g.uniform2f(U.uTexel, 1/rcW, 1/rcH);
-    g.uniform1f(U.exposure, (E.exposure/100)*lm);
-    g.uniform1f(U.contrast, (E.contrast/100)*lm);
-    g.uniform1f(U.highlights, (E.highlights/100)*lm);
-    g.uniform1f(U.shadows, (E.shadows/100)*lm);
-    g.uniform1f(U.whites, (E.whites/100)*lm);
-    g.uniform1f(U.blacks, (E.blacks/100)*lm);
-    g.uniform1f(U.temp, (E.temp/100)*cm);
-    g.uniform1f(U.tint, (E.tint/100)*cm);
-    g.uniform1f(U.vibrance, (E.vibrance/100)*cm);
-    g.uniform1f(U.saturation, (E.saturation/100)*cm);
-    g.uniform1f(U.texturef, (E.texture/100)*fm);
-    g.uniform1f(U.clarity, (E.clarity/100)*fm);
-    g.uniform1f(U.dehaze, (E.dehaze/100)*fm);
-    g.uniform1f(U.vignette, (E.vignette/100)*fm);
-    g.uniform1f(U.grain, (E.grain/100)*fm);
-    g.uniform1f(U.grainSize, E.grainSize/100);
-    g.uniform1f(U.grainRough, E.grainRough/100);
-    g.uniform1f(U.glow, (E.glow/100)*fm);
-    g.uniform1f(U.mono, E.mono?1:0);
-    g.uniform1f(U.bypass, edShowOrig?1:0);
-    g.uniform1f(U.hdr, E.hdr?1:0);
-    g.uniform1f(U.seed, Math.random()*80);
-    g.uniform1f(U.pSat, prof.sat*cm);
-    g.uniform1f(U.pCon, prof.con*lm);
-    g.uniform1f(U.pWarm, prof.warm*cm);
-  }
-  function editRender(){
-    if(!edState||!edRC) return; eglInit();
-    var cr=cropRect(), cap=980, s=Math.min(cap/cr.w, cap/cr.h, 1.7); if(!isFinite(s)||s<=0) s=1;
-    var ow=Math.max(2,Math.round(cr.w*s)), oh=Math.max(2,Math.round(cr.h*s)), vcnv=$("editCanvas");
-    if(egl && !eglBad){
-      if(glc.width!==ow||glc.height!==oh){ glc.width=ow; glc.height=oh; }
-      egl.viewport(0,0,ow,oh); egl.useProgram(eglProg); egl.bindTexture(egl.TEXTURE_2D,eglTex);
-      setEglUniforms(cr); egl.drawArrays(egl.TRIANGLES,0,3);
-      if(vcnv.width!==ow||vcnv.height!==oh){ vcnv.width=ow; vcnv.height=oh; }
-      var vc=vcnv.getContext("2d"); vc.clearRect(0,0,ow,oh); vc.drawImage(glc,0,0);
-    } else { edRender2D(cr,ow,oh); }
-    scheduleHist();
-  }
-  function queueRender(){ if(edRafPending) return; edRafPending=true; requestAnimationFrame(function(){ edRafPending=false; editRender(); }); }
+  // the full preview; queueRender shows a quick draft at once and the full preview when the slider rests
+  function editRender(){ if(!edState||!edRC) return; clearTimeout(crv.settle); crRequest("final"); }
+  function queueRender(){ if(!edState||!edRC) return; crRequest("draft"); clearTimeout(crv.settle); crv.settle=setTimeout(function(){ crRequest("final"); },260); }
   function scheduleHist(){ if(edHistTimer) return; edHistTimer=setTimeout(function(){ edHistTimer=0; drawHist(); }, 90); }
   function drawHist(){
-    var hc=$("lrHist"); if(!hc||!edState) return;
-    var w=(egl&&!eglBad)?glc.width:$("editCanvas").width, h=(egl&&!eglBad)?glc.height:$("editCanvas").height;
-    if(w<2||h<2) return;
-    var rH=new Float64Array(64), gH=new Float64Array(64), bH=new Float64Array(64), sr=0,sg=0,sb=0,ns=0, need=w*h*4, i;
-    if(egl && !eglBad){
-      if(!eglReadBuf||eglReadBuf.length<need) eglReadBuf=new Uint8Array(need);
-      try{ egl.bindTexture(egl.TEXTURE_2D,eglTex); egl.readPixels(0,0,w,h,egl.RGBA,egl.UNSIGNED_BYTE,eglReadBuf); }catch(e){ return; }
-      var buf=eglReadBuf, step=Math.max(1,(w*h/26000)|0)*4;
-      for(i=0;i+2<need;i+=step){ var r=buf[i],gg=buf[i+1],bb=buf[i+2]; rH[r>>2]++; gH[gg>>2]++; bH[bb>>2]++; sr+=r; sg+=gg; sb+=bb; ns++; }
-    } else {
-      var im; try{ im=$("editCanvas").getContext("2d").getImageData(0,0,w,h).data; }catch(e2){ return; }
-      var st=Math.max(1,(w*h/26000)|0)*4;
-      for(i=0;i+2<im.length;i+=st){ var r2=im[i],g2=im[i+1],b2=im[i+2]; rH[r2>>2]++; gH[g2>>2]++; bH[b2>>2]++; sr+=r2; sg+=g2; sb+=b2; ns++; }
-    }
+    var hc=$("lrHist"), L=crv.last; if(!hc||!edState||!L) return;
+    var rH=new Float64Array(64), gH=new Float64Array(64), bH=new Float64Array(64), sr=0,sg=0,sb=0,ns=0, buf=L.data, need=L.w*L.h*4, i, step=Math.max(1,(L.w*L.h/26000)|0)*4;
+    for(i=0;i+2<need;i+=step){ var r=buf[i],gg=buf[i+1],bb=buf[i+2]; rH[r>>2]++; gH[gg>>2]++; bH[bb>>2]++; sr+=r; sg+=gg; sb+=bb; ns++; }
     var x=hc.getContext("2d"), W=hc.width, H=hc.height; x.clearRect(0,0,W,H); x.fillStyle="#161719"; x.fillRect(0,0,W,H);
     var mx=1,k; for(k=0;k<64;k++){ if(rH[k]>mx)mx=rH[k]; if(gH[k]>mx)mx=gH[k]; if(bH[k]>mx)mx=bH[k]; } mx=Math.pow(mx,0.9);
     var area=function(hh,col){ x.beginPath(); x.moveTo(0,H); for(var q=0;q<64;q++){ var xx=q/63*W, yy=H-Math.pow(hh[q],0.9)/mx*(H-6); x.lineTo(xx,yy); } x.lineTo(W,H); x.closePath(); x.fillStyle=col; x.fill(); };
@@ -888,19 +758,10 @@
     if(ns>0 && !edHover){ setTxt("lrR",Math.round(sr/ns)); setTxt("lrG",Math.round(sg/ns)); setTxt("lrB",Math.round(sb/ns)); }
   }
   function hoverReadout(e){
-    if(!eglReadBuf||!egl||eglBad) return; var cnv=$("editCanvas"), r=cnv.getBoundingClientRect(); if(r.width<1) return;
-    var px=Math.floor((e.clientX-r.left)/r.width*glc.width), py=Math.floor((e.clientY-r.top)/r.height*glc.height);
-    if(px<0||py<0||px>=glc.width||py>=glc.height) return;
-    var idx=((glc.height-1-py)*glc.width+px)*4; if(idx+2>=eglReadBuf.length) return;
-    edHover=true; setTxt("lrR",eglReadBuf[idx]); setTxt("lrG",eglReadBuf[idx+1]); setTxt("lrB",eglReadBuf[idx+2]);
-  }
-  function edRender2D(cr,ow,oh,outCanvas){
-    var E=edState, out=outCanvas||$("editCanvas"); out.width=ow; out.height=oh; var c=out.getContext("2d");
-    var bri=1+(E.exposure/100)*0.35+E.shadows/500, con=1+E.contrast/120, sat=Math.max(0,1+E.saturation/100+(E.mono?-1:0));
-    c.filter="brightness("+bri+") contrast("+con+") saturate("+sat+")"+(E.mono?" grayscale(1)":"");
-    c.drawImage(edRC, cr.x,cr.y,cr.w,cr.h, 0,0,ow,oh); c.filter="none";
-    if(E.temp!==0){ c.globalCompositeOperation="soft-light"; var a=Math.abs(E.temp)/100*0.5; c.fillStyle=E.temp>0?"rgba(255,150,40,"+a+")":"rgba(60,140,255,"+a+")"; c.fillRect(0,0,ow,oh); c.globalCompositeOperation="source-over"; }
-    if(E.vignette<0){ var g=c.createRadialGradient(ow/2,oh/2,Math.min(ow,oh)*0.3,ow/2,oh/2,Math.max(ow,oh)*0.72); g.addColorStop(0,"rgba(0,0,0,0)"); g.addColorStop(1,"rgba(0,0,0,"+(Math.abs(E.vignette)/100*0.8)+")"); c.fillStyle=g; c.fillRect(0,0,ow,oh); }
+    var L=crv.last; if(!L) return; var cnv=$("editCanvas"), r=cnv.getBoundingClientRect(); if(r.width<1) return;
+    var px=Math.floor((e.clientX-r.left)/r.width*L.w), py=Math.floor((e.clientY-r.top)/r.height*L.h);
+    if(px<0||py<0||px>=L.w||py>=L.h) return;
+    var idx=(py*L.w+px)*4; edHover=true; setTxt("lrR",L.data[idx]); setTxt("lrG",L.data[idx+1]); setTxt("lrB",L.data[idx+2]);
   }
   function autoTone(){
     var mr=+txt("lrR")||120, mg=+txt("lrG")||120, mb=+txt("lrB")||120;
@@ -916,18 +777,12 @@
     syncEditUI(); queueRender();
   }
   function saveEdit(){   // "Make a copy": a second, separate frame with this edit (the original keeps its own)
-    if(!edState) return; var cr=cropRect(), ow=Math.max(2,Math.round(cr.w)), oh=Math.max(2,Math.round(cr.h)), url=null;
-    if(egl && !eglBad){
-      glc.width=ow; glc.height=oh; egl.viewport(0,0,ow,oh); egl.useProgram(eglProg); egl.bindTexture(egl.TEXTURE_2D,eglTex);
-      setEglUniforms(cr); egl.drawArrays(egl.TRIANGLES,0,3);
-      try{ url=glc.toDataURL("image/png"); }catch(e){ url=null; }
-    }
-    if(!url){ var out=document.createElement("canvas"); edRender2D(cr,ow,oh,out); try{ url=out.toDataURL("image/png"); }catch(e2){ toast("Couldn't save the edit."); return; } }
-    var o=photos[edState.i]||{}; photos.push({url:url,t:new Date(),f:o.f,sh:o.sh,iso:o.iso,mm:o.mm,body:o.body,brief:o.brief,place:o.place,edited:true,copy:true,
+    if(!edState) return; var o=photos[edState.i]||{}, src=o.orig||o.url, E=devClone(edState);
+    photos.push({url:src,orig:src,dev:E,t:new Date(),f:o.f,sh:o.sh,iso:o.iso,mm:o.mm,body:o.body,brief:o.brief,place:o.place,edited:true,copy:true,
       pick:false, rating:o.rating||0, note:o.note||"", order:null});
-    refreshCount(); devSel={}; openEditor(photos.length-1); if(typeof st!=="undefined"&&st.open) st.cur=photos.length-1;
+    var ni=photos.length-1; devQueue(ni);
+    refreshCount(); devSel={}; openEditor(ni); if(typeof st!=="undefined"&&st.open) st.cur=ni;
     toast("Copy made. You're now editing the copy; the original is left as it was.");
-    if(!eglBad&&egl) editRender();
     saveSession();
   }
   function txt(id){ var e=$(id); return e?e.textContent:""; }
@@ -999,6 +854,8 @@
 @@include finder.js@@
 @@include bag.js@@
 @@include studio.js@@
+@@include crtables.js@@
+@@include crdev.js@@
 @@include develop.js@@
 @@include library.js@@
 @@include board.js@@

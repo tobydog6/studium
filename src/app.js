@@ -858,6 +858,7 @@
 @@include crdev.js@@
 @@include develop.js@@
 @@include library.js@@
+@@include import.js@@
 @@include board.js@@
 @@include nav.js@@
 @@include walk.js@@

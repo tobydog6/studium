@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "test": "node build.mjs && node tests/crdev.mjs && node tests/smoke.mjs && node tests/back.mjs && node tests/finder.mjs && node tests/bag.mjs && node tests/studio.mjs && node tests/lesson.mjs && node tests/develop.mjs && node tests/challenge.mjs && node tests/shake.mjs && node tests/board.mjs && node tests/guide.mjs"
+    "test": "node build.mjs && node tests/crdev.mjs && node tests/smoke.mjs && node tests/back.mjs && node tests/finder.mjs && node tests/bag.mjs && node tests/studio.mjs && node tests/lesson.mjs && node tests/develop.mjs && node tests/import.mjs && node tests/challenge.mjs && node tests/shake.mjs && node tests/board.mjs && node tests/guide.mjs"
   },
   "devDependencies": {
     "@mkkellogg/gaussian-splats-3d": "0.4.7",

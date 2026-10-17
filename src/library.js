@@ -2,7 +2,8 @@
   // Like a photo app's library panel. Shortcuts (all frames, picks), one folder per location you shot in, and
   // projects students make themselves (a shoot, a theme, a series). Click a folder to see its frames. Click a frame
   // to use it, Ctrl/⌘ or Shift-click to select several, and drag frames (or a whole folder) onto a page, a cluster,
-  // or a project. EDIT on a folder opens the develop panel on just that group, so it can be edited and synced together.
+  // or a project. Photos and folders dragged in from the computer import into the open folder (import.js).
+  // EDIT on a folder opens the develop panel on just that group, so it can be edited and synced together.
   var LIB={key:"all", sel:{}, anchor:-1, naming:null, delAsk:null};
   function libProjects(){ if(!st.projects) st.projects=[]; return st.projects; }
   function libFolders(){ var places=[], seen={}; photos.forEach(function(p){ var k=stPlaceOf(p)||"Uploads"; if(!seen[k]){ seen[k]=1; places.push(k); } });
@@ -39,7 +40,7 @@
       +folders.filter(function(f){ return f.kind==="proj"; }).map(row).join("")
       +(libProjects().length||LIB.naming?'':'<p class="lib-none">Group a shoot or theme. Select frames, then + NEW.</p>')+'</div>';
     if(ctx==="select"){ h+='<div class="lib-grid-h"><span class="eb">'+cbEsc(libName(key).toUpperCase())+' · '+items.length+'</span>'+(sel.length?'<button data-lib-clear>'+sel.length+' SELECTED ✕</button>':'')+'</div>'
-      +'<p class="lib-tip">Ctrl-click frames on the light table to select several, then <b>+ NEW</b> to make a project, or drag them onto one.</p>';
+      +'<p class="lib-tip">Ctrl-click frames on the light table to select several, then <b>+ NEW</b> to make a project, or drag them onto one. Drag photos or a folder in from your computer to import them into the open folder.</p>';
       el.innerHTML=h; el.classList.add("lib-host","lib-sel"); var i0=el.querySelector(".lib-in"); if(i0){ i0.focus(); i0.select(); } libWire(el, ctx); return; }
     h+='<div class="lib-grid-h"><span class="eb">'+cbEsc(libName(key).toUpperCase())+' · '+items.length+'</span>'+(sel.length?'<button data-lib-clear>'+sel.length+' SELECTED ✕</button>':'')+'</div><div class="lib-grid">'
       +(items.length?items.map(function(i){ var id=stId(i);

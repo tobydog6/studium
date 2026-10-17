@@ -5,7 +5,7 @@
   // (crouch or stand tall to match), look through it, and with the right lens the frame sits right on the edges of
   // your viewfinder. A card ticks off the rest (lens, aperture, exposure); shoot with everything ticked to complete it.
   var CH={focus:-1, doneHold:false, doneT:0, spec:null, list:[], fx:null, pads:[], active:-1, done:{}, t:0, lastEval:0, cardFor:-1, pull:-1, locked:false, cool:-1, nudge:false};
-  var CH_D=0.45, CH_NEAR=3.5, CH_GRAB=0.8, CH_LEAVE=1.4;
+  var CH_D=0.45, CH_NEAR=3.5, CH_LEAVE=1.4;
   var CH_RING_FS="uniform float alpha; uniform vec2 size; varying vec2 vUv; void main(){ vec2 p=vUv*size; float e=min(min(p.x,size.x-p.x),min(p.y,size.y-p.y)); float fw=fwidth(e); float bw=max(size.x*0.006,fw*1.2); float a=(1.0-smoothstep(bw-fw,bw+fw,e))*alpha; gl_FragColor=vec4(0.97,0.76,0.40,a); }";
   // the frame: thin gold lines with corner brackets, and a soft halo that hugs them (inside and out) while it draws you in
   var CH_FRAME_FS="uniform float t; uniform float done; uniform float lock; uniform float fade; uniform float glow; uniform float pad; uniform vec2 size; varying vec2 vUv;"
@@ -51,13 +51,19 @@
         P.rings.forEach(function(R,k){ var ph=(CH.t*0.3+k/3)%1, s=1.18-0.18*ph; R.position.copy(P.F).addScaledVector(P.d,-(1-ph)*P.D*0.7); R.scale.set(s,s,1);
           R.material.uniforms.alpha.value=Math.sin(ph*Math.PI)*0.13*CH.glow*P.vis; }); return; }
       var prox=CH.done[P.c.id]||mine?0:Math.max(0,Math.min(1,(5-dist)/2.5))*(1-CH.glow);   // only near it, and gone once it has you
-      P.rings.forEach(function(R,k){ var ph=(CH.t*0.35+k/3)%1, s=1+ph*0.25; R.position.copy(P.F).addScaledVector(P.d,-ph*0.45); R.scale.set(s,s,1);
+      P.rings.forEach(function(R,k){ var ph=(CH.t*0.35+k/3)%1, s=1+ph*CH_SPREAD; R.position.copy(P.F).addScaledVector(P.d,-ph*CH_REACH); R.scale.set(s,s,1);   // the pulse shows the reach
         R.material.uniforms.alpha.value=Math.sin(ph*Math.PI)*0.16*prox; }); });
     var ac=renderer.autoClear; renderer.autoClear=false; renderer.render(CH.fx, camera); renderer.autoClear=ac; }
   // ---- the pull ----
-  // Walk right up to a frame (within 0.8 m, facing it) and it draws you in: a slow, eased glide into the eye point,
+  // Near a frame, gold outlines pulse out of it back towards you. That pulse is the frame's reach: step inside it at
+  // all (walking or standing still, facing any way) and the frame draws you in, a slow, eased glide into the eye point,
   // turning and crouching to fit. Once it starts it always finishes, and you're held for a second when you land.
-  // After that, any move (walk, crouch, look) lets go, and that frame won't take you again until you've left and come back.
+  // After that, any move (walk, crouch, look) lets go, and that frame won't take you again until you've left its pulse.
+  var CH_REACH=1.0, CH_SPREAD=0.35;   // the pulse travels a metre out from the frame and widens by a third as it goes
+  // is the camera inside frame P's pulse (grown by m metres)?
+  function chInPulse(P,m){ var L=Math.hypot(P.d.x,P.d.z)||1, ax=-P.d.x/L, az=-P.d.z/L, dx=camPos.x-P.F.x, dz=camPos.z-P.F.z;
+    var n=dx*ax+dz*az, u=Math.abs(dx*-az+dz*ax), k=Math.max(0,Math.min(1,n/CH_REACH));
+    return n>-0.25-m&&n<CH_REACH+m&&u<P.w*0.5*(1+CH_SPREAD*k)+0.2+m&&Math.abs(camPos.y-P.F.y)<P.h*0.5+1.3+m; }
   var CH_MOVE={KeyW:1,KeyA:1,KeyS:1,KeyD:1,KeyQ:1,KeyE:1,ArrowUp:1,ArrowDown:1,ArrowLeft:1,ArrowRight:1,Space:1}, CH_GRACE=1000;
   CH.glow=0; CH.bloom=0; CH.pt=0; CH.lockT=0;
   document.addEventListener("keydown",function(e){ if(CH_MOVE[e.code]) CH.nudge=true; });
@@ -77,16 +83,13 @@
     var held=CH_MOVE&&Object.keys(CH_MOVE).some(function(k){ return keys[k]; }), nudge=CH.nudge||held; CH.nudge=false;
     CH.glow+=((CH.pull>=0&&!(CH.locked&&!chHold())?1:0)-CH.glow)*(1-Math.exp(-dt*(CH.pull>=0?2.2:3.5)));
     CH.bloom*=Math.exp(-dt*2.2);
-    if(CH.cool>=0){ var C=CH.pads[CH.cool]; if(!C||(Math.hypot(camPos.x-C.E.x,camPos.z-C.E.z)>CH_LEAVE&&Math.hypot(camPos.x-C.F.x,camPos.z-C.F.z)>CH_LEAVE)) CH.cool=-1; }
+    if(CH.cool>=0){ var C=CH.pads[CH.cool]; if(!C||(!chInPulse(C,0.3)&&Math.hypot(camPos.x-C.E.x,camPos.z-C.E.z)>0.6)) CH.cool=-1; }   // free again once you've stepped out of its pulse
     if(CH.pull>=0){ var Q=CH.pads[CH.pull];
       if(!chHold()&&(nudge||Math.hypot(camPos.x-Q.E.x,camPos.z-Q.E.z)>CH_LEAVE)){ chLetGo(); return; } }
-    else { if(nudge||CH.cool>=0) return;   // just let go of one: walk clear of it before another can take you
-      CH.pads.forEach(function(P,i){ if(CH.pull>=0||i===CH.cool||CH.done[P.c.id]) return;
-        // only right up at the gold frame itself (or already standing at its eye point). For a long lens the frame hangs
-        // well out in front of where you need to stand, so it grabs you there and draws you back to the spot.
-        var hE=Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z), hF=Math.hypot(camPos.x-P.F.x,camPos.z-P.F.z), atFrame=hF-P.w*0.25<0.3&&Math.abs(camPos.y-P.F.y)<1.3;
-        var toF=P.F.clone().sub(camPos); toF.y=0; toF.normalize(); var f=_fwd.clone(); f.y=0; f.normalize();
-        if((atFrame&&(hF<0.3||f.dot(toF)>0.2))||hE<0.3) chGrab(i); }); }
+    else { if(CH.cool>=0) return;   // just let go of one: step out of its pulse before another can take you
+      // in its pulse, or already standing on its spot; the nearest frame wins
+      var best=-1, bd=1e9; CH.pads.forEach(function(P,i){ if(CH.done[P.c.id]||!P.vis||!(chInPulse(P,0)||Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z)<0.3)) return; var dd=Math.hypot(camPos.x-P.F.x,camPos.z-P.F.z); if(dd<bd){ bd=dd; best=i; } });
+      if(best>=0) chGrab(best); }
     if(CH.pull<0||CH.locked) return; var P=CH.pads[CH.pull], A=CH.from, B=CH.to;
     CH.pt=Math.min(1,CH.pt+dt/CH.dur); var x=CH.pt, s=x*x*x*(x*(x*6-15)+10);   // smootherstep: eases out of where you were, settles softly
     _vel.set(0,0,0); camPos.x=A.x+(P.E.x-A.x)*s; camPos.z=A.z+(P.E.z-A.z)*s;
@@ -155,5 +158,5 @@
       if(o.meter){ var best=shIdx, bv=1e9; for(var s=0;s<SHUTTER_LABELS.length;s++){ shIdx=s; computeCam(); if(Math.abs(evStops)<bv){ bv=Math.abs(evStops); best=s; } } shIdx=best; computeCam(); } };
     window.__ch.aim=function(i){ var d=CH.pads[i].d; yaw=Math.atan2(-d.x,-d.z); pitch=Math.asin(Math.max(-1,Math.min(1,d.y))); basis(); };
     window.__ch.goto=function(i){ var P=CH.pads[i]; CH.pull=-1; CH.locked=false; CH.cool=i; camPos.x=P.E.x; camPos.z=P.E.z; WK.eye=P.E.y-wkGround(P.E.x,P.E.z); _vel.set(0,0,0); };
-    window.__ch.approach=function(i){ var P=CH.pads[i], L=Math.hypot(P.d.x,P.d.z)||1; camPos.x=P.F.x-P.d.x/L*0.35; camPos.z=P.F.z-P.d.z/L*0.35; yaw=Math.atan2(-P.d.x,-P.d.z)+0.3; pitch=0; _vel.set(0,0,0); };
+    window.__ch.approach=function(i,out,turn){ var P=CH.pads[i], L=Math.hypot(P.d.x,P.d.z)||1; out=out==null?0.35:out; camPos.x=P.F.x-P.d.x/L*out; camPos.z=P.F.z-P.d.z/L*out; yaw=Math.atan2(-P.d.x,-P.d.z)+(turn==null?0.3:turn); pitch=0; _vel.set(0,0,0); };
     window.__ch.pull=function(){ return {i:CH.pull, locked:CH.locked, cool:CH.cool, hold:chHold()}; }; window.__ch.nudge=function(){ CH.nudge=true; }; }

@@ -26,7 +26,8 @@ try {
   ok(await page.$eval('#chMarks', (e) => e.classList.contains('show') && e.children.length === 6), 'markers should point to the frames');
   await shot('1-markers');
   // walk into the first spot
-  await ev(() => window.__ch.approach(0));   // a metre short of it, looking roughly its way: the beam should take over
+  // step just inside the outer edge of its pulse, facing away and still moving: that alone should take you
+  await ev(() => { window.__ch.approach(0, 0.9, Math.PI); window.__ch.nudge(); });
   await page.waitForFunction(() => window.__ch.active() === 0, null, { timeout: 120000 }).catch(() => {});   // SwiftShader runs about 1 fps here
   ok(await ev(() => window.__ch.active()) === 0, 'standing in the spot should open challenge 1');
   ok(await page.$eval('#chCard', (e) => e.classList.contains('show')), 'the challenge card should show');

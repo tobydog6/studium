@@ -1,6 +1,6 @@
-  // ================= BOARD: a free layout page, used by Workshop (A3 landscape) and Folio (A0 portrait) =================
+  // ================= BOARD: a free layout page, used by the Workbook (A3 landscape) and Folio (A1 panels) =================
   // Everything sits on the page in millimetres. Photos always keep their own shape (3:2 stays 3:2, 6x7 stays 6x7):
-  // you size them from a corner, never crop them. Workshop pages also take text. Every item is a layer you can
+  // you size them from a corner, never crop them. Workbook pages also take text. Every item is a layer you can
   // hide, lock and reorder. Layouts are starting points: they place the frames on the page (true aspect, fitted
   // into rows or cells) and then you move them about. Pages hold different versions, so students can play.
   var BD_FILTERS={none:["ORIGINAL","none"], bw:["B&W","grayscale(1) contrast(1.25)"], faded:["FADED","contrast(.8) brightness(1.08) saturate(.7) sepia(.12)"], warm:["WARM","sepia(.22) saturate(1.15)"], punch:["PUNCH","contrast(1.2) saturate(1.2)"]};
@@ -39,8 +39,42 @@
     return asp.map(function(a,i){ var c=i%cols, r=Math.floor(i/cols), w=Math.min(cw, ch*a), h=w/a; return {x:box.x+c*(cw+gap)+(cw-w)/2, y:box.y+r*(ch+gap)+(ch-h)/2, w:w}; }); }
   function bdFit(box, a){ var w=Math.min(box.w, box.h*a); return {x:box.x+(box.w-w)/2, y:box.y+(box.h-w/a)/2, w:w}; }
 
+  // ---- filling a folio section edge to edge ----
+  // Frames never crop, so a section is filled by finding the arrangement of rows (or columns) whose shapes add up
+  // closest to the section's own shape, then easing any last sliver into the gutters. Returns the rects in the order
+  // given and how much of the box they cover.
+  function bdPartitions(n, cb){ if(n<=11){ for(var m=0;m<(1<<(n-1));m++){ var rows=[], cur=[0]; for(var i=1;i<n;i++){ if(m&(1<<(i-1))){ rows.push(cur); cur=[i]; } else cur.push(i); } rows.push(cur); cb(rows); } return; }
+    for(var r=1;r<=n;r++){ var rr=[], per=Math.ceil(n/r); for(var j=0;j<n;j+=per){ var row=[]; for(var q=j;q<Math.min(n,j+per);q++) row.push(q); rr.push(row); } cb(rr); } }
+  function bdPackRows(b, A, gap){ var n=A.length, best=null; if(!n) return {r:[], cover:0};
+    bdPartitions(n, function(rows){ var hs=rows.map(function(row){ return (b.w-gap*(row.length-1))/row.reduce(function(a,i){ return a+A[i]; },0); }), G=gap*(rows.length-1), H=hs.reduce(function(a,x){ return a+x; },0);
+      var k=Math.min(1,(b.h-G)/H), cover=k<1?k*k*(H*b.w)/(b.w*b.h)+0:(H/(b.h-G))*(b.h-G)/b.h;   // share of the box under photographs
+      if(k<1){ var used=0; rows.forEach(function(row,ri){ used+=hs[ri]*k*(row.reduce(function(a,i){ return a+A[i]; },0)*hs[ri]*k); }); cover=used/(b.w*b.h); }
+      var tiny=rows.some(function(row,ri){ return hs[ri]*k<b.h*0.12; })?0.05:0, score=cover-tiny;
+      if(!best||score>best.score) best={score:score, cover:cover, rows:rows, hs:hs, k:k, H:H, G:G}; });
+    var out=[], k=best.k, rowsH=best.H*k, slack=b.h-best.G-rowsH, nr=best.rows.length, gy=gap+(nr>1?Math.min(gap*1.2, slack/(nr-1)):0), restY=b.h-rowsH-gy*(nr-1), y=b.y+Math.max(0,restY)/2;
+    best.rows.forEach(function(row,ri){ var h=best.hs[ri]*k, rw=row.reduce(function(a,i){ return a+A[i]*h; },0), gx=k<1?gap:(row.length>1?(b.w-rw)/(row.length-1):0), tot=rw+gx*(row.length-1), x=b.x+(b.w-tot)/2;
+      row.forEach(function(i){ out[i]={x:x, y:y, w:A[i]*h, h:h}; x+=A[i]*h+gx; }); y+=h+gy; });
+    return {r:out, cover:best.cover}; }
+  function bdPackCols(b, A, gap){ var t=bdPackRows({x:b.y, y:b.x, w:b.h, h:b.w}, A.map(function(a){ return 1/a; }), gap); return {r:t.r.map(function(q){ return {x:q.y, y:q.x, w:q.h, h:q.w}; }), cover:t.cover}; }
+  function bdPackHero(b, A, gap){ if(A.length<2) return bdPackRows(b, A, gap); var best=null, rest=A.slice(1);
+    [["l",1],["t",1]].forEach(function(o_){ for(var f=0.38;f<=0.8;f+=0.06){ var hb, rb;
+      if(o_[0]==="l"){ var hw=Math.min(b.w*f, b.h*A[0]); hb={x:b.x, y:b.y+(b.h-hw/A[0])/2, w:hw, h:hw/A[0]}; rb={x:b.x+hw+gap, y:b.y, w:b.w-hw-gap, h:b.h}; }
+      else { var hh=Math.min(b.h*f, b.w/A[0]); hb={x:b.x+(b.w-hh*A[0])/2, y:b.y, w:hh*A[0], h:hh}; rb={x:b.x, y:b.y+hh+gap, w:b.w, h:b.h-hh-gap}; }
+      if(rb.w<20||rb.h<20) continue; var p1=bdPackRows(rb, rest, gap), p2=bdPackCols(rb, rest, gap), p=p1.cover>=p2.cover?p1:p2, cover=(hb.w*hb.h+p.cover*rb.w*rb.h)/(b.w*b.h);
+      if(!best||cover>best.cover) best={cover:cover, r:[hb].concat(p.r)}; } });
+    return best||bdPackRows(b, A, gap); }
+  function bdPack(b, A, gap, style){ if(style==="rows") return bdPackRows(b,A,gap); if(style==="cols") return bdPackCols(b,A,gap); if(style==="hero") return bdPackHero(b,A,gap);
+    var p=bdPackRows(b,A,gap), q=bdPackCols(b,A,gap); return q.cover>p.cover+0.01?q:p; }
+  // the order of frames that fills the section best (tries every order for a handful, sensible ones beyond)
+  function bdBestOrder(b, A, gap, style){ var n=A.length, idx=A.map(function(_,i){ return i; }), best={o:idx, c:bdPack(b,A,gap,style).cover};
+    function tryO(o){ var c=bdPack(b, o.map(function(i){ return A[i]; }), gap, style).cover; if(c>best.c+0.002) best={o:o.slice(), c:c}; }
+    if(n<=6){ (function perm(a,l){ if(l===a.length){ tryO(a); return; } for(var i=l;i<a.length;i++){ var t=a[l]; a[l]=a[i]; a[i]=t; perm(a,l+1); t=a[l]; a[l]=a[i]; a[i]=t; } })(idx.slice(),0); }
+    else { var byA=idx.slice().sort(function(x,y){ return A[x]-A[y]; }); tryO(byA); tryO(byA.slice().reverse());
+      var inter=[]; for(var i=0,j=n-1;i<=j;i++,j--){ inter.push(byA[j]); if(i!==j) inter.push(byA[i]); } tryO(inter); }
+    return best.o; }
+
   function Board(o){
-    var B={o:o, doc:null, sel:[], hist:[], hi:-1, s:1, bound:false, edit:-1, caret:null};
+    var B={o:o, doc:null, sel:[], hist:[], hi:-1, s:1, bound:false, edit:-1, caret:null, view:-1};
     function doc(){ if(!B.doc){ B.doc=o.load()||{pages:[{id:bdUid(), items:[]}], cur:0, paper:"white"}; } var d=B.doc; if(!d.pages.length) d.pages.push({id:bdUid(), items:[]});
       if(o.panelW){   // a board of A1 panels side by side; older single-A0 boards come across scaled onto the first panel
         if(!d.panels){ var k=o.H/1189; d.pages.forEach(function(pg){ pg.items.forEach(function(it){ it.x*=k; it.y*=k; it.w*=k; if(it.h) it.h*=k; }); }); d.panels=3; }
@@ -57,6 +91,62 @@
     function asp(it){ var i=idxOf(it); return i>=0?stAspect(i):1.5; }
     function hOf(it){ return it.t==="photo"?it.w/asp(it):it.t==="line"?Math.abs(it.y2-it.y):it.h; }
     function bb(it){ if(it.t==="line") return {x:Math.min(it.x,it.x2), y:Math.min(it.y,it.y2), w:Math.abs(it.x2-it.x), h:Math.abs(it.y2-it.y)}; return {x:it.x, y:it.y, w:it.w, h:hOf(it)}; }
+    // folio sections: each A1 panel in thirds, top to bottom. Click ⤢ (or double-click empty space) to work on one up close.
+    var SEC_NAMES=["TOP","MIDDLE","BOTTOM"];
+    var FO_SPLITS={thirds:[1,1,1], top:[2,1], bottom:[1,2], halves:[1,1], whole:[1]}, FO_SPLIT_NAMES={thirds:"THIRDS", top:"BIG TOP", bottom:"BIG BOTTOM", halves:"HALVES", whole:"WHOLE PANEL"};
+    var SEC_BORDER=6, SEC_GAP=4;   // white border round each panel, and the gutter between frames and sections, in mm
+    function secs(){ if(!o.sections) return []; var d=doc(), out=[]; page().splits=page().splits||{};
+      for(var p=0;p<d.panels;p++){ var sp=FO_SPLITS[page().splits[p]||"thirds"], U=sp.reduce(function(a,x){ return a+x; },0), x=p*o.panelW+SEC_BORDER, w=o.panelW-2*SEC_BORDER, h=o.H-2*SEC_BORDER-SEC_GAP*(sp.length-1), y=SEC_BORDER;
+        sp.forEach(function(u,r){ var hh=h*u/U, nm=sp.length===1?"WHOLE":sp.length===2?(r?"BOTTOM":"TOP"):SEC_NAMES[r];
+          out.push({key:p+"."+r, p:p, x:x, y:y, w:w, h:hh, label:"PANEL "+(p+1)+" · "+nm}); y+=hh+SEC_GAP; }); }
+      return out; }
+    function secAt(x,y){ var S=secs(), bi=-1, bd=1e9; for(var i=0;i<S.length;i++){ var q=S[i]; if(x>=q.x-SEC_GAP&&x<q.x+q.w+SEC_GAP&&y>=q.y-SEC_GAP&&y<q.y+q.h+SEC_GAP){ var dd=Math.hypot(x-(q.x+q.w/2),y-(q.y+q.h/2)); if(dd<bd){ bd=dd; bi=i; } } } return bi; }
+    function secIdx(key){ var S=secs(); for(var i=0;i<S.length;i++) if(S[i].key===key) return i; return -1; }
+    function secStyle(key){ var d=doc(); page().secStyle=page().secStyle||{}; return page().secStyle[key]||"auto"; }
+    function secItems(key){ var pg=page(), a=[]; pg.items.forEach(function(it,k){ if(it.t==="photo"&&it.sec===key&&!it.hidden) a.push(k); }); return a; }
+    // every folio frame lives in a section, and each section is packed to fill edge to edge
+    function repack(){ if(!o.sections) return; var pg=page(), S=secs(), keys={}; B.fill={};
+      S.forEach(function(q){ keys[q.key]=q; });
+      pg.items.forEach(function(it){ if(it.t!=="photo") return; if(!it.sec||!keys[it.sec]){ var b=bb(it), i=secAt(b.x+b.w/2, b.y+b.h/2); it.sec=(S[i>=0?i:0]||{}).key; } });
+      S.forEach(function(q){ var ks=secItems(q.key); if(!ks.length) return; var r=bdPack(q, ks.map(function(k){ return asp(pg.items[k]); }), SEC_GAP, secStyle(q.key));
+        ks.forEach(function(k,j){ var it=pg.items[k], rr=r.r[j]; if(!rr) return; delete it.box; it.x=rr.x; it.y=rr.y; it.w=rr.w; }); B.fill[q.key]=r.cover; }); }
+    function bestOrderSec(key){ var pg=page(), q=secs()[secIdx(key)], ks=secItems(key); if(!q||ks.length<2) return; var A=ks.map(function(k){ return asp(pg.items[k]); }), ord=bdBestOrder(q, A, SEC_GAP, secStyle(key));
+      var moved=ord.map(function(j){ return pg.items[ks[j]]; }); ks.forEach(function(k,j){ pg.items[k]=moved[j]; }); }
+    function curSec(){ var S=secs(); if(B.view>=0&&S[B.view]) return S[B.view].key; if(B.sel.length){ var it=page().items[B.sel[0]]; if(it&&it.sec) return it.sec; } return null; }
+    function targetSec(){ var k=curSec(); if(k) return k; var S=secs(), best=null, bn=1e9; S.forEach(function(q){ var n=secItems(q.key).length; if(n<bn){ bn=n; best=q.key; } }); return best; }
+    // put frames into a section (moving them if they're already on the board), then find the order that fills it best
+    function intoSec(key, list, before){ var pg=page(), add_=[];
+      list.forEach(function(i){ var id=stId(i), ex=null; pg.items.forEach(function(it){ if(it.pid===id&&it.t==="photo") ex=it; });
+        if(ex) pg.items.splice(pg.items.indexOf(ex),1); add_.push(ex||{id:bdUid(), t:"photo", pid:id, x:0, y:0, w:10}); });
+      add_.forEach(function(it){ it.sec=key; });
+      var at=before>=0?before:-1; if(at<0){ var ks=secItems(key); at=ks.length?ks[ks.length-1]+1:pg.items.length; }
+      Array.prototype.splice.apply(pg.items,[Math.min(at,pg.items.length),0].concat(add_));
+      if(list.length>1) bestOrderSec(key);
+      B.sel=add_.map(function(it){ return pg.items.indexOf(it); }); commit(); }
+    // fill the whole board: frames shared across the sections (a location per panel when it fits), every section packed
+    function fillBoard(style){ var pg=page(), d=doc(), ph=pg.items.filter(function(it){ return it.t==="photo"&&idxOf(it)>=0; }), idx;
+      if(ph.length) idx=ph.map(function(it){ return idxOf(it); }); else { idx=stPicks(); if(!idx.length) idx=photos.map(function(_,i){ return i; }).slice(-o.maxAuto); idx=idx.slice(0,o.maxAuto); }
+      pg.items=pg.items.filter(function(it){ return it.t!=="photo"; }); page().secStyle={}; page().splits=page().splits||{};
+      var n=idx.length, P=d.panels, places=[], byP={}; idx.forEach(function(i){ var pl=stPlaceOf(photos[i]); if(!byP[pl]){ byP[pl]=[]; places.push(pl); } byP[pl].push(i); });
+      var perPanel=[]; for(var p=0;p<P;p++) perPanel.push([]);
+      if(places.length===P) places.forEach(function(pl,p){ perPanel[p]=byP[pl]; }); else idx.forEach(function(i,j){ perPanel[Math.min(P-1,Math.floor(j*P/n))].push(i); });
+      // for each panel, try every way of splitting it and keep the one its frames fill best
+      perPanel.forEach(function(list,p){ if(!list.length) return; var best=null;
+        Object.keys(FO_SPLITS).forEach(function(sk){ page().splits[p]=sk; var ss=secs().filter(function(q){ return q.p===p; }), area=ss.reduce(function(a,q){ return a+q.w*q.h; },0), m=ss.length;
+          if(list.length<m) return; var groups=ss.map(function(){ return []; }), acc=0, gi=0;
+          list.forEach(function(i,j){ var share=(j+0.5)/list.length; while(gi<m-1&&share>(acc+ss[gi].w*ss[gi].h)/area){ acc+=ss[gi].w*ss[gi].h; gi++; } groups[gi].push(i); });
+          if(groups.some(function(g){ return !g.length; })) return;
+          var cover=0; groups.forEach(function(g,k){ var A=g.map(stAspect), o2=bdBestOrder(ss[k],A,SEC_GAP,style); g.splice.apply(g,[0,g.length].concat(o2.map(function(j){ return g[j]; }))); cover+=bdPack(ss[k], g.map(stAspect), SEC_GAP, style).cover*ss[k].w*ss[k].h/area; });
+          if(!best||cover>best.cover+0.005) best={cover:cover, sk:sk, groups:groups, keys:ss.map(function(q){ return q.key; })}; });
+        if(!best){ page().splits[p]="whole"; best={sk:"whole", groups:[list], keys:[p+".0"]}; }
+        page().splits[p]=best.sk; best.groups.forEach(function(g,k){ page().secStyle[best.keys[k]]=style; g.forEach(function(i){ pg.items.push({id:bdUid(), t:"photo", pid:stId(i), x:0, y:0, w:10, sec:best.keys[k]}); }); }); });
+      B.sel=[]; B.view=-1; commit();
+      var f=B.fill||{}, ks=Object.keys(f), avg=ks.length?ks.reduce(function(a,k){ return a+f[k]; },0)/ks.length:0;
+      toast(avg>0.86?"Board filled edge to edge. Drag frames between sections to rearrange.":"Board filled as far as these frames allow ("+Math.round(avg*100)+"%). More frames per panel fill it out, like a finished folio."); }
+    function secRect(q,s){ return 'left:'+(q.x*s).toFixed(1)+'px;top:'+(q.y*s).toFixed(1)+'px;width:'+(q.w*s).toFixed(1)+'px;height:'+(q.h*s).toFixed(1)+'px'; }
+    function zoom(i){ B.view=i; B.sel=[]; render(); }
+    function gidSel(k){ var pg=page(), g=pg.items[k]&&pg.items[k].gid; if(!g) return [k]; var a=[]; pg.items.forEach(function(it,j){ if(it.gid===g&&!it.hidden) a.push(j); }); return a; }
+    function selBox(list){ var pg=page(), x0=1e9, y0=1e9, x1=-1e9, y1=-1e9; (list||B.sel).forEach(function(k){ var b=bb(pg.items[k]); x0=Math.min(x0,b.x); y0=Math.min(y0,b.y); x1=Math.max(x1,b.x+b.w); y1=Math.max(y1,b.y+b.h); }); return {x:x0, y:y0, w:x1-x0, h:y1-y0}; }
     function name(it){ if(it.t==="photo"){ var i=idxOf(it); return i>=0?"Frame "+cbPad(i+1):"Missing frame"; }
       if(it.t==="line") return it.head==="none"?"Line":"Arrow"; if(it.t==="shape") return "Box"; if(it.t==="slot") return it.label||"Photo space";
       return (it.role==="title"?"Title":it.role==="caption"?"Caption":"Text")+" · "+(String(it.text||"").trim().slice(0,20)||"empty"); }
@@ -73,7 +163,7 @@
         return '<div class="bd-it ln'+(sel?' sel':'')+(it.locked?' locked':'')+'" data-bd="'+k+'" style="left:'+((b.x-P)*s).toFixed(1)+'px;top:'+((b.y-P)*s).toFixed(1)+'px;z-index:'+(k+1)+'">'+arrowSVG(it,s,P)
           +(one?'<i class="bd-h pt" data-bd-h="a" style="left:'+((it.x-b.x+P)*s-5).toFixed(1)+'px;top:'+((it.y-b.y+P)*s-5).toFixed(1)+'px"></i><i class="bd-h pt" data-bd-h="b" style="left:'+((it.x2-b.x+P)*s-5).toFixed(1)+'px;top:'+((it.y2-b.y+P)*s-5).toFixed(1)+'px"></i>':'')+'</div>'; }
       var h=hOf(it), st_='left:'+(it.x*s).toFixed(1)+'px;top:'+(it.y*s).toFixed(1)+'px;width:'+(it.w*s).toFixed(1)+'px;height:'+(h*s).toFixed(1)+'px;z-index:'+(k+1);
-      var handles=one?'<i class="bd-h nw" data-bd-h="nw"></i><i class="bd-h ne" data-bd-h="ne"></i><i class="bd-h sw" data-bd-h="sw"></i><i class="bd-h se" data-bd-h="se"></i>':'';
+      var handles=one&&!it.sec?'<i class="bd-h nw" data-bd-h="nw"></i><i class="bd-h ne" data-bd-h="ne"></i><i class="bd-h sw" data-bd-h="sw"></i><i class="bd-h se" data-bd-h="se"></i>':'';
       var cls='bd-it '+({photo:'ph',text:'tx',shape:'sh',slot:'sl'}[it.t]||'tx')+(sel?' sel':'')+(it.locked?' locked':'');
       if(it.t==="photo") return '<div class="'+cls+'" data-bd="'+k+'" style="'+st_+'"><img src="'+src(it)+'" alt="" draggable="false" style="filter:'+BD_FILTERS[it.f||"none"][1]+'">'+(sel&&B.sel.length===1?'<span class="bd-sz">'+Math.round(it.w)+' × '+Math.round(h)+' MM</span>':'')+handles+'</div>';
       if(it.t==="shape") return '<div class="'+cls+'" data-bd="'+k+'" style="'+st_+';'+(it.outline?'border:'+Math.max(1,0.7*s).toFixed(1)+'px solid '+(it.fill||inkOf(page())):'background:'+(it.fill||"#2f2f31"))+'">'+handles+'</div>';
@@ -81,16 +171,22 @@
       var f=BD_FONTS[it.font||"serif"][1], fs=(it.size||14)*0.3528*s;
       return '<div class="'+cls+'" data-bd="'+k+'" style="'+st_+'"><div class="bd-tx" data-ph="'+cbEsc(it.ph||"Click to write")+'" style="font-family:'+f+';font-size:'+fs.toFixed(2)+'px;color:'+(it.color||inkOf(page()))+';text-align:'+(it.align||"left")+(it.bold?';font-weight:600':'')+'"'+(B.edit===k?' contenteditable="true"':'')+'>'+cbEsc(it.text||"")+'</div>'+handles+'</div>'; }
     function render(){ var box=$(o.el); if(!box||box.classList.contains("hidden")) return; bind(); var d=doc(), pg=page(), stage=box.querySelector(".bd-stage");
-      var aw=stage.clientWidth-(o.tools?130:48), ah=stage.clientHeight-28, s=Math.max(0.05,Math.min(aw/o.W, ah/o.H)); B.s=s;
-      var sh=box.querySelector(".bd-sheet"), bg=bgOf(pg); sh.style.width=(o.W*s).toFixed(1)+"px"; sh.style.height=(o.H*s).toFixed(1)+"px"; sh.className="bd-sheet "+(bdDark(bg)?"black":"white");
+      var S=secs(); if(B.view>=S.length) B.view=-1; var v=B.view>=0?S[B.view]:{x:0,y:0,w:o.W,h:o.H}, padL=o.tools?74:0, zb=o.sections?30:0;
+      var aw=stage.clientWidth-padL-48, ah=stage.clientHeight-28-zb, s=Math.max(0.05,Math.min(aw/v.w, ah/v.h)); B.s=s;
+      var sh=box.querySelector(".bd-sheet"), bg=bgOf(pg); sh.style.width=(o.W*s).toFixed(1)+"px"; sh.style.height=(o.H*s).toFixed(1)+"px"; sh.className="bd-sheet "+(bdDark(bg)?"black":"white")+(B.view>=0?" zoomed":"");
+      sh.style.left=(padL+24+(aw-v.w*s)/2-v.x*s).toFixed(1)+"px"; sh.style.top=(14+zb+(ah-v.h*s)/2-v.y*s).toFixed(1)+"px";
       sh.style.background=o.bgs?BD_BGS[bg][1]:"";
-      pg.items.forEach(function(it){ if(it.t==="photo"&&it.box){ var r=bdTop(it.box, asp(it)); it.x=r.x; it.y=r.y; it.w=r.w; } });
+      pg.items.forEach(function(it){ if(it.t==="photo"&&it.box){ var r=bdTop(it.box, asp(it)); it.x=r.x; it.y=r.y; it.w=r.w; } }); repack();
       B.sel=B.sel.filter(function(k){ return k<pg.items.length&&!pg.items[k].hidden; });
       var html=""; pg.items.forEach(function(it,k){ if(!it.hidden) html+=itemHTML(it,k,s); });
       if(o.panelW) for(var p=1;p<d.panels;p++) html+='<i class="bd-seam" style="left:'+(p*o.panelW*s).toFixed(1)+'px"></i>';
-      if(!pg.items.length) html+='<div class="bd-empty"><b>'+o.emptyTitle+'</b><span>'+o.emptyBody+'</span></div>';
+      S.forEach(function(q,i){ var f=B.fill&&B.fill[q.key], empty=!secItems(q.key).length;
+        if(empty) html+='<div class="bd-secempty" style="'+secRect(q,s)+'"><span>'+q.label+'</span><b>Drop frames here</b></div>';
+        html+='<div class="bd-secg'+(B.view>=0&&B.view!==i?' dim':'')+(B.view===i?' cur':'')+'" style="'+secRect(q,s)+'">'
+        +(B.view<0?'<button data-bd-zoom="'+i+'" title="Zoom into '+q.label.toLowerCase()+'">⤢</button>':'')+(!empty?'<span>'+q.label+' · '+Math.round((f||0)*100)+'% FILLED</span>':'')+'</div>'; });
+      if(!pg.items.length&&B.view<0&&!o.sections) html+='<div class="bd-empty"><b>'+o.emptyTitle+'</b><span>'+o.emptyBody+'</span></div>';
       sh.innerHTML=html+'<div class="bd-guides"></div>';
-      renderTools();
+      renderTools(); renderZoomBar(stage, S);
       if(B.edit>=0){ var ed=sh.querySelector('[data-bd="'+B.edit+'"] .bd-tx'); if(ed){ ed.focus(); try{ var r=null, c=B.caret; B.caret=null;
           if(c&&document.caretRangeFromPoint){ r=document.caretRangeFromPoint(c.x,c.y); if(r&&!ed.contains(r.startContainer)) r=null; }
           if(!r){ r=document.createRange(); r.selectNodeContents(ed); r.collapse(false); } var sl=window.getSelection(); sl.removeAllRanges(); sl.addRange(r); }catch(e){} wireText(ed); } }
@@ -100,6 +196,9 @@
       ed.addEventListener("paste",function(e){ e.preventDefault(); var t=(e.clipboardData||window.clipboardData).getData("text/plain"); document.execCommand("insertText",false,t); });
       ed.addEventListener("input",function(){ var it=page().items[B.edit]; if(it){ it.text=ed.innerText.replace(/\n$/,""); o.save(doc()); } });
       ed.addEventListener("blur",function(){ B.edit=-1; push(); render(); }); }
+    function renderZoomBar(stage, S){ if(!o.sections) return; var z=stage.querySelector(".bd-zbar"); if(!z){ z=document.createElement("div"); z.className="bd-zbar"; stage.appendChild(z); }
+      z.innerHTML=B.view<0?'<span class="hint">⤢ ZOOM INTO A SECTION TO WORK ON IT UP CLOSE · DRAG ACROSS THE BOARD TO SELECT SEVERAL</span>'
+        :'<button data-bd-zoom="-1">⤡ WHOLE BOARD <kbd>ESC</kbd></button><button data-bd-zstep="-1"'+(B.view<=0?' disabled':'')+'>‹</button><b>'+S[B.view].label+'</b><button data-bd-zstep="1"'+(B.view>=S.length-1?' disabled':'')+'>›</button>'; }
     // the slim rail of things to add, down the left of the page (workbook only)
     function renderTools(){ if(!o.tools) return; var st=$(o.el).querySelector(".bd-stage"), r=st.querySelector(".bd-tools");
       if(!r){ r=document.createElement("div"); r.className="bd-tools"; st.appendChild(r);
@@ -123,15 +222,35 @@
         var lines="", lh=it.role==="title"?10:7, th=it.role==="title"?6:3, nl=Math.max(1,Math.min(it.role==="title"?1:6,Math.floor(it.h/lh)));
         for(var j=0;j<nl;j++) lines+='<rect x="'+it.x+'" y="'+(it.y+2+j*lh)+'" width="'+(it.w*(j===nl-1&&nl>1?0.6:0.92))+'" height="'+th+'" fill="'+ink+'" opacity=".45"/>';
         return lines; }).join("")+'</svg>'; }
+    function clPreview(c){ var bx={x:0,y:0,w:594,h:280}, r=c.slots(bx);
+      return '<svg width="72" height="34" viewBox="0 0 594 280" aria-hidden="true"><rect width="594" height="280" class="pg"/>'+r.map(function(q){ return '<rect x="'+q.x.toFixed(0)+'" y="'+q.y.toFixed(0)+'" width="'+q.w.toFixed(0)+'" height="'+q.h.toFixed(0)+'"/>'; }).join("")+'</svg>'; }
     function swatch(c){ return '<i class="sw" style="background:'+c+'"></i>'; }
     function renderSide(){ var el=$(o.el).querySelector(".bd-side"), pg=page(), d=doc(), one=B.sel.length===1?pg.items[B.sel[0]]:null, h="";
       if(o.templates) h+='<div class="bd-sec"><span class="eb">PAGE TEMPLATES <i>ADDS A NEW PAGE</i></span><div class="bd-tmpls">'+o.templates.map(function(t,i){ return '<button data-bd-tmpl="'+i+'" title="'+cbEsc(t.tip||t.name)+'">'+tmplPreview(t)+'<span>'+t.name.toUpperCase()+'</span></button>'; }).join("")+'</div></div>';
       if(o.panelW) h+='<div class="bd-sec"><span class="eb">BOARD</span><div class="bd-chips">'+[2,3].map(function(n){ return '<button data-bd-panels="'+n+'" class="'+(d.panels===n?'on':'')+'">'+n+' × A1 PANELS</button>'; }).join("")+'</div></div>';
-      h+='<div class="bd-sec"><span class="eb">'+(o.templates?'ARRANGE PHOTOS':'LAYOUTS')+' <i>THEN MOVE THINGS</i></span><div class="bd-tpls'+(o.panelW?' wide':'')+'">'+o.layouts.map(function(t,i){ return '<button data-bd-tpl="'+i+'" title="'+cbEsc(t.tip||t.name)+'">'+tplPreview(t)+'<span>'+t.name.toUpperCase()+'</span></button>'; }).join("")+'</div></div>';
+      h+='<div class="bd-sec"><span class="eb">'+(o.templates?'ARRANGE PHOTOS':'FILL THE BOARD')+' <i>'+(o.sections?'FROM YOUR PICKS':'THEN MOVE THINGS')+'</i></span><div class="bd-tpls'+(o.panelW?' wide':'')+'">'+o.layouts.map(function(t,i){ return '<button data-bd-tpl="'+i+'" title="'+cbEsc(t.tip||t.name)+'">'+tplPreview(t)+'<span>'+t.name.toUpperCase()+'</span></button>'; }).join("")+'</div></div>';
       if(o.bgs) h+='<div class="bd-sec"><span class="eb">PAGE COLOUR</span><div class="bd-chips">'+Object.keys(BD_BGS).map(function(b){ return '<button data-bd-bg="'+b+'" class="'+(bgOf(pg)===b?'on':'')+'" title="'+BD_BGS[b][0]+'">'+swatch(BD_BGS[b][1])+BD_BGS[b][0]+'</button>'; }).join("")+'</div></div>';
+      if(o.clusters) h='<div class="bd-sec"><span class="eb">CLUSTERS <i>'+(B.view>=0?'ADDS TO THIS SECTION':'ADDS TO AN EMPTY SECTION')+'</i></span><div class="bd-cls">'+o.clusters.map(function(c,i){ return '<button data-bd-cl="'+i+'" title="'+cbEsc(c.name)+'">'+clPreview(c)+'<span>'+c.name.toUpperCase()+'</span></button>'; }).join("")+'</div></div>'+h;
+      if(o.sections){ var ck=curSec(), S4=secs(), cq=ck?S4[secIdx(ck)]:null, sp=(page().splits||{});
+        if(cq){ var stl=secStyle(ck), n4=secItems(ck).length;
+          h='<div class="bd-sec"><span class="eb">'+cq.label+' <i>'+n4+' FRAME'+(n4===1?'':'S')+' · '+Math.round(((B.fill||{})[ck]||0)*100)+'% FILLED</i></span>'
+            +'<div class="bd-chips">'+[["auto","BEST FIT"],["rows","ROWS"],["cols","COLUMNS"],["hero","HERO"]].map(function(x){ return '<button data-bd-style="'+x[0]+'" data-bd-key="'+ck+'" class="'+(stl===x[0]?'on':'')+'">'+x[1]+'</button>'; }).join("")+'</div>'
+            +'<div class="bd-chips"><button data-bd-bestorder="'+ck+'" title="Try every order and keep the one that fills the section most">⇄ BEST ORDER</button><button data-bd-clearsec="'+ck+'" class="del">EMPTY SECTION</button></div>'
+            +'<span class="eb" style="margin-top:14px;display:block">PANEL '+(cq.p+1)+' SECTIONS</span><div class="bd-chips">'+Object.keys(FO_SPLITS).map(function(k2){ return '<button data-bd-split="'+k2+'" data-bd-p="'+cq.p+'" class="'+((sp[cq.p]||"thirds")===k2?'on':'')+'">'+FO_SPLIT_NAMES[k2]+'</button>'; }).join("")+'</div>'
+            +'<p class="bd-none">Every section packs itself edge to edge. Drag a frame onto another to move it there, or into another section.</p></div>'+h; }
+        else h='<div class="bd-sec"><span class="eb">SECTIONS</span><p class="bd-none">Each panel is split into sections that fill themselves edge to edge, like a finished folio board. Zoom into one (⤢), or click a frame, to change how it packs or how the panel is split.</p></div>'+h; }
       var top=h; h="";   // whatever is selected goes first, so its controls are always in reach
+      if(B.sel.length>1&&o.sections){ h+='<div class="bd-sec"><span class="eb">'+B.sel.length+' SELECTED</span><div class="bd-chips"><button data-bd-act="del" class="del">REMOVE FROM BOARD</button></div><p class="bd-none">Drag any of them to move the lot into another section.</p></div>'; }
+      else if(B.sel.length>1){ var grouped=B.sel.every(function(k){ return pg.items[k].gid&&pg.items[k].gid===pg.items[B.sel[0]].gid; }), anyPh=B.sel.some(function(k){ return pg.items[k].t==="photo"; });
+        h+='<div class="bd-sec"><span class="eb">'+B.sel.length+' SELECTED'+(grouped?' · GROUP':'')+'</span>'
+          +'<div class="bd-sizes"><button data-bd-multi="down">− SMALLER</button><button data-bd-multi="up">+ BIGGER</button><button data-bd-multi="sh" title="Same height as the first one">SAME HEIGHT</button><button data-bd-multi="sw" title="Same width as the first one">SAME WIDTH</button></div>'
+          +'<div class="bd-chips bd-align"><button data-bd-multi="a:l" title="Align left">⇤</button><button data-bd-multi="a:c" title="Centre">↔</button><button data-bd-multi="a:r" title="Align right">⇥</button><button data-bd-multi="a:t" title="Align top">⤒</button><button data-bd-multi="a:m" title="Middle">↕</button><button data-bd-multi="a:b" title="Align bottom">⤓</button><button data-bd-multi="dh" title="Space evenly across">⋯</button><button data-bd-multi="dv" title="Space evenly down">⋮</button></div>'
+          +(anyPh&&o.filters?'<div class="bd-chips">'+Object.keys(BD_FILTERS).map(function(f){ return '<button data-bd-multi="f:'+f+'">'+BD_FILTERS[f][0]+'</button>'; }).join("")+'</div>':'')
+          +'<div class="bd-chips">'+(grouped?'<button data-bd-multi="ungroup">UNGROUP</button>':'<button data-bd-multi="group">GROUP</button>')+'<button data-bd-act="dupitem">DUPLICATE</button><button data-bd-act="del" class="del">DELETE</button></div>'
+          +'<p class="bd-none">Drag any of them to move the lot. Alt-click picks one out of a group.</p></div>'; }
       if(one){ h+='<div class="bd-sec"><span class="eb">SELECTED · '+cbEsc(name(one).toUpperCase())+'</span>';
-        if(one.t==="photo"){ h+='<div class="bd-sizes">'+o.sizes.map(function(w){ return '<button data-bd-w="'+w+'" class="'+(Math.round(one.w)===w?'on':'')+'">'+w+'</button>'; }).join("")+'<span>MM WIDE</span></div>';
+        if(one.t==="photo"&&o.sections){ h+='<p class="bd-none">Sized by its section. Drag it onto another frame to move it there, or into another section.</p>'; }
+        else if(one.t==="photo"){ h+='<div class="bd-sizes">'+o.sizes.map(function(w){ return '<button data-bd-w="'+w+'" class="'+(Math.round(one.w)===w?'on':'')+'">'+w+'</button>'; }).join("")+'<span>MM WIDE</span></div>';
           if(o.filters) h+='<div class="bd-chips">'+Object.keys(BD_FILTERS).map(function(f){ return '<button data-bd-f="'+f+'" class="'+((one.f||"none")===f?'on':'')+'">'+BD_FILTERS[f][0]+'</button>'; }).join("")+'</div>'; }
         else if(one.t==="text"){ h+='<div class="bd-chips">'+Object.keys(BD_FONTS).map(function(f){ return '<button data-bd-font="'+f+'" class="'+((one.font||"serif")===f?'on':'')+'">'+BD_FONTS[f][0]+'</button>'; }).join("")+'</div>'
           +'<div class="bd-sizes"><button data-bd-fs="-1">A−</button><b>'+(one.size||14)+' PT</b><button data-bd-fs="1">A+</button><button data-bd-bold class="'+(one.bold?'on':'')+'"><b>B</b></button><button data-bd-al="left" class="'+((one.align||"left")==="left"?'on':'')+'">⇤</button><button data-bd-al="center" class="'+(one.align==="center"?'on':'')+'">↔</button></div>'
@@ -157,19 +276,49 @@
       h+='<button class="ws-gold bd-export" data-bd-act="export">'+o.exportLabel+'</button>';
       el.innerHTML=h; }
     function inkChips(one){ var cur=one.color||inkOf(page()); return '<div class="bd-chips">'+Object.keys(BD_INKS).map(function(c){ return '<button data-bd-ink="'+BD_INKS[c][0]+'" class="'+(cur===BD_INKS[c][0]?'on':'')+'" title="'+BD_INKS[c][1]+'">'+swatch(BD_INKS[c][0])+'</button>'; }).join("")+'</div>'; }
-    function renderTray(){ var el=$(o.el).querySelector(".bd-tray"), pg=page(), on={}, pk=stPicks(), rest=photos.map(function(_,i){ return i; }).filter(function(i){ return !photos[i].pick&&!photos[i].reject; });
-      pg.items.forEach(function(it){ if(it.t==="photo") on[it.pid]=1; });
-      var pic=function(i){ var id=stId(i); return '<div class="bd-pic" draggable="true" data-bd-pic="'+i+'" title="Drag onto the page, or click to add"><img src="'+(typeof hubThumb==="function"?hubThumb(i):photos[i].url)+'" alt="Frame '+(i+1)+'" draggable="false"><span class="m"><span>'+cbPad(i+1)+'</span>'+(on[id]?'<span class="in">ON PAGE</span>':'')+'</span></div>'; };
-      el.innerHTML=(pk.length?'<span class="eb">YOUR PICKS</span>'+pk.map(pic).join(""):'')+(rest.length?'<span class="eb">'+(pk.length?'OTHER FRAMES':'YOUR FRAMES')+'</span>'+rest.map(pic).join(""):''); }
+    function renderTray(){ libRender($(o.el).querySelector(".bd-tray"), "board"); }
     // ---- editing ----
     function add(i, x, y, w){ var pg=page(), a=stAspect(i);
       var sl=B.sel.length===1&&pg.items[B.sel[0]]&&pg.items[B.sel[0]].t==="slot"?B.sel[0]:-1;   // a photo space is selected: fill it
       if(x==null&&sl>=0) return fillSlot(sl, i);
+      if(o.sections) return intoSec(targetSec(), [i]);
       w=w||o.defW; var it={id:bdUid(), t:"photo", pid:stId(i), w:w, x:0, y:0};
       it.x=Math.max(0,Math.min(o.W-w,(x==null?o.W/2:x)-w/2)); it.y=Math.max(0,Math.min(o.H-w/a,(y==null?o.H/2:y)-w/a/2)); pg.items.push(it); B.sel=[pg.items.length-1]; commit(); }
     function bdTop(b,a){ var r=bdFit(b,a); r.y=b.y; return r; }
     function fillSlot(k, i){ var pg=page(), sl=pg.items[k], r=bdTop({x:sl.x,y:sl.y,w:sl.w,h:sl.h}, stAspect(i));
-      pg.items[k]={id:bdUid(), t:"photo", pid:stId(i), x:r.x, y:r.y, w:r.w, box:{x:sl.x,y:sl.y,w:sl.w,h:sl.h}}; B.sel=[k]; commit(); }
+      pg.items[k]={id:bdUid(), t:"photo", pid:stId(i), x:r.x, y:r.y, w:r.w, box:{x:sl.x,y:sl.y,w:sl.w,h:sl.h}, gid:sl.gid}; B.sel=[k]; commit(); }
+    // several frames dropped on a cluster (or one of its spaces): fill its empty spaces in reading order
+    function fillCluster(k, list){ var pg=page(), g=pg.items[k].gid, ks=g?gidSel(k):[k], empty=ks.filter(function(j){ return pg.items[j].t==="slot"; });
+      empty.sort(function(a,b){ return a===k?-1:b===k?1:(Math.abs(pg.items[a].y-pg.items[b].y)>4?pg.items[a].y-pg.items[b].y:pg.items[a].x-pg.items[b].x); });
+      var n=Math.min(empty.length, list.length);
+      for(var q=0;q<n;q++){ var sl=pg.items[empty[q]], i=list[q], r=bdTop({x:sl.x,y:sl.y,w:sl.w,h:sl.h}, stAspect(i)); pg.items[empty[q]]={id:bdUid(), t:"photo", pid:stId(i), x:r.x, y:r.y, w:r.w, box:{x:sl.x,y:sl.y,w:sl.w,h:sl.h}, gid:sl.gid}; }
+      B.sel=g?gidSel(k):[k]; commit(); toast(n?n+" frame"+(n===1?"":"s")+" placed"+(list.length>n?" · "+(list.length-n)+" didn't fit, the cluster is full":""):"That cluster is already full"); }
+    // several frames dropped on open space: set them in justified rows inside the section (or a patch of page) under the pointer, as a group
+    function placeMany(list, x, y){ var pg=page(), si=secAt(x,y), S=secs(), box;
+      if(si>=0){ var q=S[si]; box={x:q.x+10, y:q.y+10, w:q.w-20, h:q.h-20}; }
+      else { var w=o.W*0.5, h=o.H*0.45; box={x:Math.max(o.margin,Math.min(o.W-o.margin-w,x-w/2)), y:Math.max(o.margin,Math.min(o.H-o.margin-h,y-h/2)), w:w, h:h}; }
+      var A=list.map(stAspect), r=bdRows(box, A, o.panelW?6:5), g=bdUid(), first=pg.items.length;
+      list.forEach(function(i,k){ if(r[k]) pg.items.push({id:bdUid(), t:"photo", pid:stId(i), x:r[k].x, y:r[k].y, w:r[k].w, gid:g}); });
+      B.sel=pg.items.map(function(_,j){ return j; }).slice(first); commit(); toast(list.length+" frames placed as a group. Alt-click one to move it on its own."); }
+    // clusters: ready-made arrangements of photo spaces you drop into a section, then fill
+    function addCluster(c){ var S=secs(), si=B.view;
+      if(si<0&&B.sel.length){ var b0=bb(page().items[B.sel[0]]); si=secAt(b0.x+b0.w/2, b0.y+b0.h/2); }
+      if(si<0){ var pg=page(); for(var i=0;i<S.length;i++){ var q=S[i]; if(!pg.items.some(function(it){ var b=bb(it), cx=b.x+b.w/2, cy=b.y+b.h/2; return cx>=q.x&&cx<q.x+q.w&&cy>=q.y&&cy<q.y+q.h; })){ si=i; break; } } }
+      var q=si>=0?S[si]:{x:o.margin,y:o.margin,w:o.W-2*o.margin,h:o.H-2*o.margin}, box={x:q.x+10,y:q.y+10,w:q.w-20,h:q.h-20}, rects=c.slots(box), g=bdUid(), pg2=page(), first=pg2.items.length;
+      rects.forEach(function(r){ pg2.items.push({id:bdUid(), t:"slot", x:r.x, y:r.y, w:r.w, h:r.h, label:"", gid:g}); });
+      B.sel=pg2.items.map(function(_,j){ return j; }).slice(first); commit(); toast(c.name+" added"+(si>=0?" to "+S[si].label.toLowerCase():"")+". Drag frames, or a whole folder, onto it."); }
+    // working on several at once
+    function scaleSel(f){ var pg=page(), b=selBox(), cx=b.x+b.w/2, cy=b.y+b.h/2;
+      B.sel.forEach(function(k){ var it=pg.items[k]; if(it.locked) return; delete it.box; it.x=cx+(it.x-cx)*f; it.y=cy+(it.y-cy)*f; if(it.t==="line"){ it.x2=cx+(it.x2-cx)*f; it.y2=cy+(it.y2-cy)*f; } else { it.w*=f; if(it.h) it.h*=f; } }); commit(); }
+    function alignSel(m){ var pg=page(), b=selBox();
+      B.sel.forEach(function(k){ var it=pg.items[k]; if(it.locked||it.t==="line") return; delete it.box; var ib=bb(it);
+        if(m==="l") it.x=b.x; if(m==="c") it.x=b.x+(b.w-ib.w)/2; if(m==="r") it.x=b.x+b.w-ib.w; if(m==="t") it.y=b.y; if(m==="m") it.y=b.y+(b.h-ib.h)/2; if(m==="b") it.y=b.y+b.h-ib.h; }); commit(); }
+    function distSel(ax){ var pg=page(), ks=B.sel.filter(function(k){ return pg.items[k].t!=="line"&&!pg.items[k].locked; }); if(ks.length<3) return toast("Select three or more to space them evenly");
+      var b=selBox(ks), key=ax==="h"?"x":"y", dim=ax==="h"?"w":"h"; ks.sort(function(a,c){ return bb(pg.items[a])[key]-bb(pg.items[c])[key]; });
+      var tot=ks.reduce(function(a,k){ return a+bb(pg.items[k])[dim]; },0), gap=(b[dim]-tot)/(ks.length-1), at=b[key];
+      ks.forEach(function(k){ var it=pg.items[k]; delete it.box; it[key]=at; at+=bb(it)[dim]+gap; }); commit(); }
+    function matchSel(m){ var pg=page(), ref=pg.items[B.sel[0]], rb=bb(ref);
+      B.sel.forEach(function(k){ var it=pg.items[k]; if(it.locked||it.t==="line") return; delete it.box; if(it.t==="photo"){ it.w=m==="h"?rb.h*asp(it):rb.w; } else { if(m==="h") it.h=rb.h; else it.w=rb.w; } }); commit(); }
     var TEXT_ROLE={title:{size:30, font:"serif", h:0.08, ph:"Title"}, text:{size:16, font:"sans", h:0.22, ph:"Click to write"}, caption:{size:11, font:"type", h:0.06, ph:"Caption: settings, place, date"}};
     function addText(role){ role=role||"text"; var pg=page(), R=TEXT_ROLE[role], n=pg.items.length;
       pg.items.push({id:bdUid(), t:"text", role:role, x:o.margin+(n%4)*6, y:o.margin+(n%4)*6, w:o.W*(role==="title"?0.6:0.36), h:o.H*R.h, text:"", size:R.size, font:R.font, ph:R.ph});
@@ -195,7 +344,7 @@
       if(blank) d.pages[d.cur]=pg; else { d.pages.splice(d.cur+1,0,pg); d.cur++; }
       B.sel=[]; B.edit=-1; commit(); toast(t.name+": click any text box to start writing."); }
     function delSel(){ var pg=page(); B.sel.sort(function(a,b){ return b-a; }).forEach(function(k){ if(!pg.items[k].locked) pg.items.splice(k,1); }); B.sel=[]; commit(); }
-    function dupSel(){ var pg=page(), add_=[]; B.sel.forEach(function(k){ var c=JSON.parse(JSON.stringify(pg.items[k])); c.id=bdUid(); c.x+=8; c.y+=8; if(c.t==="line"){ c.x2+=8; c.y2+=8; } c.locked=false; add_.push(c); });
+    function dupSel(){ var pg=page(), add_=[], gm={}; B.sel.forEach(function(k){ var c=JSON.parse(JSON.stringify(pg.items[k])); c.id=bdUid(); if(c.gid){ gm[c.gid]=gm[c.gid]||bdUid(); c.gid=gm[c.gid]; } delete c.box; c.x+=8; c.y+=8; if(c.t==="line"){ c.x2+=8; c.y2+=8; } c.locked=false; add_.push(c); });
       add_.forEach(function(c){ pg.items.push(c); }); B.sel=add_.map(function(_,j){ return pg.items.length-add_.length+j; }); commit(); }
     function reorder(k, to){ var pg=page(); to=Math.max(0,Math.min(pg.items.length-1,to)); if(to===k) return; var it=pg.items.splice(k,1)[0]; pg.items.splice(to,0,it); B.sel=[to]; commit(); }
     function nudge(dx,dy){ var pg=page(); B.sel.forEach(function(k){ var it=pg.items[k]; if(it.locked) return; delete it.box; it.x+=dx; it.y+=dy; if(it.t==="line"){ it.x2+=dx; it.y2+=dy; } }); commit(); }
@@ -207,10 +356,10 @@
     function guides(gx, gy){ var g=$(o.el).querySelector(".bd-guides"), s=B.s; if(!g) return; g.innerHTML=(gx!=null?'<i class="v" style="left:'+(gx*s).toFixed(1)+'px"></i>':'')+(gy!=null?'<i class="h" style="top:'+(gy*s).toFixed(1)+'px"></i>':''); }
     function down(e){ if(e.button!==0) return; var pg=page(), hd=e.target.closest("[data-bd-h]"), el=e.target.closest("[data-bd]");
       if(B.edit>=0&&el&&+el.getAttribute("data-bd")===B.edit) return;   // typing in a text box
-      if(!el){ if(B.sel.length){ B.sel=[]; render(); } return; }
+      if(!el){ if(e.target.closest("[data-bd-zoom]")) return; return marquee(e); }
       var k=+el.getAttribute("data-bd"), it=pg.items[k], wasSel=B.sel.length===1&&B.sel[0]===k;
-      if(e.shiftKey||e.ctrlKey||e.metaKey){ var j=B.sel.indexOf(k); if(j>=0) B.sel.splice(j,1); else B.sel.push(k); render(); return; }
-      if(B.sel.indexOf(k)<0) B.sel=[k];
+      if(e.shiftKey||e.ctrlKey||e.metaKey){ var grp=e.altKey?[k]:gidSel(k), on=B.sel.indexOf(k)>=0; grp.forEach(function(q){ var j=B.sel.indexOf(q); if(on&&j>=0) B.sel.splice(j,1); else if(!on&&j<0) B.sel.push(q); }); render(); return; }
+      if(B.sel.indexOf(k)<0) B.sel=e.altKey?[k]:gidSel(k);   // a cluster or placed group moves together; Alt picks one out
       if(it.locked){ render(); return; }
       e.preventDefault(); var s=B.s, x0=e.clientX, y0=e.clientY, moved=false, start=B.sel.map(function(q){ var a=pg.items[q]; return {k:q, x:a.x, y:a.y, x2:a.x2, y2:a.y2, w:a.w, h:hOf(a)}; }), L=snapLines(B.sel), th=6/s;
       var mode=hd?hd.getAttribute("data-bd-h"):"move", st0=start[0], boxy=pg.items[st0.k].t!=="line";
@@ -227,24 +376,62 @@
           var w=Math.max(it3.t==="photo"?15:12, st0.w+(right?dx:-dx)), h=ar?w/ar:Math.max(6, st0.h+(bottom?dy:-dy));
           it3.w=w; if(!ar) it3.h=h; it3.x=right?st0.x:st0.x+st0.w-w; it3.y=bottom?st0.y:st0.y+st0.h-h; redraw(st0.k); } }
       function up(ev){ window.removeEventListener("pointermove",mv); window.removeEventListener("pointerup",up); guides(null,null);
+        if(moved&&o.sections&&mode==="move"){ var shr=$(o.el).querySelector(".bd-sheet").getBoundingClientRect(), px=(ev.clientX-shr.left)/s, py=(ev.clientY-shr.top)/s, si=secAt(px,py), S2=secs();
+          if(si>=0){ var key=S2[si].key, movers=start.map(function(q){ return pg.items[q.k]; }).filter(function(m){ return m.t==="photo"; }), tgt=-1;
+            pg.items.forEach(function(o2,j){ if(tgt<0&&o2.t==="photo"&&o2.sec===key&&movers.indexOf(o2)<0){ var b2=bb(o2); var sq=start.map(function(q){ return q.k; }); if(px>=b2.x&&px<=b2.x+b2.w&&py>=b2.y&&py<=b2.y+b2.h) tgt=j; } });
+            var tObj=tgt>=0?pg.items[tgt]:null; movers.forEach(function(m){ pg.items.splice(pg.items.indexOf(m),1); m.sec=key; });
+            var at=tObj?pg.items.indexOf(tObj):-1; if(at<0){ var ks=secItems(key); at=ks.length?ks[ks.length-1]+1:pg.items.length; }
+            Array.prototype.splice.apply(pg.items,[at,0].concat(movers)); B.sel=movers.map(function(m){ return pg.items.indexOf(m); }); }
+          commit(); return; }
         if(moved){ commit(); return; }
         if(it.t==="text"&&(wasSel||!String(it.text||"").trim())){ B.edit=k; B.sel=[k]; B.caret={x:ev.clientX, y:ev.clientY}; render(); } }   // click a text box to type in it
       window.addEventListener("pointermove",mv); window.addEventListener("pointerup",up); }
+    // drag on empty page: a marquee that selects everything it touches
+    function marquee(e){ var sh=$(o.el).querySelector(".bd-sheet"), r0=sh.getBoundingClientRect(), s=B.s, x0=(e.clientX-r0.left)/s, y0=(e.clientY-r0.top)/s, add_=e.shiftKey||e.ctrlKey||e.metaKey, base=add_?B.sel.slice():[], m=null, moved=false;
+      if(B.edit>=0) return;
+      function mv(ev){ var x1=(ev.clientX-r0.left)/s, y1=(ev.clientY-r0.top)/s; if(!moved&&Math.abs(x1-x0)+Math.abs(y1-y0)<4/s) return; moved=true;
+        if(!m){ m=document.createElement("div"); m.className="bd-marq"; sh.appendChild(m); }
+        var rx=Math.min(x0,x1), ry=Math.min(y0,y1), rw=Math.abs(x1-x0), rh=Math.abs(y1-y0); m.style.cssText="left:"+(rx*s)+"px;top:"+(ry*s)+"px;width:"+(rw*s)+"px;height:"+(rh*s)+"px";
+        var pg=page(), hit=base.slice(); pg.items.forEach(function(it,k){ if(it.hidden||it.locked) return; var b=bb(it); if(b.x<rx+rw&&b.x+b.w>rx&&b.y<ry+rh&&b.y+b.h>ry&&hit.indexOf(k)<0) hit.push(k); });
+        B.sel=hit; Array.prototype.forEach.call(sh.querySelectorAll("[data-bd]"),function(n){ n.classList.toggle("sel", hit.indexOf(+n.getAttribute("data-bd"))>=0); }); }
+      function up(){ window.removeEventListener("pointermove",mv); window.removeEventListener("pointerup",up); if(m) m.remove(); if(!moved&&!add_) B.sel=[]; render(); }
+      window.addEventListener("pointermove",mv); window.addEventListener("pointerup",up); }
     function bind(){ if(B.bound) return; B.bound=true; var box=$(o.el), sh=box.querySelector(".bd-sheet");
       sh.addEventListener("pointerdown",down);
-      sh.addEventListener("dblclick",function(e){ var el=e.target.closest("[data-bd]"); if(!el) return; var k=+el.getAttribute("data-bd"), it=page().items[k]; if(it&&it.t==="text"&&!it.locked&&B.edit!==k){ B.edit=k; B.sel=[k]; B.caret={x:e.clientX, y:e.clientY}; render(); } });
-      box.addEventListener("dragstart",function(e){ var p=e.target.closest&&e.target.closest("[data-bd-pic]"); if(!p) return; e.dataTransfer.setData("text/plain","bd:"+p.getAttribute("data-bd-pic")); e.dataTransfer.effectAllowed="copy"; });
+      sh.addEventListener("dblclick",function(e){ var el=e.target.closest("[data-bd]");
+        if(!el&&o.sections){ var r=sh.getBoundingClientRect(), si=secAt((e.clientX-r.left)/B.s,(e.clientY-r.top)/B.s); zoom(B.view>=0?-1:si); return; }
+        if(!el) return; var k=+el.getAttribute("data-bd"), it=page().items[k]; if(it&&it.t==="text"&&!it.locked&&B.edit!==k){ B.edit=k; B.sel=[k]; B.caret={x:e.clientX, y:e.clientY}; render(); } });
       sh.addEventListener("dragover",function(e){ e.preventDefault(); e.dataTransfer.dropEffect="copy"; sh.classList.add("drop");
         var t=e.target.closest&&e.target.closest(".bd-it.sl"); Array.prototype.forEach.call(sh.querySelectorAll(".bd-it.sl.hot"),function(n){ if(n!==t) n.classList.remove("hot"); }); if(t) t.classList.add("hot"); });
       sh.addEventListener("dragleave",function(){ sh.classList.remove("drop"); });
-      sh.addEventListener("drop",function(e){ sh.classList.remove("drop"); var d=e.dataTransfer.getData("text/plain")||""; if(d.slice(0,3)!=="bd:") return; e.preventDefault();
-        var slot=e.target.closest&&e.target.closest(".bd-it.sl"); if(slot) return fillSlot(+slot.getAttribute("data-bd"), +d.slice(3));
-        var r=sh.getBoundingClientRect(); add(+d.slice(3),(e.clientX-r.left)/B.s,(e.clientY-r.top)/B.s); });
-      box.addEventListener("click",function(e){ var t=e.target.closest("[data-bd-pic],[data-bd-page],[data-bd-act],[data-bd-tpl],[data-bd-tmpl],[data-bd-ly],[data-bd-eye],[data-bd-lock],[data-bd-up],[data-bd-down],[data-bd-w],[data-bd-f],[data-bd-font],[data-bd-fs],[data-bd-al],[data-bd-paper],[data-bd-bg],[data-bd-ink],[data-bd-head],[data-bd-wt],[data-bd-fill],[data-bd-outline],[data-bd-bold],[data-bd-panels]"); if(!t) return; act(t); }); }
+      sh.addEventListener("drop",function(e){ sh.classList.remove("drop"); var d=e.dataTransfer.getData("text/plain")||"", list=libParse(d); if(!list.length) return; e.preventDefault();
+        var r=sh.getBoundingClientRect(), x=(e.clientX-r.left)/B.s, y=(e.clientY-r.top)/B.s, hit=e.target.closest&&e.target.closest("[data-bd]"), pg=page(), hk=hit?+hit.getAttribute("data-bd"):-1, hi=hk>=0?pg.items[hk]:null;
+        if(hi&&hi.t==="slot") return list.length>1||d.indexOf("lib:")===0?fillCluster(hk,list):fillSlot(hk,list[0]);
+        if(hi&&hi.gid&&(list.length>1||d.indexOf("lib:")===0)&&gidSel(hk).some(function(j){ return pg.items[j].t==="slot"; })) return fillCluster(hk,list);
+        if(hi&&hi.t==="photo"&&hi.box&&list.length===1){ hi.pid=stId(list[0]); B.sel=[hk]; return commit(); }   // swap the frame in a cluster space
+        if(o.sections){ var si=secAt(x,y), S3=secs(); if(si<0) return; return intoSec(S3[si].key, list, hi&&hi.t==="photo"&&hi.sec===S3[si].key?hk:-1); }
+        if(list.length>1||d.indexOf("lib:")===0) return placeMany(list,x,y);
+        add(list[0],x,y); });
+      box.addEventListener("click",function(e){ var t=e.target.closest("[data-bd-pic],[data-bd-page],[data-bd-act],[data-bd-tpl],[data-bd-tmpl],[data-bd-ly],[data-bd-eye],[data-bd-lock],[data-bd-up],[data-bd-down],[data-bd-w],[data-bd-f],[data-bd-font],[data-bd-fs],[data-bd-al],[data-bd-paper],[data-bd-bg],[data-bd-ink],[data-bd-head],[data-bd-wt],[data-bd-fill],[data-bd-outline],[data-bd-bold],[data-bd-panels],[data-bd-zoom],[data-bd-zstep],[data-bd-cl],[data-bd-multi],[data-bd-split],[data-bd-style],[data-bd-bestorder],[data-bd-clearsec]"); if(!t||t.disabled) return; act(t); }); }
     function act(t){ var pg=page(), d=doc(), one=B.sel.length===1?pg.items[B.sel[0]]:null, g=function(a){ return t.getAttribute(a); }, has=function(a){ return t.hasAttribute(a); };
       if(has("data-bd-pic")) return add(+g("data-bd-pic"));
+      if(has("data-bd-zoom")) return zoom(+g("data-bd-zoom"));
+      if(has("data-bd-zstep")) return zoom(Math.max(0,Math.min(secs().length-1,B.view+(+g("data-bd-zstep")))));
+      if(has("data-bd-cl")) return addCluster(o.clusters[+g("data-bd-cl")]);
+      if(has("data-bd-multi")){ var mm=g("data-bd-multi");
+        if(mm==="up") return scaleSel(1.1); if(mm==="down") return scaleSel(1/1.1);
+        if(mm==="sh"||mm==="sw") return matchSel(mm==="sh"?"h":"w");
+        if(mm==="dh"||mm==="dv") return distSel(mm==="dh"?"h":"v");
+        if(mm==="group"){ var ng=bdUid(); B.sel.forEach(function(k){ pg.items[k].gid=ng; }); toast("Grouped. They now move together."); return commit(); }
+        if(mm==="ungroup"){ B.sel.forEach(function(k){ delete pg.items[k].gid; }); toast("Ungrouped"); return commit(); }
+        if(mm.indexOf("f:")===0){ B.sel.forEach(function(k){ if(pg.items[k].t==="photo") pg.items[k].f=mm.slice(2); }); return commit(); }
+        return alignSel(mm.slice(2)); }
       if(has("data-bd-page")){ d.cur=+g("data-bd-page"); B.sel=[]; o.save(d); return render(); }
-      if(has("data-bd-tpl")) return applyLayout(o.layouts[+g("data-bd-tpl")]);
+      if(has("data-bd-tpl")) return o.sections?fillBoard(o.layouts[+g("data-bd-tpl")].style):applyLayout(o.layouts[+g("data-bd-tpl")]);
+      if(has("data-bd-split")){ page().splits=page().splits||{}; page().splits[+g("data-bd-p")]=g("data-bd-split"); B.view=-1; pg.items.forEach(function(it){ if(it.sec&&it.sec.split(".")[0]===g("data-bd-p")) delete it.sec; }); return commit(); }
+      if(has("data-bd-style")){ page().secStyle=page().secStyle||{}; page().secStyle[g("data-bd-key")]=g("data-bd-style"); return commit(); }
+      if(has("data-bd-bestorder")){ bestOrderSec(g("data-bd-bestorder")); toast("Reordered for the fullest fit"); return commit(); }
+      if(has("data-bd-clearsec")){ var ck=g("data-bd-clearsec"); pg.items=pg.items.filter(function(it){ return it.sec!==ck; }); B.sel=[]; return commit(); }
       if(has("data-bd-tmpl")) return applyTemplate(o.templates[+g("data-bd-tmpl")]);
       if(has("data-bd-eye")){ var a=pg.items[+g("data-bd-eye")]; a.hidden=!a.hidden; return commit(); }
       if(has("data-bd-lock")){ var b=pg.items[+g("data-bd-lock")]; b.locked=!b.locked; return commit(); }
@@ -291,6 +478,7 @@
       if(mod&&c==="KeyA"){ e.preventDefault(); B.sel=pg.items.map(function(_,k){ return k; }).filter(function(k){ return !pg.items[k].hidden; }); render(); return true; }
       if(mod&&c==="KeyD"){ e.preventDefault(); if(B.sel.length) dupSel(); return true; }
       if(c==="Escape"&&B.sel.length){ e.preventDefault(); B.sel=[]; render(); return true; }
+      if(c==="Escape"&&B.view>=0){ e.preventDefault(); zoom(-1); return true; }
       if(!B.sel.length) return false;
       if(c==="Enter"&&B.sel.length===1&&pg.items[B.sel[0]].t==="text"){ e.preventDefault(); B.edit=B.sel[0]; render(); return true; }
       if(c==="Delete"||c==="Backspace"){ e.preventDefault(); delSel(); return true; }
@@ -314,7 +502,7 @@
         String(it.text||"").split("\n").forEach(function(par){ line=""; par.split(/\s+/).forEach(function(w){ var t2=line?line+" "+w:w; if(g.measureText(t2).width>maxW&&line){ g.fillText(line,ax,y); y+=lh; line=w; } else line=t2; }); g.fillText(line,ax,y); y+=lh; });
         next(); })(); }
     B.render=render; B.key=key; B.doc_=doc; B.page=page; B.draw=draw; B.add=add; B.applyLayout=applyLayout; B.applyTemplate=applyTemplate; B.reset=function(d){ B.doc=d; B.sel=[]; B.hist=[]; B.hi=-1; push(); };
-    B.selected=function(){ return B.sel.slice(); }; B.hOf=hOf;
+    B.selected=function(){ return B.sel.slice(); }; B.hOf=hOf; B.view_=function(){ return B.view; }; B.fill_=function(){ var o2={}; for(var k in (B.fill||{})) o2[k]=+B.fill[k].toFixed(3); return o2; };
     push();
     return B; }
 
@@ -384,23 +572,33 @@
     for(var i=0;i<n;i++) out[Math.min(P-1,Math.floor(i*P/n))].push(i); return out; }
   function foEach(W,H,A,G,fn){ var P=Math.max(1,Math.round(W/594)), pw=W/P, parts=foSplit(A,G,P), out=[];
     parts.forEach(function(ix,p){ if(!ix.length) return; var box={x:p*pw+FO_M, y:FO_M, w:pw-2*FO_M, h:H-2*FO_M}, r=fn(box, ix.map(function(i){ return A[i]; }), p, P); ix.forEach(function(i,k){ out[i]=r[k]; }); }); return out; }
-  var FO_LAYOUTS=[
-    {name:"Rows", tip:"Each panel filled with rows of frames", place:function(W,H,A,G){ return foEach(W,H,A,G,function(b,a){ return bdRows(b,a,FO_G); }); }},
-    {name:"Hero + rows", tip:"A large frame heads each panel", place:function(W,H,A,G){ return foEach(W,H,A,G,function(b,a){ if(a.length<2) return [bdFit(b,a[0])];
-      var hh=b.h*0.46, top=bdFit({x:b.x,y:b.y,w:b.w,h:hh},a[0]); return [top].concat(bdRows({x:b.x,y:b.y+top.w/a[0]+FO_G,w:b.w,h:b.h-top.w/a[0]-FO_G},a.slice(1),FO_G)); }); }},
-    {name:"Contact + finale", tip:"Contact grid first, big frames to finish", place:function(W,H,A,G){ return foEach(W,H,A,G,function(b,a,p,P){
-      if(p===0) return bdGrid(b,a,FO_G,0,3); if(p===P-1) return bdRows(b,a.slice(0),FO_G*2); return bdRows(b,a,FO_G); }); }},
-    {name:"Grid", tip:"Even grid in every panel", place:function(W,H,A,G){ return foEach(W,H,A,G,function(b,a){ return bdGrid(b,a,FO_G,0,2); }); }},
-    {name:"Sequence", tip:"One column per panel, read top to bottom", place:function(W,H,A,G){ return foEach(W,H,A,G,function(b,a){ return bdCells(b,a,FO_G*2,1); }); }}];
+  // folio fills: how every section packs its frames (the previews show three panels in thirds)
+  function foFill(style){ return function(W,H,A){ var P=Math.max(1,Math.round(W/594)), S=[], out=[], n=A.length;
+      for(var p=0;p<P;p++) for(var r=0;r<3;r++) S.push({x:p*594+6, y:6+r*(H-20)/3+r*4, w:582, h:(H-20)/3});
+      var per=S.map(function(){ return []; }); A.forEach(function(_,i){ per[Math.min(S.length-1,Math.floor(i*S.length/n))].push(i); });
+      per.forEach(function(ix,si){ if(!ix.length) return; var r=bdPack(S[si], ix.map(function(i){ return A[i]; }), 4, style).r; ix.forEach(function(i,j){ out[i]=r[j]; }); }); return out; }; }
+  var FO_LAYOUTS=[{name:"Best fit", style:"auto", tip:"Each section packed whichever way fills it most", place:foFill("auto")},
+    {name:"Rows", style:"rows", tip:"Rows across every section", place:foFill("rows")},
+    {name:"Columns", style:"cols", tip:"Columns down every section, good for portraits", place:foFill("cols")},
+    {name:"Hero", style:"hero", tip:"One big frame leads each section", place:foFill("hero")}];
+  // clusters: rows of 3:2 (or portrait) spaces sized to a section, or a hero with smaller frames beside it
+  function clRows(rows, gap){ return function(b){ var hs=rows.map(function(r){ return (b.w-gap*(r.length-1))/r.reduce(function(a,x){ return a+x; },0); }), H=hs.reduce(function(a,x){ return a+x; },0), G=gap*(rows.length-1), k=Math.min(1,(b.h-G)/H), out=[], y=b.y+(b.h-(H*k+G))/2;
+    rows.forEach(function(r,ri){ var h=hs[ri]*k, rw=r.reduce(function(a,x){ return a+x*h; },0)+gap*(r.length-1), x=b.x+(b.w-rw)/2; r.forEach(function(a){ out.push({x:x, y:y, w:a*h, h:h}); x+=a*h+gap; }); y+=h+gap; }); return out; }; }
+  function clHero(cols, gap){ return function(b){ var H=Math.min(b.h,(b.w-gap*cols)/(1.5+cols*0.75)), h2=(H-gap)/2, w=1.5*H+gap+cols*1.5*h2+(cols-1)*gap, x=b.x+(b.w-w)/2, y=b.y+(b.h-H)/2, out=[{x:x,y:y,w:1.5*H,h:H}];
+    for(var c=0;c<cols;c++) for(var r=0;r<2;r++) out.push({x:x+1.5*H+gap+c*(1.5*h2+gap), y:y+r*(h2+gap), w:1.5*h2, h:h2}); return out; }; }
+  var FO_CLUSTERS=[
+    {name:"Single", slots:clRows([[1.5]],5)}, {name:"Pair", slots:clRows([[1.5,1.5]],5)}, {name:"Trio", slots:clRows([[1.5,1.5,1.5]],5)},
+    {name:"Portraits", slots:clRows([[0.667,0.667,0.667,0.667]],5)}, {name:"Hero + 2", slots:clHero(1,5)}, {name:"Hero + 4", slots:clHero(2,5)},
+    {name:"Strip of 4", slots:clRows([[1.5,1.5,1.5,1.5]],4)}, {name:"2 × 2", slots:clRows([[1.5,1.5],[1.5,1.5]],5)}, {name:"Contact 3 × 3", slots:clRows([[1.5,1.5,1.5],[1.5,1.5,1.5],[1.5,1.5,1.5]],3)}];
   function bdDownload(blob, fname){ var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=fname; document.body.appendChild(a); a.click(); a.remove(); }
   var wsB=Board({el:"st-workshop", W:420, H:297, margin:15, defW:120, maxAuto:6, text:true, tools:true, filters:true, papers:null, bgs:true, pageWord:"PAGE", sizes:[60,90,120,180,260],
     emptyTitle:"Your page, your way.", emptyBody:"Start from a page template on the right, drag frames in from the left, or add text and arrows from the rail.",
     cap:function(d){ return "A3 LANDSCAPE · 420 × 297 MM · PAGE "+(d.cur+1)+" OF "+d.pages.length; },
     load:function(){ return st.wsBoard||null; }, save:function(d){ st.wsBoard=d; saveSession(); },
     layouts:WS_LAYOUTS, templates:WS_TEMPLATES, exportLabel:"EXPORT PAGES AS PDF",
-    exportFn:function(B){ var d=B.doc_(), out=[], i=0; toast("Building your workshop PDF…"); (function next(){ if(i>=d.pages.length){ pbBuildPDF(out, "workshop.pdf", "Workshop PDF downloaded"); return; } B.draw(d.pages[i++], 150/25.4, function(cv){ out.push(cv); next(); }); })(); }});
-  var foB=Board({el:"st-folio", W:1782, H:841, panelW:594, margin:FO_M, defW:180, maxAuto:18, text:false, filters:false, papers:["white","black"], pageWord:"LAYOUT", sizes:[100,150,200,280,400,560],
-    emptyTitle:"Your folio board. No text.", emptyBody:"A1 panels side by side, read left to right. Drag frames in, or pick a layout to fill each panel. Every frame keeps its shape.",
+    exportFn:function(B){ var d=B.doc_(), out=[], i=0; toast("Building your workbook PDF…"); (function next(){ if(i>=d.pages.length){ pbBuildPDF(out, namePrefix()+"workbook.pdf", "Workbook PDF downloaded"); return; } B.draw(d.pages[i++], 150/25.4, function(cv){ out.push(cv); next(); }); })(); }});
+  var foB=Board({el:"st-folio", W:1782, H:841, panelW:594, sections:true, margin:FO_M, defW:180, maxAuto:18, text:false, filters:false, papers:["white","black"], pageWord:"LAYOUT", sizes:[100,150,200,280,400,560],
+    emptyTitle:"Your folio board. No text.", emptyBody:"A1 panels side by side, read left to right. Drag frames or whole folders into the sections and they pack themselves edge to edge, or fill the whole board in one go. Every frame keeps its shape.",
     cap:function(d){ return d.panels+" × A1 PORTRAIT PANELS · "+(d.panels*594)+" × 841 MM · LAYOUT "+(d.cur+1)+" OF "+d.pages.length; },
     load:function(){ return st.foBoard||null; }, save:function(d){ st.foBoard=d; saveSession(); },
     layouts:FO_LAYOUTS, exportLabel:"EXPORT PANELS AS PDF",

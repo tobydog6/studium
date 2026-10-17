@@ -1765,4 +1765,111 @@ body[data-state="back"] .ch-card,body[data-state="bag"] .ch-card,body[data-state
 .bd-chips .sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid rgba(240,232,214,.25)}
 .bd-mini i.slot{background:none;border:1px dashed rgba(141,134,120,.7);box-sizing:border-box}
 .bd-mini i.text{background:rgba(120,110,95,.45)}
-#st-workshop .bd-stage{padding-left:74px;box-sizing:border-box}
+
+/* ---- library: folders down the left ---- */
+.bd-tray.lib-host{width:212px;display:flex;flex-direction:column;gap:14px;overflow:hidden;-webkit-mask:none;padding-bottom:0}
+.lib-list{display:flex;flex-direction:column;gap:1px;flex:none;max-height:46%;overflow-y:auto;scrollbar-width:none}
+.lib-list .eb{display:block;margin:10px 0 5px}.lib-list>.eb:first-child{margin-top:0}
+.lib-row{display:flex;justify-content:space-between;align-items:center;margin-top:10px}.lib-row .eb{margin:0 0 5px}
+.lib-row button{height:20px;padding:0 7px;border-radius:4px;background:none;border:1px solid rgba(227,173,87,.5);cursor:pointer;font-family:'Geist Mono',ui-monospace,monospace;font-size:8.5px;letter-spacing:.1em;color:#e3ad57}
+.lib-f{display:flex;align-items:center;gap:8px;height:30px;padding:0 6px 0 8px;border-radius:5px;cursor:pointer;border:1px solid transparent;color:#b3ab9c;font-size:12.5px}
+.lib-f:hover{background:rgba(240,232,214,.04);color:#f4f1ea}
+.lib-f.on{background:rgba(227,173,87,.08);border-color:rgba(227,173,87,.35);color:#f4f1ea}
+.lib-f.hot{border-color:#e3ad57;background:rgba(227,173,87,.16)}
+.lib-f .ic{width:15px;height:15px;flex:none;display:flex}
+.lib-f .ic svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.2}
+.lib-f.on .ic svg{stroke:#e3ad57}
+.lib-f .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lib-f i{font-style:normal;font-family:'Geist Mono',ui-monospace,monospace;font-size:9.5px;color:#6f695d}
+.lib-f button{height:20px;padding:0 6px;border-radius:4px;background:none;border:1px solid rgba(240,232,214,.14);cursor:pointer;font-family:'Geist Mono',ui-monospace,monospace;font-size:8.5px;letter-spacing:.08em;color:#a69f91}
+.lib-f button:hover,.lib-f button.ask{border-color:#e4552e;color:#e4552e}
+.lib-f button.ed{border-color:rgba(227,173,87,.5);color:#e3ad57}
+.lib-f button.ed:hover{background:rgba(227,173,87,.12);border-color:#e3ad57;color:#e3ad57}
+.lib-in{flex:1;min-width:0;height:22px;padding:0 6px;border-radius:4px;border:1px solid #e3ad57;background:#17140d;color:#f4f1ea;font:inherit;font-size:12.5px;outline:none}
+.lib-none{margin:2px 0 4px 8px;font-size:11.5px;line-height:1.4;color:#4f4a41}
+.lib-grid-h{display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid rgba(240,232,214,.07)}
+.lib-grid-h .eb{margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lib-grid-h button{height:20px;padding:0 7px;border-radius:4px;background:rgba(227,173,87,.1);border:1px solid rgba(227,173,87,.5);cursor:pointer;font-family:'Geist Mono',ui-monospace,monospace;font-size:8.5px;letter-spacing:.08em;color:#e3ad57;white-space:nowrap}
+.lib-grid{flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:start;padding:2px 2px 24px;-webkit-mask:linear-gradient(#000 92%,transparent)}
+.lib-grid::-webkit-scrollbar,.lib-list::-webkit-scrollbar{display:none}
+.lib-grid .bd-pic{margin:0}
+.lib-grid .bd-pic.sel img{outline:2px solid #e3ad57;outline-offset:1px}
+.lib-grid .bd-pic.cur img{outline:1px solid rgba(240,232,214,.6);outline-offset:1px}
+.lib-grid .bd-pic .pk{color:#e3ad57}
+.lib-grid .lib-none{grid-column:1/-1}
+.lib-ghost{position:fixed;left:-200px;top:0;padding:6px 10px;border-radius:5px;background:#e3ad57;color:#17140d;font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.12em}
+.st-lib.bd-tray{margin-right:-8px}
+.st-cell.msel .fr{outline:2px solid #e3ad57;outline-offset:3px}
+/* ---- folio: sections, zoom, marquee, clusters ---- */
+.bd-stage{position:relative;overflow:hidden}
+.bd-sheet{position:absolute}
+.bd-secg{position:absolute;box-sizing:border-box;border:1px dashed rgba(140,130,115,.22);pointer-events:none;z-index:900}
+.bd-sheet.black .bd-secg{border-color:rgba(240,232,214,.12)}
+.bd-secg span{position:absolute;left:8px;bottom:6px;font-family:'Geist Mono',ui-monospace,monospace;font-size:8.5px;letter-spacing:.12em;color:#8d8678;opacity:0;transition:opacity .2s}
+.bd-secg button{position:absolute;right:6px;top:6px;width:26px;height:26px;border-radius:5px;border:1px solid rgba(227,173,87,.6);background:rgba(23,20,15,.85);color:#e3ad57;font-size:13px;cursor:zoom-in;pointer-events:auto;opacity:0;transition:opacity .2s}
+.bd-sheet:hover .bd-secg span{opacity:.8}.bd-sheet:hover .bd-secg button{opacity:.9}
+.bd-secg button:hover{opacity:1!important;background:#e3ad57;color:#17140d}
+.bd-secg.dim{background:rgba(10,9,8,.62);border-color:transparent}
+.bd-secg.cur{border:1px solid rgba(227,173,87,.55)}
+.bd-zbar{position:absolute;left:50%;top:4px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;z-index:6;white-space:nowrap}
+.bd-zbar .hint{font-family:'Geist Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.12em;color:#4f4a41}
+.bd-zbar b{font-family:'Geist Mono',ui-monospace,monospace;font-weight:400;font-size:10.5px;letter-spacing:.14em;color:#e3ad57;padding:0 6px}
+.bd-zbar button{height:24px;padding:0 9px;border-radius:5px;background:rgba(23,20,15,.9);border:1px solid rgba(240,232,214,.14);cursor:pointer;font-family:'Geist Mono',ui-monospace,monospace;font-size:9.5px;letter-spacing:.1em;color:#d8d2c6}
+.bd-zbar button:hover{border-color:#e3ad57;color:#e3ad57}.bd-zbar button:disabled{opacity:.3;cursor:default}
+.bd-zbar kbd{font-family:inherit;font-size:8.5px;color:#6f695d;margin-left:4px}
+.bd-marq{position:absolute;border:1px solid #e3ad57;background:rgba(227,173,87,.08);z-index:1000;pointer-events:none}
+.bd-cls{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}
+.bd-cls button{display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 0 6px;border-radius:6px;border:1px solid rgba(240,232,214,.12);background:none;cursor:pointer}
+.bd-cls button:hover{border-color:#e3ad57}
+.bd-cls svg rect{fill:#4f4a41}.bd-cls svg rect.pg{fill:none;stroke:rgba(240,232,214,.2);stroke-width:6}
+.bd-cls button:hover svg rect{fill:#e3ad57}.bd-cls button:hover svg rect.pg{fill:none;stroke:#e3ad57}
+.bd-cls span{font-family:'Geist Mono',ui-monospace,monospace;font-size:7.5px;letter-spacing:.08em;color:#8d8678;white-space:nowrap}
+.bd-align button{min-width:28px;justify-content:center;font-size:13px!important}
+.bd-it.sl span b:empty{display:none}
+.bd-sheet{z-index:1}
+.lib-sel .lib-list{max-height:none;flex:1}
+.lib-tip{margin:0;font-size:11.5px;line-height:1.5;color:#6f695d}.lib-tip b{font-weight:500;color:#e3ad57}
+.bd-secempty{position:absolute;box-sizing:border-box;border:1.5px dashed rgba(141,134,120,.45);background:rgba(141,134,120,.06);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;pointer-events:none;z-index:0}
+.bd-secempty span{font-family:'Geist Mono',ui-monospace,monospace;font-size:8.5px;letter-spacing:.12em;color:#8d8678}
+.bd-secempty b{font-family:'Fraunces',Georgia,serif;font-weight:400;font-size:15px;color:#a69f91}
+.bd-sheet.black .bd-secempty{border-color:rgba(240,232,214,.18)}
+/* ---- the first-session guide: step popups and the checklist card ---- */
+.gd-pop{position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;background:rgba(8,7,6,.5);backdrop-filter:blur(12px) brightness(.6);-webkit-backdrop-filter:blur(12px) brightness(.6);font-family:'Geist',ui-sans-serif,system-ui,sans-serif;color:#f4f1ea}
+.gd-pop.show{display:flex;animation:lsIn .3s ease-out}
+.gd-card{width:min(600px,92vw);max-height:90vh;overflow:auto;box-sizing:border-box;padding:34px 38px 26px;border-radius:12px;background:rgba(20,18,14,.96);border:1px solid rgba(227,173,87,.35);box-shadow:0 40px 80px -30px rgba(0,0,0,.9),0 0 60px -20px rgba(227,173,87,.25);animation:lsCard .3s ease-out}
+.gd-card .k{font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.2em;color:#e3ad57}
+.gd-card .t{display:block;margin-top:10px;font-family:'Fraunces',Georgia,serif;font-weight:400;font-size:36px;line-height:1.05;letter-spacing:-.01em}
+.gd-card p{margin:14px 0 0;font-size:15px;line-height:1.6;color:#b3ab9c}
+.gd-keys{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin-top:20px;padding:16px 18px;border-radius:8px;background:rgba(240,232,214,.03);border:1px solid rgba(240,232,214,.07)}
+.gd-keys span{display:flex;align-items:center;gap:10px;font-size:13px;color:#d8d2c6}
+.gd-keys kbd{flex:none;min-width:58px;padding:3px 7px;border-radius:4px;border:1px solid rgba(240,232,214,.18);font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;color:#e3ad57;text-align:center}
+.gd-list{display:flex;flex-direction:column;gap:7px;margin-top:18px}
+.gd-list span{display:flex;align-items:center;gap:10px;font-size:14px;color:#d8d2c6}
+.gd-list i{width:14px;height:14px;border-radius:50%;border:1.5px solid rgba(227,173,87,.7);flex:none}
+.gd-two{display:flex;gap:10px;margin-top:20px}
+.gd-two button{flex:1;height:44px;border-radius:7px;border:1px solid rgba(227,173,87,.5);background:none;color:#e3ad57;font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.14em;cursor:pointer}
+.gd-two button:hover{background:rgba(227,173,87,.1)}
+.gd-acts{display:flex;justify-content:space-between;align-items:center;margin-top:24px}
+.gd-skip{background:none;border:0;color:#6f695d;font-size:12.5px;cursor:pointer;padding:0}
+.gd-skip:hover{color:#a69f91}
+.gd-go{height:46px;padding:0 24px;border-radius:7px;border:0;background:#e3ad57;color:#17140d;font-family:'Geist Mono',ui-monospace,monospace;font-size:11.5px;letter-spacing:.16em;cursor:pointer}
+.gd-go:hover{background:#efbd68}
+.gd-track{position:fixed;left:24px;bottom:96px;z-index:900;width:310px;box-sizing:border-box;padding:14px 16px 12px;border-radius:10px;background:rgba(20,18,14,.92);border:1px solid rgba(227,173,87,.35);box-shadow:0 20px 40px -16px rgba(0,0,0,.8);backdrop-filter:blur(10px);font-family:'Geist',ui-sans-serif,system-ui,sans-serif;color:#f4f1ea;display:none}
+.gd-track.show{display:block}
+.gd-track .hd{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.gd-track .k{font-family:'Geist Mono',ui-monospace,monospace;font-size:9.5px;letter-spacing:.14em;color:#e3ad57;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gd-track .hd button{width:20px;height:20px;flex:none;border-radius:50%;border:1px solid rgba(240,232,214,.2);background:none;color:#a69f91;font-size:11px;cursor:pointer;padding:0}
+.gd-track .ck{display:flex;align-items:center;gap:9px;margin-top:9px;font-size:12.5px;line-height:1.35;color:#b3ab9c}
+.gd-track .ck i{width:15px;height:15px;flex:none;border-radius:50%;border:1px solid rgba(240,232,214,.25);display:flex;align-items:center;justify-content:center;font-style:normal;font-size:9px;color:#17140d}
+.gd-track .ck.ok{color:#f4f1ea}.gd-track .ck.ok i{background:#e3ad57;border-color:#e3ad57}
+.gd-track .ck span{flex:1}
+.gd-track .ck em{font-style:normal;font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;color:#6f695d;white-space:nowrap}
+.gd-track .bar{height:2px;margin-top:12px;background:rgba(240,232,214,.08);border-radius:2px;overflow:hidden}
+.gd-track .bar b{display:block;height:100%;background:#e3ad57;transition:width .4s}
+.gd-track .fr{font-family:'Geist Mono',ui-monospace,monospace;font-size:9.5px;color:#a69f91;white-space:nowrap;margin-left:auto}
+body[data-state^="studio"] .gd-track{top:14px;bottom:auto;left:auto;right:300px;width:300px;padding:9px 12px}
+body[data-state^="studio"] .gd-track:not(:hover){width:230px}
+body[data-state^="studio"] .gd-track:not(:hover) .ck{display:none}
+body[data-state^="studio"] .gd-track:not(:hover) .bar{margin-top:7px}
+body[data-state="viewfinder"] .gd-track,body[data-state="back"] .gd-track,body[data-state="bag"] .gd-track,body[data-state="hub"] .gd-track,body[data-state="landing"] .gd-track{display:none}
+#tutorial{display:none!important}

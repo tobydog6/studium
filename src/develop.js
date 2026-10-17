@@ -3,7 +3,8 @@
   // frame is what every room shows (the original stays underneath, so reopening carries on from the same sliders).
   // The filmstrip moves between frames (← →, or click). Ctrl/Cmd-click or Shift-click selects more frames, and
   // SYNC puts this frame's settings (not its crop) on all of them. Copy and paste settings with Ctrl+C / Ctrl+V.
-  var DEV_CROP=["aspect","zoom","cx","cy","rot"], DEV_VIEW=["secLight","secColor","secEffects"], devClip=null, devSel={}, devAnchor=-1, devBusy=false;
+  var DEV_CROP=["aspect","zoom","cx","cy","rot"], DEV_VIEW=["secLight","secColor","secEffects"], devClip=null, devSel={}, devAnchor=-1, devBusy=false, devScope=null;   // devScope: just one library folder's frames, when edited as a group
+  function devList(){ return devScope&&devScope.length?devScope.filter(function(i){ return i<photos.length; }):photos.map(function(_,i){ return i; }); }
   function devClone(E){ var o={}; for(var k in EDEF) o[k]=E[k]; return o; }
   function devIsDefault(E){ for(var k in EDEF){ if(DEV_VIEW.indexOf(k)>=0) continue; if(E[k]!==EDEF[k]) return false; } return true; }
   function devSettings(E){ var o={}; for(var k in EDEF){ if(DEV_CROP.indexOf(k)<0) o[k]=E[k]; } return o; }
@@ -20,28 +21,28 @@
     var url=devBake(); if(!url) return; if(!p.orig) p.orig=p.url; p.url=url; p.dev=d; p.edited=true; devChanged(p); }
   function devOpenIdx(){ return edState?edState.i:-1; }
   function devGo(to){ if(devBusy||to<0||to>=photos.length||to===devOpenIdx()) return; devCommit(); if(typeof st!=="undefined"&&st.open) st.cur=to; openEditor(to); }
-  function devStep(d){ devSel={}; devGo(devOpenIdx()+d); }
+  function devStep(d){ devSel={}; var L=devList(), j=L.indexOf(devOpenIdx()); if(j<0){ devGo(L[0]); return; } var to=L[j+d]; if(to!=null) devGo(to); }
   function devStrip(){ var f=$("dvFilm"); if(!f) return; var cur=devOpenIdx(); devSel[cur]=true;
-    f.innerHTML=photos.map(function(p,i){ var th=typeof hubThumb==="function"?hubThumb(i):p.url;
+    var L=devList(); f.innerHTML=L.map(function(i){ var p=photos[i], th=typeof hubThumb==="function"?hubThumb(i):p.url;
       return '<button class="dv-fr'+(i===cur?' cur':'')+(devSel[i]&&i!==cur?' sel':'')+'" data-dv="'+i+'" title="Frame '+(i+1)+'"><img src="'+th+'" alt="Frame '+(i+1)+'" draggable="false">'
         +(p.dev?'<i class="ed" title="Edited">●</i>':'')+(p.pick?'<i class="pk"></i>':'')+'<span>'+(i+1)+'</span></button>'; }).join("");
     var n=0; for(var s in devSel) if(devSel[s]) n++;
     var sy=$("dvSync"); if(sy){ sy.disabled=n<2; sy.innerHTML=n<2?'SYNC':'SYNC TO '+(n-1)+' <kbd>⇧⌘S</kbd>'; }
     var pa=$("dvPaste"); if(pa) pa.disabled=!devClip;
-    var lb=$("dvCount"); if(lb) lb.textContent='FRAME '+(cur+1)+' OF '+photos.length+(n>1?' · '+n+' SELECTED':'');
+    var lb=$("dvCount"); if(lb) lb.textContent=(devScope?'GROUP · ':'')+'FRAME '+(L.indexOf(cur)+1)+' OF '+L.length+(n>1?' · '+n+' SELECTED':'');
     var c=f.querySelector(".cur"); if(c&&c.scrollIntoView) try{ c.scrollIntoView({block:"nearest",inline:"center"}); }catch(e){} }
   function devClick(i, e){ var cur=devOpenIdx();
-    if(e.shiftKey){ var a=devAnchor>=0?devAnchor:cur; devSel={}; for(var k=Math.min(a,i);k<=Math.max(a,i);k++) devSel[k]=true; devSel[cur]=true; devStrip(); return; }
+    if(e.shiftKey){ var a=devAnchor>=0?devAnchor:cur, L=devList(), ia=L.indexOf(a), ib=L.indexOf(i); devSel={}; for(var k=Math.min(ia,ib);k<=Math.max(ia,ib);k++) if(k>=0) devSel[L[k]]=true; devSel[cur]=true; devStrip(); return; }
     if(e.ctrlKey||e.metaKey){ if(i!==cur){ devSel[i]=!devSel[i]; devAnchor=i; } devStrip(); return; }
     devSel={}; devAnchor=i; devGo(i); }
   function devCopy(){ if(!edState) return; devClip=devSettings(edState); devStrip(); toast("Settings copied. Ctrl+V pastes them onto another frame."); }
   function devPaste(){ if(!edState||!devClip) return; for(var k in devClip) edState[k]=devClip[k]; syncEditUI(); queueRender(); edPushHist(); setTimeout(drawHist,140); toast("Settings pasted"); }
-  function devSelectAll(){ devSel={}; photos.forEach(function(_,i){ devSel[i]=true; }); devStrip(); }
+  function devSelectAll(){ devSel={}; devList().forEach(function(i){ devSel[i]=true; }); devStrip(); }
   // render other frames with this frame's settings, one at a time, then put the open frame back
   function devSync(){ if(devBusy||!edState) return; var cur=devOpenIdx(), set=devSettings(edState), q=[];
     for(var k in devSel) if(devSel[k]&&+k!==cur) q.push(+k); if(!q.length) return;
     devCommit(); devBusy=true; var keep={E:edState, S:edSrc}, done=0; toast("Syncing "+q.length+" frame"+(q.length===1?"":"s")+"…");
-    (function next(){ if(!q.length){ edState=keep.E; edSrc=keep.S; buildRotated(); editRender(); devBusy=false; devStrip(); if(typeof stRenderSelect==="function"&&st.open&&st.room==="select") stRenderSelect(); toast("Synced "+done+" frame"+(done===1?"":"s")); return; }
+    (function next(){ if(!q.length){ edState=keep.E; edSrc=keep.S; buildRotated(); editRender(); devBusy=false; devStrip(); if(typeof stRenderSelect==="function"&&st.open&&st.room==="select") stRenderSelect(); toast("Synced "+done+" frame"+(done===1?"":"s")); if(done&&typeof GD!=="undefined") GD.flags.synced=1; return; }
       var i=q.shift(), p=photos[i], img=new Image();
       img.onload=function(){ var E=p.dev?devClone(p.dev):defEd(i); for(var s in set) E[s]=set[s]; E.i=i; edState=E; edSrc=img; buildRotated();
         if(devIsDefault(E)){ if(p.orig){ p.url=p.orig; delete p.orig; delete p.dev; p.edited=false; } }

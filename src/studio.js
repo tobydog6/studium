@@ -1,9 +1,9 @@
   // ================= STUDIO (Tab, or Photos on the camera back) =================
-  // The darkroom. Rooms in workflow order: Select, Edit, Workshop, Folio, Book, Gallery (Q / E to switch, Esc back
+  // The darkroom. Rooms in workflow order: Select, Edit, Workbook, Folio, Book, Gallery (Q / E to switch, Esc back
   // to the location). Edit hosts the develop panel under the studio bar; every other room is drawn here, and
   // Gallery's "walk the show" opens the 3D gallery show.
-  var ST_ROOMS=[["select","Select"],["edit","Edit"],["workshop","Workshop"],["folio","Folio"],["book","Book"],["gallery","Gallery"]];
-  var st={open:false, room:"select", cur:-1, cols:4, wsPages:[], wsBoard:null, foBoard:null};
+  var ST_ROOMS=[["select","Select"],["edit","Edit"],["workshop","Workbook"],["folio","Folio"],["book","Book"],["gallery","Gallery"]];
+  var st={open:false, room:"select", cur:-1, cols:4, wsPages:[], wsBoard:null, foBoard:null, projects:[]};
 
   function stPencil(seed){   // a loose grease-pencil loop on a superellipse, overshooting where it started
     var cx=107, cy=74, a=102, b=69, n=7, N=54, k0=seed*1.7, pts=[];
@@ -34,7 +34,7 @@
   function closeStudio(){ if(!st.open) return; stHideLegacy(); st.open=false; $("studioX").classList.add("hidden");
     if(loaded){ hubShow("hud"); App.go("scene"); updatePrompt(); } else showHub(); }
   function stHideLegacy(){ var ed=$("editor"); if(ed&&!ed.classList.contains("hidden")&&typeof devCommit==="function") devCommit(); Object.keys(ST_LEGACY).forEach(function(k){ var e=$(ST_LEGACY[k]); if(e) e.classList.add("hidden"); }); document.body.classList.remove("st-legacy"); }
-  function stRoom(r){ st.room=r; App.go("studio."+r); stHideLegacy();
+  function stRoom(r){ if(r!=="edit"&&typeof devScope!=="undefined") devScope=null; st.room=r; App.go("studio."+r); stHideLegacy();
     ["select","workshop","folio","book","gallery"].forEach(function(k){ var c=$("st-"+k); if(c) c.classList.toggle("hidden", k!==r); });
     var empty=!photos.length;
     if(ST_LEGACY[r]){ document.body.classList.add("st-legacy");
@@ -49,7 +49,7 @@
     var hints={ select:[["← →","Move"],["P","Pick"],["X","Reject"],["1–5","Rate"],["Enter","Edit this frame"],["Q E","Rooms"]],
       edit:[["\\","Before / after"],["⌘Z","Undo"],["Q E","Rooms"],["Esc","Back to Select"]],
       workshop:[["Drag","Frames onto the page"],["Click","Write in a text box"],["Del","Remove"],["⌘D","Duplicate"],["⌘Z","Undo"],["Q E","Rooms"]],
-      folio:[["Drag","Frames onto the panel"],["Corners","Resize"],["Del","Remove"],["⌘D","Duplicate"],["⌘Z","Undo"],["Q E","Rooms"]],
+      folio:[["Drag","Frames or folders into a section"],["⤢","Zoom into a section"],["Drag across","Select several"],["Del","Remove"],["⌘Z","Undo"],["Q E","Rooms"]],
       book:[["← →","Spread"],["Drag","Place a frame"],["Click two","Swap"],["T","Template"],["B","Full bleed"],["Q E","Rooms"]], gallery:[["Click a print","Size"],["← →","Spacing"],["F","Frame"],["W","Walk the show"],["Q E","Rooms"]] }[st.room];
     $("stHints").innerHTML=hints.map(function(h){ return '<span><kbd>'+h[0]+'</kbd>'+h[1]+'</span>'; }).join(""); }
 
@@ -58,9 +58,12 @@
   function stRenderSelect(){ var box=$("st-select"); if(!box) return; var sheet=box.querySelector(".st-sheet"), side=box.querySelector(".st-loupe");
     if(!photos.length){ sheet.innerHTML='<div class="st-none"><span class="h">The light table is empty.</span><span class="b">Shoot some frames in a location, then come back to pick your best.</span></div>'; side.innerHTML=""; return; }
     if(st.cur<0||st.cur>photos.length-1) st.cur=photos.length-1;
-    sheet.innerHTML=photos.map(function(p,i){ var n=i+1, r=p.rating||0, stars="";
+    libRender(box.querySelector(".st-lib"), "select"); var shown=libItems(LIB.key);
+    if(!shown.length){ sheet.innerHTML='<div class="st-none"><span class="h">This folder is empty.</span><span class="b">'+(LIB.key.indexOf("proj:")===0?'Drag frames from another folder onto the project to add them.':'Pick another folder on the left.')+'</span></div>'; stRenderLoupe(); return; }
+    if(shown.indexOf(st.cur)<0) st.cur=shown[0];
+    sheet.innerHTML=shown.map(function(i){ var p=photos[i], n=i+1, r=p.rating||0, stars="";
       for(var s=1;s<=5;s++) stars+='<i class="'+(s<=r?'on':'')+'">★</i>';
-      return '<div class="st-cell'+(i===st.cur?' cur':'')+(p.pick?' pick':'')+(p.reject?' rej':'')+'" data-st-frame="'+i+'">'
+      return '<div class="st-cell'+(i===st.cur?' cur':'')+(LIB.sel[i]?' msel':'')+(p.pick?' pick':'')+(p.reject?' rej':'')+'" data-st-frame="'+i+'" draggable="true">'
         +'<div class="edge"><span>▸'+n+'</span><span>'+n+'A</span><span>'+cbEsc(stPlaceOf(p).toUpperCase().slice(0,10))+'</span></div>'
         +'<div class="fr"><img src="'+p.url+'" alt="Frame '+n+'" loading="lazy">'
         +(p.pick?'<svg class="loop" viewBox="0 0 214 148" preserveAspectRatio="none" aria-hidden="true"><path d="'+stPencil(n*7+3)+'"/></svg>':'')
@@ -85,9 +88,9 @@
   function stTogglePick(){ var p=photos[st.cur]; if(!p) return; p.pick=!p.pick; if(p.pick) p.reject=false; saveSession(); stRenderSelect(); }
   function stToggleReject(){ var p=photos[st.cur]; if(!p) return; p.reject=!p.reject; if(p.reject) p.pick=false; saveSession(); stRenderSelect(); }
   function stRate(s){ var p=photos[st.cur]; if(!p) return; p.rating=(p.rating===s?0:s); saveSession(); stRenderSelect(); }
-  function stMove(d){ if(!photos.length) return; st.cur=Math.max(0,Math.min(photos.length-1,st.cur+d)); stRenderSelect(); }
+  function stMove(d){ if(!photos.length) return; var L=libItems(LIB.key); if(!L.length) return; var j=L.indexOf(st.cur); st.cur=L[Math.max(0,Math.min(L.length-1,(j<0?0:j)+d))]; stRenderSelect(); }
 
-  // ---- 03 WORKSHOP and 04 FOLIO are free layout boards (board.js) ----
+  // ---- 03 WORKBOOK and 04 FOLIO are free layout boards (board.js) ----
   function stBoard(){ return st.room==="workshop"?wsB:st.room==="folio"?foB:null; }
   function wsEnsure(){ if(!st.wsBoard&&st.wsPages&&st.wsPages.length){ st.wsBoard=wsMigrate(st.wsPages); st.wsPages=[]; wsB.reset(st.wsBoard); } }
   function stRerender(){ if(!st.open) return; if(st.room==="gallery") gaRender(); else if(st.room==="book") bkRender(); else if(st.room==="workshop") wsB.render(); else if(st.room==="folio") foB.render(); }
@@ -271,10 +274,15 @@
     if(t.hasAttribute("data-ga-frame")){ ga.frame=t.getAttribute("data-ga-frame"); saveSession(); return gaRender(); }
     if(t.hasAttribute("data-ga-act")){ var ga_=t.getAttribute("data-ga-act"); if(ga_==="rehang"){ ga.pos={}; saveSession(); return gaRender(); } if(ga_==="walk"&&photos.length){ openGalleryShow(); document.body.classList.add("st-legacy"); } else if(ga_==="export") gaExport(); return; }
     if(t.hasAttribute("data-st-room")) return stRoom(t.getAttribute("data-st-room"));
+    if(t.hasAttribute("data-st-frame")&&(e.ctrlKey||e.metaKey||e.shiftKey)){ var j=+t.getAttribute("data-st-frame");   // select several, to drag into a project or start one
+      if(e.shiftKey){ var L=libItems(LIB.key), a=L.indexOf(st.cur), b=L.indexOf(j); for(var q=Math.min(a,b);q<=Math.max(a,b);q++) if(q>=0) LIB.sel[L[q]]=true; } else LIB.sel[j]=!LIB.sel[j];
+      LIB.sel[st.cur]=LIB.sel[st.cur]||e.shiftKey; return stRenderSelect(); }
     if(t.hasAttribute("data-st-frame")){ var i=+t.getAttribute("data-st-frame"); if(e.detail>=2&&i===st.cur) return stRoom("edit"); st.cur=i; return stRenderSelect(); }
     if(t.hasAttribute("data-st-rate")) return stRate(+t.getAttribute("data-st-rate"));
     if(t.hasAttribute("data-st-act")){ var a=t.getAttribute("data-st-act"); if(a==="pick") stTogglePick(); else if(a==="reject") stToggleReject(); else if(a==="punctum"){ closeStudio(); openPunctum(); } return; } }
   (function wireStudio(){ var el=$("studioX"); if(!el) return; el.addEventListener("click",stClick);
+    el.addEventListener("dragstart",function(e){ var c=e.target.closest&&e.target.closest("[data-st-frame]"); if(!c) return; var i=+c.getAttribute("data-st-frame"), list=LIB.sel[i]?libSelList():[i];
+      e.dataTransfer.setData("text/plain","bd:"+list.join(",")); e.dataTransfer.effectAllowed="copy"; });
     window.addEventListener("resize",function(){ stRerender(); });
     // the legacy builders' own Back buttons return to the studio's Select room
     ["eCancel"].forEach(function(id){ var b=$(id); if(!b) return; b.addEventListener("click",function(ev){ if(!st.open) return; ev.stopImmediatePropagation(); stRoom("select"); },true); });

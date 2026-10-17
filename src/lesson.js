@@ -6,7 +6,7 @@
   // Everything lives in localStorage ("studium_v1") on this computer; Sync (sync.js) mirrors it to Supabase when a
   // school is connected.
   var LS_KEY="studium_v1";
-  var LS_PLACES={shoot:"Shoot", select:"Select", edit:"Edit", workshop:"Workshop", folio:"Folio", book:"Book", gallery:"Gallery", punctum:"Punctum"};
+  var LS_PLACES={shoot:"Shoot", select:"Select", edit:"Edit", workshop:"Workbook", folio:"Folio", book:"Book", gallery:"Gallery", punctum:"Punctum"};
   var LS_KIND={shoot:"shots", select:"picks", edit:"edits", workshop:"pages", folio:"picks", book:"book", gallery:"none", punctum:"none"};
   var LS_UNIT={shots:["frame shot","frames shot"], picks:["frame picked","frames picked"], edits:["frame edited","frames edited"], pages:["page made","pages made"], book:["frame in the book","frames in the book"], none:["",""]};
   var LS_VERB={shots:"SHOOT", picks:"PICK", edits:"EDIT", pages:"MAKE", book:"PLACE"};
@@ -21,7 +21,7 @@
       {title:"Edit two", does:"Edit two of your picks", words:"Edit for mood, not for correctness.", opens:"edit", n:2, dur:20},
       {title:"Critique", does:"Read each other's work in Punctum", words:"Say what you see before what you think.", opens:"punctum", n:0, dur:20, firm:true}]},
     critique:{name:"Critique day", phases:[
-      {title:"Make a page", does:"Build a workshop page from your picks", words:"Show your thinking, not just your best frame.", opens:"workshop", n:1, dur:15},
+      {title:"Make a page", does:"Build a workbook page from your picks", words:"Show your thinking, not just your best frame.", opens:"workshop", n:1, dur:15},
       {title:"Critique", does:"Critique in Punctum", words:"Say what you see before what you think.", opens:"punctum", n:0, dur:30, firm:true},
       {title:"Respond", does:"Answer the critique on a second page", words:"What will you try next time?", opens:"workshop", n:2, dur:15}]}
   };
@@ -77,7 +77,7 @@
     return [{title:"Shoot "+place, does:"Shoot "+place, words:"Walk all the way round before you shoot anything.", opens:"shoot", n:12},
       {title:"Pick five", does:"Pick your five strongest frames", words:"Pick the frames that make you look twice.", opens:"select", n:5},
       {title:"Edit two", does:"Edit two of your picks", words:"Edit for mood, not for correctness.", opens:"edit", n:2},
-      {title:"Make a workshop page", does:"Make a workshop page from your picks", words:"Show your thinking, not just your best frame.", opens:"workshop", n:1},
+      {title:"Make a workbook page", does:"Make a workbook page from your picks", words:"Show your thinking, not just your best frame.", opens:"workshop", n:1},
       {title:"Lay out the book", does:"Put six frames in your book", words:"Pairs matter. Think in spreads.", opens:"book", n:6}]; }
   function lsCta(ph){ var k=lsKind(ph), have=lsCount(k), r=ph.n-have;
     if(k==="none"||ph.n<=0) return "OPEN "+LS_PLACES[ph.opens].toUpperCase();

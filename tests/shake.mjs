@@ -10,7 +10,7 @@ const FILE = resolve(process.argv[2] || join(ROOT, 'dist', 'studium.html'));
 const OUT = join(ROOT, 'tests', 'out'); mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-await page.addInitScript(() => { try { localStorage.setItem('splat_tut_v1', '1'); localStorage.setItem('studium_looked', '1'); localStorage.setItem('studium_detail', 'test'); localStorage.setItem('studium_v1', JSON.stringify({ who: { role: 'solo', name: '' } })); } catch (e) {} });
+await page.addInitScript(() => { try { localStorage.setItem('splat_tut_v1', '1'); localStorage.setItem('studium_guide_v1', 'off'); localStorage.setItem('studium_looked', '1'); localStorage.setItem('studium_detail', 'test'); localStorage.setItem('studium_v1', JSON.stringify({ who: { role: 'solo', name: '' } })); } catch (e) {} });
 const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.googleapis|supabase|net::ERR/i.test(m.text())) errors.push(m.text()); });
 const ok = (c, m) => { if (!c) throw new Error(m); };
@@ -38,7 +38,8 @@ try {
   const slow = await shoot('1/2');
   ok(fast.shake < 0.001 && slow.shake > 0.01, 'shake recorded on the photo: ' + fast.shake + ' / ' + slow.shake);
   ok(await ev(() => window.__shake.limit()) === '1/125', '135 mm full-frame should be safe at 1/125');
-  const [u0, u1] = await ev(() => [window.__shake.capture(0), window.__shake.capture(0.02)]);   // same frame, same exposure
+  await ev(() => { window.__ch.goto(0); window.__ch.aim(0); window.__ch.set({ mm: 50, f: 8, meter: true }); }); await page.waitForTimeout(4000);   // look at the stump: detail to blur
+  const [u0, u1] = await ev(() => [window.__shake.capture(0), window.__shake.capture(0.03)]);   // same frame, same exposure
   const a = await sharp(u0), b = await sharp(u1);
   console.log('sharpness fast', a.toFixed(2), 'slow', b.toFixed(2));
   ok(b < a * 0.85, 'the slow shot should be visibly softer');

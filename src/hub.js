@@ -61,7 +61,7 @@
     D7_RAIL.forEach(function(n,i){ rail+='<span class="st'+(i<at?' done':i===at?' on':'')+'" style="left:'+(i*25)+'%"><i>'+(i<at?'✓':'')+'</i><b>'+(i+1)+' · '+n.toUpperCase()+'</b></span>'; });
     h.querySelector(".d7-rail").innerHTML='<span class="ln"></span><span class="ln fill" style="width:'+(at*25)+'%"></span>'+rail;
     // bar
-    h.querySelector(".h6-cls").textContent=cls?(cls.name+" · "+(cls.teacher||"")).toUpperCase():(who.role==="solo"?"FREE TRIAL":"");
+    h.querySelector(".h6-cls").textContent=cls?(cls.name+" · "+(cls.teacher||"")).toUpperCase():(who.demo?"DEMO":who.role==="solo"?"FREE TRIAL":"");
     var nm=who.name||"Guest"; h.querySelector(".h6-me .av").textContent=lsInitials(nm); h.querySelector(".h6-me b").textContent=nm;
     h.querySelector(".h6-me small").textContent=who.preview?"PREVIEW · BACK TO TEACHER":(who.role==="solo"?"SIGN IN":"NOT YOU? SIGN OUT");
     h.querySelector(".h6-tch").classList.toggle("hidden", !(who.role==="teacher"||who.preview));
@@ -100,7 +100,7 @@
     s.querySelector(".si-sub").textContent=pl?"Starts "+lsHM(pl.start)+". Sign in with your school account.":"Sign in with your school account.";
     s.querySelector(".si-name").classList.add("hidden"); s.querySelector(".si-code").classList.remove("hidden"); $("siCode").value=""; siTime(); }
   function siTime(){ var t=$("signin")&&$("signin").querySelector(".si-time"); if(!t) return; var d=lsNow(); t.textContent=d.toLocaleDateString("en-NZ",{weekday:"short",day:"numeric",month:"short"}).toUpperCase()+" · "+lsHM(lsMinOf(d)); }
-  var siPending=null;
+  var siPending=null, siDemoAsk=false, SI_DEMO_LABEL="PLAY THE DEMO · ABOUT 10 MINUTES";
   function siAct(a){ var s=$("signin");
     if(a==="google"||a==="microsoft"){ if(typeof Sync!=="undefined"&&Sync.on()) return Sync.signIn(a); toast("School sign-in isn't connected on this computer yet. Join with a class code, or try it on your own."); return; }
     if(a==="join"){ var code=($("siCode").value||"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
@@ -110,6 +110,13 @@
     if(a==="name"){ var nm=($("siName").value||"").trim(); if(nm.length<2){ toast("Type your name the way your teacher knows it."); return; }
       lsSetWho({role:"student", name:nm, code:siPending}); return siDone(); }
     if(a==="solo"){ lsSetWho({role:"solo", name:studentName||""}); return siDone(); }
+    if(a==="demo"){   // the ten-minute demo for playtesters: a clean start, straight into the Stump
+      var b=s.querySelector('[data-si="demo"]');
+      if(photos.length&&!siDemoAsk){ siDemoAsk=true; b.classList.add("ask"); b.textContent="THE DEMO STARTS FRESH AND CLEARS THE PHOTOS ON THIS COMPUTER · CLICK AGAIN"; return; }
+      siDemoAsk=false; b.classList.remove("ask"); b.textContent=SI_DEMO_LABEL;
+      clearSession(); if(typeof st!=="undefined"){ st.wsBoard=null; st.foBoard=null; st.projects=[]; st.wsPages=[]; if(typeof wsB!=="undefined") wsB.reset(null); if(typeof foB!=="undefined") foB.reset(null); }
+      lsSetWho({role:"solo", name:"", demo:true}); siDone(); gdStartDemo();
+      lsGo("shoot"); if(loaded&&typeof chAttach==="function") chAttach(); return; }   // already at the Stump: hang just the demo's two frames
     if(a==="teacher"){ return openTeacher("plan"); } }
   function siAskName(){ var s=$("signin"); s.querySelector(".si-code").classList.add("hidden"); s.querySelector(".si-name").classList.remove("hidden");
     var c=lsDB.classes[siPending]; s.querySelector(".si-help").textContent="Joining "+c.name+(c.teacher?" with "+c.teacher:"")+"."; setTimeout(function(){ $("siName").focus(); },30); }

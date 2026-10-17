@@ -22,7 +22,8 @@
   function chEquivMM(){ var b=curBody(); return Math.round(focalMM*36/(b.sensorW||36)); }
   function chFStop(){ return APERTURES[apIdx]; }
   function chAttach(){ CH.fx=new THREE.Scene(); CH.pads=[]; CH.active=-1; CH.cardFor=-1; CH.pull=-1; CH.locked=false; CH.cool=-1; chCard(null);
-    var spec=(CH.spec&&CH.spec.challenges)||[]; CH.list=spec; if(!spec.length||!WK.col) return;
+    var spec=(CH.spec&&CH.spec.challenges)||[]; if(typeof gdIsDemo==="function"&&gdIsDemo()) spec=spec.filter(function(c){ return GD_DEMO_CH.indexOf(c.id)>=0; });   // the demo has just two
+    CH.list=spec; if(!spec.length||!WK.col) return;
     CH.done=chDoneSet();
     var S=CH.spec.subject||[0,0];
     spec.forEach(function(c){ var tx=S[0]+(c.look[0]||0), tz=S[1]+(c.look[2]||0), x=S[0]+Math.sin(c.az*Math.PI/180)*c.dist, z=S[1]+Math.cos(c.az*Math.PI/180)*c.dist, dx=x-tx, dz=z-tz, L=Math.hypot(dx,dz)||1;

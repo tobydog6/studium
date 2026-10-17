@@ -74,6 +74,11 @@
   function lsDone(ph){ var k=lsKind(ph); return k!=="none"&&ph.n>0&&lsCount(k)>=ph.n; }
   // with no teacher's plan, a self-paced run through the whole workflow
   function lsSoloSteps(){ var place=(window.SPLAT_SCENES&&SPLAT_SCENES[0]&&SPLAT_SCENES[0].name)||"a location";
+    if(typeof gdIsDemo==="function"&&gdIsDemo())   // the ten-minute demo's smaller targets
+      return [{title:"Shoot "+place, does:"Shoot "+place, words:"Walk all the way round before you shoot anything.", opens:"shoot", n:7},
+        {title:"Pick three", does:"Pick your three strongest frames", words:"Pick the frames that make you look twice.", opens:"select", n:3},
+        {title:"Edit one", does:"Edit one of your picks", words:"Edit for mood, not for correctness.", opens:"edit", n:1},
+        {title:"Make a workbook page", does:"Make a workbook page from your picks", words:"Show your thinking, not just your best frame.", opens:"workshop", n:1}];
     return [{title:"Shoot "+place, does:"Shoot "+place, words:"Walk all the way round before you shoot anything.", opens:"shoot", n:12},
       {title:"Pick five", does:"Pick your five strongest frames", words:"Pick the frames that make you look twice.", opens:"select", n:5},
       {title:"Edit two", does:"Edit two of your picks", words:"Edit for mood, not for correctness.", opens:"edit", n:2},

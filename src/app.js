@@ -1350,11 +1350,11 @@
     var n=pbSpreadCount(), specs=[], s; for(s=0;s<n;s++) specs.push(pbPagesForSpread(s));
     var cans=new Array(specs.length), done=0;
     specs.forEach(function(pl,i){ pbRenderPagesToCanvas(pl,function(cv){ cans[i]=cv; if(++done>=specs.length) pbBuildPDF(cans); }); }); }
-  function pbBuildPDF(canvases, fname, msg){ var imgs=[], i, durl, b64;
+  function pbBuildPDF(canvases, fname, msg, dpi){ var imgs=[], i, durl, b64;
     for(i=0;i<canvases.length;i++){ try{ durl=canvases[i].toDataURL("image/jpeg",0.9); }catch(e){ toast("Couldn't export PDF (image blocked)."); return; }
       b64=durl.substring(durl.indexOf(",")+1); imgs.push({bin:atob(b64), w:canvases[i].width, h:canvases[i].height}); }
     if(!imgs.length){ toast("Nothing to export."); return; }
-    var K=72/150, pdf="%PDF-1.4\n%\xE2\xE3\xCF\xD3\n", offsets=[], N=2+imgs.length*3;
+    var K=72/(dpi||150), pdf="%PDF-1.4\n%\xE2\xE3\xCF\xD3\n", offsets=[], N=2+imgs.length*3;
     var pageObjs=[]; for(i=0;i<imgs.length;i++) pageObjs.push(5+i*3);
     function objStart(nn){ offsets[nn]=pdf.length; }
     objStart(1); pdf+="1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n";

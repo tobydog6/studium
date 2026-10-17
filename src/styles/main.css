@@ -1507,7 +1507,7 @@ body.st-legacy #galleryshow{top:64px;z-index:56}
 .bd-h.nw{left:-6px;top:-6px;cursor:nwse-resize}.bd-h.ne{right:-6px;top:-6px;cursor:nesw-resize}.bd-h.sw{left:-6px;bottom:-6px;cursor:nesw-resize}.bd-h.se{right:-6px;bottom:-6px;cursor:nwse-resize}
 .bd-sz{position:absolute;left:0;top:calc(100% + 8px);white-space:nowrap;padding:2px 7px;border-radius:3px;background:#17140d;font-family:'Geist Mono',ui-monospace,monospace;font-size:9.5px;letter-spacing:.08em;color:#e3ad57;z-index:3;pointer-events:none}
 .bd-tx{width:100%;height:100%;overflow:hidden;line-height:1.3;white-space:pre-wrap;word-wrap:break-word;outline:none}
-.bd-tx:empty::before{content:"Double-click to write";color:#a8a091;font-style:italic}
+.bd-tx:empty::before{content:attr(data-ph);opacity:.5;font-style:italic;white-space:pre-wrap;pointer-events:none}
 .bd-tx[contenteditable]{cursor:text;user-select:text;-webkit-user-select:text;background:rgba(227,173,87,.08)}
 .bd-guides{position:absolute;inset:0;pointer-events:none;z-index:999}
 .bd-guides i{position:absolute;background:#e4552e}
@@ -1728,3 +1728,41 @@ body[data-state="back"] .ch-card,body[data-state="bag"] .ch-card,body[data-state
 
 /* shutter slower than the handheld limit for this lens */
 #vfStrip .vf-shake{font-style:normal;margin-left:4px;padding:1px 5px;border-radius:3px;font-size:9px;letter-spacing:.1em;color:#17140d;background:#e3ad57;white-space:nowrap}
+
+/* ---- workbook tools: the rail, arrows, boxes, photo spaces, prompts ---- */
+.bd-stage{position:relative}
+.bd-tools{position:absolute;left:0;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:10px;background:rgba(23,20,15,.88);border:1px solid rgba(240,232,214,.08);z-index:5}
+.bd-tools button{width:58px;height:50px;display:flex!important;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0!important;border-radius:7px;background:none!important;border:1px solid transparent!important;cursor:pointer;color:#d8d2c6!important}
+.bd-tools button:hover{border-color:rgba(227,173,87,.5)!important;color:#e3ad57!important;background:rgba(227,173,87,.06)!important}
+.bd-tools b{font-weight:400;font-size:18px;line-height:18px;font-family:'Fraunces',Georgia,serif}
+.bd-tools b.i-text{font-size:16px}.bd-tools b.i-caption{font-size:13px;font-family:'Courier New',monospace}.bd-tools b.i-arrow,.bd-tools b.i-line{font-family:'Geist',system-ui,sans-serif;font-size:17px}
+.bd-tools span{font-family:'Geist Mono',ui-monospace,monospace;font-size:7.5px;letter-spacing:.1em;color:#8d8678;white-space:nowrap}
+.bd-tools button:hover span{color:#e3ad57}
+.bd-it.ln{pointer-events:none;width:0;height:0}
+.bd-it.ln svg{display:block;overflow:visible;pointer-events:none}
+.bd-it.ln line.hit{stroke:transparent;stroke-width:14;pointer-events:stroke;cursor:move}
+.bd-it.ln.sel,.bd-it.ln:hover{outline:none!important}
+.bd-it.ln.sel svg line:not(.hit){filter:drop-shadow(0 0 2px rgba(227,173,87,.9))}
+.bd-h.pt{pointer-events:auto;border-radius:50%;width:10px;height:10px;cursor:crosshair}
+.bd-it.sh{cursor:move}
+.bd-it.sl{border:1.5px dashed rgba(141,134,120,.75);background:rgba(141,134,120,.08);display:flex;align-items:center;justify-content:center;text-align:center}
+.bd-it.sl span{display:flex;flex-direction:column;gap:4px;font-family:'Geist Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.1em;color:#8d8678;pointer-events:none;padding:4px}
+.bd-it.sl span b{font-family:'Geist',system-ui,sans-serif;font-weight:500;font-size:11px;letter-spacing:0;color:#6f695d}
+.bd-sheet.black .bd-it.sl span b{color:#b3ab9c}
+.bd-it.sl.hot{border-color:#e3ad57;background:rgba(227,173,87,.14)}
+.bd-it.tx:hover:not(.sel){outline:1px dashed rgba(227,173,87,.45)}
+.bd-seam{position:absolute;top:-1px;bottom:-1px;width:7px;margin-left:-3.5px;background:#141210;z-index:998;pointer-events:none}
+.bd-tmpls{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+.bd-tmpls button{display:flex!important;flex-direction:column;align-items:center;gap:6px;padding:8px 0 7px!important;border-radius:6px;border:1px solid rgba(240,232,214,.12)!important;background:none!important;cursor:pointer}
+.bd-tmpls button:hover{border-color:#e3ad57!important}
+.bd-tmpls svg{display:block;outline:1px solid rgba(240,232,214,.08)}
+.bd-tmpls span{font-family:'Geist Mono',ui-monospace,monospace;font-size:8px;letter-spacing:.1em;color:#8d8678}
+.bd-tmpls button:hover span{color:#e3ad57}
+.bd-tpls.wide{grid-template-columns:repeat(2,1fr)}
+.bd-prompts{margin-top:12px;padding:10px 12px;border-radius:6px;background:rgba(240,232,214,.04);border:1px solid rgba(240,232,214,.08)}
+.bd-prompts p{margin:6px 0 10px;font-size:12px;line-height:1.5;color:#b3ab9c}
+.bd-prompts button{height:26px;padding:0 9px;border-radius:5px;background:none!important;border:1px solid rgba(227,173,87,.5)!important;cursor:pointer;font-family:'Geist Mono',ui-monospace,monospace!important;font-size:9px!important;letter-spacing:.1em;color:#e3ad57!important}
+.bd-chips .sw{display:inline-block;width:11px;height:11px;border-radius:2px;border:1px solid rgba(240,232,214,.25)}
+.bd-mini i.slot{background:none;border:1px dashed rgba(141,134,120,.7);box-sizing:border-box}
+.bd-mini i.text{background:rgba(120,110,95,.45)}
+#st-workshop .bd-stage{padding-left:74px;box-sizing:border-box}

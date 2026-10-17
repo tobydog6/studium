@@ -70,20 +70,23 @@
     var ty=Math.atan2(-P.d.x,-P.d.z), tp=Math.asin(Math.max(-1,Math.min(1,P.d.y))), dyaw=chWrap(ty-yaw), dist=Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z);
     var eye0=walk?WK.eye:camPos.y, eye1=walk?P.E.y-wkGround(P.E.x,P.E.z):P.E.y;
     CH.from={x:camPos.x, z:camPos.z, yaw:yaw, pitch:pitch, eye:eye0, walk:walk}; CH.to={dyaw:dyaw, pitch:tp, eye:eye1};
-    CH.dur=Math.max(1.3,Math.min(2.6,1.0+dist*1.1+Math.abs(dyaw)*0.35+Math.abs(eye1-eye0)*0.6));
+    CH.dur=Math.max(1.3,Math.min(3.4,1.0+dist*0.9+Math.abs(dyaw)*0.35+Math.abs(eye1-eye0)*0.6));
     CH.pull=i; CH.locked=false; CH.pt=0; _vel.set(0,0,0);
     if(CH.focus!==i){ CH.focus=i; chFlash(P); } chCard(P); }
   function chTractor(dt){ dt=Math.min(dt||1/30,0.1);
     var held=CH_MOVE&&Object.keys(CH_MOVE).some(function(k){ return keys[k]; }), nudge=CH.nudge||held; CH.nudge=false;
     CH.glow+=((CH.pull>=0&&!(CH.locked&&!chHold())?1:0)-CH.glow)*(1-Math.exp(-dt*(CH.pull>=0?2.2:3.5)));
     CH.bloom*=Math.exp(-dt*2.2);
-    if(CH.cool>=0){ var C=CH.pads[CH.cool]; if(!C||Math.hypot(camPos.x-C.E.x,camPos.z-C.E.z)>CH_LEAVE) CH.cool=-1; }
+    if(CH.cool>=0){ var C=CH.pads[CH.cool]; if(!C||(Math.hypot(camPos.x-C.E.x,camPos.z-C.E.z)>CH_LEAVE&&Math.hypot(camPos.x-C.F.x,camPos.z-C.F.z)>CH_LEAVE)) CH.cool=-1; }
     if(CH.pull>=0){ var Q=CH.pads[CH.pull];
       if(!chHold()&&(nudge||Math.hypot(camPos.x-Q.E.x,camPos.z-Q.E.z)>CH_LEAVE)){ chLetGo(); return; } }
     else { if(nudge||CH.cool>=0) return;   // just let go of one: walk clear of it before another can take you
-      CH.pads.forEach(function(P,i){ if(CH.pull>=0||i===CH.cool||CH.done[P.c.id]) return; var hz=Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z);
+      CH.pads.forEach(function(P,i){ if(CH.pull>=0||i===CH.cool||CH.done[P.c.id]) return;
+        // only right up at the gold frame itself (or already standing at its eye point). For a long lens the frame hangs
+        // well out in front of where you need to stand, so it grabs you there and draws you back to the spot.
+        var hE=Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z), hF=Math.hypot(camPos.x-P.F.x,camPos.z-P.F.z), atFrame=hF-P.w*0.25<0.3&&Math.abs(camPos.y-P.F.y)<1.3;
         var toF=P.F.clone().sub(camPos); toF.y=0; toF.normalize(); var f=_fwd.clone(); f.y=0; f.normalize();
-        if(hz<CH_GRAB&&f.dot(toF)>0.2) chGrab(i); }); }
+        if((atFrame&&(hF<0.3||f.dot(toF)>0.2))||hE<0.3) chGrab(i); }); }
     if(CH.pull<0||CH.locked) return; var P=CH.pads[CH.pull], A=CH.from, B=CH.to;
     CH.pt=Math.min(1,CH.pt+dt/CH.dur); var x=CH.pt, s=x*x*x*(x*(x*6-15)+10);   // smootherstep: eases out of where you were, settles softly
     _vel.set(0,0,0); camPos.x=A.x+(P.E.x-A.x)*s; camPos.z=A.z+(P.E.z-A.z)*s;
@@ -152,5 +155,5 @@
       if(o.meter){ var best=shIdx, bv=1e9; for(var s=0;s<SHUTTER_LABELS.length;s++){ shIdx=s; computeCam(); if(Math.abs(evStops)<bv){ bv=Math.abs(evStops); best=s; } } shIdx=best; computeCam(); } };
     window.__ch.aim=function(i){ var d=CH.pads[i].d; yaw=Math.atan2(-d.x,-d.z); pitch=Math.asin(Math.max(-1,Math.min(1,d.y))); basis(); };
     window.__ch.goto=function(i){ var P=CH.pads[i]; CH.pull=-1; CH.locked=false; CH.cool=i; camPos.x=P.E.x; camPos.z=P.E.z; WK.eye=P.E.y-wkGround(P.E.x,P.E.z); _vel.set(0,0,0); };
-    window.__ch.approach=function(i){ var P=CH.pads[i]; camPos.x=P.E.x-P.d.x*0.6; camPos.z=P.E.z-P.d.z*0.6; yaw=Math.atan2(-P.d.x,-P.d.z)+0.3; pitch=0; _vel.set(0,0,0); };
+    window.__ch.approach=function(i){ var P=CH.pads[i], L=Math.hypot(P.d.x,P.d.z)||1; camPos.x=P.F.x-P.d.x/L*0.35; camPos.z=P.F.z-P.d.z/L*0.35; yaw=Math.atan2(-P.d.x,-P.d.z)+0.3; pitch=0; _vel.set(0,0,0); };
     window.__ch.pull=function(){ return {i:CH.pull, locked:CH.locked, cool:CH.cool, hold:chHold()}; }; window.__ch.nudge=function(){ CH.nudge=true; }; }

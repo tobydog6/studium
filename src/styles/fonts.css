@@ -1,3 +1,5 @@
 @font-face{font-family:'Fraunces';font-style:normal;font-weight:100 900;font-display:swap;src:url(asset:assets/fonts/fraunces.woff2) format('woff2')}
 @font-face{font-family:'Geist';font-style:normal;font-weight:100 900;font-display:swap;src:url(asset:assets/fonts/geist.woff2) format('woff2')}
 @font-face{font-family:'Geist Mono';font-style:normal;font-weight:400;font-display:swap;src:url(asset:assets/fonts/geist-mono.woff2) format('woff2')}
+@font-face{font-family:'Courier Prime';font-style:normal;font-weight:400;font-display:swap;src:url(asset:assets/fonts/courier-prime.woff2) format('woff2')}
+@font-face{font-family:'Courier Prime';font-style:normal;font-weight:600 700;font-display:swap;src:url(asset:assets/fonts/courier-prime-bold.woff2) format('woff2')}

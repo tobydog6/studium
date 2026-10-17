@@ -195,7 +195,8 @@
       if(k===0){ r=c; g=x; b=0; } else if(k===1){ r=x; g=c; b=0; } else if(k===2){ r=0; g=c; b=x; } else if(k===3){ r=0; g=x; b=c; } else if(k===4){ r=x; g=0; b=c; } else { r=c; g=0; b=x; }
       return [r+m,g+m,b+m]; }
     var BANDS=[0,30,60,120,180,240,270,300];
-    function bandWeights(h){ var w=new Array(8); for(var k=0;k<8;k++){ var c=BANDS[k], pv=BANDS[(k+7)%8], nx=BANDS[(k+1)%8], diff=((h-c+540)%360)-180;
+    var BW=new Array(8);
+    function bandWeights(h){ var w=BW; for(var k=0;k<8;k++){ var c=BANDS[k], pv=BANDS[(k+7)%8], nx=BANDS[(k+1)%8], diff=((h-c+540)%360)-180;
         var span=diff>=0?(((nx-c)%360)+360)%360:(((c-pv)%360)+360)%360; w[k]=Math.max(1-Math.abs(diff)/Math.max(span,1e-3),0); } return w; }
     function detail(px,w,h,p,ps){ var N=w*h, y=new F32(N), cb=new F32(N), cr=new F32(N), i;
       for(i=0;i<N;i++){ var q=i*3; y[i]=luma(px[q],px[q+1],px[q+2]); cb[i]=px[q+2]-y[i]; cr[i]=px[q]-y[i]; }
@@ -290,13 +291,18 @@
     return { exposure:E.exposure/50*lm, contrast:(E.contrast+pr.con)*lm, highlights:E.highlights*lm, shadows:E.shadows*lm, whites:E.whites*lm, blacks:E.blacks*lm,
       temperature:(E.temp+pr.warm)*cm, tint:E.tint*cm, vibrance:(E.vibrance+pr.vib)*cm, saturation:(E.saturation+pr.sat)*cm,
       texture:E.texture*fm, clarity:E.clarity*fm, dehaze:E.dehaze*fm, vignetteAmount:E.vignette*fm, glow:(E.glow||0)*fm,
-      grainAmount:E.grain*fm, grainSize:E.grainSize, grainRoughness:E.grainRough, mono:E.mono?1:0, hdr:E.hdr?1:0, seed:7 }; }
+      grainAmount:E.grain*fm, grainSize:E.grainSize, grainRoughness:E.grainRough, mono:E.mono?1:0, hdr:E.hdr?1:0, seed:7,
+      hslHue:crBands(E,"hH",E.secMix), hslSat:crBands(E,"hS",E.secMix), hslLum:crBands(E,"hL",E.secMix),
+      gradeShadows:crWheel(E,"gSh",E.secGrade), gradeMidtones:crWheel(E,"gMi",E.secGrade), gradeHighlights:crWheel(E,"gHi",E.secGrade), gradeGlobal:crWheel(E,"gGl",E.secGrade),
+      gradeBlending:E.gBlend==null?50:E.gBlend, gradeBalance:(E.gBal||0) }; }
+  function crBands(E,k,on){ var a=[]; for(var i=0;i<8;i++) a.push((E[k+i]||0)*(on==null||on?1:0)); return a; }
+  function crWheel(E,k,on){ var m=(on==null||on)?1:0; return {hue:E[k+"H"]||0, sat:(E[k+"S"]||0)*m, lum:(E[k+"L"]||0)*m}; }
   function CRWORKER(self, E){   // message handler shared by the Web Worker and the main-thread fallback
     var srcs=[], cache={};
     function rgb(d,n){ var o=new Float32Array(n*3); for(var i=0,j=0;i<n;i++,j+=4){ o[i*3]=d[j]/255; o[i*3+1]=d[j+1]/255; o[i*3+2]=d[j+2]/255; } return o; }
     function rgba(px,n){ var o=new Uint8ClampedArray(n*4); for(var i=0,j=0;i<n;i++,j+=4){ o[j]=px[i*3]*255+0.5; o[j+1]=px[i*3+1]*255+0.5; o[j+2]=px[i*3+2]*255+0.5; o[j+3]=255; } return o; }
     return function(m, post){ var px, out, n;
-      if(m.t==="src"){ srcs=srcs.filter(function(s){ return s.key!==m.key; }); srcs.unshift({key:m.key,w:m.w,h:m.h,v:rgb(m.data,m.w*m.h)}); srcs.length=Math.min(srcs.length,2); return; }
+      if(m.t==="src"){ srcs=srcs.filter(function(s){ return s.key!==m.key; }); srcs.unshift({key:m.key,w:m.w,h:m.h,v:rgb(m.data,m.w*m.h)}); srcs.length=Math.min(srcs.length,3); return; }
       if(m.t==="run"){ var s=null; srcs.forEach(function(x){ if(x.key===m.key) s=x; }); if(!s){ post({id:m.id,miss:1}); return; }
         for(var ck in cache) if(!srcs.some(function(x){ return x.key===ck; })) delete cache[ck];
         var c=cache[m.key]||(cache[m.key]={});
@@ -316,24 +322,33 @@
     return { send:function(m,cb,k,tr){ m.id=nid++; if(cb) cbs[m.id]=cb; var w=get(k==null?(rr++%size):k); w.postMessage(m,tr||[]); return m.id; }, size:size }; }
   var crPrev=null, crBakePool=null;
   // ---- live preview: a draft while a slider moves, the full preview once it settles ----
-  var crv={sent:[], busy:false, pend:null, settle:0, last:null, dragging:false};
+  // Three passes, each shown only if nothing newer is waiting: a draft (≤900 px) while a slider moves, the full
+  // preview at the stage's size when it rests, then a sharp pass at the screen's real pixels (retina, and zoomed in).
+  var crv={sent:[], busy:false, pend:null, settle:0, last:null, zt:0};
   function crSrcFor(cr,ow,oh){ var c=document.createElement("canvas"); c.width=ow; c.height=oh; var x=c.getContext("2d"); x.imageSmoothingQuality="high"; x.drawImage(edRC,cr.x,cr.y,cr.w,cr.h,0,0,ow,oh); return x.getImageData(0,0,ow,oh); }
+  // the canvas fills the stage (fitted to the crop); returns css size and the pixel scales for each pass
+  function crView(cr){ var stg=$("editStage"), W=stg?stg.clientWidth-28:0, H=stg?stg.clientHeight-28:0;
+    var s=(W>40&&H>40)?Math.min(W/cr.w,H/cr.h):Math.min(980/cr.w,980/cr.h); if(!isFinite(s)||s<=0) s=1;
+    var dpr=Math.min(window.devicePixelRatio||1,3), hi=Math.min(1,s*dpr*Math.max(1,edVZoom)), cap=Math.sqrt(10e6/(cr.w*cr.h)); if(hi>cap) hi=cap;
+    return {cw:cr.w*s, ch:cr.h*s, hi:hi, fin:Math.min(hi,s), dr:Math.min(hi,s,900/Math.max(cr.w,cr.h))}; }
   function crRequest(mode){ if(!edState||!edRC) return; if(!crPrev) crPrev=crPool(1);
-    var cr=cropRect(), cap=980, s=Math.min(cap/cr.w, cap/cr.h, 1.7); if(!isFinite(s)||s<=0) s=1;
-    var ow=Math.max(2,Math.round(cr.w*s)), oh=Math.max(2,Math.round(cr.h*s)), dw=ow, dh=oh;
-    if(mode==="draft"){ var ds=Math.min(1,520/Math.max(ow,oh)); dw=Math.max(2,Math.round(ow*ds)); dh=Math.max(2,Math.round(oh*ds)); }
+    var cr=cropRect(), V=crView(cr), sc=mode==="draft"?V.dr:mode==="final"?V.fin:V.hi;
+    var ow=Math.max(2,Math.round(cr.w*V.hi)), oh=Math.max(2,Math.round(cr.h*V.hi)), dw=Math.max(2,Math.round(cr.w*sc)), dh=Math.max(2,Math.round(cr.h*sc));
+    if(mode==="hires"&&dw<=Math.round(cr.w*V.fin)*1.1) return;   // the full preview is already sharp enough
+    var cv=$("editCanvas"); if(cv){ cv.style.width=V.cw.toFixed(1)+"px"; cv.style.height=V.ch.toFixed(1)+"px"; }
     var key=[edState.i,edState.rot,Math.round(cr.x),Math.round(cr.y),Math.round(cr.w),Math.round(cr.h),dw,dh,edSrc&&edSrc.src.length,edSrc&&edSrc.src.slice(-40)].join("|");
     crv.pend={mode:mode,key:key,cr:cr,ow:ow,oh:oh,dw:dw,dh:dh,p:crParams(edState),orig:edShowOrig}; crPump(); }
+  function crZoomed(){ clearTimeout(crv.zt); crv.zt=setTimeout(function(){ if(!crv.pend) crRequest("hires"); },260); }
   function crPump(){ if(crv.busy||!crv.pend) return; var r=crv.pend; crv.pend=null;
-    if(r.orig){ var v0=$("editCanvas"); if(v0.width!==r.ow||v0.height!==r.oh){ v0.width=r.ow; v0.height=r.oh; } var x0=v0.getContext("2d"); x0.drawImage(edRC,r.cr.x,r.cr.y,r.cr.w,r.cr.h,0,0,r.ow,r.oh);
-      try{ var id0=x0.getImageData(0,0,r.ow,r.oh); crv.last={w:r.ow,h:r.oh,data:id0.data}; }catch(e){} scheduleHist(); return; }
-    if(crv.sent.indexOf(r.key)<0){ var im=crSrcFor(r.cr,r.dw,r.dh); crPrev.send({t:"src",key:r.key,w:r.dw,h:r.dh,data:im.data},null,0,[im.data.buffer]); crv.sent.unshift(r.key); crv.sent.length=Math.min(crv.sent.length,2); }
-    crv.busy=true; var t0=performance.now();
-    crPrev.send({t:"run",key:r.key,mode:r.mode,p:r.p,opt:r.mode==="draft"?{workSide:320,refStep:0.25,pixelScale:r.dw/r.cr.w}:{workSide:640,pixelScale:r.dw/r.cr.w}},function(res){ crv.busy=false;
+    if(r.orig){ var v0=$("editCanvas"); if(v0.width!==r.ow||v0.height!==r.oh){ v0.width=r.ow; v0.height=r.oh; } var x0=v0.getContext("2d"); x0.imageSmoothingQuality="high"; x0.drawImage(edRC,r.cr.x,r.cr.y,r.cr.w,r.cr.h,0,0,r.ow,r.oh);
+      try{ var id0=x0.getImageData(0,0,r.ow,r.oh); crv.last={w:r.ow,h:r.oh,data:id0.data}; }catch(e){} crv.shown="orig"; scheduleHist(); return; }
+    if(crv.sent.indexOf(r.key)<0){ var im=crSrcFor(r.cr,r.dw,r.dh); crPrev.send({t:"src",key:r.key,w:r.dw,h:r.dh,data:im.data},null,0,[im.data.buffer]); crv.sent.unshift(r.key); crv.sent.length=Math.min(crv.sent.length,3); }
+    crv.busy=true; var t0=performance.now(), ps=r.dw/r.cr.w;
+    crPrev.send({t:"run",key:r.key,mode:r.mode,p:r.p,opt:r.mode==="draft"?{workSide:320,refStep:0.25,pixelScale:ps}:{workSide:800,pixelScale:ps}},function(res){ crv.busy=false;
       if(res.miss){ crv.sent=[]; if(!crv.pend) crv.pend=r; crPump(); return; }
       if(res.err){ console.warn("develop:",res.err); crPump(); return; }
-      if(!crv.pend||crv.pend.mode==="draft"||r.mode==="final") crShow(res,r);
-      crv.ms=performance.now()-t0; crPump(); },0); }
+      if(!crv.pend||crv.pend.mode==="draft"||r.mode!=="draft") crShow(res,r);
+      crv.ms=performance.now()-t0; if(r.mode==="final"&&!crv.pend) crRequest("hires"); crPump(); },0); }
   function crShow(res,r){ var v=$("editCanvas"); if(v.width!==r.ow||v.height!==r.oh){ v.width=r.ow; v.height=r.oh; } var x=v.getContext("2d"), id=new ImageData(res.data,res.w,res.h);
     if(res.w===r.ow&&res.h===r.oh) x.putImageData(id,0,0);
     else { var t=document.createElement("canvas"); t.width=res.w; t.height=res.h; t.getContext("2d").putImageData(id,0,0); x.imageSmoothingQuality="high"; x.drawImage(t,0,0,r.ow,r.oh); }

@@ -723,7 +723,12 @@
   var edRafPending=false, edHistTimer=0, edHover=false;
   var EDEF={ exposure:0,contrast:0,highlights:0,shadows:0,whites:0,blacks:0, temp:0,tint:0,vibrance:0,saturation:0,
     texture:0,clarity:0,dehaze:0,vignette:0,grain:0,grainSize:25,grainRough:50,glow:0,
-    mono:0,hdr:0,profile:"color",wb:"asshot", aspect:"free",zoom:1,rot:0,cx:0.5,cy:0.5, secLight:1,secColor:1,secEffects:1 };
+    mono:0,hdr:0,profile:"color",wb:"asshot", aspect:"free",zoom:1,rot:0,cx:0.5,cy:0.5, secLight:1,secColor:1,secEffects:1,secMix:1,secGrade:1,
+    // Color Mixer: hue / saturation / luminance for eight bands (red, orange, yellow, green, aqua, blue, purple, magenta)
+    hH0:0,hH1:0,hH2:0,hH3:0,hH4:0,hH5:0,hH6:0,hH7:0, hS0:0,hS1:0,hS2:0,hS3:0,hS4:0,hS5:0,hS6:0,hS7:0, hL0:0,hL1:0,hL2:0,hL3:0,hL4:0,hL5:0,hL6:0,hL7:0,
+    // Color Grading: a hue / saturation / luminance wheel each for shadows, midtones, highlights and the whole image
+    gShH:0,gShS:0,gShL:0, gMiH:0,gMiS:0,gMiL:0, gHiH:0,gHiS:0,gHiL:0, gGlH:0,gGlS:0,gGlL:0, gBlend:50, gBal:0 };
+  var ED_SECKEY={light:"secLight",color:"secColor",effects:"secEffects",mixer:"secMix",grading:"secGrade"};
   function defEd(i){ var o={},k; for(k in EDEF) o[k]=EDEF[k]; o.i=i; return o; }
   // Processing is Camera Raw–style, in crdev.js (a port of PhotoCraft's pipeline), off the main thread.
   function eglInit(){}
@@ -802,8 +807,8 @@
     if($("eProfile")) $("eProfile").value=E.profile; if($("eWB")) $("eWB").value=E.wb;
     var gs=$("grainSub"); if(gs) gs.style.opacity=(E.grain>0?1:0.4);
     Array.prototype.forEach.call(document.querySelectorAll("#editor .lr-ct[data-a]"),function(b){ b.classList.toggle("on", b.getAttribute("data-a")===E.aspect); });
-    var eyes={light:E.secLight,color:E.secColor,effects:E.secEffects};
-    Array.prototype.forEach.call(document.querySelectorAll("#editor .lr-sec"),function(sec){ var n=sec.getAttribute("data-sec"), ey=sec.querySelector(".lr-eye"); if(ey) ey.classList.toggle("off",!eyes[n]); });
+    Array.prototype.forEach.call(document.querySelectorAll("#editor .lr-sec"),function(sec){ var n=sec.getAttribute("data-sec"), ey=sec.querySelector(".lr-eye"); if(ey) ey.classList.toggle("off",!E[ED_SECKEY[n]]); });
+    if(typeof edpSync==="function") edpSync();
   }
   function openEditor(i){
     if(looking) document.exitPointerLock();
@@ -856,6 +861,7 @@
 @@include studio.js@@
 @@include crtables.js@@
 @@include crdev.js@@
+@@include edpanels.js@@
 @@include develop.js@@
 @@include library.js@@
 @@include import.js@@
@@ -926,6 +932,7 @@
 
   // ---- editor: view zoom + undo history ----
   function edApplyView(){ var c=$("editCanvas"); if(c){ c.style.transformOrigin="center center"; c.style.transform="translate("+edVX.toFixed(1)+"px,"+edVY.toFixed(1)+"px) scale("+edVZoom.toFixed(3)+")"; }
+    if(typeof crZoomed==="function") crZoomed();
     var h=$("editHint"); if(h) h.textContent=(edVZoom>1.01? (Math.round(edVZoom*100)+"% · drag to pan · press 0 to fit") : "drag to reposition · scroll to zoom · \\ compares before/after"); }
   function edResetView(){ edVZoom=1; edVX=0; edVY=0; edApplyView(); }
   function edZoomBy(f){ edVZoom=Math.max(1,Math.min(8,edVZoom*f)); if(edVZoom<=1.001){ edVX=0; edVY=0; } edApplyView(); }
@@ -949,7 +956,7 @@
     Array.prototype.forEach.call(document.querySelectorAll("#editor .lr-sec"),function(sec){
       var name=sec.getAttribute("data-sec"), hdr=sec.querySelector(".lr-sechdr"), eye=sec.querySelector(".lr-eye");
       if(hdr) hdr.addEventListener("click",function(ev){ if(eye&&(ev.target===eye||eye.contains(ev.target))) return; sec.classList.toggle("collapsed"); });
-      if(eye) eye.addEventListener("click",function(ev){ ev.stopPropagation(); var key=name==="light"?"secLight":name==="color"?"secColor":"secEffects"; edState[key]=edState[key]?0:1; eye.classList.toggle("off",!edState[key]); queueRender(); edPushHist(); });
+      if(eye) eye.addEventListener("click",function(ev){ ev.stopPropagation(); var key=ED_SECKEY[name]; edState[key]=edState[key]?0:1; eye.classList.toggle("off",!edState[key]); queueRender(); edPushHist(); });
     });
     Array.prototype.forEach.call(document.querySelectorAll("#editor .lr-ct[data-a]"),function(b){ b.onclick=function(){ edState.aspect=b.getAttribute("data-a"); edState.cx=0.5; edState.cy=0.5; syncEditUI(); queueRender(); edPushHist(); }; });
     if($("eRotL")) $("eRotL").onclick=function(){ edState.rot=(edState.rot+270)%360; edState.cx=0.5; edState.cy=0.5; buildRotated(); queueRender(); edPushHist(); };

@@ -38,9 +38,14 @@ try {
 
   // edit frame 1, move on: the edit stays on the frame
   await setSlider('pExposure', 40); await setSlider('pContrast', 30);
+  // the Color Mixer and Color Grading panels write onto the frame too
+  await cb(() => { const set = (k, v) => { const e = document.querySelector(`[data-edp="${k}"]`); e.value = v; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); }; set('hH3', 25); set('gBal', -30); });
+  ok((await page.$$('#lrGrade .cg-disc')).length === 3, 'Color Grading should show three wheels');
   await page.click('#editStage'); await page.keyboard.press('ArrowRight'); await page.waitForTimeout(1200);
   let ph = await P();
   ok(ph[0].dev && ph[0].dev.exposure === 40 && ph[0].orig && ph[0].edited, 'frame 1 should keep its edit: ' + JSON.stringify(ph[0]));
+  ok((await cb(() => [window.__cb.photos[0].dev.hH3, window.__cb.photos[0].dev.gBal])).join() === '25,-30', 'mixer and grading settings should stay on the frame');
+  await page.waitForFunction(() => window.__dev.pending() === 0, null, { timeout: 120000 });   // full-size renders run in the background
   ok((await cb(() => window.__cb.photos[0].url)) !== url0, 'frame 1 should show the edited render');
   ok(await cur() === 1, 'right arrow should move to frame 2');
   await page.keyboard.press('ArrowLeft'); await page.waitForTimeout(1200);

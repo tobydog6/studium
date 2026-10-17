@@ -3,9 +3,9 @@
   // frame is what every room shows (the original stays underneath, so reopening carries on from the same sliders).
   // The filmstrip moves between frames (← →, or click). Ctrl/Cmd-click or Shift-click selects more frames, and
   // SYNC puts this frame's settings (not its crop) on all of them. Copy and paste settings with Ctrl+C / Ctrl+V.
-  var DEV_CROP=["aspect","zoom","cx","cy","rot"], DEV_VIEW=["secLight","secColor","secEffects"], devClip=null, devSel={}, devAnchor=-1, devBusy=false, devScope=null;   // devScope: just one library folder's frames, when edited as a group
+  var DEV_CROP=["aspect","zoom","cx","cy","rot"], DEV_VIEW=["secLight","secColor","secEffects","secMix","secGrade"], devClip=null, devSel={}, devAnchor=-1, devBusy=false, devScope=null;   // devScope: just one library folder's frames, when edited as a group
   function devList(){ return devScope&&devScope.length?devScope.filter(function(i){ return i<photos.length; }):photos.map(function(_,i){ return i; }); }
-  function devClone(E){ var o={}; for(var k in EDEF) o[k]=E[k]; return o; }
+  function devClone(E){ var o={}; for(var k in EDEF) o[k]=E[k]==null?EDEF[k]:E[k]; return o; }   // older edits get today's defaults for newer controls
   function devIsDefault(E){ for(var k in EDEF){ if(DEV_VIEW.indexOf(k)>=0) continue; if(E[k]!==EDEF[k]) return false; } return true; }
   function devSettings(E){ var o={}; for(var k in EDEF){ if(DEV_CROP.indexOf(k)<0) o[k]=E[k]; } return o; }
   // Rendering at full size runs in background workers (crdev.js): the frame keeps its settings at once and its
@@ -65,6 +65,6 @@
       if(mod&&(e.key==="a"||e.key==="A")){ e.preventDefault(); devSelectAll(); return; }
       if(tag==="INPUT") return;   // arrows on a focused slider move the slider
       if(e.key==="ArrowRight"){ e.preventDefault(); devStep(1); } else if(e.key==="ArrowLeft"){ e.preventDefault(); devStep(-1); } }); })();
-  if(/[?&]dev/.test(location.search)) window.__crv=function(){ return {busy:crv.busy,pend:!!crv.pend,shown:crv.shown,ms:crv.ms}; };
+  if(/[?&]dev/.test(location.search)) window.__crv=function(){ return {busy:crv.busy,pend:!!crv.pend,shown:crv.shown,ms:crv.ms,w:crv.last&&crv.last.w}; };
   if(/[?&]dev/.test(location.search)) window.__dev={ pending:devPending, params:function(o){ var E=devClone(edState||defEd(0)); for(var k in o) E[k]=o[k]; return crParams(E); },
     bake:function(o,cb){ if(!edState||!edSrc) return null; var E=devClone(edState); for(var k in o) E[k]=o[k]; crBake(edSrc,E,cb); } };

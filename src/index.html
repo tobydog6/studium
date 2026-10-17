@@ -389,7 +389,7 @@
         </div>
       </div>
       <aside class="lr-panel">
-        <div class="lr-hist"><canvas id="lrHist" width="372" height="150"></canvas>
+        <div class="lr-hist"><canvas id="lrHist" width="448" height="150"></canvas>
           <div class="lr-rgb"><span>R <b id="lrR">–</b></span><span>G <b id="lrG">–</b></span><span>B <b id="lrB">–</b></span></div>
         </div>
         <div class="lr-edithdr"><span class="lr-h">Edit</span>
@@ -434,6 +434,14 @@
             </div>
             <div class="lr-row"><span class="lr-n">Glow</span><input type="range" id="pGlow" min="0" max="100" value="0"><span class="lr-v" id="vGlow">0</span></div>
           </div>
+        </section>
+        <section class="lr-sec" data-sec="mixer">
+          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Color Mixer</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
+          <div class="lr-body" id="lrMixer"></div>
+        </section>
+        <section class="lr-sec" data-sec="grading">
+          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Color Grading</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
+          <div class="lr-body" id="lrGrade"></div>
         </section>
       </aside>
     </div>

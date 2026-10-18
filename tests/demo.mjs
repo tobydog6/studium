@@ -33,14 +33,15 @@ try {
   await shot('0-signin');
   await page.click('#signin [data-si="demo"]');
   await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 });
-  await waitStep('challenges');
-  let g = await gd(); ok(g.demo && g.n === 7, 'the demo guide should be running: ' + JSON.stringify(g));
+  await waitStep('basics');
+  let g = await gd(); ok(g.demo && g.n === 8, 'the demo guide should be running: ' + JSON.stringify(g));
   ok(/ten-minute/.test(await page.$eval('#gdPop', (e) => e.textContent)), 'the welcome says it is the short demo');
+  await page.click('#gdPop [data-gd="next"]'); await waitStep('challenges');
   const dp = await ev(() => window.__ch.pads()); ok(dp.length === 3 && dp.map((p) => p.id).join() === 'stump-fgbg,stump-dof,stump-67', 'the demo has three challenges, one per camera: ' + JSON.stringify(dp.map((p) => p.id)));
   await shot('1-welcome');
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(1200);
   await shot('1b-scene');
-  ok(/DEMO · STEP 1/.test(await page.$eval('#gdCard', (e) => e.textContent)), 'the tracker is marked DEMO');
+  ok(/DEMO · STEP 2/.test(await page.$eval('#gdCard', (e) => e.textContent)), 'the tracker is marked DEMO');
   await page.click('#gdCard [data-gd="next"]'); await waitStep('shoot');
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(300);
   await ev((fr) => { const L = ['2470', '85'], F = [11, 1.8]; for (let i = 0; i < 5; i++) window.__cb.addPhoto({ url: fr[i % fr.length], f: F[i % 2], sh: '1/250', iso: 400, mm: 50, lens: L[i % 2], body: 'Full-frame DSLR', place: 'The Stump' }); }, frames);

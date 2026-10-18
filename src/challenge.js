@@ -42,7 +42,8 @@
     chMarkers(); }
   function chAlign(P){ var dp=P.E.clone().sub(camPos), hz=Math.hypot(dp.x,dp.z), dy=dp.y, ang=Math.acos(Math.max(-1,Math.min(1,P.d.dot(_fwd))))*180/Math.PI;
     return {hz:hz, dy:dy, ang:ang, ok:hz<0.3&&Math.abs(dy)<0.2&&ang<6}; }
-  function chRender(dt){ chGlowCss(); if(!CH.fx||!CH.pads.length||CH.capturing||viewfinderOn) return;   // camera up: nothing in the way of the picture
+  function chOff(){ return typeof coHidesFrames==="function"&&coHidesFrames(); }   // hidden during the first-time warm-up
+  function chRender(dt){ chGlowCss(); if(!CH.fx||!CH.pads.length||CH.capturing||viewfinderOn||chOff()) return;   // camera up: nothing in the way of the picture
     CH.t+=dt||0.016; var br=0.5+0.5*Math.sin(CH.t*1.7);   // a slow breath while it has you
     CH.pads.forEach(function(P,i){ var u=P.frame.material.uniforms, a=chAlign(P), dist=P.F.distanceTo(camPos), mine=(CH.pull===i);
       P.vis+=((CH.done[P.c.id]?0:1)-P.vis)*(1-Math.exp(-(dt||0.016)*1.4)); if(P.vis<0.01) P.vis=CH.done[P.c.id]?0:P.vis;   // a finished frame melts away
@@ -102,7 +103,11 @@
     if(Math.abs((+el.style.opacity||0)-v)>0.004) el.style.opacity=v.toFixed(3); }
   // The card (and the title) only appear once a frame starts drawing you in. They stay while you work near it,
   // and go when you walk off or finish it.
-  function chTick(dt){ if(!CH.pads.length||!loaded) return; chTractor(dt||1/30);
+  function chTick(dt){ if(!CH.pads.length||!loaded) return;
+    var off=chOff(); if(off){ CH.wasOff=true; if(CH.active>=0){ CH.active=-1; chCard(null); } chMarkers(); return; }
+    if(CH.wasOff){ CH.wasOff=false; CH.pads.forEach(function(P){ P.vis=0; });   // the warm-up's done: the frames fade in
+      var f=$("chFlash"); if(f){ f.innerHTML='<span>UNLOCKED</span><b>The gold frames are out</b>'; f.classList.remove("show"); void f.offsetWidth; f.classList.add("show"); } }
+    chTractor(dt||1/30);
     var f=CH.pull>=0?CH.pull:CH.focus;
     if(f<0) CH.pads.forEach(function(P,i){ if(f<0&&!CH.done[P.c.id]&&Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z)<0.3) f=i; });   // walked straight in without the pull
     if(f>=0){ var Q=CH.pads[f]; if(CH.pull!==f&&(Math.hypot(camPos.x-Q.E.x,camPos.z-Q.E.z)>CH_NEAR*0.7||(CH.done[Q.c.id]&&!CH.doneHold))) f=-1; }
@@ -142,7 +147,7 @@
     if(CH.pull>=0&&CH.pads[CH.pull]===P) chLetGo(); CH.doneHold=true; clearTimeout(CH.doneT); CH.doneT=setTimeout(function(){ CH.doneHold=false; }, 2600); }
   // ---- on-screen markers that point to the frames ----
   var _chV=new THREE.Vector3();
-  function chMarkers(){ var host=$("chMarks"); if(!host) return; var show=loaded&&App.is("scene")&&CH.pads.length;
+  function chMarkers(){ var host=$("chMarks"); if(!host) return; var show=loaded&&App.is("scene")&&CH.pads.length&&!chOff();
     host.classList.toggle("show", !!show); if(!show) return;
     if(host.children.length!==CH.pads.length) host.innerHTML=CH.pads.map(function(){ return '<span class="chm"><i></i><b></b></span>'; }).join("");
     var W=window.innerWidth, H=window.innerHeight, nearest=-1, nd=1e9;

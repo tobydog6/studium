@@ -22,10 +22,14 @@
   function gdWsItems(t){ var n=0; gdWs().forEach(function(pg){ pg.items.forEach(function(it){ if(t(it)) n++; }); }); return n; }
   function gdFoTop(){ if(typeof foB==="undefined"||!st.foBoard) return []; var pg=st.foBoard.pages[st.foBoard.cur||0]; return pg?pg.items.filter(function(it){ return it.t==="photo"&&it.sec==="0.0"; }):[]; }
   var GD_FULL=[
-    {id:"challenges", where:"scene", title:"Welcome to the Stump",
-     body:"Walk the clearing and find the gold frames. Each one is a challenge: step up to it, let it draw you in, set the camera the way the card asks, and take the shot. Do all six.",
-     controls:[["Click","Look around (Esc to let go)"],["W A S D","Walk"],["Q / E","Crouch, stand taller"],["P","Raise the camera"],["Click or ↵","Take the photo"],["1 2 3 4, scroll","Pick a dial, turn it"],["B","Camera bag: bodies and lenses"],["X","Turn the camera vertical"],["Space","Camera back: settings and your shots"],["Tab","Studio"]],
-     btn:"START EXPLORING",
+    {id:"basics", where:"scene", title:"Welcome to the Stump",
+     body:"You're standing in a real place, scanned in 3D. Before the challenges, a two-minute warm-up: how to move, how to use the camera, and what's in your bag. Just follow the prompts at the bottom of the screen.",
+     btn:"LET'S GO", go:function(){ coStart(); },
+     checks:function(){ var n=GD.flags.co||0; return [{t:"Warm up: moving, shooting, the bag and the settings", ok:n>=CO_STEPS.length, now:Math.min(n,CO_STEPS.length)+" / "+CO_STEPS.length}]; },
+     tick:function(){ if(!CO.on&&!GD.open&&GD.shown===GD.step&&(GD.flags.co||0)<CO_STEPS.length) coStart(); }},
+    {id:"challenges", where:"scene", title:"The gold frames",
+     body:"Six gold frames hang around the clearing, each one a shot to take. Walk into a frame's glow and it draws you in, then set the camera the way its card asks and shoot. The markers point the way.",
+     btn:"FIND THEM",
      checks:function(){ var n=CH.list.length, d=CH.list.filter(function(c){ return CH.done[c.id]; }).length; return [{t:"Complete the gold-frame challenges", ok:n>0&&d>=n, now:d+" / "+(n||6)}]; }},
     {id:"shoot", where:"scene", title:"Now shoot it your way",
      body:"Challenges done. Now make 15 photographs of your own. Use every lens in the bag at least once, and push the settings around: wide open and stopped down, fast and slow shutter, low and high ISO. Notice what each one does.",
@@ -93,9 +97,14 @@
         {k:"ev",tol:0.7,label:"Exposure within ⅔ of a stop: press 1 for shutter, or 3 for ISO"}]}}];
   function gdDemoChallenges(all){ return GD_DEMO_CH.map(function(d){ var c=all.filter(function(x){ return x.id===d.id; })[0]; if(!c) return null; var o={}, k; for(k in c) o[k]=c[k]; for(k in d.over) o[k]=d.over[k]; return o; }).filter(Boolean); }
   var GD_DEMO=[
-    {id:"challenges", where:"scene", title:"Welcome to the Stump",
-     body:"This is a ten-minute taste of Studium. Walk the clearing and find the three gold frames. Each one asks for a different camera from your bag. Step into the glow around one and it draws you in. Set the camera the way its card asks, then take the shot.",
-     controls:GD_FULL[0].controls, btn:"START EXPLORING",
+    {id:"basics", where:"scene", title:"Welcome to the Stump",
+     body:"This is a ten-minute taste of Studium, in a real place scanned in 3D. Before the challenges, a two-minute warm-up: how to move, how to use the camera, and what's in your bag. Just follow the prompts at the bottom of the screen.",
+     btn:"LET'S GO", go:function(){ coStart(); },
+     checks:function(){ var n=GD.flags.co||0; return [{t:"Warm up: moving, shooting, the bag and the settings", ok:n>=CO_STEPS.length, now:Math.min(n,CO_STEPS.length)+" / "+CO_STEPS.length}]; },
+     tick:function(){ if(!CO.on&&!GD.open&&GD.shown===GD.step&&(GD.flags.co||0)<CO_STEPS.length) coStart(); }},
+    {id:"challenges", where:"scene", title:"The gold frames",
+     body:"Three gold frames hang around the clearing, each needing a different camera from your bag. Walk into a frame's glow and it draws you in, then set the camera the way its card asks and shoot.",
+     btn:"FIND THEM",
      checks:function(){ var n=CH.list.length, d=CH.list.filter(function(c){ return CH.done[c.id]; }).length; return [{t:"Complete the three gold-frame challenges", ok:n>0&&d>=n, now:d+" / "+(n||3)}]; }},
     {id:"shoot", where:"scene", title:"Five of your own",
      body:"Now take 5 photos your way. Swap lenses at least once (B opens the camera bag), and try a wide aperture and a narrow one to see what changes.",
@@ -104,23 +113,23 @@
        return [{t:"Take 5 photos", ok:n>=5, now:Math.min(n,5)+" / 5"}, {t:"Use 2 different lenses", ok:lc>=2, now:Math.min(lc,2)+" / 2"}, {t:"Use 2 different apertures", ok:gdDistinct("f")>=2, now:Math.min(gdDistinct("f"),2)+" / 2"}]; }},
     {id:"select", where:"select", title:"Pick your best 3",
      body:"The light table shows everything you shot. Press P to pick your 3 strongest frames, X to reject the rest. Be choosy.",
-     btn:"OPEN SELECT", go:GD_FULL[2].go,
+     btn:"OPEN SELECT", go:GD_FULL[3].go,
      checks:function(){ var n=gdPicked().length; return [{t:"Open Select in the studio (Tab)", ok:st.open&&st.room==="select"||GD.flags.sel, now:""}, {t:"Pick 3 frames", ok:n===3, now:n+" / 3"}]; },
-     tick:GD_FULL[2].tick},
+     tick:GD_FULL[3].tick},
     {id:"edit", where:"edit", title:"Edit your picks",
      body:"Your picks are in The Stump › Picked photos. Get the light right on one (try pulling Highlights down and Shadows up), then make one black and white or crop it tighter.",
-     btn:"OPEN EDIT", go:GD_FULL[3].go,
-     checks:function(){ return [GD_FULL[3].checks()[0],
+     btn:"OPEN EDIT", go:GD_FULL[4].go,
+     checks:function(){ return [GD_FULL[4].checks()[0],
        {t:"Make one black and white, or crop one", ok:gdDev(function(d){ return d.mono||d.profile==="mono"||(d.aspect&&d.aspect!=="free")||d.zoom>1.01; })}]; }},
     {id:"workbook", where:"workbook", title:"One workbook page",
      body:"The workbook is where you explain your thinking. Start a page from a template on the right, then click a text box and write a sentence about why your best photo works.",
-     btn:"OPEN THE WORKBOOK", go:GD_FULL[4].go,
-     checks:function(){ return [GD_FULL[4].checks()[0], {t:"Write a sentence about a photo", ok:gdWsItems(function(it){ return it.t==="text"&&String(it.text||"").trim().length>=20; })>0}]; }},
+     btn:"OPEN THE WORKBOOK", go:GD_FULL[5].go,
+     checks:function(){ return [GD_FULL[5].checks()[0], {t:"Write a sentence about a photo", ok:gdWsItems(function(it){ return it.t==="text"&&String(it.text||"").trim().length>=20; })>0}]; }},
     {id:"folio", where:"folio", title:"The top of a folio panel",
      body:"A folio board is big panels filled edge to edge. Zoom into the top section of the first panel (the ⤢ button) and drag in two of your photos from the library. Try Best fit, Rows and Hero.",
-     btn:"OPEN THE FOLIO", go:GD_FULL[5].go,
+     btn:"OPEN THE FOLIO", go:GD_FULL[6].go,
      checks:function(){ var top=gdFoTop(); return [{t:"Zoom into panel 1, top section", ok:!!GD.flags.zoomed}, {t:"Lay out 2 photos in it", ok:top.length>=2, now:Math.min(top.length,2)+" / 2"}]; },
-     tick:GD_FULL[5].tick},
+     tick:GD_FULL[6].tick},
     {id:"done", where:"any", title:"That's the demo",
      body:"Shoot, select, edit, workbook, folio: that's a photography project from start to finish. The Book and the Gallery are there to explore if you'd like to keep going.",
      btn:"FINISH", final:true, checks:function(){ return []; }}];
@@ -142,7 +151,7 @@
     el.classList.add("show"); GD.open=true; GD.shown=GD.step; gdSave(); }
   function gdClose(){ var el=$("gdPop"); if(el) el.classList.remove("show"); GD.open=false; gdCard(); }
   function gdCard(){ var el=gdEl("gdCard","gd-track"), s=GD_STEPS[GD.step];
-    if(!gdActive()||!s||s.final||GD.open){ el.classList.remove("show"); return; }
+    if(!gdActive()||!s||s.final||GD.open||s.id==="basics"){ el.classList.remove("show"); return; }
     var checks=s.checks(), done=checks.filter(function(c){ return c.ok; }).length;
     var html='<div class="hd"><span class="k">'+(GD.demo?'DEMO · ':'')+'STEP '+(GD.step+1)+' · '+cbEsc(s.title.toUpperCase())+'</span><span class="fr">'+done+' / '+checks.length+'</span><button data-gd="help" title="Show this step again">?</button><button class="nx" data-gd="next" title="Skip this step">SKIP ›</button></div>'
       +checks.map(function(c){ return '<div class="ck'+(c.ok?' ok':'')+'"><i>'+(c.ok?'✓':'')+'</i><span>'+cbEsc(c.t)+'</span>'+(c.now?'<em>'+c.now+'</em>':'')+'</div>'; }).join("")
@@ -158,9 +167,9 @@
     if(!s.final&&checks.length&&checks.every(function(c){ return c.ok; })&&!GD.open){ toast("Step done: "+s.title); gdNext(); } }
   function gdStart(){ gdLoad(); if(GD.step<0) return; clearInterval(GD.timer); GD.timer=setInterval(gdTick, 700); }
   document.addEventListener("click",function(e){ var b=e.target.closest&&e.target.closest("[data-gd]"); if(!b) return; var a=b.getAttribute("data-gd"), s=GD_STEPS[GD.step];
-    if(a==="skip"){ GD.step=-1; GD.demo=false; gdSave(); gdClose(); toast("Guide off. Turn it back on from the ? button."); return; }
+    if(a==="skip"){ if(CO.on) coStop(); GD.step=-1; GD.demo=false; gdSave(); gdClose(); toast("Guide off. Turn it back on from the ? button."); return; }
     if(a==="help"){ gdPop(); return; }
-    if(a==="next"){ if(!s||s.final) return; gdClose(); toast("Skipped: "+s.title); gdNext(); return; }   // move on without doing it (handy for trying the steps out)
+    if(a==="next"){ if(!s||s.final) return; if(s.id==="basics"){ coFinish(false); } gdClose(); toast("Skipped: "+s.title); gdNext(); return; }   // move on without doing it (handy for trying the steps out)
     if(a==="book"||a==="gallery"){ GD.step=-1; gdSave(); gdClose(); openStudio(a); return; }
     if(a==="go"){ gdClose(); if(s&&s.final){ GD.step=-1; gdSave(); return; } if(s&&s.go) s.go(); } });
   // the ? button: show the current step, or start the guide again

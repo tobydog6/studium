@@ -26,9 +26,10 @@ try {
   ok(!(await page.$('#gdPop.show')), 'no guide popup on the home page');
   await page.click('#tileSplat'); await page.click('.scenecard');
   await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 });
-  await waitStep('challenges');
-  ok(await page.$eval('#gdPop', (e) => /Welcome to the Stump/.test(e.textContent) && e.querySelectorAll('kbd').length >= 8), 'the first popup shows the controls');
+  await waitStep('basics');
+  ok(await page.$eval('#gdPop', (e) => /Welcome to the Stump/.test(e.textContent)), 'the first popup welcomes you to the warm-up');
   await shot('1-welcome');
+  await page.click('#gdPop [data-gd="next"]'); await waitStep('challenges');   // the warm-up has its own test (coach.mjs)
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(1200);
   ok(await page.$('#gdCard.show'), 'the checklist card shows after the popup');
   ok(/challenges/i.test(await page.$eval('#gdCard', (e) => e.textContent)), 'card lists the challenges');
@@ -69,7 +70,7 @@ try {
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(500);
   ok((await gd()).step === -1 && !(await page.$('#gdCard.show')), 'finishing turns the guide off');
   // Skip this step on a popup does the same
-  await ev(() => window.__gd.set(2)); await waitStep('select');
+  await ev(() => window.__gd.set(3)); await waitStep('select');
   await page.click('#gdPop [data-gd="next"]'); await waitStep('edit');
   ok(await page.$('#gdPop.show'), 'the next step pops up after a skip');
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));

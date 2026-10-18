@@ -1245,9 +1245,25 @@ body.st-legacy #galleryshow{top:64px;z-index:56}
 .si-foot{position:absolute;left:0;right:0;bottom:36px;display:flex;justify-content:center;gap:14px;font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.14em;color:#4f4a41}
 .si-foot button{background:none;border:0;cursor:pointer;font:inherit;letter-spacing:inherit;color:#8d8678}
 .si-foot button:hover{color:#e3ad57}
-.si-demo{width:100%;min-height:48px;margin-top:22px;padding:8px 14px;border-radius:8px;cursor:pointer;background:rgba(227,173,87,.08);border:1px solid #e3ad57;color:#e3ad57;font-family:'Geist Mono',ui-monospace,monospace;font-size:11.5px;letter-spacing:.14em;line-height:1.5}
+.si-demo{position:relative;width:100%;margin-top:22px;padding:14px 56px 14px 20px;border-radius:10px;cursor:pointer;text-align:left;background:rgba(227,173,87,.08);border:1px solid #e3ad57;color:#e3ad57;display:flex;flex-direction:column;gap:4px;transition:background .2s,transform .2s,box-shadow .2s}
+.si-demo .t{font-family:'Fraunces',Georgia,serif;font-size:22px;letter-spacing:-.01em;line-height:1.1}
+.si-demo .d{font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.14em;line-height:1.5;opacity:.8}
+.si-demo .go{position:absolute;right:20px;top:50%;transform:translateY(-50%);font-size:22px;transition:transform .2s}
 .si-demo:hover{background:rgba(227,173,87,.16)}
+.si-demo:hover .go{transform:translate(4px,-50%)}
 .si-demo.ask{background:#e3ad57;color:#17140d}
+/* the playtest build: one big way in */
+#signin.demo-only .si-g,#signin.demo-only .si-m,#signin.demo-only .si-or,#signin.demo-only .si-code,#signin.demo-only .si-name,#signin.demo-only .si-help,#signin.demo-only .si-foot{display:none}
+#signin.demo-only .si-mid{top:22vh;width:min(560px,90vw)}
+#signin.demo-only .si-mid h1{font-size:88px}
+#signin.demo-only .si-sub{max-width:440px;text-align:center;line-height:1.55;font-size:15.5px;margin-bottom:40px}
+#signin.demo-only .si-demo{margin-top:0;padding:30px 84px 30px 34px;align-items:flex-start;background:#e3ad57;color:#17140d;border-color:#e3ad57;box-shadow:0 0 0 0 rgba(227,173,87,.5),0 24px 70px rgba(227,173,87,.18);animation:siPulse 2.6s ease-out infinite}
+#signin.demo-only .si-demo .t{font-size:40px;font-weight:400}
+#signin.demo-only .si-demo .d{font-size:11px;opacity:.75}
+#signin.demo-only .si-demo .go{right:34px;font-size:34px}
+#signin.demo-only .si-demo:hover{background:#ecbb68;transform:translateY(-2px)}
+#signin.demo-only .si-demo.ask{background:#17140d;color:#e3ad57}
+@keyframes siPulse{0%{box-shadow:0 0 0 0 rgba(227,173,87,.45),0 24px 70px rgba(227,173,87,.18)}70%{box-shadow:0 0 0 18px rgba(227,173,87,0),0 24px 70px rgba(227,173,87,.18)}100%{box-shadow:0 0 0 0 rgba(227,173,87,0),0 24px 70px rgba(227,173,87,.18)}}
 
 /* ===================== LESSON: heads-up pill, move-on card ===================== */
 .ls-pill{position:fixed;left:50%;top:46px;z-index:80;transform:translate(-50%,-14px);opacity:0;pointer-events:none;display:flex;align-items:center;gap:12px;height:44px;padding:0 20px 0 14px;border-radius:22px;background:rgba(23,20,13,.9);border:1px solid rgba(227,173,87,.3);box-shadow:0 12px 30px -10px rgba(0,0,0,.7);backdrop-filter:blur(10px);transition:opacity .3s,transform .3s;font-family:'Geist',ui-sans-serif,system-ui,sans-serif;color:#f4f1ea;white-space:nowrap}
@@ -1910,6 +1926,17 @@ body[data-state="viewfinder"] .gd-track,body[data-state="back"] .gd-track,body[d
 .co-card{position:fixed;left:50%;bottom:118px;transform:translateX(-50%);z-index:1100;width:min(480px,92vw);box-sizing:border-box;padding:14px 18px 14px;border-radius:12px;background:rgba(17,15,12,.92);border:1px solid rgba(227,173,87,.4);box-shadow:0 24px 50px -18px rgba(0,0,0,.85),0 0 40px -16px rgba(227,173,87,.35);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-family:'Geist',ui-sans-serif,system-ui,sans-serif;color:#f4f1ea;pointer-events:none;opacity:0;transition:opacity .25s,border-color .25s,box-shadow .25s;display:none}
 .co-card.show{display:block;opacity:1;animation:coIn .35s cubic-bezier(.2,.8,.2,1)}
 .co-card.pinned{animation:none}
+/* settings clips: a bigger card in the middle of the screen */
+.co-card.media{top:50%;bottom:auto;transform:translate(-50%,-50%);width:min(520px,92vw);padding:14px 16px 16px}
+.co-card.media.show{animation:coInM .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes coInM{from{opacity:0;transform:translate(-50%,-50%) translateY(10px)}to{opacity:1;transform:translate(-50%,-50%)}}
+.co-media{display:block;width:100%;aspect-ratio:3/2;margin-top:12px;border-radius:8px;background:#0c0b0a;border:1px solid rgba(240,232,214,.1)}
+.co-card.media .co-line{font-size:24px}
+.co-card.media .co-sub{font-size:13.5px;line-height:1.5}
+/* while the tour runs on the camera back, only the dial glows, and only when it's the dial's turn */
+body.co-on #camback .cb-hot::after{animation:none;opacity:0}
+body.co-dial #camback .cb-hot.dial::after{opacity:1;animation:coDialGlow 1.3s ease-in-out infinite;box-shadow:0 0 0 3px rgba(227,173,87,.75),0 0 34px rgba(227,173,87,.55)}
+@keyframes coDialGlow{0%,100%{opacity:.55}50%{opacity:1}}
 @keyframes coIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 .co-card.ok{border-color:#e3ad57;box-shadow:0 0 0 1px #e3ad57,0 0 50px -6px rgba(227,173,87,.6)}
 .co-card.ok .co-line::after{content:" ✓";color:#e3ad57}

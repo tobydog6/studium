@@ -49,16 +49,27 @@ try {
   await page.click('#bag [data-bg="done"]'); await next(10, 'lock in');
   await page.keyboard.press('KeyB'); await next(11, 'close bag');
   await page.keyboard.press('Space'); await next(12, 'camera back');
-  await page.waitForTimeout(500); await shot('3-back-spot');
-  await page.click('#camback [data-cb-row="0"] .cb-cell:not(.cur)[data-cb-set]'); await next(13, 'shutter');
-  await ev(() => window.__ch.set({ meter: true })); await next(14, 'meter');
-  await page.keyboard.press('Space'); await next(15, 'back to the scene');
+  // the settings one at a time: a card with a clip of what it does, then turn the dial for it
+  await page.waitForSelector('#coCard.media canvas.co-media'); await page.waitForTimeout(2500); await shot('3-shutter-clip');
+  ok(await page.$eval('canvas.co-media', (c) => c.width > 0), 'the clip draws');
+  const dial = async (i, label, row) => {
+    await page.click('#coCard [data-co-next]'); await next(i, label + ' card');
+    await page.waitForFunction((r) => document.querySelector('#coRing.show') && document.body.classList.contains('co-dial') && document.querySelector('#camback .cb-scale.sel[data-cb-row="' + r + '"]'), row, { timeout: 30000 });
+    if (row === 0) { await page.waitForTimeout(400); await shot('4-shutter-dial'); }
+    const b = await (await page.$('#camback [data-cb-row="' + row + '"]')).boundingBox();
+    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    for (let k = 0; k < 3; k++) { await page.mouse.wheel(0, row === 2 ? -120 : 120); await page.waitForTimeout(250); }
+    await next(i + 1, label + ' dial'); };
+  await dial(13, 'shutter', 0); await dial(15, 'aperture', 1); await dial(17, 'ISO', 2);
+  await page.click('#coCard [data-co-next]'); await next(19, 'meter card');
+  await ev(() => window.__ch.set({ meter: true })); await next(20, 'meter');
+  await page.keyboard.press('Space'); await next(21, 'back to the scene');
   await waitStep('challenges');
   ok((await co()).done, 'the warm-up is done');
   ok(!/W A S D/.test(await page.$eval('#gdPop', (e) => e.textContent)), 'the challenges popup is short too');
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(1500);
   ok(await page.$('#chMarks.show'), 'the frames unlock after the warm-up');
-  await shot('4-unlocked');
+  await shot('5-unlocked');
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));
   console.log(`PASS  coach (${FILE})`);
 } catch (e) { console.error('FAIL ', e.message); try { console.error('STATE', JSON.stringify(await page.evaluate(() => ({ gd: window.__gd && window.__gd.state(), co: window.__co && window.__co.state(), pop: !!document.querySelector('#gdPop.show'), top: (() => { const b = document.querySelector('#gdPop [data-gd]'); if (!b) return null; const r = b.getBoundingClientRect(); const e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && (e.id || e.className); })() })))); } catch (e2) {} if (errors.length) console.error(errors.join('\n')); process.exitCode = 1; await shot('fail').catch(() => {}); }

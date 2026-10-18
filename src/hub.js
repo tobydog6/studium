@@ -98,9 +98,13 @@
     var pl=cls?lsPlanFor(cls.code):null;
     s.querySelector(".si-eb").textContent=cls?((cls.period?"PERIOD "+cls.period+" · ":"")+cls.name+" WITH "+(cls.teacher||"")).toUpperCase():"A PHOTOGRAPHY STUDIO FOR YEARS 11–13";
     s.querySelector(".si-sub").textContent=pl?"Starts "+lsHM(pl.start)+". Sign in with your school account.":"Sign in with your school account.";
+    // the playtest build: only the demo. ?full brings back school sign-in, class codes and the teacher view
+    s.classList.toggle("demo-only", SI_DEMO_ONLY);
+    if(SI_DEMO_ONLY){ s.querySelector(".si-eb").textContent="A PHOTOGRAPHY STUDIO FOR YEARS 11–13"; s.querySelector(".si-sub").textContent="Walk into a real place, shoot it with a real camera, then edit your photos and lay out a folio."; }
     s.querySelector(".si-name").classList.add("hidden"); s.querySelector(".si-code").classList.remove("hidden"); $("siCode").value=""; siTime(); }
   function siTime(){ var t=$("signin")&&$("signin").querySelector(".si-time"); if(!t) return; var d=lsNow(); t.textContent=d.toLocaleDateString("en-NZ",{weekday:"short",day:"numeric",month:"short"}).toUpperCase()+" · "+lsHM(lsMinOf(d)); }
-  var siPending=null, siDemoAsk=false, SI_DEMO_LABEL="PLAY THE DEMO · ABOUT 10 MINUTES";
+  var siPending=null, siDemoAsk=false, SI_DEMO_ONLY=!/[?&]full(&|=|$)/.test(location.search);
+  var SI_DEMO_LABEL='<span class="t">Play the demo</span><span class="d">ABOUT 10 MINUTES · SHOOT · PICK · EDIT · MAKE</span><span class="go">→</span>';
   function siAct(a){ var s=$("signin");
     if(a==="google"||a==="microsoft"){ if(typeof Sync!=="undefined"&&Sync.on()) return Sync.signIn(a); toast("School sign-in isn't connected on this computer yet. Join with a class code, or try it on your own."); return; }
     if(a==="join"){ var code=($("siCode").value||"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
@@ -112,8 +116,8 @@
     if(a==="solo"){ lsSetWho({role:"solo", name:studentName||""}); return siDone(); }
     if(a==="demo"){   // the ten-minute demo for playtesters: a clean start, straight into the Stump
       var b=s.querySelector('[data-si="demo"]');
-      if(photos.length&&!siDemoAsk){ siDemoAsk=true; b.classList.add("ask"); b.textContent="THE DEMO STARTS FRESH AND CLEARS THE PHOTOS ON THIS COMPUTER · CLICK AGAIN"; return; }
-      siDemoAsk=false; b.classList.remove("ask"); b.textContent=SI_DEMO_LABEL;
+      if(photos.length&&!siDemoAsk){ siDemoAsk=true; b.classList.add("ask"); b.innerHTML='<span class="t">Start again?</span><span class="d">THE DEMO STARTS FRESH AND CLEARS THE PHOTOS ON THIS COMPUTER · CLICK AGAIN</span><span class="go">→</span>'; return; }
+      siDemoAsk=false; b.classList.remove("ask"); b.innerHTML=SI_DEMO_LABEL;
       clearSession(); if(typeof st!=="undefined"){ st.wsBoard=null; st.foBoard=null; st.projects=[]; st.wsPages=[]; if(typeof wsB!=="undefined") wsB.reset(null); if(typeof foB!=="undefined") foB.reset(null); }
       lsSetWho({role:"solo", name:"", demo:true}); siDone(); gdStartDemo();
       lsGo("shoot"); if(loaded&&typeof chAttach==="function") chAttach(); return; }   // already at the Stump: hang just the demo's two frames

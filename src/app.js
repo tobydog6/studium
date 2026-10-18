@@ -176,9 +176,15 @@
   function shakeRisk(){ return SHUTTERS[shIdx]>handheldLimit().t*1.01; }
   function shakeAmount(){ return 0.0008*SHUTTERS[shIdx]*camEquiv(); }   // blur length as a fraction of the frame width, before luck
   var lastShake=0;
-  // a slow drift in the viewfinder: barely there on a wide lens, a visible float on a long one
-  function swayOff(){ if(!viewfinderOn) return null; var t=performance.now()/1000, a=0.0016;
-    return {y:a*(0.6*Math.sin(t*1.31)+0.35*Math.sin(t*2.83+1.7)+0.45*Math.sin(t*0.53+0.4)), p:a*(0.55*Math.sin(t*1.07+2.1)+0.3*Math.sin(t*3.17+0.6)+0.4*Math.sin(t*0.61+1.2))}; }
+  // a slow drift in the viewfinder, always there while you shoot: barely there on a wide lens, a visible float on a
+  // long one. Below the safe hand-held speed it grows with every stop slower, and a quicker tremble comes in, so you
+  // can see the shake before it's in the photo.
+  var swayAmp=0.0016, swayTrem=0;
+  function swaySlow(){ return Math.log2(Math.max(1, SHUTTERS[shIdx]/handheldLimit().t)); }   // stops slower than safe
+  function swayOff(){ if(!viewfinderOn) return null; var t=performance.now()/1000, k=swaySlow();
+    swayAmp+=(0.0016*Math.min(7,1+0.8*k+0.3*k*k)-swayAmp)*0.04; swayTrem+=(Math.min(1,k/2.5)-swayTrem)*0.04; var a=swayAmp, q=a*0.22*swayTrem;
+    return {y:a*(0.6*Math.sin(t*1.31)+0.35*Math.sin(t*2.83+1.7)+0.45*Math.sin(t*0.53+0.4))+q*(Math.sin(t*7.3)+0.7*Math.sin(t*11.9+0.7)),
+            p:a*(0.55*Math.sin(t*1.07+2.1)+0.3*Math.sin(t*3.17+0.6)+0.4*Math.sin(t*0.61+1.2))+q*(Math.sin(t*8.1+1.3)+0.6*Math.sin(t*12.7+2.2))}; }
   function setVertical(v){ vertical=!!v; computeCam(); applyFinder(); if(typeof drawComp==="function") drawComp();
     var b=$("navVert"); if(b) b.classList.toggle("on", vertical); var c=$("vfVert"); if(c) c.classList.toggle("on", vertical);
     if(viewfinderOn&&typeof vfToast==="function") vfToast(vertical?"VERTICAL":"HORIZONTAL"); else toast(vertical?"Camera turned vertical":"Camera back to horizontal"); }

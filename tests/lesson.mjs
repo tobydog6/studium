@@ -30,7 +30,7 @@ const state = () => ev(() => window.__cb.state());
 const clock = async (hm) => { await ev((h) => window.__ls.setClock(h), hm); await page.waitForTimeout(250); };
 
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev');
+  await page.goto(pathToFileURL(FILE).href + '?dev&full');
   await page.waitForSelector('#signin:not(.hidden)', { timeout: 20000 });
   ok(await state() === 'signin', 'first run should land on sign-in');
   await shot('1-signin');

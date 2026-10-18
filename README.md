@@ -95,7 +95,8 @@ lives inside it.
 
 Download **`studium.html`** from [Releases](../../releases) and open it in Chrome or Edge. It runs straight from the file,
 with no server and no install. Choose **Play the demo** on the sign-in page for the ten-minute version, or add `?demo` to
-the address (`studium.html?demo`, or `https://your-site/?demo`) to send playtesters straight into it.
+the address (`studium.html?demo`, or `https://your-site/?demo`) to send playtesters straight into it. The sign-in page only offers the demo for now. Add `?full` to get school
+sign-in, class codes and the teacher view back.
 
 ## Put it online
 

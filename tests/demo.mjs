@@ -10,7 +10,9 @@ let chromium;
 try { ({ chromium } = require('playwright')); }
 catch { ({ chromium } = require(process.env.PLAYWRIGHT_PATH || '/opt/npm-tools/node_modules/playwright')); }
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const FILE = resolve(process.argv[2] || join(ROOT, 'dist', 'studium.html'));
+const ARG = process.argv[2] || '';
+const FILE = /^https?:/.test(ARG) ? ARG : resolve(ARG || join(ROOT, 'dist', 'studium.html'));   // a file, or an http(s) URL for the web build
+const PAGE = /^https?:/.test(FILE) ? FILE.replace(/\/?$/, '/') : pathToFileURL(FILE).href;
 const OUT = join(ROOT, 'tests', 'out'); mkdirSync(OUT, { recursive: true });
 const FIX = join(ROOT, 'tests', 'fixtures');
 const frames = readdirSync(FIX).filter((f) => f.endsWith('.jpg')).sort().map((f) => 'data:image/jpeg;base64,' + readFileSync(join(FIX, f)).toString('base64'));
@@ -26,7 +28,7 @@ const gd = () => ev(() => window.__gd.state());
 const waitStep = (id) => page.waitForFunction((x) => window.__gd.state().id === x && window.__gd.state().open, id, { timeout: 120000, polling: 300 });
 const shot = (n) => page.screenshot({ path: join(OUT, `demo-${n}.png`), timeout: 240000 });
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev');
+  await page.goto(PAGE + '?dev');
   await page.waitForSelector('#signin [data-si="demo"]', { state: 'visible', timeout: 60000 });
   await shot('0-signin');
   await page.click('#signin [data-si="demo"]');

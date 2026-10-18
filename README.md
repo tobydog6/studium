@@ -12,6 +12,13 @@ npm test           # build + headless smoke test (screenshots in tests/out/)
 
 Open `dist/studium.html` directly in Chrome (file:// works). Add `?dev` to expose `window.__ed` for testing.
 
+## Putting it online
+
+`npm run build:web` makes `dist/web/`: a 4 MB `index.html` plus the Stump scan in pieces under 8 MB (fetched and joined
+when the scene opens), about 37 MB in all. Drag the folder (or a zip of it) onto Netlify Drop, or any static host.
+It needs to be served over http(s): open `dist/studium.html` for the single-file version instead.
+`npm run serve` tries the web build locally at http://localhost:8080/.
+
 ## Layout
 
 | Path | What it is |

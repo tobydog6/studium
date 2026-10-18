@@ -497,8 +497,13 @@
       for(ch=0;ch<6;ch++){ var base=ch*2*n, v=b[base+i]|(b[base+n+i]<<8); F[fo+ch]=ch<3?f[ch]+v*sx[ch]:Math.exp(f[6]+v*ss); }
       for(k=0;k<8;k++) U[uo+24+k]=b[12*n+k*n+i]; o++; }
     return out; }
+  // A bundled file's bytes: inline base64 in the single-file build, or "@parts:url,url,…" pieces in the web build.
+  function assetBytes(v, onPart){ if(!/^@parts:/.test(v)) return fetch("data:application/octet-stream;base64,"+v).then(function(r){ return r.arrayBuffer(); });
+    var urls=v.slice(7).split(","), done=0;
+    return Promise.all(urls.map(function(u){ return fetch(u).then(function(r){ if(!r.ok) throw new Error("Couldn't download "+u); return r.arrayBuffer(); }).then(function(b){ done++; if(onPart) onPart(done,urls.length); return b; }); }))
+      .then(function(bufs){ var n=0; bufs.forEach(function(b){ n+=b.byteLength; }); var out=new Uint8Array(n), o=0; bufs.forEach(function(b){ out.set(new Uint8Array(b),o); o+=b.byteLength; }); return out.buffer; }); }
   function loadBundled(sc){ if(sc&&sc.name) cbPlace=sc.name; showLoader("Opening "+(sc.name||"the scan")+"…");
-    fetch("data:application/octet-stream;base64,"+sc.data).then(function(r){ return r.arrayBuffer(); }).then(function(ab){
+    assetBytes(sc.data, function(d,n){ if(d<n) showLoader("Downloading "+(sc.name||"the scan")+" · "+Math.round(d/n*100)+"%"); else showLoader("Opening "+(sc.name||"the scan")+"…"); }).then(function(ab){
       if(sc.ext!=="stm") return {buf:ab, ext:sc.ext||"splat"};
       var ds=new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate")));
       return ds.arrayBuffer().then(function(raw){ return {buf:stmUnpack(raw, sceneDetail==="full"?false:sceneDetail), ext:"splat"}; }); })

@@ -6,7 +6,7 @@
   var WK={col:null, mode:(function(){ try{ return localStorage.getItem("studium_move")||"walk"; }catch(e){ return "walk"; } })(), eye:1.6, r:0.22, toastT:0};
   var WK_EYE_MIN=0.3, WK_EYE_MAX=2.4, WK_STEP=0.3;
   function wkLoad(b64){ WK.col=null; if(!b64) return Promise.resolve();
-    return fetch("data:application/octet-stream;base64,"+b64).then(function(r){ return r.arrayBuffer(); })
+    return assetBytes(b64)
       .then(function(ab){ return new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer(); })
       .then(function(buf){ var dv=new DataView(buf), nx=dv.getInt32(20,true), nz=dv.getInt32(24,true);
         WK.col={x0:dv.getFloat32(4,true), z0:dv.getFloat32(8,true), cell:dv.getFloat32(12,true), plane:dv.getFloat32(16,true), nx:nx, nz:nz,

@@ -96,7 +96,7 @@
     var FO_SPLITS={thirds:[1,1,1], top:[2,1], bottom:[1,2], halves:[1,1], whole:[1]}, FO_SPLIT_NAMES={thirds:"THIRDS", top:"BIG TOP", bottom:"BIG BOTTOM", halves:"HALVES", whole:"WHOLE PANEL"};
     var SEC_BORDER=6, SEC_GAP=4;   // white border round each panel, and the gutter between frames and sections, in mm
     function secs(){ if(!o.sections) return []; var d=doc(), out=[]; page().splits=page().splits||{};
-      for(var p=0;p<d.panels;p++){ var sp=FO_SPLITS[page().splits[p]||"thirds"], U=sp.reduce(function(a,x){ return a+x; },0), x=p*o.panelW+SEC_BORDER, w=o.panelW-2*SEC_BORDER, h=o.H-2*SEC_BORDER-SEC_GAP*(sp.length-1), y=SEC_BORDER;
+      for(var p=0;p<d.panels;p++){ var sp=FO_SPLITS.thirds, U=sp.reduce(function(a,x){ return a+x; },0), x=p*o.panelW+SEC_BORDER, w=o.panelW-2*SEC_BORDER, h=o.H-2*SEC_BORDER-SEC_GAP*(sp.length-1), y=SEC_BORDER;
         sp.forEach(function(u,r){ var hh=h*u/U, nm=sp.length===1?"WHOLE":sp.length===2?(r?"BOTTOM":"TOP"):SEC_NAMES[r];
           out.push({key:p+"."+r, p:p, x:x, y:y, w:w, h:hh, label:"PANEL "+(p+1)+" · "+nm}); y+=hh+SEC_GAP; }); }
       return out; }
@@ -112,12 +112,20 @@
         ks.forEach(function(k,j){ var it=pg.items[k], rr=r.r[j]; if(!rr) return; delete it.box; it.x=rr.x; it.y=rr.y; it.w=rr.w; }); B.fill[q.key]=r.cover; }); }
     function bestOrderSec(key){ var pg=page(), q=secs()[secIdx(key)], ks=secItems(key); if(!q||ks.length<2) return; var A=ks.map(function(k){ return asp(pg.items[k]); }), ord=bdBestOrder(q, A, SEC_GAP, secStyle(key));
       var moved=ord.map(function(j){ return pg.items[ks[j]]; }); ks.forEach(function(k,j){ pg.items[k]=moved[j]; }); }
+    var SEC_STYLES=["auto","rows","cols","hero"];
+    function shuffleSec(key){ var pg=page(), q=secs()[secIdx(key)], ks=secItems(key); if(!q||ks.length<2){ toast("Put two or more frames in this section to shuffle"); return; }
+      var look=function(o2,stl){ return o2.map(function(j){ return pg.items[ks[j]].pid; }).join()+"|"+stl; }, cur=look(ks.map(function(_,j){ return j; }),secStyle(key)), tries=[], best=0;   // what it looks like: which photo where, and how it packs
+      for(var t=0;t<24;t++){ var o2=ks.map(function(_,j){ return j; }); for(var i=o2.length-1;i>0;i--){ var r=Math.floor(Math.random()*(i+1)), tmp=o2[i]; o2[i]=o2[r]; o2[r]=tmp; }
+        var stl=SEC_STYLES[Math.floor(Math.random()*SEC_STYLES.length)], cov=bdPack(q, o2.map(function(j){ return asp(pg.items[ks[j]]); }), SEC_GAP, stl).cover;
+        tries.push({o:o2, s:stl, c:cov}); if(cov>best) best=cov; }
+      var ok=tries.filter(function(x){ return x.c>=best*0.9&&look(x.o,x.s)!==cur; }); if(!ok.length) ok=tries.filter(function(x){ return look(x.o,x.s)!==cur; }); var pick=(ok.length?ok:tries)[Math.floor(Math.random()*(ok.length||tries.length))];
+      var moved=pick.o.map(function(j){ return pg.items[ks[j]]; }); ks.forEach(function(k,j){ pg.items[k]=moved[j]; });
+      page().secStyle=page().secStyle||{}; page().secStyle[key]=pick.s; B.shuffles=(B.shuffles||0)+1; commit(); }
     function curSec(){ var S=secs(); if(B.view>=0&&S[B.view]) return S[B.view].key; if(B.sel.length){ var it=page().items[B.sel[0]]; if(it&&it.sec) return it.sec; } return null; }
     function targetSec(){ var k=curSec(); if(k) return k; var S=secs(), best=null, bn=1e9; S.forEach(function(q){ var n=secItems(q.key).length; if(n<bn){ bn=n; best=q.key; } }); return best; }
     // put frames into a section (moving them if they're already on the board), then find the order that fills it best
-    function intoSec(key, list, before){ var pg=page(), add_=[];
-      list.forEach(function(i){ var id=stId(i), ex=null; pg.items.forEach(function(it){ if(it.pid===id&&it.t==="photo") ex=it; });
-        if(ex) pg.items.splice(pg.items.indexOf(ex),1); add_.push(ex||{id:bdUid(), t:"photo", pid:id, x:0, y:0, w:10}); });
+    function intoSec(key, list, before){ var pg=page(), add_=[];   // always a new copy: the same frame can appear more than once
+      list.forEach(function(i){ add_.push({id:bdUid(), t:"photo", pid:stId(i), x:0, y:0, w:10}); });
       add_.forEach(function(it){ it.sec=key; });
       var at=before>=0?before:-1; if(at<0){ var ks=secItems(key); at=ks.length?ks[ks.length-1]+1:pg.items.length; }
       Array.prototype.splice.apply(pg.items,[Math.min(at,pg.items.length),0].concat(add_));
@@ -226,19 +234,18 @@
       return '<svg width="72" height="34" viewBox="0 0 594 280" aria-hidden="true"><rect width="594" height="280" class="pg"/>'+r.map(function(q){ return '<rect x="'+q.x.toFixed(0)+'" y="'+q.y.toFixed(0)+'" width="'+q.w.toFixed(0)+'" height="'+q.h.toFixed(0)+'"/>'; }).join("")+'</svg>'; }
     function swatch(c){ return '<i class="sw" style="background:'+c+'"></i>'; }
     function renderSide(){ var el=$(o.el).querySelector(".bd-side"), pg=page(), d=doc(), one=B.sel.length===1?pg.items[B.sel[0]]:null, h="";
+      if(o.templates) h+='<button class="ws-gold bd-save" data-bd-act="save">✓ SAVE PAGE</button>';
       if(o.templates) h+='<div class="bd-sec"><span class="eb">PAGE TEMPLATES <i>ADDS A NEW PAGE</i></span><div class="bd-tmpls">'+o.templates.map(function(t,i){ return '<button data-bd-tmpl="'+i+'" title="'+cbEsc(t.tip||t.name)+'">'+tmplPreview(t)+'<span>'+t.name.toUpperCase()+'</span></button>'; }).join("")+'</div></div>';
-      if(o.panelW) h+='<div class="bd-sec"><span class="eb">BOARD</span><div class="bd-chips">'+[2,3].map(function(n){ return '<button data-bd-panels="'+n+'" class="'+(d.panels===n?'on':'')+'">'+n+' × A1 PANELS</button>'; }).join("")+'</div></div>';
-      h+='<div class="bd-sec"><span class="eb">'+(o.templates?'ARRANGE PHOTOS':'FILL THE BOARD')+' <i>'+(o.sections?'FROM YOUR PICKS':'THEN MOVE THINGS')+'</i></span><div class="bd-tpls'+(o.panelW?' wide':'')+'">'+o.layouts.map(function(t,i){ return '<button data-bd-tpl="'+i+'" title="'+cbEsc(t.tip||t.name)+'">'+tplPreview(t)+'<span>'+t.name.toUpperCase()+'</span></button>'; }).join("")+'</div></div>';
+      if(!o.sections) h+='<div class="bd-sec"><span class="eb">ARRANGE PHOTOS <i>THEN MOVE THINGS</i></span><div class="bd-tpls">'+o.layouts.map(function(t,i){ return '<button data-bd-tpl="'+i+'" title="'+cbEsc(t.tip||t.name)+'">'+tplPreview(t)+'<span>'+t.name.toUpperCase()+'</span></button>'; }).join("")+'</div></div>';
       if(o.bgs) h+='<div class="bd-sec"><span class="eb">PAGE COLOUR</span><div class="bd-chips">'+Object.keys(BD_BGS).map(function(b){ return '<button data-bd-bg="'+b+'" class="'+(bgOf(pg)===b?'on':'')+'" title="'+BD_BGS[b][0]+'">'+swatch(BD_BGS[b][1])+BD_BGS[b][0]+'</button>'; }).join("")+'</div></div>';
       if(o.clusters) h='<div class="bd-sec"><span class="eb">CLUSTERS <i>'+(B.view>=0?'ADDS TO THIS SECTION':'ADDS TO AN EMPTY SECTION')+'</i></span><div class="bd-cls">'+o.clusters.map(function(c,i){ return '<button data-bd-cl="'+i+'" title="'+cbEsc(c.name)+'">'+clPreview(c)+'<span>'+c.name.toUpperCase()+'</span></button>'; }).join("")+'</div></div>'+h;
       if(o.sections){ var ck=curSec(), S4=secs(), cq=ck?S4[secIdx(ck)]:null, sp=(page().splits||{});
         if(cq){ var stl=secStyle(ck), n4=secItems(ck).length;
           h='<div class="bd-sec"><span class="eb">'+cq.label+' <i>'+n4+' FRAME'+(n4===1?'':'S')+' · '+Math.round(((B.fill||{})[ck]||0)*100)+'% FILLED</i></span>'
             +'<div class="bd-chips">'+[["auto","BEST FIT"],["rows","ROWS"],["cols","COLUMNS"],["hero","HERO"]].map(function(x){ return '<button data-bd-style="'+x[0]+'" data-bd-key="'+ck+'" class="'+(stl===x[0]?'on':'')+'">'+x[1]+'</button>'; }).join("")+'</div>'
-            +'<div class="bd-chips"><button data-bd-bestorder="'+ck+'" title="Try every order and keep the one that fills the section most">⇄ BEST ORDER</button><button data-bd-clearsec="'+ck+'" class="del">EMPTY SECTION</button></div>'
-            +'<span class="eb" style="margin-top:14px;display:block">PANEL '+(cq.p+1)+' SECTIONS</span><div class="bd-chips">'+Object.keys(FO_SPLITS).map(function(k2){ return '<button data-bd-split="'+k2+'" data-bd-p="'+cq.p+'" class="'+((sp[cq.p]||"thirds")===k2?'on':'')+'">'+FO_SPLIT_NAMES[k2]+'</button>'; }).join("")+'</div>'
-            +'<p class="bd-none">Every section packs itself edge to edge. Drag a frame onto another to move it there, or into another section.</p></div>'+h; }
-        else h='<div class="bd-sec"><span class="eb">SECTIONS</span><p class="bd-none">Each panel is split into sections that fill themselves edge to edge, like a finished folio board. Zoom into one (⤢), or click a frame, to change how it packs or how the panel is split.</p></div>'+h; }
+            +'<div class="bd-chips"><button data-bd-shuffle="'+ck+'" class="gold" title="A new random order and arrangement that still fills the section">⤮ SHUFFLE</button><button data-bd-bestorder="'+ck+'" title="Try every order and keep the one that fills the section most">⇄ BEST ORDER</button><button data-bd-clearsec="'+ck+'" class="del">EMPTY</button></div>'
+            +'<p class="bd-none">Every section packs itself edge to edge. Drag a frame onto another to swap their places. The same frame can go in more than once.</p></div>'+h; }
+        else h='<div class="bd-sec"><span class="eb">SECTIONS</span><p class="bd-none">Each A1 panel is split into thirds that fill themselves edge to edge, like a finished folio board. You work on one third at a time: zoom into it with ⤢.</p></div>'+h; }
       var top=h; h="";   // whatever is selected goes first, so its controls are always in reach
       if(B.sel.length>1&&o.sections){ h+='<div class="bd-sec"><span class="eb">'+B.sel.length+' SELECTED</span><div class="bd-chips"><button data-bd-act="del" class="del">REMOVE FROM BOARD</button></div><p class="bd-none">Drag any of them to move the lot into another section.</p></div>'; }
       else if(B.sel.length>1){ var grouped=B.sel.every(function(k){ return pg.items[k].gid&&pg.items[k].gid===pg.items[B.sel[0]].gid; }), anyPh=B.sel.some(function(k){ return pg.items[k].t==="photo"; });
@@ -281,7 +288,7 @@
     function add(i, x, y, w){ var pg=page(), a=stAspect(i);
       var sl=B.sel.length===1&&pg.items[B.sel[0]]&&pg.items[B.sel[0]].t==="slot"?B.sel[0]:-1;   // a photo space is selected: fill it
       if(x==null&&sl>=0) return fillSlot(sl, i);
-      if(o.sections) return intoSec(targetSec(), [i]);
+      if(o.sections){ var ck0=curSec(); if(!ck0){ toast("Zoom into a section first (⤢), then click frames to add them there."); return; } return intoSec(ck0, [i]); }
       w=w||o.defW; var it={id:bdUid(), t:"photo", pid:stId(i), w:w, x:0, y:0};
       it.x=Math.max(0,Math.min(o.W-w,(x==null?o.W/2:x)-w/2)); it.y=Math.max(0,Math.min(o.H-w/a,(y==null?o.H/2:y)-w/a/2)); pg.items.push(it); B.sel=[pg.items.length-1]; commit(); }
     function bdTop(b,a){ var r=bdFit(b,a); r.y=b.y; return r; }
@@ -340,7 +347,7 @@
       var items=r.items.map(function(it){ var c=JSON.parse(JSON.stringify(it)); c.id=bdUid();
         if(c.t==="slot"&&!c.keep&&pool.length){ var i=pool.shift(), f=bdTop({x:c.x,y:c.y,w:c.w,h:c.h}, stAspect(i)); return {id:c.id, t:"photo", pid:stId(i), x:f.x, y:f.y, w:f.w, box:{x:c.x,y:c.y,w:c.w,h:c.h}}; }
         if(c.t==="text"){ var R=TEXT_ROLE[c.role||"text"]; c.text=c.text||""; c.size=c.size||R.size; c.font=c.font||R.font; } return c; });
-      var cur=page(), blank=!cur.items.length, pg={id:bdUid(), bg:r.bg||"white", items:items};
+      var cur=page(), blank=!cur.items.length, pg={id:bdUid(), bg:r.bg||"white", items:items, tpl:t.id||null};
       if(blank) d.pages[d.cur]=pg; else { d.pages.splice(d.cur+1,0,pg); d.cur++; }
       B.sel=[]; B.edit=-1; commit(); toast(t.name+": click any text box to start writing."); }
     function delSel(){ var pg=page(); B.sel.sort(function(a,b){ return b-a; }).forEach(function(k){ if(!pg.items[k].locked) pg.items.splice(k,1); }); B.sel=[]; commit(); }
@@ -412,7 +419,7 @@
         if(o.sections){ var si=secAt(x,y), S3=secs(); if(si<0) return; return intoSec(S3[si].key, list, hi&&hi.t==="photo"&&hi.sec===S3[si].key?hk:-1); }
         if(list.length>1||d.indexOf("lib:")===0) return placeMany(list,x,y);
         add(list[0],x,y); });
-      box.addEventListener("click",function(e){ var t=e.target.closest("[data-bd-pic],[data-bd-page],[data-bd-act],[data-bd-tpl],[data-bd-tmpl],[data-bd-ly],[data-bd-eye],[data-bd-lock],[data-bd-up],[data-bd-down],[data-bd-w],[data-bd-f],[data-bd-font],[data-bd-fs],[data-bd-al],[data-bd-paper],[data-bd-bg],[data-bd-ink],[data-bd-head],[data-bd-wt],[data-bd-fill],[data-bd-outline],[data-bd-bold],[data-bd-panels],[data-bd-zoom],[data-bd-zstep],[data-bd-cl],[data-bd-multi],[data-bd-split],[data-bd-style],[data-bd-bestorder],[data-bd-clearsec]"); if(!t||t.disabled) return; act(t); }); }
+      box.addEventListener("click",function(e){ var t=e.target.closest("[data-bd-pic],[data-bd-page],[data-bd-act],[data-bd-tpl],[data-bd-tmpl],[data-bd-ly],[data-bd-eye],[data-bd-lock],[data-bd-up],[data-bd-down],[data-bd-w],[data-bd-f],[data-bd-font],[data-bd-fs],[data-bd-al],[data-bd-paper],[data-bd-bg],[data-bd-ink],[data-bd-head],[data-bd-wt],[data-bd-fill],[data-bd-outline],[data-bd-bold],[data-bd-panels],[data-bd-zoom],[data-bd-zstep],[data-bd-cl],[data-bd-multi],[data-bd-split],[data-bd-style],[data-bd-bestorder],[data-bd-clearsec],[data-bd-shuffle]"); if(!t||t.disabled) return; act(t); }); }
     function act(t){ var pg=page(), d=doc(), one=B.sel.length===1?pg.items[B.sel[0]]:null, g=function(a){ return t.getAttribute(a); }, has=function(a){ return t.hasAttribute(a); };
       if(has("data-bd-pic")) return add(+g("data-bd-pic"));
       if(has("data-bd-zoom")) return zoom(+g("data-bd-zoom"));
@@ -430,6 +437,7 @@
       if(has("data-bd-tpl")) return o.sections?fillBoard(o.layouts[+g("data-bd-tpl")].style):applyLayout(o.layouts[+g("data-bd-tpl")]);
       if(has("data-bd-split")){ page().splits=page().splits||{}; page().splits[+g("data-bd-p")]=g("data-bd-split"); B.view=-1; pg.items.forEach(function(it){ if(it.sec&&it.sec.split(".")[0]===g("data-bd-p")) delete it.sec; }); return commit(); }
       if(has("data-bd-style")){ page().secStyle=page().secStyle||{}; page().secStyle[g("data-bd-key")]=g("data-bd-style"); return commit(); }
+      if(has("data-bd-shuffle")) return shuffleSec(g("data-bd-shuffle"));
       if(has("data-bd-bestorder")){ bestOrderSec(g("data-bd-bestorder")); toast("Reordered for the fullest fit"); return commit(); }
       if(has("data-bd-clearsec")){ var ck=g("data-bd-clearsec"); pg.items=pg.items.filter(function(it){ return it.sec!==ck; }); B.sel=[]; return commit(); }
       if(has("data-bd-tmpl")) return applyTemplate(o.templates[+g("data-bd-tmpl")]);
@@ -471,6 +479,7 @@
       if(a2==="back"&&B.sel.length===1) return reorder(B.sel[0], 0);
       if(a2==="dupitem") return dupSel();
       if(a2==="del") return delSel();
+      if(a2==="save"){ o.save(doc()); B.saves=(B.saves||0)+1; toast(o.pageWord==="PAGE"?"Page saved. It's in your workbook.":"Saved"); return render(); }
       if(a2==="export") return o.exportFn(B); }
     function key(e){ var c=e.code, mod=e.ctrlKey||e.metaKey, pg=page();
       if(mod&&c==="KeyZ"){ e.preventDefault(); undo(e.shiftKey?1:-1); return true; }
@@ -502,7 +511,7 @@
         String(it.text||"").split("\n").forEach(function(par){ line=""; par.split(/\s+/).forEach(function(w){ var t2=line?line+" "+w:w; if(g.measureText(t2).width>maxW&&line){ g.fillText(line,ax,y); y+=lh; line=w; } else line=t2; }); g.fillText(line,ax,y); y+=lh; });
         next(); })(); }
     B.render=render; B.key=key; B.doc_=doc; B.page=page; B.draw=draw; B.add=add; B.applyLayout=applyLayout; B.applyTemplate=applyTemplate; B.reset=function(d){ B.doc=d; B.sel=[]; B.hist=[]; B.hi=-1; push(); };
-    B.selected=function(){ return B.sel.slice(); }; B.hOf=hOf; B.view_=function(){ return B.view; }; B.fill_=function(){ var o2={}; for(var k in (B.fill||{})) o2[k]=+B.fill[k].toFixed(3); return o2; };
+    B.selected=function(){ return B.sel.slice(); }; B.secItems=function(k){ return secItems(k).map(function(j){ return page().items[j]; }); }; B.secStyle=secStyle; B.shuffles_=function(){ return B.shuffles||0; }; B.saves_=function(){ return B.saves||0; }; B.hOf=hOf; B.view_=function(){ return B.view; }; B.fill_=function(){ var o2={}; for(var k in (B.fill||{})) o2[k]=+B.fill[k].toFixed(3); return o2; };
     push();
     return B; }
 
@@ -521,42 +530,48 @@
   function wsS(x,y,w,h,label,keep){ return {t:"slot", x:x, y:y, w:w, h:h, label:label||"Photo", keep:!!keep}; }
   function wsA(x,y,x2,y2,head){ return {t:"line", x:x, y:y, x2:x2, y2:y2, head:head||"end", wt:0.6}; }
   var WS_TEMPLATES=[
-    {name:"Photo + notes", tip:"One strong image with questions beside it", build:function(){ return {bg:"white", items:[
-      wsT(15,12,390,18,"title","Title: what is this page about?"),
-      wsS(15,38,258,172,"Your best frame"),
-      wsT(15,214,258,14,"caption","Settings: lens · aperture · shutter · ISO · light"),
-      wsT(15,236,258,46,"text","How does this link to your theme, or to the photographers you are looking at?"),
-      wsT(288,40,117,242,"text","What did you do?\n(where you stood, the lens, the light)\n\nWhat is working in this image, and why?\n\nWhat would you change, or try next?"),
-      wsA(285,64,276,76)]}; }},
-    {name:"Compare two", tip:"Two versions side by side, and which is stronger", build:function(){ return {bg:"white", items:[
+    {id:"compare", name:"Compare", tip:"Two photos side by side: point at the difference, and say which works", build:function(){ return {bg:"white", items:[
       wsT(15,12,390,18,"title","Compare: what changed between these two?"),
-      wsS(15,38,192,128,"Version A"), wsS(213,38,192,128,"Version B"),
-      wsT(15,170,192,14,"caption","A: lens · f-stop · shutter · ISO"), wsT(213,170,192,14,"caption","B: lens · f-stop · shutter · ISO"),
-      wsT(15,194,390,88,"text","Which is stronger, and why?\nTalk about composition, light and focus, and how each one makes you feel.\n\nWhat will you take into your next shoot?")]}; }},
-    {name:"Contact sheet", tip:"A full shoot, and what you chose from it", build:function(){ var it=[wsT(15,12,390,18,"title","Contact sheet: name the shoot")], cw=(258-12)/3, ch=cw/1.5;
+      wsS(15,40,190,127,"Photo A",true), wsS(215,40,190,127,"Photo B",true),
+      wsT(15,171,190,22,"caption","Caption: point an arrow at one part of A and say what it does"), wsT(215,171,190,22,"caption","Caption: what's different in B?"),
+      wsT(15,200,190,82,"text","What's the difference?\n(light, angle, lens, focus, timing)"),
+      wsT(215,200,190,82,"text","Which is stronger, and why?\n\nWhat will you take into your next shoot?")]}; }},
+    {id:"annotate", name:"Annotate", tip:"One photo, with notes and arrows pointing into it", build:function(){ return {bg:"white", items:[
+      wsT(15,12,390,18,"title","Title: what is this photo about?"),
+      wsS(15,40,252,168,"Your strongest frame"),
+      wsT(15,212,252,14,"caption","Lens · aperture · shutter · ISO · light"),
+      wsT(15,232,252,50,"text","Why does this photo work? What would you change next time?"),
+      wsT(290,40,115,62,"text","What leads your eye into the frame?"), wsA(288,62,232,86),
+      wsT(290,110,115,62,"text","Where is the light coming from? What is it doing?"), wsA(288,132,200,128),
+      wsT(290,180,115,62,"text","What's in focus, and what isn't? Why?"), wsA(288,202,150,170)]}; }},
+    {id:"edit", name:"Before & after", tip:"Straight from the camera beside your edit, and what you changed", build:function(){ return {bg:"white", items:[
+      wsT(15,12,390,18,"title","Editing: from the camera to the final image"),
+      wsS(15,40,190,127,"Straight from the camera",true), wsS(215,40,190,127,"Your edit",true), wsA(196,104,224,104),
+      wsT(15,171,190,14,"caption","Before"), wsT(215,171,190,14,"caption","After: the settings you changed"),
+      wsT(15,194,390,88,"text","What did you change in Edit, and why?\n(exposure, highlights, shadows, contrast, colour, crop)\n\nHow does the edit change the mood?")]}; }},
+    {id:"contact", name:"Contact sheet", tip:"A whole shoot, and what you chose from it", build:function(){ var it=[wsT(15,12,390,18,"title","Contact sheet: name the shoot")], cw=(258-12)/3, ch=cw/1.5;
       for(var r=0;r<3;r++) for(var c=0;c<3;c++) it.push(wsS(15+c*(cw+6),38+r*(ch+6),cw,ch,"Frame "+(r*3+c+1)));
       it.push(wsT(15,214,258,68,"text","Circle or star your strongest frames.\nWhat made them stand out from the rest?"));
       it.push(wsT(288,40,117,242,"text","Which frames are you taking forward?\n\nWhy did you reject the others?\n\nWhat pattern do you notice across the shoot?\n\nWhat will you reshoot, and how?"));
       return {bg:"white", items:it}; }},
-    {name:"Experiment", tip:"Testing an idea or technique, then reflecting on it", build:function(){ return {bg:"grey", items:[
-      wsT(15,12,390,18,"title","Experiment: name the idea or technique",{font:"type"}),
-      wsT(15,34,390,24,"text","What were you exploring? What sparked it (an artist, a quote, a technique)?",{font:"type"}),
-      wsS(15,62,126,84,"Test 1"), wsS(147,62,126,84,"Test 2"), wsS(279,62,126,84,"Test 3"),
-      wsT(15,150,126,24,"caption","What you tried, and the settings"), wsT(147,150,126,24,"caption","What you tried, and the settings"), wsT(279,150,126,24,"caption","What you tried, and the settings"),
-      wsT(15,184,390,98,"text","What did you discover?\n\nWhich test is strongest, and why?\n\nWill you keep developing this idea? Why, or why not?",{font:"type"})]}; }},
-    {name:"Artist model", tip:"A photographer's work beside your response to it", build:function(){ return {bg:"white", items:[
+    {id:"artist", name:"Artist model", tip:"A photographer's work beside your response to it", build:function(){ return {bg:"white", items:[
       wsT(15,12,390,18,"title","Artist model: name the photographer"),
       wsS(15,38,192,128,"Their work (upload it)",true), wsS(213,38,192,128,"Your response"),
       wsT(15,172,192,110,"text","Who are they, and what are they known for?\n\nWhich conventions do they use?\n(light, framing, subject, colour, time)"),
       wsT(213,172,192,110,"text","What did you take from them?\n\nWhat did you make your own, and why?"),
       wsA(201,102,219,102,"both")]}; }},
-    {name:"Not on the board", tip:"Work you left out, and what it taught you", build:function(){ return {bg:"black", items:[
-      wsT(15,12,390,18,"title","Photos that I did not use on the board",{font:"type"}),
-      wsS(15,38,114,76,"Frame"), wsS(135,38,114,76,"Frame"), wsS(15,120,114,76,"Frame"), wsS(135,120,114,76,"Frame"),
-      wsT(266,40,139,156,"text","Why didn't these make the board?\n\nWhat were you trying with them?\n\nDo they open up any new ideas?",{font:"type"}),
-      wsA(262,100,253,100),
-      wsS(15,206,114,76,"Frame"), wsT(140,208,265,74,"text","Which photographer or idea inspired these?\nWhy did they feel less connected to the rest of the board?",{font:"type"})]}; }},
-    {name:"What's next?", tip:"Looking back at the board and planning ahead", build:function(){ return {bg:"charcoal", items:[
+    {id:"experiment", name:"Experiment", tip:"Testing an idea or technique three ways, then reflecting", build:function(){ return {bg:"grey", items:[
+      wsT(15,12,390,18,"title","Experiment: name the idea or technique",{font:"type"}),
+      wsT(15,34,390,24,"text","What were you exploring? What sparked it (an artist, a quote, a technique)?",{font:"type"}),
+      wsS(15,62,126,84,"Test 1"), wsS(147,62,126,84,"Test 2"), wsS(279,62,126,84,"Test 3"),
+      wsT(15,150,126,24,"caption","What you tried, and the settings"), wsT(147,150,126,24,"caption","What you tried, and the settings"), wsT(279,150,126,24,"caption","What you tried, and the settings"),
+      wsT(15,184,390,98,"text","What did you discover?\n\nWhich test is strongest, and why?\n\nWill you keep developing this idea? Why, or why not?",{font:"type"})]}; }},
+    {id:"mood", name:"Mood & ideas", tip:"Planning a shoot: images, words and colours", build:function(){ return {bg:"charcoal", items:[
+      wsT(15,12,260,20,"title","Ideas for my next shoot",{font:"type"}),
+      wsS(15,40,160,107,"Image"), wsS(181,40,104,70,"Image"), wsS(181,116,104,70,"Image"), wsS(15,153,104,70,"Image"), wsS(125,153,50,70,"Detail"),
+      wsT(300,40,105,146,"text","Words for the mood\n\nColours and light\n\nWhere, when, who?",{font:"type"}),
+      wsT(15,232,390,50,"text","What do I want people to feel? Which photographers am I looking at?",{font:"type"})]}; }},
+    {id:"next", name:"What's next?", tip:"Looking back at the board and planning ahead", build:function(){ return {bg:"charcoal", items:[
       wsT(15,12,240,20,"title","What is next?",{font:"type", size:38}),
       wsS(15,40,120,80,"Board so far",true), wsS(141,40,120,80,"Board so far",true), wsS(15,126,120,80,"Frame"), wsS(141,126,120,80,"Frame"),
       wsT(15,214,246,68,"text","Where has your work come from? What has it grown into?",{font:"type"}),

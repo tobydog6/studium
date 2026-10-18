@@ -34,7 +34,7 @@ try {
   await page.click('#signin [data-si="demo"]');
   await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 });
   await waitStep('basics');
-  let g = await gd(); ok(g.demo && g.n === 8, 'the demo guide should be running: ' + JSON.stringify(g));
+  let g = await gd(); ok(g.demo && g.n === 11, 'the demo guide should be running: ' + JSON.stringify(g));
   ok(/ten-minute/.test(await page.$eval('#gdPop', (e) => e.textContent)), 'the welcome says it is the short demo');
   await page.click('#gdPop [data-gd="next"]'); await waitStep('challenges');
   const dp = await ev(() => window.__ch.pads()); ok(dp.length === 3 && dp.map((p) => p.id).join() === 'stump-fgbg,stump-dof,stump-67', 'the demo has three challenges, one per camera: ' + JSON.stringify(dp.map((p) => p.id)));
@@ -46,12 +46,12 @@ try {
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(300);
   await ev((fr) => { const L = ['2470', '85'], F = [11, 1.8]; for (let i = 0; i < 5; i++) window.__cb.addPhoto({ url: fr[i % fr.length], f: F[i % 2], sh: '1/250', iso: 400, mm: 50, lens: L[i % 2], body: 'Full-frame DSLR', place: 'The Stump' }); }, frames);
   await waitStep('select');   // five photos, two lenses, two apertures: done by itself
-  for (const id of ['edit', 'workbook', 'folio', 'done']) { await page.click('#gdPop [data-gd="next"]'); await waitStep(id); }
+  for (const id of ['edit', 'workbook', 'folio', 'book', 'gallery', 'yours', 'done']) { await page.click('#gdPop [data-gd="next"]'); await waitStep(id); }
   ok(/DONE IN \d+ MIN/.test(await page.$eval('#gdPop', (e) => e.textContent)), 'the end says how long the demo took');
   await shot('2-done');
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(500);
   ok((await gd()).step === -1, 'finishing ends the demo');
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));
   console.log(`PASS  demo (${FILE})`);
-} catch (e) { console.error('FAIL ', e.message); if (errors.length) console.error(errors.join('\n')); process.exitCode = 1; await shot('fail').catch(() => {}); }
+} catch (e) { console.error('FAIL ', e.message); try { console.error('STATE', JSON.stringify(await page.evaluate(() => ({ gd: window.__gd && window.__gd.state(), co: window.__co && window.__co.state(), pop: !!document.querySelector('#gdPop.show'), top: (() => { const b = document.querySelector('#gdPop [data-gd]'); if (!b) return null; const r = b.getBoundingClientRect(); const e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && (e.id || e.className); })() })))); } catch (e2) {} if (errors.length) console.error(errors.join('\n')); process.exitCode = 1; await shot('fail').catch(() => {}); }
 finally { await browser.close(); }

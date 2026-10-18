@@ -30,8 +30,8 @@ try {
   await key('KeyE', 300); await key('KeyE', 600);
   ok((await cb(() => window.__cb.studio())).room === 'workshop', 'should reach Workshop');
   ok(await page.$('#st-workshop .bd-tools [data-bd-act="arrow"]'), 'the tool rail should offer arrows');
-  // template 0: photo + prompted notes, on the blank first page
-  await page.click('#st-workshop [data-bd-tmpl="0"]'); await page.waitForTimeout(400);
+  // template 1, Annotate: a photo with prompted notes and arrows into it, on the blank first page
+  await page.click('#st-workshop [data-bd-tmpl="1"]'); await page.waitForTimeout(400);
   let w = await ws(); ok(w.pages.length === 1, 'a template on a blank page should use that page');
   ok(w.pages[0].some((i) => i.t === 'photo') && w.pages[0].some((i) => i.t === 'text') && w.pages[0].some((i) => i.t === 'line'), 'template should place a photo, text and an arrow: ' + JSON.stringify(w.pages[0].map((i) => i.t)));
   await shot('1-template');
@@ -48,7 +48,7 @@ try {
   // the rail: add an arrow and pull its end
   await page.click('#st-workshop .bd-tools [data-bd-act="arrow"]'); await page.waitForTimeout(300);
   const before = (await ws()).pages[0].filter((i) => i.t === 'line').length;
-  ok(before === 2, 'arrow from the rail should be added');
+  ok(before === 4, 'arrow from the rail should be added: ' + before);
   const hb = await (await page.$('#st-workshop [data-bd-h="b"]')).boundingBox();
   await page.mouse.move(hb.x + 5, hb.y + 5); await page.mouse.down(); await page.mouse.move(hb.x + 80, hb.y + 40, { steps: 5 }); await page.mouse.up(); await page.waitForTimeout(250);
   // page colour
@@ -56,8 +56,8 @@ try {
   ok(await page.$eval('#st-workshop .bd-sheet', (e) => e.classList.contains('black')), 'page colour should change');
   await shot('2-tools');
   // every other template adds a page
-  for (let t = 1; t < 7; t++) { await page.click(`#st-workshop [data-bd-tmpl="${t}"]`); await page.waitForTimeout(400); await shot('3-tmpl-' + t); }
-  w = await ws(); ok(w.pages.length === 7, 'each template should add a page: ' + w.pages.length);
+  for (const t of [0, 2, 3, 4, 5, 6, 7]) { await page.click(`#st-workshop [data-bd-tmpl="${t}"]`); await page.waitForTimeout(400); await shot('3-tmpl-' + t); }
+  w = await ws(); ok(w.pages.length === 8, 'each template should add a page: ' + w.pages.length);
   // Library: folders, a project from selected frames, add by dragging, edit the group
   ok(await page.$('#st-workshop .lib-f[data-lib-f="place:The Stump"]'), 'a folder per location');
   await page.click('#st-workshop [data-lib-f="picks"]'); await page.waitForTimeout(200);
@@ -73,22 +73,24 @@ try {
   // Folio: A1 panels, each split into sections that pack themselves edge to edge
   await key('KeyE', 700);
   ok((await cb(() => window.__cb.studio())).room === 'folio', 'should reach Folio');
-  await page.click('#st-folio [data-bd-tpl="0"]'); await page.waitForTimeout(800);
-  let fo = (await cb(() => window.__cb.studio())).fo;
-  ok(fo.pages[0].length >= 12, 'folio should take the picks: ' + fo.pages[0].length);
-  ok(Math.max(...fo.pages[0].map((i) => i.x)) > 1188, 'frames should reach the third panel');
-  ok(fo.pages[0].every((i) => Math.floor(i.x / 594) === Math.floor((i.x + i.w - 0.5) / 594)), 'no frame should straddle two panels');
-  const fills = await cb(() => window.__cb.fill());
-  ok(Object.values(fills).every((f) => f > 0.6), 'every section should be well filled: ' + JSON.stringify(fills));
-  await shot('4-folio');
-  // zoom into a section, change how it packs, and split the panel differently
+  ok(!(await page.$('#st-folio [data-bd-tpl]')) && !(await page.$('#st-folio [data-bd-panels]')), 'no whole-board fills or panel counts: one third at a time');
+  // clicking a frame with no section open asks you to zoom in first
+  await page.click('#st-folio .lib-grid [data-bd-pic="0"]'); await page.waitForTimeout(300);
+  ok((await cb(() => window.__cb.studio())).fo.pages[0].length === 0, 'nothing added until a section is open');
+  // zoom into a third, add six frames (one twice), change how it packs, shuffle
   await page.hover('#st-folio .bd-sheet'); await page.click('#st-folio [data-bd-zoom="1"]'); await page.waitForTimeout(400);
   ok(await page.$('#st-folio .bd-zbar b'), 'zoomed into a section');
+  for (const i of [0, 1, 2, 3, 4, 0]) { await page.click(`#st-folio .lib-grid [data-bd-pic="${i}"]`); await page.waitForTimeout(250); }
+  let fo = (await cb(() => window.__cb.studio())).fo;
+  ok(fo.pages[0].length === 6 && fo.pages[0].every((i) => i.sec === '0.1'), 'six frames in panel 1 middle, the first one twice: ' + JSON.stringify(fo.pages[0].map((i) => [i.sec, i.i])));
+  ok((await cb(() => window.__cb.fill()))['0.1'] > 0.7, 'and the third is well filled');
   await page.click('#st-folio [data-bd-style="cols"]'); await page.waitForTimeout(400); await shot('5-folio-zoom');
-  await page.click('#st-folio [data-bd-split="top"]'); await page.waitForTimeout(400);
-  fo = (await cb(() => window.__cb.studio())).fo;
-  ok(fo.pages[0].every((i) => Math.floor(i.x / 594) === Math.floor((i.x + i.w - 0.5) / 594)), 'still inside panels after a re-split');
-  await shot('6-folio-split');
+  const look = () => cb(() => window.__cb.studio().fo.pages[0].slice().sort((a, b) => a.y - b.y || a.x - b.x).map((i) => i.i + '@' + i.x + ',' + i.y + ',' + i.w).join());
+  const look0 = await look(); await page.click('#st-folio [data-bd-shuffle]'); await page.waitForTimeout(400);
+  ok((await look()) !== look0, 'shuffle rearranges the third');
+  ok(!(await page.$('#st-folio [data-bd-split]')), 'no options to re-split the panels');
+  await shot('6-folio-shuffle');
+  await page.click('#st-folio [data-bd-zoom="-1"]'); await page.waitForTimeout(300);   // back to the whole board
   // a fresh layout: drag the whole project folder into an empty section
   await page.click('#st-folio [data-bd-act="newpage"]'); await page.waitForTimeout(300);
   await page.dragAndDrop('#st-folio .lib-f.proj', '#st-folio .bd-sheet', { targetPosition: { x: 120, y: 60 } }); await page.waitForTimeout(600);
@@ -113,5 +115,5 @@ try {
   ok(await page.$$eval('#dvFilm [data-dv]', (n) => n.length) === 3, 'the film strip shows only the group');
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));
   console.log(`PASS  board (${FILE})`);
-} catch (e) { console.error('FAIL ', e.message); if (errors.length) console.error(errors.join('\n')); process.exitCode = 1; }
+} catch (e) { console.error('FAIL ', e.message); if (errors.length) console.error(errors.join('\n')); process.exitCode = 1; await shot('fail').catch(() => {}); }
 finally { await browser.close(); }

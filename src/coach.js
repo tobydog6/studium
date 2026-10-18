@@ -17,6 +17,14 @@
   function coSec(name){ var s=document.querySelector('#editor .lr-sec[data-sec="'+name+'"]'); if(s) s.classList.remove("collapsed"); return s; }
   function coShow(sel){ setTimeout(function(){ var e=document.querySelector(sel); if(e&&e.scrollIntoView) try{ e.scrollIntoView({block:"center", behavior:"smooth"}); }catch(er){ e.scrollIntoView(); } },60); }
   function coRow(id){ return '#editor .lr-row:has(#'+id+')'; }
+  // the boards (workbook, folio) and what's on them
+  function coWs(){ return typeof wsB!=="undefined"?wsB.page():{items:[]}; }
+  function coWsN(t){ return coWs().items.filter(function(it){ return it.t===t; }).length; }
+  function coWsEl(test){ var pg=coWs(), k=-1; pg.items.forEach(function(it,j){ if(k<0&&test(it)) k=j; }); return k<0?null:document.querySelector('#st-workshop .bd-sheet [data-bd="'+k+'"]'); }
+  function coArrow(){ var a=null; coWs().items.forEach(function(it){ if(it.t==="line"&&it.head!=="none") a=it; }); return a; }
+  function coInPhoto(x,y){ return coWs().items.some(function(it){ if(it.t!=="photo") return false; var h=it.w/((typeof stAspect==="function"&&stById(it.pid)>=0)?stAspect(stById(it.pid)):1.5); return x>=it.x&&x<=it.x+it.w&&y>=it.y&&y<=it.y+h; }); }
+  function coFoSec(){ return typeof foB!=="undefined"?foB.secItems("0.0"):[]; }
+  function coRoom(r){ return typeof st!=="undefined"&&st.open&&st.room===r; }
   var CO_TOURS={
     basics:{where:function(){ return loaded&&!App.is("hub")&&!(typeof st!=="undefined"&&st.open); }, steps:[
       {ch:"MOVE", line:function(){ return 'Click, then move the mouse to look around'; }, sub:"Esc lets go of the mouse.",
@@ -94,7 +102,63 @@
       {ch:"GRADE", line:function(){ return 'And the <b>Highlights</b> wheel towards orange'; }, sub:"Cool shadows, warm light: the classic film look.",
         target:'#lrGrade .cg-disc[data-cg="gHi"]', done:function(){ return edState.gHiS>=10; }},
       {ch:"GRADE", line:function(){ return '<b>Done</b> saves your edits'; }, sub:"They stay on each photo. Come back any time and the sliders are where you left them.",
-        target:'#eSave', away:true, done:function(){ return !coInEditor(); }}]}};
+        target:'#eSave', away:true, done:function(){ return !coInEditor(); }}]},
+    workbook:{where:function(){ return coRoom("workshop"); }, steps:[
+      {ch:"PAGE", line:function(){ return 'Your <b>workbook</b> is where you show your thinking'; }, sub:"Photos, notes and arrows on A3 pages, like the workbooks that win scholarships.",
+        target:'#st-workshop .bd-sheet', info:true},
+      {ch:"PAGE", line:function(){ return 'Start a page from the <b>Compare</b> template'; }, sub:"Templates give you a layout with questions already in the text boxes.",
+        target:'#st-workshop [data-bd-tmpl="0"]', done:function(){ return coWs().tpl==="compare"; }},
+      {ch:"PHOTOS", line:function(){ return '<b>Drag a photo</b> from the left into Photo A'; }, sub:"Or click the space, then click a photo.",
+        target:'#st-workshop .bd-it.sl', done:function(){ return coWsN("photo")>=1; }},
+      {ch:"PHOTOS", line:function(){ return 'And another into <b>Photo B</b>'; }, sub:"Two you'd like to compare: different angles, light or lenses.",
+        target:'#st-workshop .bd-it.sl', done:function(){ return coWsN("photo")>=2; }},
+      {ch:"ARROW", line:function(){ return 'Add an <b>arrow</b> from the rail'; }, sub:"Arrows tie what you write to the exact part of a photo.",
+        target:'#st-workshop .bd-tools [data-bd-act="arrow"]', start:function(){ CO.s.n=coWsN("line"); }, done:function(){ return coWsN("line")>CO.s.n; }},
+      {ch:"ARROW", line:function(){ return 'Drag the <b>arrow\'s tip</b> onto one thing in a photo'; }, sub:"A shadow, a line, a texture: something you could talk about.",
+        target:'#st-workshop [data-bd-h="b"]', start:function(){ var a=coArrow(); CO.s.a=a?{x:a.x,y:a.y,x2:a.x2,y2:a.y2}:null; },
+        done:function(){ var a=coArrow(), s=CO.s.a; return !!(a&&s&&(Math.abs(a.x2-s.x2)+Math.abs(a.y2-s.y2)+Math.abs(a.x-s.x)+Math.abs(a.y-s.y)>4)&&coInPhoto(a.x2,a.y2)); }},
+      {ch:"WRITE", line:function(){ return '<b>Write a caption</b> about what your arrow points at'; }, sub:"Click the caption box and say what it is and what it does in the photo.",
+        target:function(){ return coWsEl(function(it){ return it.t==="text"&&it.role==="caption"; }); }, done:function(){ return coWs().items.some(function(it){ return it.t==="text"&&String(it.text||"").trim().length>=15; }); }},
+      {ch:"WRITE", line:function(){ return '<b>Save the page</b> when you\'re happy with it'; }, sub:"Your workbook keeps every page. Add more with the templates any time.",
+        target:'#st-workshop [data-bd-act="save"]', start:function(){ CO.s.v=wsB.saves_(); }, done:function(){ return wsB.saves_()>CO.s.v; }}]},
+    folio:{where:function(){ return coRoom("folio"); }, steps:[
+      {ch:"BOARD", line:function(){ return 'Your <b>folio board</b>: three A1 panels, side by side'; }, sub:"Each panel is split into thirds, and each third packs itself edge to edge.",
+        target:'#st-folio .bd-sheet', info:true},
+      {ch:"BOARD", line:function(){ return 'Zoom into the <b>top third</b> of panel 1: ⤢'; }, sub:"You work on one third at a time.",
+        target:'#st-folio [data-bd-zoom="0"]', done:function(){ return foB.view_()===0; }},
+      {ch:"FILL", line:function(){ return '<b>Drag a photo</b> in from the left'; }, sub:"Or click one to add it.",
+        target:'#st-folio .lib-grid', done:function(){ return coFoSec().length>=1; }},
+      {ch:"FILL", line:function(){ return 'Fill it up: <b>5 photos</b>'; }, sub:"The same photo more than once is fine. Watch them pack to fill the space.",
+        target:'#st-folio .lib-grid', done:function(){ return coFoSec().length>=5; }, bar:function(){ return coFoSec().length/5; }},
+      {ch:"ARRANGE", line:function(){ return '<b>Drag one photo onto another</b> to swap them'; }, sub:"The order changes how the third fills and reads.",
+        target:'#st-folio .bd-sheet .bd-it.ph', start:function(){ CO.s.o=coFoSec().map(function(it){ return it.id; }).join(); }, done:function(){ return coFoSec().map(function(it){ return it.id; }).join()!==CO.s.o; }},
+      {ch:"ARRANGE", line:function(){ return 'Try <b>Rows</b>, <b>Columns</b> or <b>Hero</b>'; }, sub:"Same photos, a different arrangement.",
+        target:function(){ var b=document.querySelector('#st-folio .bd-side [data-bd-style]'); return b?b.parentNode:null; }, start:function(){ CO.s.st=foB.secStyle("0.0"); }, done:function(){ return foB.secStyle("0.0")!==CO.s.st; }},
+      {ch:"ARRANGE", line:function(){ return '<b>Shuffle</b> mixes up the order and sizes'; }, sub:"Keep pressing until something surprises you.",
+        target:'#st-folio [data-bd-shuffle]', start:function(){ CO.s.sh=foB.shuffles_(); }, done:function(){ return foB.shuffles_()>CO.s.sh; }},
+      {ch:"ARRANGE", line:function(){ return 'Back out to the <b>whole board</b>: ⤡ or '+coK("ESC"); }, sub:"See how your third sits with the rest.",
+        target:'#st-folio [data-bd-zoom="-1"]', done:function(){ return foB.view_()<0; }}]},
+    book:{where:function(){ return coRoom("book"); }, steps:[
+      {ch:"BOOK", line:function(){ return 'The <b>Book</b> lays your picks out as a photobook'; }, sub:"Spreads, sequence and a cover, ready to export as a PDF to print.",
+        target:'#st-book .bk-stage', info:true},
+      {ch:"BOOK", line:function(){ return 'Click a <b>page template</b> to change this page'; }, sub:"Full bleed, centred, two-up or a grid.",
+        target:'#st-book .bk-tpls', click:'#st-book [data-bk-tpl]'},
+      {ch:"BOOK", line:function(){ return 'Pages come in <b>spreads</b>, so pairs matter'; }, sub:"Drag pages along the strip to change the sequence.",
+        target:'#st-book .bk-strip', info:true}]},
+    gallery:{where:function(){ return coRoom("gallery"); }, steps:[
+      {ch:"GALLERY", line:function(){ return 'The <b>Gallery</b> hangs your work on a real wall'; }, sub:"At eye height, at real print sizes, like a show.",
+        target:'#st-gallery .ga-wall', info:true},
+      {ch:"GALLERY", line:function(){ return 'Try a different <b>frame</b>'; }, sub:"",
+        target:'#st-gallery .ga-frames', click:'#st-gallery [data-ga-frame]'},
+      {ch:"GALLERY", line:function(){ return '<b>Drag prints</b> along the wall to hang your show'; }, sub:"Spacing and sequence tell the story.",
+        target:'#st-gallery .ga-hang', info:true}]},
+    library:{where:function(){ return coRoom("select"); }, steps:[
+      {ch:"YOURS", line:function(){ return 'Make a <b>folder</b> for your own project: + NEW'; }, sub:"A shoot, a theme, a series. Whatever you're working on.",
+        target:'#st-select [data-lib-new]', start:function(){ CO.s.p=(st.projects||[]).length; }, done:function(){ return LIB.naming==="new"||(st.projects||[]).length>CO.s.p; }},
+      {ch:"YOURS", line:function(){ return '<b>Name it</b>, then press '+coK("ENTER"); }, sub:"",
+        target:'#st-select .lib-in', start:function(){ CO.s.p=(st.projects||[]).length; }, done:function(){ return (st.projects||[]).length>CO.s.p||((st.projects||[]).length&&LIB.naming!=="new"&&LIB.key.indexOf("proj:")===0); }},
+      {ch:"YOURS", line:function(){ return 'That folder\'s yours. <b>Go and shoot</b>'; }, sub:"Then drag your photos onto it, or drop photos in from your computer. Everything you've learnt today works on them.",
+        target:function(){ var a=document.querySelectorAll('#st-select .lib-f.proj'); return a.length?a[a.length-1]:null; }, info:true}]}};
   function coSteps(){ return (CO_TOURS[CO.tour]||{steps:[]}).steps; }
   function coLen(id){ return (CO_TOURS[id]||{steps:[]}).steps.length; }
   var CO_STEPS=CO_TOURS.basics.steps;   // the guide's basics step counts these
@@ -109,7 +173,7 @@
   function coStart(tour){ tour=tour||"basics"; if(CO.on&&CO.tour===tour) return; if(CO.on) coStop(); CO.ticking=false;
     CO.tour=tour; CO.on=true; CO.done=false; if(GD.flags.co==null) GD.flags.co=0; CO.i=GD.flags.co; CO.look=0; CO.walked=0; CO.lx=null; CO.seen=-1; coEnter(); coLoop(); }
   function coEnter(){ var s=coSteps()[CO.i]; CO.s={}; CO.keys={}; CO.t0=performance.now(); CO.seen=-1; if(s&&s.start) s.start(); CO.html=""; }
-  function coStop(){ CO.on=false; cancelAnimationFrame(CO.raf); var e=$("coCard"), r=$("coRing"); if(e) e.classList.remove("show"); if(r) r.classList.remove("show"); document.body.classList.remove("co-on"); }
+  function coStop(){ if(CO.tgt){ CO.tgt.classList.remove("co-target"); CO.tgt=null; } CO.on=false; cancelAnimationFrame(CO.raf); var e=$("coCard"), r=$("coRing"); if(e) e.classList.remove("show"); if(r) r.classList.remove("show"); document.body.classList.remove("co-on"); }
   function coFinish(skipped){ CO.done=true; GD.flags.co=coSteps().length; if(typeof gdSave==="function") gdSave(); coStop();
     if(skipped) toast(CO.tour==="basics"?"Warm-up skipped. The gold frames are out.":"Tour skipped."); }
   function coLoop(){ cancelAnimationFrame(CO.raf); CO.raf=requestAnimationFrame(coLoop); if(!CO.on) return; var T=CO_TOURS[CO.tour], e0;
@@ -122,7 +186,7 @@
     if(CO.lx!=null&&!(CH.pull>=0)){ var d=Math.hypot(camPos.x-CO.lx,camPos.z-CO.lz); if(d<0.5) CO.walked+=d; } CO.lx=camPos.x; CO.lz=camPos.z;
     var s=coSteps()[CO.i]; if(!s){ coFinish(false); return; }   // each prompt stays up long enough to read (dwell) before it ticks
     if(CO.seen!==CO.i){ CO.seen=CO.i; if(s.prep) s.prep(); }
-    var isDone=s.info?CO.s.ok:s.done();
+    var isDone=(s.info||s.click)?CO.s.ok:s.done();
     if(!CO.ticking&&performance.now()-CO.t0>(s.info?0:(s.dwell||900))&&isDone){ coTicked(); return; }   // one tick per prompt, however late the timer runs
     coRender(s); }
   function coTicked(){ CO.ticking=true; var e=coEl(); e.classList.add("ok"); setTimeout(function(){ CO.ticking=false; e.classList.remove("ok"); CO.i++; GD.flags.co=CO.i; if(typeof gdSave==="function") gdSave();
@@ -145,13 +209,15 @@
     if(html!==CO.html){ e.innerHTML=html; CO.html=html; }
     e.classList.add("show"); document.body.classList.add("co-on");
     // light up the thing to click, and sit the card beside it: to its left for the side panels, else below or above
-    var t=s.target&&!pre?document.querySelector(s.target):null, r=t?t.getBoundingClientRect():null;
+    var t=s.target&&!pre?(typeof s.target==="function"?s.target():document.querySelector(s.target)):null, r=t?t.getBoundingClientRect():null;
+    if(CO.tgt!==t){ if(CO.tgt) CO.tgt.classList.remove("co-target"); CO.tgt=t; if(t) t.classList.add("co-target"); }
     if(r&&r.width>2&&r.bottom>0&&r.top<window.innerHeight){ var p=6; ring.style.left=(r.left-p)+"px"; ring.style.top=(r.top-p)+"px"; ring.style.width=(r.width+2*p)+"px"; ring.style.height=(r.height+2*p)+"px"; ring.classList.add("show");
       var W=window.innerWidth, H=window.innerHeight, cw=e.offsetWidth||440, chh=e.offsetHeight||130, x, y;
       if(r.left>W*0.55&&r.left-p-20-cw>12){ x=r.left-p-20-cw; y=Math.max(12,Math.min(H-chh-12,r.top+r.height/2-chh/2)); }
       else { var below=r.bottom+p+16+chh<H-10; x=Math.max(12,Math.min(W-cw-12,r.left+r.width/2-cw/2)); y=below?r.bottom+p+16:Math.max(12,r.top-p-16-chh); }
       e.style.left=x+"px"; e.style.top=y+"px"; e.style.bottom="auto"; e.style.transform="none"; e.classList.add("pinned"); }
     else { ring.classList.remove("show"); e.style.left=""; e.style.top=""; e.style.bottom=""; e.style.transform=""; e.classList.remove("pinned"); } }
-  document.addEventListener("keydown",function(e){ if(!CO.on) return; var m={KeyW:"W",KeyA:"A",KeyS:"S",KeyD:"D",KeyQ:"Q",KeyE:"E",KeyP:"P",KeyB:"B",Space:"SPACE",Digit2:"2",Backslash:"\\"}[e.code]; if(m) CO.keys[m]=true; }, true);
+  document.addEventListener("click",function(e){ if(!CO.on) return; var s=coSteps()[CO.i]; if(s&&s.click&&e.target.closest&&e.target.closest(s.click)) CO.s.ok=true; }, true);
+  document.addEventListener("keydown",function(e){ if(!CO.on) return; var m={KeyW:"W",KeyA:"A",KeyS:"S",KeyD:"D",KeyQ:"Q",KeyE:"E",KeyP:"P",KeyB:"B",Space:"SPACE",Digit2:"2",Backslash:"\\",Escape:"ESC",Enter:"ENTER"}[e.code]; if(m) CO.keys[m]=true; }, true);
   if(/[?&]dev/.test(location.search)) window.__co={ state:function(){ var s=coSteps()[CO.i]; return {on:CO.on, tour:CO.tour, done:CO.done, i:CO.i, n:coSteps().length, ch:s&&s.ch, shown:!!document.querySelector("#coCard.show"), ed:edState?{i:edState.i, a:edState.aspect, cx:+edState.cx.toFixed(3), cy:+edState.cy.toFixed(3)}:null}; }, skip:function(){ coFinish(true); },
     next:function(){ CO.s.ok=true; }, nudge:function(o){ if(o.look) CO.look+=o.look; if(o.walk) CO.walked+=o.walk; if(o.keys) o.keys.forEach(function(k){ CO.keys[k]=true; }); } };

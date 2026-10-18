@@ -52,23 +52,27 @@
        {t:"Sync your settings to other frames (select several in the strip, then Sync)", ok:!!GD.flags.synced}]; },
      tick:function(){ gdTour("edit", coInEditor()); }},
     {id:"workbook", where:"workbook", title:"Make a workbook page",
-     body:"The workbook is where you show your thinking. Start a page from a template on the right: it brings in your photos and puts questions in the text boxes. Click a box to answer, and use an arrow to point at the exact part of a photo you're talking about.",
-     btn:"OPEN THE WORKBOOK", go:function(){ openStudio("workshop"); },
-     checks:function(){ return [
-       {t:"Start a page from a template", ok:gdWsItems(function(it){ return it.t==="text"&&it.ph; })>0},
-       {t:"Have at least 2 photos on your pages", ok:gdWsItems(function(it){ return it.t==="photo"; })>=2},
-       {t:"Write about them (a few sentences)", ok:gdWsItems(function(it){ return it.t==="text"&&String(it.text||"").trim().length>=40; })>0},
-       {t:"Point to something with an arrow", ok:gdWsItems(function(it){ return it.t==="line"&&it.head!=="none"; })>0}]; }},
+     body:"The workbook is where you show your thinking. You'll make one page: two photos compared, an arrow on the detail that matters, and a caption about it.",
+     btn:"OPEN THE WORKBOOK", go:function(){ openStudio("workshop"); coStart("workbook"); },
+     checks:function(){ return [{t:"Make a Compare page with the tour", ok:coTourDone("workbook")}]; }, tick:function(){ gdTour("workbook", coRoom("workshop")); }},
     {id:"folio", where:"folio", title:"Start your folio board",
-     body:"A folio board is A1 panels side by side, filled edge to edge. Zoom into the top section of the first panel (the ⤢ button) and lay it out with your edited photos: drag them in from the library, then try Best fit, Rows, Columns and Hero until it feels right.",
-     btn:"OPEN THE FOLIO", go:function(){ openStudio("folio"); },
-     checks:function(){ var top=gdFoTop(), ed=top.filter(function(it){ var i=stById(it.pid); return i>=0&&photos[i].dev; }).length;
-       return [{t:"Zoom into panel 1, top section", ok:!!GD.flags.zoomed},
-         {t:"Lay out at least 3 photos in it", ok:top.length>=3, now:Math.min(top.length,3)+" / 3"},
-         {t:"Use at least 2 edited photos", ok:ed>=2, now:Math.min(ed,2)+" / 2"}]; },
-     tick:function(){ if(typeof foB!=="undefined"&&st.open&&st.room==="folio"&&foB.view_()===0) GD.flags.zoomed=1; }},
+     body:"Your folio board is three A1 panels, filled edge to edge. You'll fill the top third of the first panel and try its arrangements.",
+     btn:"OPEN THE FOLIO", go:function(){ openStudio("folio"); coStart("folio"); },
+     checks:function(){ return [{t:"Fill a third of the board with the tour", ok:coTourDone("folio")}]; }, tick:function(){ gdTour("folio", coRoom("folio")); }},
+    {id:"book", where:"book", title:"The Book",
+     body:"Two more places your work can go. First the Book: your picks as a photobook you can export and print.",
+     btn:"OPEN THE BOOK", go:function(){ openStudio("book"); coStart("book"); },
+     checks:function(){ return [{t:"Look round the Book", ok:coTourDone("book")}]; }, tick:function(){ gdTour("book", coRoom("book")); }},
+    {id:"gallery", where:"gallery", title:"The Gallery",
+     body:"And the Gallery: your photos hung on a wall at real size, the way a show is planned.",
+     btn:"OPEN THE GALLERY", go:function(){ openStudio("gallery"); coStart("gallery"); },
+     checks:function(){ return [{t:"Look round the Gallery", ok:coTourDone("gallery")}]; }, tick:function(){ gdTour("gallery", coRoom("gallery")); }},
+    {id:"yours", where:"select", title:"Now make it yours",
+     body:"Last thing: a folder for your own project, ready for the photos you take next.",
+     btn:"OPEN THE LIBRARY", go:function(){ LIB.key="all"; openStudio("select"); coStart("library"); },
+     checks:function(){ return [{t:"Make a folder for your own project", ok:coTourDone("library")}]; }, tick:function(){ gdTour("library", coRoom("select")); }},
     {id:"done", where:"any", title:"You've done the whole loop",
-     body:"Shoot, select, edit, workbook, folio: that's how a photography project runs. Two more rooms are yours to explore whenever you like. The Book lays your work out as a photobook, and the Gallery hangs it on the walls of a show you can walk through.",
+     body:"Shoot, select, edit, workbook, folio: that's how a photography project runs. Your folder's waiting. Go and shoot something of your own.",
      btn:"FINISH", final:true, checks:function(){ return []; }}];
   // the ten-minute demo: the same rooms, less of each
   // The demo's three challenges, each on a different camera from the bag, so every tester learns the bag, the dials
@@ -120,16 +124,14 @@
      checks:function(){ return [{t:"Edit your three photos with the tour", ok:coTourDone("edit")}]; },
      tick:GD_FULL[4].tick},
     {id:"workbook", where:"workbook", title:"One workbook page",
-     body:"The workbook is where you explain your thinking. Start a page from a template on the right, then click a text box and write a sentence about why your best photo works.",
-     btn:"OPEN THE WORKBOOK", go:GD_FULL[5].go,
-     checks:function(){ return [GD_FULL[5].checks()[0], {t:"Write a sentence about a photo", ok:gdWsItems(function(it){ return it.t==="text"&&String(it.text||"").trim().length>=20; })>0}]; }},
+     body:"The workbook is where you show your thinking. You'll compare two photos, point an arrow at the detail that matters, and write a caption about it.",
+     btn:"OPEN THE WORKBOOK", go:GD_FULL[5].go, checks:GD_FULL[5].checks, tick:GD_FULL[5].tick},
     {id:"folio", where:"folio", title:"The top of a folio panel",
-     body:"A folio board is big panels filled edge to edge. Zoom into the top section of the first panel (the ⤢ button) and drag in two of your photos from the library. Try Best fit, Rows and Hero.",
-     btn:"OPEN THE FOLIO", go:GD_FULL[6].go,
-     checks:function(){ var top=gdFoTop(); return [{t:"Zoom into panel 1, top section", ok:!!GD.flags.zoomed}, {t:"Lay out 2 photos in it", ok:top.length>=2, now:Math.min(top.length,2)+" / 2"}]; },
-     tick:GD_FULL[6].tick},
+     body:"Folio boards are big panels filled edge to edge. You'll fill one third with five photos and try its arrangements.",
+     btn:"OPEN THE FOLIO", go:GD_FULL[6].go, checks:GD_FULL[6].checks, tick:GD_FULL[6].tick},
+    GD_FULL[7], GD_FULL[8], GD_FULL[9],
     {id:"done", where:"any", title:"That's the demo",
-     body:"Shoot, select, edit, workbook, folio: that's a photography project from start to finish. The Book and the Gallery are there to explore if you'd like to keep going.",
+     body:"Shoot, select, edit, workbook, folio: a photography project from start to finish. Your folder's waiting if you'd like to keep going.",
      btn:"FINISH", final:true, checks:function(){ return []; }}];
   var GD_STEPS=GD_FULL;
   function gdIsDemo(){ return GD.demo&&GD.step>=0; }
@@ -144,7 +146,7 @@
     el.innerHTML='<div class="gd-card"><span class="k">'+(GD.demo?'DEMO · ':'')+(s.final?(GD.demo?'DONE IN '+gdTook().toUpperCase():'FIRST SESSION · DONE'):'STEP '+(GD.step+1)+' OF '+(GD_STEPS.length-1))+'</span><b class="t">'+cbEsc(s.title)+'</b><p>'+cbEsc(s.body)+'</p>'
       +(s.controls?'<div class="gd-keys">'+s.controls.map(function(c){ return '<span><kbd>'+c[0]+'</kbd>'+c[1]+'</span>'; }).join("")+'</div>':'')
       +(checks.length?'<div class="gd-list">'+checks.map(function(c){ return '<span><i></i>'+cbEsc(c.t)+'</span>'; }).join("")+'</div>':'')
-      +(s.final?'<div class="gd-two"><button data-gd="book">OPEN THE BOOK</button><button data-gd="gallery">OPEN THE GALLERY</button></div>':'')
+      +(s.final?'<div class="gd-two"><button data-gd="shootown">GO AND SHOOT YOUR OWN</button></div>':'')
       +'<div class="gd-acts"><button class="gd-skip" data-gd="skip">'+(s.final?'':'Skip the guide')+'</button>'+(s.final?'':'<button class="gd-skip gd-next" data-gd="next" title="Move on to the next step without doing this one">Skip this step ›</button>')+'<button class="gd-go" data-gd="go">'+s.btn+'</button></div></div>';
     el.classList.add("show"); GD.open=true; GD.shown=GD.step; gdSave(); }
   function gdClose(){ var el=$("gdPop"); if(el) el.classList.remove("show"); GD.open=false; gdCard(); }
@@ -169,7 +171,7 @@
     if(a==="skip"){ if(CO.on) coStop(); GD.step=-1; GD.demo=false; gdSave(); gdClose(); toast("Guide off. Turn it back on from the ? button."); return; }
     if(a==="help"){ gdPop(); return; }
     if(a==="next"){ if(!s||s.final) return; if(coActive()){ coFinish(false); } gdClose(); toast("Skipped: "+s.title); gdNext(); return; }   // move on without doing it (handy for trying the steps out)
-    if(a==="book"||a==="gallery"){ GD.step=-1; gdSave(); gdClose(); openStudio(a); return; }
+    if(a==="shootown"){ GD.step=-1; GD.demo=false; gdSave(); gdClose(); if(typeof lsGo==="function") lsGo("shoot"); return; }
     if(a==="go"){ gdClose(); if(s&&s.final){ GD.step=-1; gdSave(); return; } if(s&&s.go) s.go(); } });
   // the ? button: show the current step, or start the guide again
   function gdHelp(){ if(gdActive()){ gdPop(); return; } GD.step=0; GD.flags={}; GD.shown=-1; gdSave(); gdStart(); gdPop(); }

@@ -58,17 +58,13 @@ try {
   await waitStep('workbook'); await shot('6-workbook');
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(800);
   ok((await ev(() => window.__cb.studio())).room === 'workshop', 'the button opens the workbook');
-  await page.click('#st-workshop [data-bd-tmpl="0"]'); await page.waitForTimeout(400);
-  const tx = await page.$$('#st-workshop .bd-it.tx'); const bx = await tx[tx.length - 1].boundingBox();
-  await page.mouse.click(bx.x + 20, bx.y + bx.height / 2); await page.waitForTimeout(300);
-  await page.keyboard.type('I stood low so the ivy fills the bottom of the frame and leads you up.'); await page.keyboard.press('Escape'); await page.waitForTimeout(300);
-  await page.click('#st-workshop .bd-tools [data-bd-act="arrow"]'); await page.waitForTimeout(300);
-  await page.click('#st-workshop .lib-grid [data-bd-pic="1"]'); await page.waitForTimeout(300);
-  await waitStep('folio'); await shot('7-folio');
-  await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(800);
-  await page.hover('#st-folio .bd-sheet'); await page.click('#st-folio [data-bd-zoom="0"]'); await page.waitForTimeout(800);
-  await page.click('#st-folio [data-lib-f="place:The Stump|picks"]'); await page.waitForTimeout(300);
-  for (const i of [0, 1, 2]) { await page.click(`#st-folio .lib-grid [data-bd-pic="${i}"]`); await page.waitForTimeout(300); }
+  // each of these rooms runs its tour (tested in tours.mjs); here, skip each tour and check the guide moves on
+  for (const [id, room] of [['folio', 'folio'], ['book', 'book'], ['gallery', 'gallery'], ['yours', 'select']]) {
+    await page.waitForFunction(() => window.__co.state().on, null, { timeout: 60000 }); await ev(() => window.__co.skip());
+    await waitStep(id); await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(800);
+    ok((await ev(() => window.__cb.studio())).room === room, 'the button opens ' + room);
+  }
+  await page.waitForFunction(() => window.__co.state().on, null, { timeout: 60000 }); await ev(() => window.__co.skip());
   await waitStep('done'); await shot('8-done');
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(500);
   ok((await gd()).step === -1 && !(await page.$('#gdCard.show')), 'finishing turns the guide off');
@@ -78,5 +74,5 @@ try {
   ok(await page.$('#gdPop.show'), 'the next step pops up after a skip');
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));
   console.log(`PASS  guide (${FILE})`);
-} catch (e) { console.error('FAIL ', e.message); if (errors.length) console.error(errors.join('\n')); process.exitCode = 1; await shot('fail').catch(() => {}); }
+} catch (e) { console.error('FAIL ', e.message); try { console.error('STATE', JSON.stringify(await page.evaluate(() => ({ gd: window.__gd && window.__gd.state(), co: window.__co && window.__co.state(), pop: !!document.querySelector('#gdPop.show'), top: (() => { const b = document.querySelector('#gdPop [data-gd]'); if (!b) return null; const r = b.getBoundingClientRect(); const e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && (e.id || e.className); })() })))); } catch (e2) {} if (errors.length) console.error(errors.join('\n')); process.exitCode = 1; await shot('fail').catch(() => {}); }
 finally { await browser.close(); }

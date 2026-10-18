@@ -94,12 +94,14 @@ try {
   await key('KeyE', 600);
   ok((await cb(() => window.__cb.studio())).room === 'folio', 'E should reach Folio');
   ok(!(await page.$('#st-folio [data-bd-act="text"]')), 'the folio has no text tool');
-  await page.click('#st-folio [data-bd-tpl="0"]'); await page.waitForTimeout(400);
+  await page.hover('#st-folio .bd-sheet'); await page.click('#st-folio [data-bd-zoom="0"]'); await page.waitForTimeout(400);   // one third at a time
+  await page.click('#st-folio [data-lib-f="picks"]'); await page.waitForTimeout(200);
+  for (const i of [0, 1, 2, 3]) { await page.click(`#st-folio .lib-grid .bd-pic >> nth=${i}`); await page.waitForTimeout(200); }
   let fo = (await cb(() => window.__cb.studio())).fo;
-  ok(fo.pages[0].length === 4, 'Series should place the four picks: ' + fo.pages[0].length);
+  ok(fo.pages[0].length === 4, 'the four picks go into the open third: ' + fo.pages[0].length);
   ok(fo.pages[0].every((i) => Math.abs(i.w / i.h - 1.5) < 0.03), 'folio frames keep their shape');
   await page.click('#st-folio [data-bd-paper="black"]'); await page.waitForTimeout(150);
-  await page.click('#st-folio [data-bd-tpl="2"]'); await page.waitForTimeout(300);
+  await page.click('#st-folio [data-bd-style="cols"]'); await page.waitForTimeout(300);
   await shot('5-folio');
   ok((await cb(() => window.__cb.studio())).fo.paper === 'black', 'paper should be black');
 

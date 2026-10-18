@@ -1935,3 +1935,7 @@ body[data-state="viewfinder"] .gd-track,body[data-state="back"] .gd-track,body[d
 .co-ring.show{display:block;animation:coPulse 1.6s ease-in-out infinite}
 @keyframes coPulse{0%,100%{box-shadow:0 0 0 9999px rgba(8,7,6,.28),0 0 18px rgba(227,173,87,.4)}50%{box-shadow:0 0 0 9999px rgba(8,7,6,.28),0 0 34px rgba(227,173,87,.75)}}
 body.co-on #prompt,body.co-on #navCoach{display:none!important}
+
+.bd-side .bd-save{width:100%;margin:0 0 14px}
+.bd-side .bd-chips button.gold{border-color:#e3ad57;color:#e3ad57}
+.co-target{opacity:1!important;visibility:visible!important}

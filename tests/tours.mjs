@@ -1,5 +1,6 @@
 // Tours test: in the demo, the Select tour (look, Pick, Reject, choose 3) and the Edit tour across the three picks
 // (Light sliders, black and white by hand, a crop and the Color Grading wheels), driven with real clicks and drags.
+// Then Workbook, Folio, the Book, the Gallery and a folder of their own, to the end of the demo.
 // Usage: node tests/tours.mjs [path/to/studium.html]
 import { createRequire } from 'node:module';
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
@@ -77,7 +78,55 @@ try {
   await waitStep('workbook');
   const devs = await ev(() => window.__cb.photos.filter((p) => p.pick).map((p) => p.dev && { e: p.dev.exposure, s: p.dev.saturation, a: p.dev.aspect, g: p.dev.gShS }));
   ok(devs[0] && devs[0].e === 20 && devs[1] && devs[1].s === -100 && devs[2] && devs[2].a === '1' && devs[2].g >= 10, 'each photo keeps its lesson: ' + JSON.stringify(devs));
+
+  // ---- Workbook: Compare, two photos, an arrow on a detail, a caption, save ----
+  await page.click('#gdPop [data-gd="go"]'); await at('workbook', 0); await page.waitForTimeout(400); await shot('6-workbook');
+  await gotIt(); await at('workbook', 1);
+  await page.click('#st-workshop [data-bd-tmpl="0"]'); await at('workbook', 2);
+  ok(await ev(() => window.__cb.studio().ws.pages.slice(-1)[0].filter((i) => i.t === 'photo').length === 0), 'Compare leaves its photo spaces for you to fill');
+  await page.dragAndDrop('#st-workshop .lib-grid [data-bd-pic="0"]', '#st-workshop .bd-it.sl'); await at('workbook', 3);
+  await page.dragAndDrop('#st-workshop .lib-grid [data-bd-pic="1"]', '#st-workshop .bd-it.sl'); await at('workbook', 4);
+  await page.click('#st-workshop .bd-tools [data-bd-act="arrow"]'); await at('workbook', 5); await page.waitForTimeout(300);
+  const pa = await (await page.$('#st-workshop .bd-it.ph')).boundingBox(), hb = await (await page.$('#st-workshop [data-bd-h="b"]')).boundingBox();
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2); await page.mouse.down(); await page.mouse.move(pa.x + pa.width * 0.4, pa.y + pa.height * 0.5, { steps: 6 }); await page.mouse.up();
+  await at('workbook', 6); await page.waitForTimeout(300); await shot('7-caption');
+  await page.waitForSelector('#st-workshop .bd-it.tx.co-target'); await page.click('#st-workshop .bd-it.tx.co-target'); await page.waitForTimeout(300);
+  await page.keyboard.type('The ivy leads your eye up the stump.'); await page.keyboard.press('Escape'); await at('workbook', 7);
+  await page.click('#st-workshop [data-bd-act="save"]');
+
+  // ---- Folio: zoom into a third, five photos (repeats allowed), swap, arrange, shuffle, back out ----
+  await waitStep('folio'); await page.click('#gdPop [data-gd="go"]'); await at('folio', 0); await page.waitForTimeout(400); await shot('8-folio');
+  ok(!(await page.$('#st-folio [data-bd-panels]')) && !(await page.$('#st-folio [data-bd-tpl]')) && !(await page.$('#st-folio [data-bd-split]')), 'no whole-board fills, panel counts or section splits');
+  await gotIt(); await at('folio', 1);
+  await page.waitForSelector('#st-folio [data-bd-zoom="0"].co-target'); await page.click('#st-folio [data-bd-zoom="0"]'); await at('folio', 2);
+  await page.click('#st-folio .lib-grid [data-bd-pic="0"]'); await at('folio', 3);
+  for (const i of [1, 2, 0, 1]) { await page.click(`#st-folio .lib-grid [data-bd-pic="${i}"]`); await page.waitForTimeout(150); }
+  await at('folio', 4);
+  const sec = await ev(() => window.__cb.studio().fo.pages[0].filter((i) => i.sec === '0.0').map((i) => i.pid));
+  ok(sec.length === 5 && new Set(sec).size === 3, 'five frames in the top third, repeats allowed: ' + JSON.stringify(sec));
+  const ph = await page.$$('#st-folio .bd-it.ph'); const b0 = await ph[0].boundingBox(), b2 = await ph[2].boundingBox();
+  await page.mouse.move(b0.x + b0.width / 2, b0.y + b0.height / 2); await page.mouse.down(); await page.mouse.move(b2.x + b2.width / 2, b2.y + b2.height / 2, { steps: 8 }); await page.mouse.up();
+  await at('folio', 5); await shot('9-arrange');
+  await page.click('#st-folio [data-bd-style="rows"]'); await at('folio', 6);
+  await page.click('#st-folio [data-bd-shuffle]'); await at('folio', 7);
+  await page.click('#st-folio [data-bd-zoom="-1"]');
+
+  // ---- Book, Gallery: a quick look ----
+  await waitStep('book'); await page.click('#gdPop [data-gd="go"]'); await at('book', 0); await page.waitForTimeout(500); await shot('10-book');
+  await gotIt(); await at('book', 1); await page.click('#st-book [data-bk-tpl="two"]'); await at('book', 2); await gotIt();
+  await waitStep('gallery'); await page.click('#gdPop [data-gd="go"]'); await at('gallery', 0); await page.waitForTimeout(500); await shot('11-gallery');
+  await gotIt(); await at('gallery', 1); await page.click('#st-gallery [data-ga-frame="oak"]'); await at('gallery', 2); await gotIt();
+
+  // ---- A folder of their own ----
+  await waitStep('yours'); await page.click('#gdPop [data-gd="go"]'); await at('library', 0);
+  await page.click('#st-select [data-lib-new]'); await at('library', 1);
+  await page.keyboard.type('My own shoot'); await page.keyboard.press('Enter'); await at('library', 2); await page.waitForTimeout(400); await shot('12-folder');
+  await gotIt();
+  await waitStep('done');
+  ok(await page.$('#gdPop [data-gd="shootown"]'), 'the end offers to go and shoot');
+  ok((await ev(() => window.__cb.projects())).some((p) => p.name === 'My own shoot'), 'their folder is made');
+  await shot('13-done');
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));
   console.log(`PASS  tours (${FILE})`);
-} catch (e) { console.error('FAIL ', e.message); if (errors.length) console.error(errors.join('\n')); process.exitCode = 1; await shot('fail').catch(() => {}); }
+} catch (e) { console.error('FAIL ', e.message); try { console.error('STATE', JSON.stringify(await page.evaluate(() => ({ gd: window.__gd && window.__gd.state(), co: window.__co && window.__co.state(), pop: !!document.querySelector('#gdPop.show'), top: (() => { const b = document.querySelector('#gdPop [data-gd]'); if (!b) return null; const r = b.getBoundingClientRect(); const e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && (e.id || e.className); })() })))); } catch (e2) {} if (errors.length) console.error(errors.join('\n')); process.exitCode = 1; await shot('fail').catch(() => {}); }
 finally { await browser.close(); }

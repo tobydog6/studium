@@ -169,7 +169,7 @@
     {k:"sound", g:"HANDLING", label:"Shutter sound",      val:soundOn?"ON":"OFF", on:soundOn},
     {k:"grid",  g:"HANDLING", label:"Grid while walking", val:grid.classList.contains("hidden")?"OFF":"ON", on:!grid.classList.contains("hidden")},
     {k:"walk",  g:"HANDLING", label:"Getting about",      val:WK.mode==="walk"?"WALK":"FLY", on:WK.mode==="walk"},
-    {k:"detail",g:"HANDLING", label:"Scan detail",        val:sceneDetail==="light"?"LIGHT":"FULL", on:sceneDetail!=="light"},
+    {k:"detail",g:"HANDLING", label:"Scan detail",        val:(DETAIL[sceneDetail]||DETAIL.full).label, on:sceneDetail!=="light"},
     {k:"recentre",g:"PLACE",  label:"Back to the start point", val:"↵"},
     {k:"photos",g:"PLACE",    label:"Open the studio",    val:"↵"},
     {k:"leave", g:"PLACE",    label:"Leave location",     val:"↵", danger:true}]; }
@@ -190,8 +190,8 @@
     else if(r.k==="sound") soundOn=!soundOn;
     else if(r.k==="grid") toggleGrid();
     else if(r.k==="walk"){ wkSetMode(WK.mode==="walk"?"fly":"walk"); toast(WK.mode==="walk"?"Walking: feet on the ground. Q and E crouch and stand tall.":"Flying: Q and E go down and up. You still can't go through things."); }
-    else if(r.k==="detail"){ sceneDetail=sceneDetail==="light"?"full":"light"; try{ localStorage.setItem("studium_detail",sceneDetail); }catch(e){}
-      var sc=(window.SPLAT_SCENES||[]).filter(function(s){ return s.name===cbPlace; })[0]; if(sc&&loaded){ closeBack(false); toast(sceneDetail==="light"?"Light detail: smoother on slower computers":"Full detail"); loadBundled(sc); return; } }
+    else if(r.k==="detail"){ var LV=["light","balanced","full"], li=LV.indexOf(sceneDetail); sceneDetail=LV[li<0?1:(li+(d<0?-1:1)+3)%3]; try{ localStorage.setItem("studium_detail",sceneDetail); }catch(e){}
+      var sc=(window.SPLAT_SCENES||[]).filter(function(s){ return s.name===cbPlace; })[0]; if(sc&&loaded){ closeBack(false); toast({light:"Light detail: smoothest, for slower computers", balanced:"Balanced detail: smooth and still sharp", full:"Full detail: every splat, for fast computers"}[sceneDetail]); loadBundled(sc); return; } }
     else if(enter && r.k==="recentre"){ closeBack(false); frameScene(); updateCamera(0); toast("Back to the start point"); return; }
     else if(enter && r.k==="photos"){ closeBack(false); openStudio("select"); return; }
     else if(enter && r.k==="leave"){ closeBack(false); showHub(); return; }

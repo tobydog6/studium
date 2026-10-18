@@ -488,9 +488,21 @@
   // ---- bundled scenes (embedded in the file) ----
   // .stm: Studium's packed scan (zlib, 16-bit positions and log scales, byte planes), unpacked to .splat here.
   // Light detail keeps the more solid half of the splats for slower school computers.
-  var sceneDetail=(function(){ try{ return localStorage.getItem("studium_detail")||"full"; }catch(e){ return "full"; } })();
-  function stmUnpack(buf, light){ var step=light==="test"?10:2; var dv=new DataView(buf), n=dv.getUint32(4,true), f=new Float32Array(buf.slice(8,40)), b=new Uint8Array(buf,40), N=n;
-    var keep=null; if(light){ keep=new Uint8Array(n); N=0; var A=12*n+3*n; for(var j=0;j<n;j++){ if(b[A+j]>=40&&j%step===0){ keep[j]=1; N++; } } }
+  // Scan detail (camera back › Handling): how much of the scan to draw, and at how many pixels. Splats cost most per
+  // pixel drawn, so the lighter levels also render a little under the screen's full resolution.
+  var DETAIL={ light:{keep:0.3, dpr:1, label:"LIGHT"}, balanced:{keep:0.55, dpr:1.5, label:"BALANCED"}, full:{keep:1, dpr:2, label:"FULL"}, test:{keep:0.1, dpr:1, label:"TEST"} };
+  var sceneDetail=(function(){ var v=null; try{ v=localStorage.getItem("studium_detail"); }catch(e){} return DETAIL[v]?v:"balanced"; })();
+  function detailDpr(){ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, DETAIL[sceneDetail].dpr)); }
+  // Keep the splats that show most: rank by opacity and keep the top share. Faint haze goes first and the small,
+  // solid splats that carry texture stay, so the lighter levels thin out without going soft or muddy.
+  function stmUnpack(buf, level){ var keepFrac=(DETAIL[level]||DETAIL.full).keep; var dv=new DataView(buf), n=dv.getUint32(4,true), f=new Float32Array(buf.slice(8,40)), b=new Uint8Array(buf,40), N=n;
+    var keep=null; if(keepFrac<1){ var A=12*n+3*n, ss0=(f[7]-f[6])/65535, sc=new Float32Array(n), lo=Infinity, hi=-Infinity, j, ch;
+      for(j=0;j<n;j++){ var al=b[A+j]; if(al<5){ sc[j]=-Infinity; continue; }
+        var s=al+((j*2654435761)>>>0)/4294967296; sc[j]=s; if(s<lo) lo=s; if(s>hi) hi=s; }   // by opacity, ties broken evenly
+      var BINS=4096, hist=new Uint32Array(BINS), w=(hi-lo)/BINS||1, want=Math.round(n*keepFrac), cut=lo, acc=0;
+      for(j=0;j<n;j++) if(sc[j]>-Infinity) hist[Math.min(BINS-1,Math.floor((sc[j]-lo)/w))]++;
+      for(var k2=BINS-1;k2>=0;k2--){ acc+=hist[k2]; if(acc>=want){ cut=lo+k2*w; break; } }
+      keep=new Uint8Array(n); N=0; for(j=0;j<n;j++) if(sc[j]>=cut){ keep[j]=1; N++; } }
     var out=new ArrayBuffer(N*32), F=new Float32Array(out), U=new Uint8Array(out), o=0, k, ch;
     var sx=[(f[3]-f[0])/65535,(f[4]-f[1])/65535,(f[5]-f[2])/65535], ss=(f[7]-f[6])/65535;
     for(var i=0;i<n;i++){ if(keep&&!keep[i]) continue; var fo=o*8, uo=o*32;
@@ -506,7 +518,7 @@
     assetBytes(sc.data, function(d,n){ if(d<n) showLoader("Downloading "+(sc.name||"the scan")+" · "+Math.round(d/n*100)+"%"); else showLoader("Opening "+(sc.name||"the scan")+"…"); }).then(function(ab){
       if(sc.ext!=="stm") return {buf:ab, ext:sc.ext||"splat"};
       var ds=new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate")));
-      return ds.arrayBuffer().then(function(raw){ return {buf:stmUnpack(raw, sceneDetail==="full"?false:sceneDetail), ext:"splat"}; }); })
+      return ds.arrayBuffer().then(function(raw){ detailDpr(); return {buf:stmUnpack(raw, sceneDetail), ext:"splat"}; }); })
     .then(function(r){ skySet(sc.sky||null); CH.spec=sc; return wkLoad(sc.collide).then(function(){ return r; }); })
     .then(function(r){ var f=new File([r.buf],(sc.id||"scene")+"."+r.ext,{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown", true); })
     .catch(function(e){ console.warn(e); hideLoader(); toast("Couldn't open that scene."); }); }

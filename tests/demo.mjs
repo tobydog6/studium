@@ -36,7 +36,7 @@ try {
   await waitStep('challenges');
   let g = await gd(); ok(g.demo && g.n === 7, 'the demo guide should be running: ' + JSON.stringify(g));
   ok(/ten-minute/.test(await page.$eval('#gdPop', (e) => e.textContent)), 'the welcome says it is the short demo');
-  ok((await ev(() => window.__ch.pads())).length === 2, 'the demo has two challenges');
+  const dp = await ev(() => window.__ch.pads()); ok(dp.length === 3 && dp.map((p) => p.id).join() === 'stump-fgbg,stump-dof,stump-67', 'the demo has three challenges, one per camera: ' + JSON.stringify(dp.map((p) => p.id)));
   await shot('1-welcome');
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(1200);
   await shot('1b-scene');

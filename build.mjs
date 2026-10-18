@@ -15,6 +15,7 @@ import { dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import * as esbuild from 'esbuild';
+import vm from 'node:vm';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const argOut = process.argv.indexOf('--out');
@@ -59,6 +60,8 @@ const html = shell.replace(/^@@include (\S+)@@$/gm, (_, p) =>
   p === 'engine' ? engine : resolveAssets(readSrc(p)));
 
 if (/@@include|\basset(-b64)?:[A-Za-z]/.test(html.replace(engine, ''))) throw new Error('Unresolved include or asset token');
+// every inline script must at least parse: a stray comment or quote fails the build, not a student's session
+for (const m of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) { try { new vm.Script(m[1]); } catch (e) { throw new Error('Script does not parse: ' + e.message); } }
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, html);
 const sha = createHash('sha256').update(html).digest('hex').slice(0, 12);

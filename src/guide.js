@@ -69,12 +69,34 @@
      body:"Shoot, select, edit, workbook, folio: that's how a photography project runs. Two more rooms are yours to explore whenever you like. The Book lays your work out as a photobook, and the Gallery hangs it on the walls of a show you can walk through.",
      btn:"FINISH", final:true, checks:function(){ return []; }}];
   // the ten-minute demo: the same rooms, less of each
-  var GD_DEMO_CH=["stump-fgbg","stump-dof"];   // wide and close at f/11, then the 85 wide open: lens and aperture side by side
+  // The demo's three challenges, each on a different camera from the bag, so every tester learns the bag, the dials
+  // and turning the camera. Same spots as the full set; the cards say exactly which key does what.
+  var GD_DEMO_CH=[
+    {id:"stump-fgbg", over:{title:"Wide and close, on a crop sensor", mm:38,
+      brief:"The APS-C camera's smaller sensor crops the picture 1.6×, so even the zoom's widest setting looks tighter. Get low and close: the stump fills the left, the dead tree stands behind it, and f/11 keeps both sharp.",
+      need:[{k:"body",id:"ml",label:"Swap to the APS-C mirrorless: press B, pick it under Bodies"},
+        {k:"mm",max:40,label:"24–70 zoomed right out: raise the camera (P), press 4, scroll"},
+        {k:"f",min:11,label:"Aperture f/11 or smaller: press 2, scroll"},
+        {k:"ev",tol:1,label:"Exposure within a stop: press 1 for shutter, scroll until the meter centres"}]}},
+    {id:"stump-dof", over:{title:"Shallow depth of field",
+      brief:"Back to the full-frame DSLR, with the 85 mm portrait lens wide open. Focus on the stump and let everything behind it melt away.",
+      need:[{k:"body",id:"dslr",label:"Full-frame DSLR: press B, pick it under Bodies"},
+        {k:"lens",mm:85,label:"85 mm f/1.4: in the bag (B), under Lens"},
+        {k:"f",max:1.4,label:"Wide open at f/1.4: raise the camera (P), press 2, scroll"},
+        {k:"ev",tol:1,label:"Exposure within a stop: wide open lets in lots of light, so press 1 for a faster shutter"}]}},
+    {id:"stump-67", over:{title:"Medium format, vertical",
+      brief:"Now the 6×7 film camera: a big negative and only ten frames to a roll. Turn it on its side and stop down. Meter carefully, because film doesn't give you a second go.",
+      need:[{k:"body",id:"67",label:"6×7 film SLR: press B, pick it under Bodies"},
+        {k:"lens",mm:105,label:"105 mm, its standard lens: in the bag (B), under Lens"},
+        {k:"vert",label:"Turn the camera vertical: press X"},
+        {k:"f",min:8,label:"f/8 or smaller: raise the camera (P), press 2, scroll"},
+        {k:"ev",tol:0.7,label:"Exposure within ⅔ of a stop: press 1 for shutter, or 3 for ISO"}]}}];
+  function gdDemoChallenges(all){ return GD_DEMO_CH.map(function(d){ var c=all.filter(function(x){ return x.id===d.id; })[0]; if(!c) return null; var o={}, k; for(k in c) o[k]=c[k]; for(k in d.over) o[k]=d.over[k]; return o; }).filter(Boolean); }
   var GD_DEMO=[
     {id:"challenges", where:"scene", title:"Welcome to the Stump",
-     body:"This is a ten-minute taste of Studium. Walk the clearing and find the two gold frames. Step into the glow around one and it draws you in. Set the camera the way its card asks, then take the shot.",
+     body:"This is a ten-minute taste of Studium. Walk the clearing and find the three gold frames. Each one asks for a different camera from your bag. Step into the glow around one and it draws you in. Set the camera the way its card asks, then take the shot.",
      controls:GD_FULL[0].controls, btn:"START EXPLORING",
-     checks:function(){ var n=CH.list.length, d=CH.list.filter(function(c){ return CH.done[c.id]; }).length; return [{t:"Complete the two gold-frame challenges", ok:n>0&&d>=n, now:d+" / "+(n||2)}]; }},
+     checks:function(){ var n=CH.list.length, d=CH.list.filter(function(c){ return CH.done[c.id]; }).length; return [{t:"Complete the three gold-frame challenges", ok:n>0&&d>=n, now:d+" / "+(n||3)}]; }},
     {id:"shoot", where:"scene", title:"Five of your own",
      body:"Now take 5 photos your way. Swap lenses at least once (B opens the camera bag), and try a wide aperture and a narrow one to see what changes.",
      btn:"KEEP SHOOTING", onStart:function(){ GD.base=photos.length; },

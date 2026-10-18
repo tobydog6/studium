@@ -1013,6 +1013,10 @@
   // ---- wire: look / shutter (pointer lock) ----
   viewport.addEventListener("click",function(){ if(menuOpen()||!loaded) return; if(document.pointerLockElement!==renderer.domElement){ try{renderer.domElement.requestPointerLock();}catch(e){} } });
   document.addEventListener("mousedown",function(e){ if(looking && viewfinderOn && e.button===0) shutter(); });
+  // right click raises and lowers the camera, like aiming in a game (P does the same)
+  function rcScene(){ return loaded&&(App.is("scene")||App.is("viewfinder"))&&!cbOpen&&!bg.open&&!(typeof st!=="undefined"&&st.open)&&!menuOpen(); }
+  document.addEventListener("mousedown",function(e){ if(e.button===2&&rcScene()){ e.preventDefault(); toggleViewfinder(); } });
+  document.addEventListener("contextmenu",function(e){ if(rcScene()) e.preventDefault(); });
   document.addEventListener("pointerlockchange",function(){ looking=(document.pointerLockElement===renderer.domElement); if(!looking) lowerCamera(); updateCrosshair(); updatePrompt(); });
   document.addEventListener("mousemove",function(e){ if(!looking||chHold()) return; var fb=(viewfinderOn?curBody().finder:""), ys=(fb==="waist"||fb==="ground")?-1:1, ps=(fb==="ground")?-1:1; yaw-=e.movementX*sens*ys; var dp=e.movementY*sens*ps; pitch+=invertY?dp:-dp; var lim=1.553; if(pitch>lim)pitch=lim; if(pitch<-lim)pitch=-lim; });
   document.addEventListener("wheel",function(e){ if(!looking||menuOpen()) return; e.preventDefault(); var nv=Math.max(1,Math.min(100,Math.round(moveScale*100)+(e.deltaY<0?6:-6))); moveScale=nv/100; if($("mSpeed")){$("mSpeed").value=nv;$("mSpeedVal").textContent=nv;} },{passive:false});

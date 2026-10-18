@@ -37,18 +37,17 @@ try {
   await ev(() => window.__co.nudge({ look: 2 })); await next(0, 'look');
   await ev(() => window.__co.nudge({ walk: 4 })); await next(1, 'walk');
   await page.keyboard.press('KeyQ'); await page.keyboard.press('KeyE'); await next(2, 'crouch');
-  await page.keyboard.press('KeyP'); await next(3, 'raise');
+  await page.mouse.click(720, 450, { button: 'right' }); await next(3, 'raise');
   await page.keyboard.press('Enter'); await next(4, 'photo');
-  await page.keyboard.press('Digit2'); await page.mouse.move(720, 450); await page.mouse.wheel(0, 120); await next(5, 'dial');
-  await page.keyboard.press('KeyB'); await next(6, 'bag');
+  await page.keyboard.press('KeyB'); await next(5, 'bag');
   await page.waitForTimeout(600); await shot('2-bag-spot');
   ok(await page.$('#coRing.show'), 'the thing to click is lit up in the bag');
-  await page.click('#bag [data-bg-body="ml"]'); await next(7, 'body');
-  await page.click('#bag .lensbtn'); await next(8, 'change lens');
-  await page.waitForTimeout(500); await page.click('#bag [data-bg-lens="50"]'); await next(9, '50 mm');
-  await page.click('#bag [data-bg="done"]'); await next(10, 'lock in');
-  await page.keyboard.press('KeyB'); await next(11, 'close bag');
-  await page.keyboard.press('Space'); await next(12, 'camera back');
+  await page.click('#bag [data-bg-body="ml"]'); await next(6, 'body');
+  await page.click('#bag .lensbtn'); await next(7, 'change lens');
+  await page.waitForTimeout(500); await page.click('#bag [data-bg-lens="50"]'); await next(8, '50 mm');
+  await page.click('#bag [data-bg="done"]'); await next(9, 'lock in');
+  await page.keyboard.press('KeyB'); await next(10, 'close bag');
+  await page.keyboard.press('Space'); await next(11, 'camera back');
   // the settings one at a time: a card with a clip of what it does, then turn the dial for it
   await page.waitForSelector('#coCard.media canvas.co-media'); await page.waitForTimeout(2500); await shot('3-shutter-clip');
   ok(await page.$eval('canvas.co-media', (c) => c.width > 0), 'the clip draws');
@@ -60,10 +59,10 @@ try {
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
     for (let k = 0; k < 3; k++) { await page.mouse.wheel(0, row === 2 ? -120 : 120); await page.waitForTimeout(250); }
     await next(i + 1, label + ' dial'); };
-  await dial(13, 'shutter', 0); await dial(15, 'aperture', 1); await dial(17, 'ISO', 2);
-  await page.click('#coCard [data-co-next]'); await next(19, 'meter card');
-  await ev(() => window.__ch.set({ meter: true })); await next(20, 'meter');
-  await page.keyboard.press('Space'); await next(21, 'back to the scene');
+  await dial(12, 'shutter', 0); await dial(14, 'aperture', 1); await dial(16, 'ISO', 2);
+  await page.click('#coCard [data-co-next]'); await next(18, 'meter card');
+  await ev(() => window.__ch.set({ meter: true })); await next(19, 'meter');
+  await page.keyboard.press('Space'); await next(20, 'back to the scene');
   await waitStep('challenges');
   ok((await co()).done, 'the warm-up is done');
   ok(!/W A S D/.test(await page.$eval('#gdPop', (e) => e.textContent)), 'the challenges popup is short too');

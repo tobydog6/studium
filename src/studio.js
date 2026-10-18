@@ -75,13 +75,13 @@
     stRenderLoupe(); }
   function stRenderLoupe(){ var side=$("st-select").querySelector(".st-loupe"), p=photos[st.cur]; if(!p){ side.innerHTML=""; return; }
     var r=p.rating||0, stars=""; for(var s=1;s<=5;s++) stars+='<button class="st-star'+(s<=r?' on':'')+'" data-st-rate="'+s+'" aria-label="'+s+' stars">★</button>';
-    var picks=stPicks(), brief=activeBrief>=0?BRIEFS[activeBrief]:null, target=5, slots="";
+    var picks=stPicks(), brief=activeBrief>=0?BRIEFS[activeBrief]:null, target=(typeof gdActive==="function"&&gdActive())?coPickN():5, slots="";
     for(var j=0;j<target;j++){ var pi=picks[j]; slots+='<span class="slot'+(pi!=null?' on':'')+'">'+(pi!=null?'<img src="'+photos[pi].url+'" alt="">':'')+'</span>'; }
     side.innerHTML='<div class="lp"><img src="'+p.url+'" alt="Frame '+(st.cur+1)+'"></div>'
       +'<div class="row1"><span class="fn">Frame '+cbPad(st.cur+1)+'</span><span class="ml">'+(p.mm?p.mm+" MM · ":"")+(p.f?"f/"+p.f+" · ":"")+(p.sh||"")+(p.iso?" · ISO "+p.iso:"")+'</span></div>'
       +'<div class="row2"><button class="st-btn'+(p.pick?' on':'')+'" data-st-act="pick">PICK <span>P</span></button><button class="st-btn'+(p.reject?' on':'')+'" data-st-act="reject">REJECT <span>X</span></button><div class="stars">'+stars+'</div></div>'
       +'<div class="brief"><span class="eb">'+(brief?"BRIEF "+cbPad(activeBrief+1)+" · "+cbEsc(brief.t.toUpperCase()):"YOUR FOLIO")+'</span>'
-      +'<div class="t"><span>Pick five frames for your folio.</span><span class="n">'+Math.min(picks.length,99)+' / '+target+'</span></div><div class="slots">'+slots+'</div></div>'
+      +'<div class="t"><span>Pick '+(['zero','one','two','three','four','five','six','seven','eight'][target]||target)+' frames for your folio.</span><span class="n">'+Math.min(picks.length,99)+' / '+target+'</span></div><div class="slots">'+slots+'</div></div>'
       +'<label class="why"><span class="eb">WHY THIS ONE?</span><textarea id="stWhy" rows="3" placeholder="'+(p.pick?"Say what this frame does that the others don’t.":"Pick this frame, then write why it earns a place.")+'">'+cbEsc(p.note||"")+'</textarea></label>'
       +'<button class="st-punctum" data-st-act="punctum"><span><b>SEND PICKS TO PUNCTUM</b><i>Your class critiques them anonymously</i></span><svg width="8" height="12" viewBox="0 0 8 12" fill="none" stroke="#e3ad57" stroke-width="1.6" aria-hidden="true"><path d="M1.5 1l5 5-5 5"/></svg></button>';
     var w=$("stWhy"); if(w){ w.oninput=function(){ var ph=photos[st.cur]; if(ph){ ph.note=this.value; saveSession(); } }; w.onkeydown=function(e){ e.stopPropagation(); if(e.key==="Escape") this.blur(); }; } }

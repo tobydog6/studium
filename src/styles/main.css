@@ -1923,12 +1923,15 @@ body[data-state="viewfinder"] .gd-track,body[data-state="back"] .gd-track,body[d
 .co-line kbd{display:inline-block;min-width:30px;height:30px;line-height:28px;box-sizing:border-box;padding:0 7px;margin:0 3px 0 0;border-radius:6px;border:1px solid rgba(240,232,214,.3);border-bottom-width:3px;background:#1d1a15;font-family:'Geist Mono',ui-monospace,monospace;font-size:12px;letter-spacing:.06em;text-align:center;vertical-align:3px;color:#f4f1ea;transition:background .15s,border-color .15s,color .15s,transform .15s}
 .co-line kbd.on{background:#e3ad57;border-color:#e3ad57;color:#17140d;transform:translateY(1px)}
 .co-sub{margin-top:6px;font-size:13px;line-height:1.45;color:#a69f91}
-.co-dots{display:flex;gap:5px;margin-top:11px}
+.co-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px}
+.co-dots{display:flex;gap:5px}
+.co-next{pointer-events:auto;background:#e3ad57;border:0;border-radius:6px;color:#17140d;font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.12em;padding:7px 12px;cursor:pointer}
+.co-next:hover{background:#efbd6a}
 .co-dots i{width:16px;height:3px;border-radius:2px;background:rgba(240,232,214,.12)}
 .co-dots i.d{background:#8d6a35}.co-dots i.c{background:#e3ad57}
 .co-bar{height:3px;margin-top:9px;border-radius:2px;background:rgba(240,232,214,.08);overflow:hidden}
 .co-bar b{display:block;height:100%;background:#e3ad57;transition:width .2s}
-.co-ring{position:fixed;z-index:1099;pointer-events:none;border-radius:10px;border:2px solid #e3ad57;box-shadow:0 0 0 9999px rgba(8,7,6,.28),0 0 26px rgba(227,173,87,.55);display:none;transition:left .25s,top .25s,width .25s,height .25s}
+.co-ring{position:fixed;z-index:1099;pointer-events:none;border-radius:10px;border:2px solid #e3ad57;box-shadow:0 0 0 9999px rgba(8,7,6,.28),0 0 26px rgba(227,173,87,.55);display:none}
 .co-ring.show{display:block;animation:coPulse 1.6s ease-in-out infinite}
 @keyframes coPulse{0%,100%{box-shadow:0 0 0 9999px rgba(8,7,6,.28),0 0 18px rgba(227,173,87,.4)}50%{box-shadow:0 0 0 9999px rgba(8,7,6,.28),0 0 34px rgba(227,173,87,.75)}}
 body.co-on #prompt,body.co-on #navCoach{display:none!important}

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
-    "test": "node build.mjs && node tests/crdev.mjs && node tests/smoke.mjs && node tests/back.mjs && node tests/finder.mjs && node tests/bag.mjs && node tests/studio.mjs && node tests/lesson.mjs && node tests/develop.mjs && node tests/import.mjs && node tests/challenge.mjs && node tests/shake.mjs && node tests/board.mjs && node tests/guide.mjs && node tests/demo.mjs && node tests/coach.mjs",
+    "test": "node build.mjs && node tests/crdev.mjs && node tests/smoke.mjs && node tests/back.mjs && node tests/finder.mjs && node tests/bag.mjs && node tests/studio.mjs && node tests/lesson.mjs && node tests/develop.mjs && node tests/import.mjs && node tests/challenge.mjs && node tests/shake.mjs && node tests/board.mjs && node tests/guide.mjs && node tests/demo.mjs && node tests/coach.mjs && node tests/tours.mjs",
     "build:web": "node build.mjs --web",
     "serve": "node tools/serve.mjs dist/web 8080"
   },

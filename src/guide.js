@@ -24,9 +24,9 @@
   var GD_FULL=[
     {id:"basics", where:"scene", title:"Welcome to the Stump",
      body:"You're standing in a real place, scanned in 3D. Before the challenges, a two-minute warm-up: how to move, how to use the camera, and what's in your bag. Just follow the prompts at the bottom of the screen.",
-     btn:"LET'S GO", go:function(){ coStart(); },
+     btn:"LET'S GO", go:function(){ coStart("basics"); },
      checks:function(){ var n=GD.flags.co||0; return [{t:"Warm up: moving, shooting, the bag and the settings", ok:n>=CO_STEPS.length, now:Math.min(n,CO_STEPS.length)+" / "+CO_STEPS.length}]; },
-     tick:function(){ if(!CO.on&&!GD.open&&GD.shown===GD.step&&(GD.flags.co||0)<CO_STEPS.length) coStart(); }},
+     tick:function(){ gdTour("basics", true); }},
     {id:"challenges", where:"scene", title:"The gold frames",
      body:"Six gold frames hang around the clearing, each one a shot to take. Walk into a frame's glow and it draws you in, then set the camera the way its card asks and shoot. The markers point the way.",
      btn:"FIND THEM",
@@ -41,18 +41,16 @@
          {t:"At least 3 different shutter speeds", ok:gdDistinct("sh")>=3, now:gdDistinct("sh")+" / 3"},
          {t:"At least 2 different ISOs", ok:gdDistinct("iso")>=2, now:gdDistinct("iso")+" / 2"}]; }},
     {id:"select", where:"select", title:"Choose your best 8",
-     body:"Time for the light table. Look at everything you shot and pick your strongest 8. Press P to pick, X to reject the ones you won't use, and use the stars if it helps you decide. Be ruthless: only 8.",
-     btn:"OPEN SELECT", go:function(){ LIB.key="all"; openStudio("select"); },
-     checks:function(){ var n=gdPicked().length; return [{t:"Open Select in the studio (Tab)", ok:st.open&&st.room==="select"||GD.flags.sel, now:""}, {t:"Pick exactly 8 frames", ok:n===8, now:n+" / 8"}]; },
-     tick:function(){ if(st.open&&st.room==="select") GD.flags.sel=1; }},
+     body:"Time for the light table, where you choose. A quick tour shows you how to pick and reject, then it's over to you: your strongest 8, and be ruthless.",
+     btn:"OPEN SELECT", go:function(){ LIB.key="all"; openStudio("select"); coStart("select"); },
+     checks:function(){ var n=gdPicked().length; return [{t:"Learn to pick and reject", ok:coTourDone("select")}, {t:"Pick exactly 8 frames", ok:n===8, now:n+" / 8"}]; },
+     tick:function(){ gdTour("select", st.open&&st.room==="select"); }},
     {id:"edit", where:"edit", title:"Edit your picks",
-     body:"Your 8 picks are waiting in The Stump › Picked photos. Work through them: get the light right on one, then copy those settings across the others with Sync. Try one in black and white, and crop one to tighten the composition.",
-     btn:"OPEN EDIT", go:function(){ var key=null; libFolders().forEach(function(f){ if(f.kind==="sub"&&!key) key=f.key; }); var ids=key?libItems(key):stPicks(); if(key) LIB.key=key; devScope=ids.slice(); st.cur=ids[0]; openStudio("edit"); },
-     checks:function(){ return [
-       {t:"Change the light on a frame (exposure, contrast, highlights or shadows)", ok:gdDev(function(d){ return d.exposure||d.contrast||d.highlights||d.shadows||d.whites||d.blacks; })},
-       {t:"Sync your settings to other frames (select several in the strip, then Sync)", ok:!!GD.flags.synced},
-       {t:"Make one black and white", ok:gdDev(function(d){ return d.mono||d.profile==="bw"||d.profile==="mono"; })},
-       {t:"Crop one (aspect, zoom or straighten)", ok:gdDev(function(d){ return (d.aspect&&d.aspect!=="free")||d.zoom>1.01||Math.abs(d.rot||0)>0.2; })}]; }},
+     body:"Your picks are in The Stump › Picked photos. A tour takes you through your first three: the light on one, black and white by hand on the next, then a crop and some colour grading. After that, select the rest in the strip and Sync your look across them.",
+     btn:"OPEN EDIT", go:function(){ var key=null; libFolders().forEach(function(f){ if(f.kind==="sub"&&!key) key=f.key; }); var ids=key?libItems(key):stPicks(); if(key) LIB.key=key; devScope=ids.slice(); st.cur=ids[0]; openStudio("edit"); coStart("edit"); },
+     checks:function(){ return [{t:"Edit three photos with the tour", ok:coTourDone("edit")},
+       {t:"Sync your settings to other frames (select several in the strip, then Sync)", ok:!!GD.flags.synced}]; },
+     tick:function(){ gdTour("edit", coInEditor()); }},
     {id:"workbook", where:"workbook", title:"Make a workbook page",
      body:"The workbook is where you show your thinking. Start a page from a template on the right: it brings in your photos and puts questions in the text boxes. Click a box to answer, and use an arrow to point at the exact part of a photo you're talking about.",
      btn:"OPEN THE WORKBOOK", go:function(){ openStudio("workshop"); },
@@ -99,9 +97,9 @@
   var GD_DEMO=[
     {id:"basics", where:"scene", title:"Welcome to the Stump",
      body:"This is a ten-minute taste of Studium, in a real place scanned in 3D. Before the challenges, a two-minute warm-up: how to move, how to use the camera, and what's in your bag. Just follow the prompts at the bottom of the screen.",
-     btn:"LET'S GO", go:function(){ coStart(); },
+     btn:"LET'S GO", go:function(){ coStart("basics"); },
      checks:function(){ var n=GD.flags.co||0; return [{t:"Warm up: moving, shooting, the bag and the settings", ok:n>=CO_STEPS.length, now:Math.min(n,CO_STEPS.length)+" / "+CO_STEPS.length}]; },
-     tick:function(){ if(!CO.on&&!GD.open&&GD.shown===GD.step&&(GD.flags.co||0)<CO_STEPS.length) coStart(); }},
+     tick:function(){ gdTour("basics", true); }},
     {id:"challenges", where:"scene", title:"The gold frames",
      body:"Three gold frames hang around the clearing, each needing a different camera from your bag. Walk into a frame's glow and it draws you in, then set the camera the way its card asks and shoot.",
      btn:"FIND THEM",
@@ -112,15 +110,15 @@
      checks:function(){ var n=gdNew().length, lc=Object.keys(gdLensCount()).length;
        return [{t:"Take 5 photos", ok:n>=5, now:Math.min(n,5)+" / 5"}, {t:"Use 2 different lenses", ok:lc>=2, now:Math.min(lc,2)+" / 2"}, {t:"Use 2 different apertures", ok:gdDistinct("f")>=2, now:Math.min(gdDistinct("f"),2)+" / 2"}]; }},
     {id:"select", where:"select", title:"Pick your best 3",
-     body:"The light table shows everything you shot. Press P to pick your 3 strongest frames, X to reject the rest. Be choosy.",
+     body:"The light table shows everything you shot. A quick tour shows you how to pick and reject, then choose your 3 strongest.",
      btn:"OPEN SELECT", go:GD_FULL[3].go,
-     checks:function(){ var n=gdPicked().length; return [{t:"Open Select in the studio (Tab)", ok:st.open&&st.room==="select"||GD.flags.sel, now:""}, {t:"Pick 3 frames", ok:n===3, now:n+" / 3"}]; },
+     checks:function(){ var n=gdPicked().length; return [{t:"Learn to pick and reject", ok:coTourDone("select")}, {t:"Pick 3 frames", ok:n===3, now:n+" / 3"}]; },
      tick:GD_FULL[3].tick},
-    {id:"edit", where:"edit", title:"Edit your picks",
-     body:"Your picks are in The Stump › Picked photos. Get the light right on one (try pulling Highlights down and Shadows up), then make one black and white or crop it tighter.",
+    {id:"edit", where:"edit", title:"Edit your three",
+     body:"Three photos, three things to learn: the light on the first, black and white by hand on the second, then a crop and some colour grading on the third. Follow the prompts beside the sliders.",
      btn:"OPEN EDIT", go:GD_FULL[4].go,
-     checks:function(){ return [GD_FULL[4].checks()[0],
-       {t:"Make one black and white, or crop one", ok:gdDev(function(d){ return d.mono||d.profile==="mono"||(d.aspect&&d.aspect!=="free")||d.zoom>1.01; })}]; }},
+     checks:function(){ return [{t:"Edit your three photos with the tour", ok:coTourDone("edit")}]; },
+     tick:GD_FULL[4].tick},
     {id:"workbook", where:"workbook", title:"One workbook page",
      body:"The workbook is where you explain your thinking. Start a page from a template on the right, then click a text box and write a sentence about why your best photo works.",
      btn:"OPEN THE WORKBOOK", go:GD_FULL[5].go,
@@ -151,14 +149,15 @@
     el.classList.add("show"); GD.open=true; GD.shown=GD.step; gdSave(); }
   function gdClose(){ var el=$("gdPop"); if(el) el.classList.remove("show"); GD.open=false; gdCard(); }
   function gdCard(){ var el=gdEl("gdCard","gd-track"), s=GD_STEPS[GD.step];
-    if(!gdActive()||!s||s.final||GD.open||s.id==="basics"){ el.classList.remove("show"); return; }
+    if(!gdActive()||!s||s.final||GD.open||s.id==="basics"||coActive()){ el.classList.remove("show"); return; }
     var checks=s.checks(), done=checks.filter(function(c){ return c.ok; }).length;
     var html='<div class="hd"><span class="k">'+(GD.demo?'DEMO · ':'')+'STEP '+(GD.step+1)+' · '+cbEsc(s.title.toUpperCase())+'</span><span class="fr">'+done+' / '+checks.length+'</span><button data-gd="help" title="Show this step again">?</button><button class="nx" data-gd="next" title="Skip this step">SKIP ›</button></div>'
       +checks.map(function(c){ return '<div class="ck'+(c.ok?' ok':'')+'"><i>'+(c.ok?'✓':'')+'</i><span>'+cbEsc(c.t)+'</span>'+(c.now?'<em>'+c.now+'</em>':'')+'</div>'; }).join("")
       +'<div class="bar"><b style="width:'+(checks.length?done/checks.length*100:0).toFixed(0)+'%"></b></div>';
     if(el._html!==html){ el.innerHTML=html; el._html=html; }   // only when it changes, so its buttons stay clickable
     el.classList.add("show"); }
-  function gdNext(){ GD.step++; GD.flags={}; var s=GD_STEPS[GD.step]; if(s&&s.onStart) s.onStart(); gdSave(); if(s) setTimeout(gdPop, 500); else gdCard(); }
+  function gdTour(id, here){ if(here&&!GD.open&&GD.shown===GD.step&&!coTourDone(id)&&!(CO.on&&CO.tour===id)) coStart(id); }
+  function gdNext(){ if(CO.on) coStop(); GD.step++; GD.flags={}; var s=GD_STEPS[GD.step]; if(s&&s.onStart) s.onStart(); gdSave(); if(s) setTimeout(gdPop, 500); else gdCard(); }
   function gdTick(){ if(!gdActive()){ var c=$("gdCard"); if(c) c.classList.remove("show"); return; } var s=GD_STEPS[GD.step];
     if(s.where==="scene"&&!loaded&&!st.open) return;   // waits for a location to load
     if(s.tick) s.tick();
@@ -169,7 +168,7 @@
   document.addEventListener("click",function(e){ var b=e.target.closest&&e.target.closest("[data-gd]"); if(!b) return; var a=b.getAttribute("data-gd"), s=GD_STEPS[GD.step];
     if(a==="skip"){ if(CO.on) coStop(); GD.step=-1; GD.demo=false; gdSave(); gdClose(); toast("Guide off. Turn it back on from the ? button."); return; }
     if(a==="help"){ gdPop(); return; }
-    if(a==="next"){ if(!s||s.final) return; if(s.id==="basics"){ coFinish(false); } gdClose(); toast("Skipped: "+s.title); gdNext(); return; }   // move on without doing it (handy for trying the steps out)
+    if(a==="next"){ if(!s||s.final) return; if(coActive()){ coFinish(false); } gdClose(); toast("Skipped: "+s.title); gdNext(); return; }   // move on without doing it (handy for trying the steps out)
     if(a==="book"||a==="gallery"){ GD.step=-1; gdSave(); gdClose(); openStudio(a); return; }
     if(a==="go"){ gdClose(); if(s&&s.final){ GD.step=-1; gdSave(); return; } if(s&&s.go) s.go(); } });
   // the ? button: show the current step, or start the guide again

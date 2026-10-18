@@ -43,6 +43,8 @@ try {
   await waitStep('select'); await shot('4-select');
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(600);
   ok((await ev(() => window.__cb.studio())).room === 'select', 'the button opens Select');
+  ok((await ev(() => window.__co.state())).tour === 'select', 'Select starts its tour');
+  await ev(() => window.__co.skip());   // the tours have their own test (tours.mjs)
   await ev(() => { window.__cb.photos.forEach((p, i) => { p.pick = i < 8; }); });
   await waitStep('edit');
   await page.evaluate(() => document.querySelector('#st-select [data-lib-f="all"]').click()); await page.waitForTimeout(300);
@@ -51,6 +53,7 @@ try {
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(1500);
   ok((await ev(() => window.__cb.studio())).room === 'edit', 'the button opens Edit');
   ok(await page.$$eval('#dvFilm [data-dv]', (n) => n.length) === 8, 'editing just the 8 picks');
+  await page.waitForFunction(() => window.__co.state().tour === 'edit', null, { timeout: 60000 }); await ev(() => window.__co.skip());
   await ev(() => { const P = window.__cb.photos; P[0].dev = { exposure: 0.4 }; P[1].dev = { mono: 1 }; P[2].dev = { aspect: '1' }; window.__gd.flag('synced'); });
   await waitStep('workbook'); await shot('6-workbook');
   await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(800);

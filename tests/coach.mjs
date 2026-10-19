@@ -50,9 +50,10 @@ try {
   await page.keyboard.press('KeyB'); await next(10, 'close bag');
   await page.keyboard.press('Space'); await next(11, 'camera back');
   // the settings one at a time: a card with a clip of what it does, then turn the dial for it
-  await page.waitForSelector('#coCard.media canvas.co-media'); await page.waitForTimeout(2500); await shot('3-shutter-clip');
-  ok(await page.$eval('canvas.co-media', (c) => c.width > 0), 'the clip draws');
+  await page.waitForSelector('#coCard.media canvas.co-media');
   ok(await page.$eval('#coCard [data-co-next]', (b) => b.disabled), 'GOT IT waits a few seconds so the card gets read');
+  await page.waitForTimeout(2500); await shot('3-shutter-clip');
+  ok(await page.$eval('canvas.co-media', (c) => c.width > 0), 'the clip draws');
   const dial = async (i, label, row) => {
     await page.click('#coCard [data-co-next]'); await next(i, label + ' card');
     await page.waitForFunction((r) => document.querySelector('#coRing.show') && document.querySelector('#camback .cb-scale.sel[data-cb-row="' + r + '"]'), row, { timeout: 30000 });

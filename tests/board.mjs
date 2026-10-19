@@ -22,7 +22,7 @@ const key = async (k, wait = 150) => { await page.keyboard.press(k); await page.
 const shot = (n) => page.screenshot({ path: join(OUT, `board-${n}.png`), timeout: 240000 });
 const ws = async () => (await cb(() => window.__cb.studio())).ws;
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev');
+  await page.goto(pathToFileURL(FILE).href + '?dev&quick');
   await page.waitForSelector('#tileStudio', { state: 'visible', timeout: 20000 });
   await cb((fs) => fs.concat(fs).forEach((u, i) => window.__cb.addPhoto({ url: u, f: 5.6, sh: '1/125', iso: 400, mm: 50, body: 'Full-frame DSLR', place: 'The Stump' })), frames);
   await page.click('#tileStudio'); await page.waitForTimeout(600);
@@ -31,7 +31,7 @@ try {
   ok((await cb(() => window.__cb.studio())).room === 'workshop', 'should reach Workshop');
   ok(await page.$('#st-workshop .bd-tools [data-bd-act="arrow"]'), 'the tool rail should offer arrows');
   // template 1, Annotate: a photo with prompted notes and arrows into it, on the blank first page
-  await page.click('#st-workshop [data-bd-tmpl="1"]'); await page.waitForTimeout(400);
+  await page.click('#st-workshop [data-bd-tmpl="2"]'); await page.waitForTimeout(400);
   let w = await ws(); ok(w.pages.length === 1, 'a template on a blank page should use that page');
   ok(w.pages[0].some((i) => i.t === 'photo') && w.pages[0].some((i) => i.t === 'text') && w.pages[0].some((i) => i.t === 'line'), 'template should place a photo, text and an arrow: ' + JSON.stringify(w.pages[0].map((i) => i.t)));
   await shot('1-template');
@@ -56,8 +56,9 @@ try {
   ok(await page.$eval('#st-workshop .bd-sheet', (e) => e.classList.contains('black')), 'page colour should change');
   await shot('2-tools');
   // every other template adds a page
-  for (const t of [0, 2, 3, 4, 5, 6, 7]) { await page.click(`#st-workshop [data-bd-tmpl="${t}"]`); await page.waitForTimeout(400); await shot('3-tmpl-' + t); }
-  w = await ws(); ok(w.pages.length === 8, 'each template should add a page: ' + w.pages.length);
+  for (const t of [0, 1, 3, 4, 5, 6, 7, 8]) { await page.click(`#st-workshop [data-bd-tmpl="${t}"]`); await page.waitForTimeout(400); await shot('3-tmpl-' + t); }
+  w = await ws(); ok(w.pages.length === 9, 'each template should add a page: ' + w.pages.length);
+  const rank = w.pages[1]; ok(rank.filter((i) => i.t === 'text' && /^[1-5]$/.test(i.text || '')).length === 5, 'Rank numbers its five rows');
   // Library: folders, a project from selected frames, add by dragging, edit the group
   ok(await page.$('#st-workshop .lib-f[data-lib-f="place:The Stump"]'), 'a folder per location');
   await page.click('#st-workshop [data-lib-f="picks"]'); await page.waitForTimeout(200);
@@ -83,7 +84,13 @@ try {
   for (const i of [0, 1, 2, 3, 4, 0]) { await page.click(`#st-folio .lib-grid [data-bd-pic="${i}"]`); await page.waitForTimeout(250); }
   let fo = (await cb(() => window.__cb.studio())).fo;
   ok(fo.pages[0].length === 6 && fo.pages[0].every((i) => i.sec === '0.1'), 'six frames in panel 1 middle, the first one twice: ' + JSON.stringify(fo.pages[0].map((i) => [i.sec, i.i])));
-  ok((await cb(() => window.__cb.fill()))['0.1'] > 0.7, 'and the third is well filled');
+  ok((await cb(() => window.__cb.fill()))['0.1'] === 1, 'and the third is filled edge to edge');
+  // the cells tile the third exactly: their areas plus the gutters add up to the section, nothing sticks out
+  const tile = await cb(() => { const f = window.__cb.studio().fo.pages[0].filter((i) => i.sec === '0.1'); const xs = f.map((i) => [i.x, i.x + i.w]).flat(), ys = f.map((i) => [i.y, i.y + i.ch]).flat(); return { n: f.length, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys), area: f.reduce((a, i) => a + i.w * i.ch, 0) }; });
+  ok(tile.area > 0.85 * (tile.x1 - tile.x0) * (tile.y1 - tile.y0), 'no white space inside the third: ' + JSON.stringify(tile));
+  // a click on SIZE in the middle of a photo makes it bigger
+  await page.click('#st-folio .bd-sheet .bd-it.ph .bd-szb', { force: true }); await page.waitForTimeout(300);
+  ok((await cb(() => window.__cb.studio().fo.pages[0].filter((i) => i.sec === '0.1').some((i) => i.sz === 2))), 'SIZE makes a photo bigger');
   await page.click('#st-folio [data-bd-style="cols"]'); await page.waitForTimeout(400); await shot('5-folio-zoom');
   const look = () => cb(() => window.__cb.studio().fo.pages[0].slice().sort((a, b) => a.y - b.y || a.x - b.x).map((i) => i.i + '@' + i.x + ',' + i.y + ',' + i.w).join());
   const look0 = await look(); await page.click('#st-folio [data-bd-shuffle]'); await page.waitForTimeout(400);

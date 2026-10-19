@@ -26,7 +26,7 @@ const cb = (expr) => page.evaluate(expr);
 const key = async (k, n = 1) => { for (let i = 0; i < n; i++) { await page.keyboard.press(k); await page.waitForTimeout(60); } };
 
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev');
+  await page.goto(pathToFileURL(FILE).href + '?dev&quick');
   await page.waitForSelector('#tileSplat', { state: 'visible', timeout: 20000 });
   await page.click('#tileSplat');
   await page.waitForSelector('.scenecard', { state: 'visible', timeout: 10000 });
@@ -53,8 +53,14 @@ try {
   await key('ArrowDown'); await key('ArrowLeft');    // aperture one stop wider
   const ap = await cb(() => window.__cb.cam());
   ok(ap.ap < after.ap, 'aperture did not open up');
-  await page.mouse.move(600, 500); await page.mouse.wheel(0, 120); await page.waitForTimeout(120);
-  ok((await cb(() => window.__cb.cam())).ap !== ap.ap, 'scroll did not turn the dial');
+  // click a stop on the ISO slider, then drag the aperture knob to the end of its track
+  await page.click('#camback [data-cb-row="2"] .cb-stop:last-of-type'); await page.waitForTimeout(150);
+  ok((await cb(() => window.__cb.cam())).iso >= 3200, 'clicking an ISO stop should set it');
+  const kn = await (await page.$('#camback [data-cb-row="1"] .cb-knob')).boundingBox(), tr = await (await page.$('#camback [data-cb-row="1"] .cb-track')).boundingBox();
+  await page.mouse.move(kn.x + 11, kn.y + 11); await page.mouse.down(); await page.mouse.move(tr.x + tr.width, kn.y + 11, { steps: 6 }); await page.mouse.up(); await page.waitForTimeout(150);
+  ok((await cb(() => window.__cb.cam())).ap > ap.ap, 'dragging the aperture knob should stop down');
+  const sh0 = (await cb(() => window.__cb.cam())).sh; await page.mouse.move(600, 500); await page.mouse.wheel(0, 120); await page.waitForTimeout(120);
+  ok((await cb(() => window.__cb.cam())).sh === sh0, 'scroll no longer changes settings on the back');
   const vf = await page.textContent('#vfSettings');
   ok(vf.includes((await cb(() => window.__cb.cam())).sh), 'viewfinder readout out of sync with the back');
   await shot('2-shoot-adjusted');

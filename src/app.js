@@ -557,7 +557,7 @@
     r.onsuccess=function(e){ _db=e.target.result; cb(_db); }; r.onerror=function(){ cb(null); }; }catch(e){ cb(null); } }
   function sessionData(){ return { v:1, savedAt:Date.now(), studentName:studentName, briefDone:briefDone,
     photos:photos.map(function(p){ return {url:p.url,orig:p.orig||null,dev:p.dev||null,id:p.id||null,copy:!!p.copy,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,baked:p.baked||null,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order,challenge:p.challenge||null,lens:p.lens||null,shake:p.shake||0}; }),
-    workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), projects:(typeof st!=="undefined"?st.projects:[]), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
+    workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), projects:(typeof st!=="undefined"?st.projects:[]), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title,list:ga.list,label:ga.label}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
   function saveSessionNow(){ if(!photos.length && !(typeof foItems!=="undefined"&&foItems&&foItems.length)) return; idb(function(db){ if(!db) return; try{ db.transaction("state","readwrite").objectStore("state").put(sessionData(),"session"); }catch(e){} }); }
@@ -570,7 +570,7 @@
     if(d.briefDone) briefDone=d.briefDone;
     if(d.workshop&&d.workshop.length&&typeof st!=="undefined") st.wsPages=d.workshop;
     if(d.book&&d.book.pages&&typeof bk!=="undefined"){ bk.size=d.book.size||"20x25"; bk.pages=d.book.pages; }
-    if(d.galleryPrefs&&typeof ga!=="undefined"){ ga.frame=d.galleryPrefs.frame||"black"; ga.gap=d.galleryPrefs.gap||250; ga.sizes=d.galleryPrefs.sizes||{}; ga.pos=d.galleryPrefs.pos||{}; ga.title=d.galleryPrefs.title||""; }
+    if(d.galleryPrefs&&typeof ga!=="undefined"){ ga.frame=d.galleryPrefs.frame||"black"; ga.gap=d.galleryPrefs.gap||250; ga.sizes=d.galleryPrefs.sizes||{}; ga.pos=d.galleryPrefs.pos||{}; ga.title=d.galleryPrefs.title||""; ga.list=d.galleryPrefs.list||null; ga.label=d.galleryPrefs.label||{x:null,y:null,style:"card",size:1}; }
     if(d.wsBoard&&typeof st!=="undefined"){ st.wsBoard=d.wsBoard; wsB.reset(d.wsBoard); }
     if(d.foBoard&&typeof st!=="undefined"){ st.foBoard=d.foBoard; foB.reset(d.foBoard); }
     if(d.projects&&typeof st!=="undefined") st.projects=d.projects;
@@ -609,7 +609,7 @@
     {ico:'<span class="kc"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>', s:"Walk through it", b:"W A S D to move, E and Q for up and down, and hold Shift to move faster."},
     {ico:'<span class="kc"><kbd>P</kbd></span>', s:"Raise the camera", b:"Press P to bring the camera up to your eye — the viewfinder frame appears."},
     {ico:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="12" width="38" height="28" rx="3"/><path d="M5 21.3h38M5 30.6h38M17.6 12v28M30.3 12v28"/></svg>', s:"Frame and shoot", b:"Aim, then click or press Enter to take the shot. Press G to cycle composition guides like the rule of thirds."},
-    {ico:'<span class="kc"><kbd style="min-width:72px">Space</kbd></span>', s:"Flip the camera", b:"Press Space to flip to the camera back. Set shutter, aperture and ISO with the arrows or the scroll wheel and watch the meter. Press B for the camera bag to change body or lens."},
+    {ico:'<span class="kc"><kbd style="min-width:72px">Space</kbd></span>', s:"Flip the camera", b:"Press Space to flip to the camera back. Click or drag shutter, aperture and ISO and watch the meter. Press B for the camera bag to change body or lens."},
     {ico:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="9" width="24" height="18" rx="2"/><rect x="17" y="20" width="25" height="17" rx="2"/></svg>', s:"Make something", b:"Your photos save automatically. Open Photo studio from the hub to build a folio, a photobook or a gallery show."}
   ];
   var tutI=0;
@@ -762,7 +762,7 @@
     var c=edRC.getContext("2d"); c.save(); c.translate(rw/2,rh/2); c.rotate(rot*Math.PI/180); c.drawImage(edSrc,-iw/2,-ih/2); c.restore();
     rcW=rw; rcH=rh;
   }
-  function cropRect(){ return cropRectFor(edState,rcW,rcH); }
+  function cropRect(){ return (typeof edCrop!=="undefined"&&edCrop)?{x:0,y:0,w:rcW,h:rcH}:cropRectFor(edState,rcW,rcH); }   // cropping: the whole photo, with the box over it
   function cropRectFor(E,rw,rh){
     var A=(E.aspect==="free")?(rw/rh):parseFloat(E.aspect);
     var fw,fh; if(rw/rh>A){ fh=rh; fw=rh*A; } else { fw=rw; fh=rw/A; }
@@ -829,12 +829,13 @@
     if($("eHDR")) $("eHDR").classList.toggle("on",!!E.hdr);
     if($("eProfile")) $("eProfile").value=E.profile; if($("eWB")) $("eWB").value=E.wb;
     var gs=$("grainSub"); if(gs) gs.style.opacity=(E.grain>0?1:0.4);
-    Array.prototype.forEach.call(document.querySelectorAll("#editor .lr-ct[data-a]"),function(b){ b.classList.toggle("on", b.getAttribute("data-a")===E.aspect); });
+    if(typeof cropUI==="function") cropUI();
+    var bb=$("eBefore"); if(bb) bb.classList.toggle("on", !!edShowOrig);
     Array.prototype.forEach.call(document.querySelectorAll("#editor .lr-sec"),function(sec){ var n=sec.getAttribute("data-sec"), ey=sec.querySelector(".lr-eye"); if(ey) ey.classList.toggle("off",!E[ED_SECKEY[n]]); });
     if(typeof edpSync==="function") edpSync();
   }
   function openEditor(i){
-    if(looking) document.exitPointerLock();
+    if(looking) document.exitPointerLock(); if(typeof edCrop!=="undefined"&&edCrop) cropEnd(true);   // finish a crop on the frame you were on
     var p=photos[i]; if(!p) return; var E=p.dev?devClone(p.dev):defEd(i); E.i=i;   // edits live on the frame (develop.js)
     var img=new Image();
     img.onload=function(){ edState=E; edSrc=img; hide(gallery); hide(menu); show(editor); eglInit(); buildRotated(); edShowOrig=false; edResetView(); syncEditUI(); editRender(); edHist=[JSON.stringify(edState)]; edHistI=0; setTimeout(drawHist,150); devStrip(); };
@@ -886,6 +887,7 @@
 @@include crdev.js@@
 @@include edpanels.js@@
 @@include develop.js@@
+@@include crop.js@@
 @@include library.js@@
 @@include import.js@@
 @@include board.js@@
@@ -962,6 +964,8 @@
   function edZoomBy(f){ edVZoom=Math.max(1,Math.min(8,edVZoom*f)); if(edVZoom<=1.001){ edVX=0; edVY=0; } edApplyView(); }
   function edPushHist(){ if(edRestoring||!edState) return; try{ var s=JSON.stringify(edState); if(edHist[edHistI]===s) return; edHist=edHist.slice(0,edHistI+1); edHist.push(s); if(edHist.length>60) edHist.shift(); edHistI=edHist.length-1; }catch(e){} }
   function edRestore(s){ edRestoring=true; try{ edState=JSON.parse(s); }catch(e){} edRestoring=false; buildRotated(); syncEditUI(); queueRender(); setTimeout(drawHist,120); }
+  // before and after: the photo as shot, then your edit again (the \ key or the button)
+  function edToggleBefore(){ edShowOrig=!edShowOrig; queueRender(); toast(edShowOrig?"Before · as shot":"After · your edit"); var b=$("eBefore"); if(b) b.classList.toggle("on", edShowOrig); }
   function edUndo(){ if(edHistI>0){ edHistI--; edRestore(edHist[edHistI]); toast("Undo"); } }
   function edRedo(){ if(edHistI<edHist.length-1){ edHistI++; edRestore(edHist[edHistI]); toast("Redo"); } }
 
@@ -982,9 +986,9 @@
       if(hdr) hdr.addEventListener("click",function(ev){ if(eye&&(ev.target===eye||eye.contains(ev.target))) return; sec.classList.toggle("collapsed"); });
       if(eye) eye.addEventListener("click",function(ev){ ev.stopPropagation(); var key=ED_SECKEY[name]; edState[key]=edState[key]?0:1; eye.classList.toggle("off",!edState[key]); queueRender(); edPushHist(); });
     });
-    Array.prototype.forEach.call(document.querySelectorAll("#editor .lr-ct[data-a]"),function(b){ b.onclick=function(){ edState.aspect=b.getAttribute("data-a"); edState.cx=0.5; edState.cy=0.5; syncEditUI(); queueRender(); edPushHist(); }; });
-    if($("eRotL")) $("eRotL").onclick=function(){ edState.rot=(edState.rot+270)%360; edState.cx=0.5; edState.cy=0.5; buildRotated(); queueRender(); edPushHist(); };
-    if($("eRotR")) $("eRotR").onclick=function(){ edState.rot=(edState.rot+90)%360; edState.cx=0.5; edState.cy=0.5; buildRotated(); queueRender(); edPushHist(); };
+    if($("eRotL")) $("eRotL").onclick=function(){ edState.rot=(edState.rot+270)%360; edState.cx=0.5; edState.cy=0.5; buildRotated(); if(edCrop) cropReset(); queueRender(); edPushHist(); };
+    if($("eRotR")) $("eRotR").onclick=function(){ edState.rot=(edState.rot+90)%360; edState.cx=0.5; edState.cy=0.5; buildRotated(); if(edCrop) cropReset(); queueRender(); edPushHist(); };
+    if($("eBefore")) $("eBefore").onclick=function(){ edToggleBefore(); };
     if($("eReset")) $("eReset").onclick=function(){ var i=edState.i; edState=defEd(i); buildRotated(); edResetView(); syncEditUI(); queueRender(); edPushHist(); setTimeout(drawHist,140); };
     if($("eCancel")) $("eCancel").onclick=function(){ devCommit(); closeEditor(); buildGallery(); show(gallery); };
     if($("eSave")) $("eSave").onclick=function(){ devCommit(); if(typeof st!=="undefined"&&st.open){ stRoom("select"); } else { closeEditor(); buildGallery(); show(gallery); } };
@@ -1002,7 +1006,7 @@
     window.addEventListener("keydown",function(e){ if(!editor || editor.classList.contains("hidden")) return; var mod=e.ctrlKey||e.metaKey;
       if(mod && (e.key==="z"||e.key==="Z")){ e.preventDefault(); if(e.shiftKey) edRedo(); else edUndo(); return; }
       if(mod && (e.key==="y"||e.key==="Y")){ e.preventDefault(); edRedo(); return; }
-      if(e.key==="\\"){ e.preventDefault(); edShowOrig=!edShowOrig; queueRender(); toast(edShowOrig?"Before · original":"After · edited"); return; }
+      if(e.key==="\\"){ e.preventDefault(); edToggleBefore(); return; }
       if(e.key==="0"){ e.preventDefault(); edResetView(); return; }
       if(e.key==="+"||e.key==="="){ e.preventDefault(); edZoomBy(1.25); return; }
       if(e.key==="-"||e.key==="_"){ e.preventDefault(); edZoomBy(0.8); return; }
@@ -1030,7 +1034,6 @@
     if(cbOpen){ cbKey(e); return; }
     if(bg.open){ bagKey(e); return; }
     if(st.open && stKey(e)) return;
-    if(viewfinderOn && !menuOpen() && /^Digit[1-4]$/.test(e.code)){ var dl=vfDials()[+e.code.slice(5)-1]; if(dl) vfPickDial(dl[0]); return; }
     keys[e.code]=true;
     if(e.code==="Escape" && anyOutputOpen()){ e.preventDefault(); ["folio","photobook","galleryshow"].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.add("hidden"); }); return; }
     if(e.code==="Space"){ e.preventDefault(); if(!loaded || anyOutputOpen() || !gallery.classList.contains("hidden") || !editor.classList.contains("hidden")) return;
@@ -1329,7 +1332,7 @@
     foPack:foPack,foShuffle:foShuffle,foSeed:foSeed,importPhotoFiles:importPhotoFiles,pbExportPDF:pbExportPDF,pbBuildPDF:pbBuildPDF,pbInit:pbInit,updateCamArt:updateCamArt,switchCamTab:switchCamTab,camArtSVG:camArtSVG,gxRender:gxRender,gxBuildLayouts:gxBuildLayouts,gxBindDrag:gxBindDrag,loadSplat:loadSplat,showHub:showHub,openSplatViewer:openSplatViewer,openStudioHome:openStudioHome,openPunctum:openPunctum,photoTip:photoTip,saveSessionNow:saveSessionNow,loadSession:loadSession,clearSession:clearSession,showTutorial:showTutorial,cycleComp:cycleComp,drawComp:drawComp,raiseCamera:raiseCamera,shutter:shutter,get foItems(){return foItems;},get pbPages(){return pbPages;},get foBW(){return foBW;},get foBH(){return foBH;}}; }catch(e){} }
   if(/[?&]dev/.test(location.search)){ window.__ls={db:function(){ return lsDB; }, setClock:function(hm){ var m=/^(\d+):(\d+)$/.exec(hm), d=new Date(); d.setHours(+m[1],+m[2],0,0); lsClockOff=d.getTime()-Date.now(); lsTick(); }, tick:lsTick, who:lsWho, plan:lsPlan, cur:function(){ var p=lsPlan(); return p?lsCur(p):null; }, count:lsCount, moveOpen:lsMoveOpen, pill:function(){ return ls.pill; }, tc:tc, tcPlan:tcPlan, roster:function(){ return tcRoster(tcPlan()); }}; }
   if(/[?&]dev/.test(location.search)){ window.__cb={open:openBack, close:closeBack, tab:cbSetTab, state:function(){ return App.state; },
-    cam:function(){ return {ap:APERTURES[apIdx], sh:SHUTTER_LABELS[shIdx], iso:ISOS[isoIdx], ev:+evStops.toFixed(2), mm:focalMM, body:curBody().id, lens:lensId}; }, bag:function(){ return {open:bg.open, stage:bg.stage, body:bg.body, lens:bg.lens, busy:bg.busy}; }, studio:function(){ var bd=function(B){ var d=B.doc_(); return {cur:d.cur, paper:d.paper, pages:d.pages.map(function(p){ return p.items.map(function(it){ return {t:it.t, i:it.pid?stById(it.pid):-1, x:Math.round(it.x), y:Math.round(it.y), w:Math.round(it.w), h:Math.round(B.hOf(it)), hidden:!!it.hidden, locked:!!it.locked, f:it.f||null, text:it.text||null, sec:it.sec||null, pid:it.pid||null}; }); }), sel:B.selected()}; };
+    cam:function(){ return {ap:APERTURES[apIdx], sh:SHUTTER_LABELS[shIdx], iso:ISOS[isoIdx], ev:+evStops.toFixed(2), mm:focalMM, body:curBody().id, lens:lensId}; }, bag:function(){ return {open:bg.open, stage:bg.stage, body:bg.body, lens:bg.lens, busy:bg.busy}; }, studio:function(){ var bd=function(B){ var d=B.doc_(); return {cur:d.cur, paper:d.paper, pages:d.pages.map(function(p){ return p.items.map(function(it){ return {t:it.t, i:it.pid?stById(it.pid):-1, x:Math.round(it.x), y:Math.round(it.y), w:Math.round(it.w), h:Math.round(B.hOf(it)), hidden:!!it.hidden, locked:!!it.locked, f:it.f||null, text:it.text||null, sec:it.sec||null, pid:it.pid||null, sz:it.sz||1, ch:it.ch!=null?Math.round(it.ch):null}; }); }), sel:B.selected()}; };
       return {open:st.open, room:st.room, cur:st.cur, ws:bd(wsB), fo:bd(foB), book:{size:bk.size, spread:bk.spread, focus:bk.focus, sel:bk.sel, pages:bk.pages.map(function(p){ return {tpl:p.tpl, imgs:p.imgs.map(stById)}; })}}; }, addPhoto:function(p){ p.t=new Date(); photos.push(p); refreshCount(); }, fill:function(){ return foB.fill_(); }, projects:function(){ return (st.projects||[]).map(function(p){ return {name:p.name, n:p.ids.length}; }); }, open_:function(){ return cbOpen; }, photos:photos, fov:function(){ return camera.fov; }, pose:function(o){ if(o){ if(o.x!=null) camPos.x=o.x; if(o.z!=null) camPos.z=o.z; if(o.yaw!=null) yaw=o.yaw; if(o.pitch!=null) pitch=o.pitch; if(o.eye!=null) WK.eye=o.eye; _vel.set(0,0,0); basis(); } return {x:camPos.x, y:camPos.y, z:camPos.z, yaw:yaw, pitch:pitch, eye:WK.eye}; }, dial:function(){ return vfDial; }, focus:function(){ return focusDist; } }; }
 })();
 

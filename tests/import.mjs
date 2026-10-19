@@ -31,7 +31,7 @@ const drop = (sel, files) => cb(([s, fs]) => { const el = document.querySelector
 const count = () => cb(() => window.__cb.photos.length);
 const waitCount = (n) => page.waitForFunction((k) => window.__cb.photos.length >= k, n, { timeout: 60000 });
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev');
+  await page.goto(pathToFileURL(FILE).href + '?dev&quick');
   await page.waitForSelector('#tileStudio', { state: 'visible', timeout: 20000 });
   await cb((u) => [0, 1, 2].forEach(() => window.__cb.addPhoto({ url: u, f: 4, sh: '1/125', iso: 400, mm: 50, body: 'Full-frame DSLR', place: 'The Stump' })), frame);
   await page.click('#tileStudio'); await page.waitForTimeout(600);

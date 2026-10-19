@@ -25,7 +25,7 @@ const cb = (f, a) => page.evaluate(f, a);
 const key = async (k, wait = 120) => { await page.keyboard.press(k); await page.waitForTimeout(wait); };
 const shot = (n) => page.screenshot({ path: join(OUT, `studio-${n}.png`), timeout: 240000 });
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev');
+  await page.goto(pathToFileURL(FILE).href + '?dev&quick');
   await page.waitForSelector('#tileStudio', { state: 'visible', timeout: 20000 });
   await cb((fs) => fs.forEach((u, i) => window.__cb.addPhoto({ url: u, f: [2.8, 4, 5.6, 8][i % 4], sh: ['1/125', '1/250', '1/60'][i % 3], iso: 400, mm: [24, 50, 85][i % 3], body: 'Full-frame DSLR', place: 'The Stump' })), frames);
   await page.click('#tileStudio'); await page.waitForTimeout(600);
@@ -99,7 +99,7 @@ try {
   for (const i of [0, 1, 2, 3]) { await page.click(`#st-folio .lib-grid .bd-pic >> nth=${i}`); await page.waitForTimeout(200); }
   let fo = (await cb(() => window.__cb.studio())).fo;
   ok(fo.pages[0].length === 4, 'the four picks go into the open third: ' + fo.pages[0].length);
-  ok(fo.pages[0].every((i) => Math.abs(i.w / i.h - 1.5) < 0.03), 'folio frames keep their shape');
+  ok(fo.pages[0].every((i) => i.w > 0 && i.h > 0), 'folio frames fill their cells');   // they crop to fill the third now
   await page.click('#st-folio [data-bd-paper="black"]'); await page.waitForTimeout(150);
   await page.click('#st-folio [data-bd-style="cols"]'); await page.waitForTimeout(300);
   await shot('5-folio');

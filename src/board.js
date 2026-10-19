@@ -73,6 +73,50 @@
       var inter=[]; for(var i=0,j=n-1;i<=j;i++,j--){ inter.push(byA[j]); if(i!==j) inter.push(byA[i]); } tryO(inter); }
     return best.o; }
 
+
+  // ---- filling a folio third completely: no white space, each photo cropped a little to its cell ----
+  // The third is cut into cells guillotine-style (each cut runs the full height or width of what's left), with each
+  // photo's share of the area set by its size (1, 2 or 3). Every way of cutting is tried, and the one that crops the
+  // photos least wins: a cell's shape against its photo's shape, squared on a log scale, weighted by the photo's size.
+  // Rows and Columns make every cut run the same way; Hero gives the biggest photo its own block first.
+  var BD_SZW=[0,1,2.3,4.2];
+  function bdCellCost(c, a, w, tiny){ var l=Math.log((c.w/Math.max(c.h,1e-6))/a); return w*l*l+(Math.min(c.w,c.h)<tiny?4:0); }
+  function bdTree(b, A, W, gap, i, j, tiny, dir){ var n=j-i; if(n===1) return {r:[b], c:bdCellCost(b,A[i],W[i],tiny)};
+    var tot=0, k, best=null; for(k=i;k<j;k++) tot+=W[k];
+    if(n>9){ var acc=0, mid=i+1; for(k=i;k<j-1;k++){ acc+=W[k]; if(acc>=tot/2){ mid=k+1; break; } } return bdSplit(b,A,W,gap,i,mid,j,tot,dir||(b.w>=b.h?"v":"h"),tiny,dir); }
+    var acc2=0; for(k=i+1;k<j;k++){ acc2+=W[k-1]; (dir?[dir]:["v","h"]).forEach(function(d){ var t=bdSplit(b,A,W,gap,i,k,j,tot,d,tiny,dir,acc2); if(t&&(!best||t.c<best.c)) best=t; }); }
+    return best; }
+  function bdSplit(b,A,W,gap,i,k,j,tot,d,tiny,dir,accK){ var acc=accK; if(acc==null){ acc=0; for(var q=i;q<k;q++) acc+=W[q]; } var f=acc/tot, b1, b2;
+    if(d==="v"){ var w1=(b.w-gap)*f; if(w1<1||b.w-gap-w1<1) return null; b1={x:b.x,y:b.y,w:w1,h:b.h}; b2={x:b.x+w1+gap,y:b.y,w:b.w-gap-w1,h:b.h}; }
+    else { var h1=(b.h-gap)*f; if(h1<1||b.h-gap-h1<1) return null; b1={x:b.x,y:b.y,w:b.w,h:h1}; b2={x:b.x,y:b.y+h1+gap,w:b.w,h:b.h-gap-h1}; }
+    var L=bdTree(b1,A,W,gap,i,k,tiny,dir), R=bdTree(b2,A,W,gap,k,j,tiny,dir); if(!L||!R) return null; return {r:L.r.concat(R.r), c:L.c+R.c}; }
+  // rows: the photos split into rows, each row as tall as its photos need, then every row stretched to fill
+  function bdRowsFill(b, A, W, gap, tiny){ var n=A.length, best=null;
+    bdPartitions(n, function(rows){ var hs=rows.map(function(row){ return (b.w-gap*(row.length-1))/row.reduce(function(s,i){ return s+A[i]*Math.sqrt(W[i]); },0); }), H=hs.reduce(function(s,x){ return s+x; },0), k=(b.h-gap*(rows.length-1))/H, out=[], c=0, y=b.y;
+      rows.forEach(function(row,ri){ var h=hs[ri]*k, x=b.x; row.forEach(function(i,qi){ var w=qi===row.length-1?b.x+b.w-x:A[i]*Math.sqrt(W[i])*hs[ri]; out[i]={x:x,y:y,w:w,h:h}; c+=bdCellCost(out[i],A[i],W[i],tiny); x+=w+gap; }); y+=h+gap; });
+      if(!best||c<best.c) best={r:out,c:c}; });
+    return best; }
+  function bdFill(b, A, W, gap, style){ var n=A.length; if(!n) return {r:[], c:0}; W=W||A.map(function(){ return 1; }); var tiny=Math.min(b.w,b.h)*0.14, key=[style,b.w.toFixed(1),b.h.toFixed(1),A.map(function(a){ return a.toFixed(3); }).join(","),W.join(",")].join("|"), hit=bdFill.cache[key], res;
+    if(hit) return {r:hit.r.map(function(q){ return {x:q.x+b.x,y:q.y+b.y,w:q.w,h:q.h}; }), c:hit.c};
+    var b0={x:0,y:0,w:b.w,h:b.h};
+    if(style==="rows") res=bdRowsFill(b0,A,W,gap,tiny);
+    else if(style==="cols"){ var t=bdRowsFill({x:0,y:0,w:b.h,h:b.w},A.map(function(a){ return 1/a; }),W,gap,tiny); res={r:t.r.map(function(q){ return {x:q.y,y:q.x,w:q.h,h:q.w}; }), c:t.c}; }
+    else if(style==="hero"&&n>1){ var hi=0; W.forEach(function(w,i){ if(w>W[hi]) hi=i; }); var rest=[], RA=[], RW=[]; A.forEach(function(a,i){ if(i!==hi){ rest.push(i); RA.push(a); RW.push(W[i]); } });
+      [0.5,0.56,0.62,0.68].forEach(function(f){ ["l","t"].forEach(function(side){ var hb, rb;
+        if(side==="l"){ hb={x:0,y:0,w:(b.w-gap)*f,h:b.h}; rb={x:hb.w+gap,y:0,w:b.w-gap-hb.w,h:b.h}; } else { hb={x:0,y:0,w:b.w,h:(b.h-gap)*f}; rb={x:0,y:hb.h+gap,w:b.w,h:b.h-gap-hb.h}; }
+        var p=bdTree(rb,RA,RW,gap,0,RA.length,tiny); if(!p) return; var c=bdCellCost(hb,A[hi],W[hi]*1.5,tiny)+p.c, out=[]; out[hi]=hb; rest.forEach(function(i,q){ out[i]=p.r[q]; });
+        if(!res||c<res.c) res={r:out,c:c}; }); }); }
+    else res=bdTree(b0,A,W,gap,0,n,tiny);
+    bdFill.cache[key]=res; if(++bdFill.n>400){ bdFill.cache={}; bdFill.n=0; }
+    return {r:res.r.map(function(q){ return {x:q.x+b.x,y:q.y+b.y,w:q.w,h:q.h}; }), c:res.c}; }
+  bdFill.cache={}; bdFill.n=0;
+  // the order that crops least (every order for a handful, sensible ones beyond)
+  function bdFillOrder(b, A, W, gap, style){ var n=A.length, idx=A.map(function(_,i){ return i; }), best={o:idx, c:bdFill(b,A,W,gap,style).c};
+    function tryO(o){ var c=bdFill(b, o.map(function(i){ return A[i]; }), o.map(function(i){ return W[i]; }), gap, style).c; if(c<best.c-1e-4) best={o:o.slice(), c:c}; }
+    if(n<=5){ (function perm(a,l){ if(l===a.length){ tryO(a); return; } for(var i=l;i<a.length;i++){ var t=a[l]; a[l]=a[i]; a[i]=t; perm(a,l+1); t=a[l]; a[l]=a[i]; a[i]=t; } })(idx.slice(),0); }
+    else { var byA=idx.slice().sort(function(x,y){ return A[x]-A[y]; }); tryO(byA); tryO(byA.slice().reverse()); var inter=[]; for(var i=0,j=n-1;i<=j;i++,j--){ inter.push(byA[j]); if(i!==j) inter.push(byA[i]); } tryO(inter); }
+    return best.o; }
+
   function Board(o){
     var B={o:o, doc:null, sel:[], hist:[], hi:-1, s:1, bound:false, edit:-1, caret:null, view:-1};
     function doc(){ if(!B.doc){ B.doc=o.load()||{pages:[{id:bdUid(), items:[]}], cur:0, paper:"white"}; } var d=B.doc; if(!d.pages.length) d.pages.push({id:bdUid(), items:[]});
@@ -89,7 +133,8 @@
     function undo(d){ var j=B.hi+d; if(j<0||j>=B.hist.length) return; B.hi=j; B.doc=JSON.parse(B.hist[j]); B.sel=[]; B.edit=-1; o.save(B.doc); render(); toast(d<0?"Undo":"Redo"); }
     function idxOf(it){ return stById(it.pid); }
     function asp(it){ var i=idxOf(it); return i>=0?stAspect(i):1.5; }
-    function hOf(it){ return it.t==="photo"?it.w/asp(it):it.t==="line"?Math.abs(it.y2-it.y):it.h; }
+    function hOf(it){ return it.t==="photo"?(it.ch!=null&&it.sec?it.ch:it.w/asp(it)):it.t==="line"?Math.abs(it.y2-it.y):it.h; }
+    function szOf(it){ return Math.max(1,Math.min(3,it.sz||1)); }
     function bb(it){ if(it.t==="line") return {x:Math.min(it.x,it.x2), y:Math.min(it.y,it.y2), w:Math.abs(it.x2-it.x), h:Math.abs(it.y2-it.y)}; return {x:it.x, y:it.y, w:it.w, h:hOf(it)}; }
     // folio sections: each A1 panel in thirds, top to bottom. Click ⤢ (or double-click empty space) to work on one up close.
     var SEC_NAMES=["TOP","MIDDLE","BOTTOM"];
@@ -108,18 +153,19 @@
     function repack(){ if(!o.sections) return; var pg=page(), S=secs(), keys={}; B.fill={};
       S.forEach(function(q){ keys[q.key]=q; });
       pg.items.forEach(function(it){ if(it.t!=="photo") return; if(!it.sec||!keys[it.sec]){ var b=bb(it), i=secAt(b.x+b.w/2, b.y+b.h/2); it.sec=(S[i>=0?i:0]||{}).key; } });
-      S.forEach(function(q){ var ks=secItems(q.key); if(!ks.length) return; var r=bdPack(q, ks.map(function(k){ return asp(pg.items[k]); }), SEC_GAP, secStyle(q.key));
-        ks.forEach(function(k,j){ var it=pg.items[k], rr=r.r[j]; if(!rr) return; delete it.box; it.x=rr.x; it.y=rr.y; it.w=rr.w; }); B.fill[q.key]=r.cover; }); }
-    function bestOrderSec(key){ var pg=page(), q=secs()[secIdx(key)], ks=secItems(key); if(!q||ks.length<2) return; var A=ks.map(function(k){ return asp(pg.items[k]); }), ord=bdBestOrder(q, A, SEC_GAP, secStyle(key));
+      S.forEach(function(q){ var ks=secItems(q.key); if(!ks.length) return; var r=bdFill(q, ks.map(function(k){ return asp(pg.items[k]); }), ks.map(function(k){ return BD_SZW[szOf(pg.items[k])]; }), SEC_GAP, secStyle(q.key));
+        ks.forEach(function(k,j){ var it=pg.items[k], rr=r.r[j]; if(!rr) return; delete it.box; it.x=rr.x; it.y=rr.y; it.w=rr.w; it.ch=rr.h; }); B.fill[q.key]=1; }); }
+    function bestOrderSec(key){ var pg=page(), q=secs()[secIdx(key)], ks=secItems(key); if(!q||ks.length<2) return; var A=ks.map(function(k){ return asp(pg.items[k]); }), ord=bdFillOrder(q, A, ks.map(function(k){ return BD_SZW[szOf(pg.items[k])]; }), SEC_GAP, secStyle(key));
       var moved=ord.map(function(j){ return pg.items[ks[j]]; }); ks.forEach(function(k,j){ pg.items[k]=moved[j]; }); }
     var SEC_STYLES=["auto","rows","cols","hero"];
     function shuffleSec(key){ var pg=page(), q=secs()[secIdx(key)], ks=secItems(key); if(!q||ks.length<2){ toast("Put two or more frames in this section to shuffle"); return; }
       var look=function(o2,stl){ return o2.map(function(j){ return pg.items[ks[j]].pid; }).join()+"|"+stl; }, cur=look(ks.map(function(_,j){ return j; }),secStyle(key)), tries=[], best=0;   // what it looks like: which photo where, and how it packs
-      for(var t=0;t<24;t++){ var o2=ks.map(function(_,j){ return j; }); for(var i=o2.length-1;i>0;i--){ var r=Math.floor(Math.random()*(i+1)), tmp=o2[i]; o2[i]=o2[r]; o2[r]=tmp; }
-        var stl=SEC_STYLES[Math.floor(Math.random()*SEC_STYLES.length)], cov=bdPack(q, o2.map(function(j){ return asp(pg.items[ks[j]]); }), SEC_GAP, stl).cover;
-        tries.push({o:o2, s:stl, c:cov}); if(cov>best) best=cov; }
-      var ok=tries.filter(function(x){ return x.c>=best*0.9&&look(x.o,x.s)!==cur; }); if(!ok.length) ok=tries.filter(function(x){ return look(x.o,x.s)!==cur; }); var pick=(ok.length?ok:tries)[Math.floor(Math.random()*(ok.length||tries.length))];
-      var moved=pick.o.map(function(j){ return pg.items[ks[j]]; }); ks.forEach(function(k,j){ pg.items[k]=moved[j]; });
+      best=1e9; for(var t=0;t<24;t++){ var o2=ks.map(function(_,j){ return j; }); for(var i=o2.length-1;i>0;i--){ var r=Math.floor(Math.random()*(i+1)), tmp=o2[i]; o2[i]=o2[r]; o2[r]=tmp; }
+        var sz=ks.map(function(){ return 1; }), nb=Math.random()<0.8?1+Math.floor(Math.random()*Math.min(2,ks.length-1)):0; for(var bz=0;bz<nb;bz++) sz[Math.floor(Math.random()*ks.length)]=2+Math.floor(Math.random()*2);   // a size or two changes too
+        var stl=SEC_STYLES[Math.floor(Math.random()*SEC_STYLES.length)], cst=bdFill(q, o2.map(function(j){ return asp(pg.items[ks[j]]); }), o2.map(function(j){ return BD_SZW[sz[j]]; }), SEC_GAP, stl).c;
+        tries.push({o:o2, s:stl, c:cst, sz:sz}); if(cst<best) best=cst; }
+      var ok=tries.filter(function(x){ return x.c<=best*1.6+0.08&&look(x.o,x.s)!==cur; }); if(!ok.length) ok=tries.filter(function(x){ return look(x.o,x.s)!==cur; }); var pick=(ok.length?ok:tries)[Math.floor(Math.random()*(ok.length||tries.length))];
+      var moved=pick.o.map(function(j){ var m=pg.items[ks[j]]; m.sz=pick.sz[j]; return m; }); ks.forEach(function(k,j){ pg.items[k]=moved[j]; });
       page().secStyle=page().secStyle||{}; page().secStyle[key]=pick.s; B.shuffles=(B.shuffles||0)+1; commit(); }
     function curSec(){ var S=secs(); if(B.view>=0&&S[B.view]) return S[B.view].key; if(B.sel.length){ var it=page().items[B.sel[0]]; if(it&&it.sec) return it.sec; } return null; }
     function targetSec(){ var k=curSec(); if(k) return k; var S=secs(), best=null, bn=1e9; S.forEach(function(q){ var n=secItems(q.key).length; if(n<bn){ bn=n; best=q.key; } }); return best; }
@@ -173,7 +219,8 @@
       var h=hOf(it), st_='left:'+(it.x*s).toFixed(1)+'px;top:'+(it.y*s).toFixed(1)+'px;width:'+(it.w*s).toFixed(1)+'px;height:'+(h*s).toFixed(1)+'px;z-index:'+(k+1);
       var handles=one&&!it.sec?'<i class="bd-h nw" data-bd-h="nw"></i><i class="bd-h ne" data-bd-h="ne"></i><i class="bd-h sw" data-bd-h="sw"></i><i class="bd-h se" data-bd-h="se"></i>':'';
       var cls='bd-it '+({photo:'ph',text:'tx',shape:'sh',slot:'sl'}[it.t]||'tx')+(sel?' sel':'')+(it.locked?' locked':'');
-      if(it.t==="photo") return '<div class="'+cls+'" data-bd="'+k+'" style="'+st_+'"><img src="'+src(it)+'" alt="" draggable="false" style="filter:'+BD_FILTERS[it.f||"none"][1]+'">'+(sel&&B.sel.length===1?'<span class="bd-sz">'+Math.round(it.w)+' × '+Math.round(h)+' MM</span>':'')+handles+'</div>';
+      if(it.t==="photo") return '<div class="'+cls+'" data-bd="'+k+'" style="'+st_+'"><img src="'+src(it)+'" alt="" draggable="false" style="filter:'+BD_FILTERS[it.f||"none"][1]+'">'+(sel&&B.sel.length===1?'<span class="bd-sz">'+Math.round(it.w)+' × '+Math.round(h)+' MM</span>':'')
+        +(it.sec?'<button class="bd-szb" data-bd-size="'+k+'" title="Make it bigger or smaller">'+[1,2,3].map(function(z){ return '<i class="'+(z<=szOf(it)?'on':'')+'"></i>'; }).join("")+'<span>SIZE</span></button>':'')+handles+'</div>';
       if(it.t==="shape") return '<div class="'+cls+'" data-bd="'+k+'" style="'+st_+';'+(it.outline?'border:'+Math.max(1,0.7*s).toFixed(1)+'px solid '+(it.fill||inkOf(page())):'background:'+(it.fill||"#2f2f31"))+'">'+handles+'</div>';
       if(it.t==="slot") return '<div class="'+cls+'" data-bd="'+k+'" style="'+st_+'"><span><b>'+cbEsc(it.label||"Photo")+'</b>Drag a frame here</span>'+handles+'</div>';
       var f=BD_FONTS[it.font||"serif"][1], fs=(it.size||14)*0.3528*s;
@@ -244,7 +291,7 @@
           h='<div class="bd-sec"><span class="eb">'+cq.label+' <i>'+n4+' FRAME'+(n4===1?'':'S')+' · '+Math.round(((B.fill||{})[ck]||0)*100)+'% FILLED</i></span>'
             +'<div class="bd-chips">'+[["auto","BEST FIT"],["rows","ROWS"],["cols","COLUMNS"],["hero","HERO"]].map(function(x){ return '<button data-bd-style="'+x[0]+'" data-bd-key="'+ck+'" class="'+(stl===x[0]?'on':'')+'">'+x[1]+'</button>'; }).join("")+'</div>'
             +'<div class="bd-chips"><button data-bd-shuffle="'+ck+'" class="gold" title="A new random order and arrangement that still fills the section">⤮ SHUFFLE</button><button data-bd-bestorder="'+ck+'" title="Try every order and keep the one that fills the section most">⇄ BEST ORDER</button><button data-bd-clearsec="'+ck+'" class="del">EMPTY</button></div>'
-            +'<p class="bd-none">Every section packs itself edge to edge. Drag a frame onto another to swap their places. The same frame can go in more than once.</p></div>'+h; }
+            +'<p class="bd-none">Every section fills edge to edge, with no white space: photos crop a little to fit. Click SIZE in the middle of a photo to make it bigger. Drag one onto another to swap them. The same frame can go in more than once.</p></div>'+h; }
         else h='<div class="bd-sec"><span class="eb">SECTIONS</span><p class="bd-none">Each A1 panel is split into thirds that fill themselves edge to edge, like a finished folio board. You work on one third at a time: zoom into it with ⤢.</p></div>'+h; }
       var top=h; h="";   // whatever is selected goes first, so its controls are always in reach
       if(B.sel.length>1&&o.sections){ h+='<div class="bd-sec"><span class="eb">'+B.sel.length+' SELECTED</span><div class="bd-chips"><button data-bd-act="del" class="del">REMOVE FROM BOARD</button></div><p class="bd-none">Drag any of them to move the lot into another section.</p></div>'; }
@@ -256,7 +303,7 @@
           +'<div class="bd-chips">'+(grouped?'<button data-bd-multi="ungroup">UNGROUP</button>':'<button data-bd-multi="group">GROUP</button>')+'<button data-bd-act="dupitem">DUPLICATE</button><button data-bd-act="del" class="del">DELETE</button></div>'
           +'<p class="bd-none">Drag any of them to move the lot. Alt-click picks one out of a group.</p></div>'; }
       if(one){ h+='<div class="bd-sec"><span class="eb">SELECTED · '+cbEsc(name(one).toUpperCase())+'</span>';
-        if(one.t==="photo"&&o.sections){ h+='<p class="bd-none">Sized by its section. Drag it onto another frame to move it there, or into another section.</p>'; }
+        if(one.t==="photo"&&o.sections){ h+='<p class="bd-none">Click SIZE in its middle to make it bigger or smaller. Drag it onto another frame to swap them, or into another section.</p>'; }
         else if(one.t==="photo"){ h+='<div class="bd-sizes">'+o.sizes.map(function(w){ return '<button data-bd-w="'+w+'" class="'+(Math.round(one.w)===w?'on':'')+'">'+w+'</button>'; }).join("")+'<span>MM WIDE</span></div>';
           if(o.filters) h+='<div class="bd-chips">'+Object.keys(BD_FILTERS).map(function(f){ return '<button data-bd-f="'+f+'" class="'+((one.f||"none")===f?'on':'')+'">'+BD_FILTERS[f][0]+'</button>'; }).join("")+'</div>'; }
         else if(one.t==="text"){ h+='<div class="bd-chips">'+Object.keys(BD_FONTS).map(function(f){ return '<button data-bd-font="'+f+'" class="'+((one.font||"serif")===f?'on':'')+'">'+BD_FONTS[f][0]+'</button>'; }).join("")+'</div>'
@@ -362,6 +409,7 @@
     function bestSnap(vals, lines, th){ var best=null; vals.forEach(function(v,vi){ lines.forEach(function(l){ var d=l-v; if(Math.abs(d)<=th&&(!best||Math.abs(d)<Math.abs(best.d))) best={d:d, at:l}; }); }); return best; }
     function guides(gx, gy){ var g=$(o.el).querySelector(".bd-guides"), s=B.s; if(!g) return; g.innerHTML=(gx!=null?'<i class="v" style="left:'+(gx*s).toFixed(1)+'px"></i>':'')+(gy!=null?'<i class="h" style="top:'+(gy*s).toFixed(1)+'px"></i>':''); }
     function down(e){ if(e.button!==0) return; var pg=page(), hd=e.target.closest("[data-bd-h]"), el=e.target.closest("[data-bd]");
+      var szb=e.target.closest("[data-bd-size]"), szIt=szb?pg.items[+szb.getAttribute("data-bd-size")]:null;   // the size button: a click resizes, a drag still moves the photo
       if(B.edit>=0&&el&&+el.getAttribute("data-bd")===B.edit) return;   // typing in a text box
       if(!el){ if(e.target.closest("[data-bd-zoom]")) return; return marquee(e); }
       var k=+el.getAttribute("data-bd"), it=pg.items[k], wasSel=B.sel.length===1&&B.sel[0]===k;
@@ -391,6 +439,7 @@
             Array.prototype.splice.apply(pg.items,[at,0].concat(movers)); B.sel=movers.map(function(m){ return pg.items.indexOf(m); }); }
           commit(); return; }
         if(moved){ commit(); return; }
+        if(szIt){ szIt.sz=szOf(szIt)%3+1; B.sel=[pg.items.indexOf(szIt)]; B.sizes=(B.sizes||0)+1; commit(); return; }
         if(it.t==="text"&&(wasSel||!String(it.text||"").trim())){ B.edit=k; B.sel=[k]; B.caret={x:ev.clientX, y:ev.clientY}; render(); } }   // click a text box to type in it
       window.addEventListener("pointermove",mv); window.addEventListener("pointerup",up); }
     // drag on empty page: a marquee that selects everything it touches
@@ -500,7 +549,9 @@
       g.fillStyle=o.bgs?BD_BGS[bg][1]:(bg==="black"?"#0f0e0c":"#f4f1ea"); g.fillRect(0,0,cv.width,cv.height); g.translate(-x0*ppm,0);
       var items=pg.items.filter(function(it){ return !it.hidden&&it.t!=="slot"; }), i=0;
       (function next(){ if(i>=items.length){ cb(cv); return; } var it=items[i++];
-        if(it.t==="photo"){ var im=new Image(); im.onload=function(){ g.save(); g.filter=BD_FILTERS[it.f||"none"][1]; g.drawImage(im, it.x*ppm, it.y*ppm, it.w*ppm, hOf(it)*ppm); g.restore(); next(); }; im.onerror=next; im.src=src(it); return; }
+        if(it.t==="photo"){ var im=new Image(); im.onload=function(){ g.save(); g.filter=BD_FILTERS[it.f||"none"][1]; var cw=it.w, ch=hOf(it), ia=im.naturalWidth/im.naturalHeight, ca=cw/ch, sx=0, sy=0, sw=im.naturalWidth, sh2=im.naturalHeight;   // cropped to its cell, like the board shows it
+            if(ia>ca){ sw=sh2*ca; sx=(im.naturalWidth-sw)/2; } else { sh2=sw/ca; sy=(im.naturalHeight-sh2)/2; }
+            g.drawImage(im, sx, sy, sw, sh2, it.x*ppm, it.y*ppm, cw*ppm, ch*ppm); g.restore(); next(); }; im.onerror=next; im.src=src(it); return; }
         if(it.t==="shape"){ if(it.outline){ g.strokeStyle=it.fill||ink; g.lineWidth=0.7*ppm; g.strokeRect(it.x*ppm,it.y*ppm,it.w*ppm,it.h*ppm); } else { g.fillStyle=it.fill||"#2f2f31"; g.fillRect(it.x*ppm,it.y*ppm,it.w*ppm,it.h*ppm); } return next(); }
         if(it.t==="line"){ var c=it.color||ink, wt=(it.wt||0.7)*ppm, hs=Math.max(2.2*ppm,wt*4.2); g.strokeStyle=c; g.fillStyle=c; g.lineWidth=wt; g.lineCap="round";
           g.beginPath(); g.moveTo(it.x*ppm,it.y*ppm); g.lineTo(it.x2*ppm,it.y2*ppm); g.stroke();
@@ -511,7 +562,7 @@
         String(it.text||"").split("\n").forEach(function(par){ line=""; par.split(/\s+/).forEach(function(w){ var t2=line?line+" "+w:w; if(g.measureText(t2).width>maxW&&line){ g.fillText(line,ax,y); y+=lh; line=w; } else line=t2; }); g.fillText(line,ax,y); y+=lh; });
         next(); })(); }
     B.render=render; B.key=key; B.doc_=doc; B.page=page; B.draw=draw; B.add=add; B.applyLayout=applyLayout; B.applyTemplate=applyTemplate; B.reset=function(d){ B.doc=d; B.sel=[]; B.hist=[]; B.hi=-1; push(); };
-    B.selected=function(){ return B.sel.slice(); }; B.secItems=function(k){ return secItems(k).map(function(j){ return page().items[j]; }); }; B.secStyle=secStyle; B.shuffles_=function(){ return B.shuffles||0; }; B.saves_=function(){ return B.saves||0; }; B.hOf=hOf; B.view_=function(){ return B.view; }; B.fill_=function(){ var o2={}; for(var k in (B.fill||{})) o2[k]=+B.fill[k].toFixed(3); return o2; };
+    B.selected=function(){ return B.sel.slice(); }; B.secItems=function(k){ return secItems(k).map(function(j){ return page().items[j]; }); }; B.secStyle=secStyle; B.shuffles_=function(){ return B.shuffles||0; }; B.sizes_=function(){ return B.sizes||0; }; B.saves_=function(){ return B.saves||0; }; B.hOf=hOf; B.view_=function(){ return B.view; }; B.fill_=function(){ var o2={}; for(var k in (B.fill||{})) o2[k]=+B.fill[k].toFixed(3); return o2; };
     push();
     return B; }
 
@@ -530,6 +581,12 @@
   function wsS(x,y,w,h,label,keep){ return {t:"slot", x:x, y:y, w:w, h:h, label:label||"Photo", keep:!!keep}; }
   function wsA(x,y,x2,y2,head){ return {t:"line", x:x, y:y, x2:x2, y2:y2, head:head||"end", wt:0.6}; }
   var WS_TEMPLATES=[
+    {id:"rank", name:"Rank", tip:"Your five picks ranked from 5 up to your best, and why each sits where it does", build:function(){ var it=[wsT(15,10,390,18,"title","Ranking my five: from 5 up to my best")];
+      for(var k=0;k<5;k++){ var y=38+k*49.6, n=5-k;
+        it.push(wsT(13,y+8,26,30,"title","",{text:String(n), size:30}));
+        it.push(wsS(42,y,70,46.6,n===1?"Your best":"#"+n,true));
+        it.push(wsT(120,y,285,46.6,"text",n===1?"Why is this your best? What does it do that the others don't?":n===5?"Why is this last of the five? What holds it back?":"Why does it sit at #"+n+"? What's stronger or weaker than the ones around it?",{rank:n})); }
+      return {bg:"white", items:it}; }},
     {id:"compare", name:"Compare", tip:"Two photos side by side: point at the difference, and say which works", build:function(){ return {bg:"white", items:[
       wsT(15,12,390,18,"title","Compare: what changed between these two?"),
       wsS(15,40,190,127,"Photo A",true), wsS(215,40,190,127,"Photo B",true),

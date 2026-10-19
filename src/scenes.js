@@ -2,7 +2,7 @@ var SPLAT_SCENES=[{id:"stump",name:"The Stump",desc:"An old stump gone to ivy, i
 subject:[0.15,-0.12],
 challenges:[
   {id:"stump-fgbg",title:"Foreground and background",brief:"Get low and close so the stump fills the left of the frame and the dead tree stands behind it on the right. A wide lens at f/11 keeps both sharp.",az:-40,dist:0.7,h:0.45,look:[1.81,0.71,-1.43],mm:24,
-   need:[{k:"body",id:"dslr",label:"Full-frame DSLR (camera bag, B)"},{k:"mm",max:26,label:"24–70 zoomed out to 24 mm (press 4, then scroll)"},{k:"f",min:11,label:"f/11 or smaller, so near and far are both sharp"},{k:"ev",tol:1,label:"Exposure within a stop"}]},
+   need:[{k:"body",id:"dslr",label:"Full-frame DSLR (camera bag, B)"},{k:"mm",max:26,label:"24–70 zoomed out to 24 mm: raise the camera, scroll down"},{k:"f",min:11,label:"f/11 or smaller, so near and far are both sharp"},{k:"ev",tol:1,label:"Exposure within a stop"}]},
   {id:"stump-dof",title:"Shallow depth of field",brief:"Use the 85 mm wide open. Focus on the stump and let everything behind it fall out of focus.",az:-75,dist:2.2,h:0.8,look:[0,0.3,0],mm:85,
    need:[{k:"body",id:"dslr",label:"Full-frame DSLR (camera bag, B)"},{k:"lens",mm:85,label:"85 mm f/1.4 (camera bag, B)"},{k:"f",max:1.4,label:"f/1.4, wide open"},{k:"ev",tol:1,label:"Exposure within a stop"}]},
   {id:"stump-67",title:"Medium format, vertical",brief:"Shoot the stump on the 6×7 film camera, turned on its side. Ten frames to a roll, so meter carefully before you press.",az:15,dist:1.2,h:0.7,look:[0,0.35,0],mm:54,aspect:1.25,vert:true,
@@ -10,6 +10,6 @@ challenges:[
   {id:"stump-top",title:"Texture from above",brief:"Stand over the stump and shoot straight down into the top. Stop down so the detail holds across the whole surface.",az:120,dist:0.7,h:1.5,look:[0,0.1,0],mm:50,
    need:[{k:"mm",min:45,max:55,label:"50 mm (the prime, or the zoom at 50)"},{k:"f",min:8,label:"f/8 or smaller"},{k:"iso",max:200,label:"ISO 200 or lower, for clean detail"},{k:"ev",tol:1,label:"Exposure within a stop"}]},
   {id:"stump-sil",title:"Silhouette",brief:"Get down low and shoot up past the stump towards the dead tree and the bright sky. Underexpose until the shapes go dark.",az:-100,dist:1.0,h:0.3,look:[1.97,1.0,-0.35],mm:38,
-   need:[{k:"body",id:"ml",label:"APS-C mirrorless, so you see the exposure in the finder (camera bag, B)"},{k:"mm",max:40,label:"24–70 at 24 mm (press 4, then scroll)"},{k:"ev",min:-2.5,max:-1.3,label:"Underexposed 1½ to 2½ stops"}]},
+   need:[{k:"body",id:"ml",label:"APS-C mirrorless, so you see the exposure in the finder (camera bag, B)"},{k:"mm",max:40,label:"24–70 at 24 mm: raise the camera, scroll down"},{k:"ev",min:-2.5,max:-1.3,label:"Underexposed 1½ to 2½ stops"}]},
   {id:"stump-tele",title:"Telephoto detail",brief:"Stand back with the 135 on the crop body and pick out the new growth on top of the stump. At this length you need a fast shutter to keep it sharp.",az:-120,dist:3.0,h:1.0,look:[0,0.4,0],mm:216,
    need:[{k:"body",id:"ml",label:"APS-C mirrorless (camera bag, B)"},{k:"lens",mm:135,label:"135 mm f/2 (camera bag, B)"},{k:"sh",max:1/250,label:"1/250 or faster, to hold a long lens steady"},{k:"f",min:5.6,label:"f/5.6 or smaller"},{k:"ev",tol:1,label:"Exposure within a stop"}]}]}];

@@ -17,7 +17,7 @@ const ok = (c, m) => { if (!c) throw new Error(m); };
 const ev = (f, a) => page.evaluate(f, a);
 const shot = (n) => page.screenshot({ path: join(OUT, `challenge-${n}.png`), timeout: 240000 });
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev');
+  await page.goto(pathToFileURL(FILE).href + '?dev&quick');
   await page.waitForSelector('#tileSplat', { state: 'visible', timeout: 60000 });
   await page.click('#tileSplat'); await page.click('.scenecard');
   await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 }); await page.waitForTimeout(1500);
@@ -44,6 +44,12 @@ try {
   ok((await ev(() => window.__ch.pull())).i === 0, 'the first second after landing should hold you');
   await page.waitForFunction(() => window.__ch.checks()[0].ok, null, { timeout: 120000, polling: 1000 });
   await shot('2-locked');
+  // the challenge's checklist comes onto the camera back
+  await ev(() => window.__cb.open()); await page.waitForTimeout(500);
+  ok(await page.$('#camback .cb-task'), 'the camera back shows the challenge checklist');
+  ok(/CHALLENGE/.test(await page.$eval('#camback .cb-task', (e) => e.textContent)), 'it names the challenge');
+  await shot('2b-back-task');
+  await ev(() => window.__cb.close()); await page.waitForTimeout(300);
   // after the grace second, any move lets go, and it won't grab again until you've left its range
   await page.waitForTimeout(1200); await ev(() => window.__ch.nudge());
   await page.waitForFunction(() => window.__ch.pull().i === -1, null, { timeout: 60000, polling: 500 });

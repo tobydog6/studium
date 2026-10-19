@@ -1,8 +1,9 @@
   // ================= VIEWFINDER (P) =================
   // EVF style: the scene sits in the body's frame (3:2 for 35 mm, 5:4 for 6x7 and 4x5) on black, and every
   // readout lives on the black strip below it. Only guides, focus brackets, the level and small chips touch the
-  // scene, each with a halo or a blurred plate so they read over any location. Keys 1 2 3 pick a dial and the
-  // scroll wheel turns it; Shift+scroll racks focus. What you frame is exactly what the shutter captures.
+  // scene, each with a halo or a blurred plate so they read over any location. The strip shows the settings; you set
+  // them on the camera back (Space). The scroll wheel zooms a zoom lens, Shift+scroll racks focus. What you frame is
+  // exactly what the shutter captures.
   var vfDial="sh", vfToastT=null;
   var VF_DIALS=[["sh","SHUTTER"],["ap","APERTURE"],["iso","ISO"]];
   function vfDials(){ var d=VF_DIALS.slice(); var l=(typeof curLens==="function")?curLens():null; if(l&&l.zoom) d.push(["mm","ZOOM"]); else if(vfDial==="mm") vfDial="sh"; return d; }
@@ -26,13 +27,13 @@
     return key==="sh"?{vals:SHUTTER_LABELS,idx:shIdx} : key==="ap"?{vals:APERTURES.map(function(a){ return String(a); }),idx:apIdx} : {vals:ISOS.map(String),idx:isoIdx}; }
   function vfValue(key){ if(key==="mm") return zoomMM+" MM"; return key==="sh"?SHUTTER_LABELS[shIdx] : key==="ap"?"f/"+APERTURES[apIdx] : String(ISOS[isoIdx]); }
   function vfRenderStrip(){ var s=$("vfStrip"); if(!s) return;
-    var dl=vfDials(), dials=dl.map(function(d,i){ var on=d[0]===vfDial, body;
+    var dl=vfDials(), dials=dl.map(function(d,i){ var on=d[0]==="mm", body;
       if(on){ var sc=vfScale(d[0]), cells="";
         for(var o=-2;o<=2;o++){ var j=sc.idx+o, v=(j>=0&&j<sc.vals.length)?sc.vals[j]:""; cells+='<span class="'+(o===0?'cur':'')+'">'+v+'</span>'; }
         body='<div class="vf-tape">'+cells+'<i></i></div>'; }
       else body='<span class="vf-val">'+vfValue(d[0])+'</span>';
       var warn=(d[0]==="sh"&&shakeRisk())?'<em class="vf-shake" title="Slower than you can hand-hold this lens">SHAKE · '+handheldLimit().label+'+</em>':'';
-      return '<div class="vf-dial'+(on?' on':'')+'"><span class="vf-lbl"><b>'+(i+1)+'</b>'+d[1]+warn+'</span>'+body+'</div>'; }).join("");
+      return '<div class="vf-dial'+(on?' on':'')+'"><span class="vf-lbl">'+d[1]+(on?'<b class="vf-scroll">SCROLL</b>':'')+warn+'</span>'+body+'</div>'; }).join("");
     var mark=Math.round(evStops*3), ticks="";
     for(var t=-6;t<=6;t++){ ticks+='<span class="tk'+(t===0?' zero':'')+(t%3===0?' whole':'')+'">'+(t===Math.max(-6,Math.min(6,mark))?'<em class="'+(Math.abs(mark)>6?'over':'')+'"></em>':'')+'</span>'; }
     s.innerHTML='<div class="vf-mode"><span class="vf-lbl">MODE</span><span class="m">M</span></div>'+dials
@@ -55,7 +56,11 @@
   function vfToast(text){ var t=$("vfToast"); if(!t) return;
     t.innerHTML='<i></i><span class="k">SHOT '+cbPad(photos.length)+'</span><span>'+cbEsc(text)+'</span>';
     t.classList.remove("show"); void t.offsetWidth; t.classList.add("show"); clearTimeout(vfToastT); vfToastT=setTimeout(function(){ t.classList.remove("show"); },4200); }
+  // the wheel zooms the zoom lens (up is longer, like twisting the barrel); a prime can't, so it says where to go instead
+  var vfPrimeT=0;
+  function vfZoom(d){ var l=curLens(); if(!l||!l.zoom){ var now=performance.now(); if(now-vfPrimeT>4000){ vfPrimeT=now; toast("This lens doesn't zoom. Walk closer, or swap lenses in the bag (B)."); } return; }
+    var z=l.zoom, i=Math.max(0,z.indexOf(zoomMM)), j=Math.max(0,Math.min(z.length-1,i+d)); if(j===i) return; zoomMM=z[j]; focalMM=zoomMM; computeCam(); vfRenderStrip(); }
   window.addEventListener("wheel",function(e){ if(!viewfinderOn||menuOpen()) return; e.preventDefault(); e.stopImmediatePropagation();
     var now=performance.now(); if(now-(vfTurn._t||0)<70) return; vfTurn._t=now; var d=e.deltaY>0?1:-1;
-    if(e.shiftKey) setFocus(focusDist-d*0.05); else vfTurn(d); },{passive:false, capture:true});
+    if(e.shiftKey) setFocus(focusDist-d*0.05); else vfZoom(-d); },{passive:false, capture:true});
   window.addEventListener("resize",function(){ if(viewfinderOn){ vfRefresh(); computeCam(); } });

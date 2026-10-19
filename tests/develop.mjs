@@ -27,7 +27,7 @@ const setSlider = (id, v) => page.evaluate(([i, val]) => { const e = document.ge
 const P = () => cb(() => window.__cb.photos.map((p) => ({ dev: p.dev ? { exposure: p.dev.exposure, contrast: p.dev.contrast, mono: p.dev.mono } : null, orig: !!p.orig, edited: !!p.edited })));
 const cur = () => cb(() => window.__cb.studio().cur);
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev');
+  await page.goto(pathToFileURL(FILE).href + '?dev&quick');
   await page.waitForSelector('#tileStudio', { state: 'visible', timeout: 20000 });
   await cb((fs) => fs.slice(0, 6).forEach((u, i) => window.__cb.addPhoto({ url: u, f: 4, sh: '1/125', iso: 400, mm: 50, body: 'Full-frame DSLR', place: 'The Stump' })), frames);
   await page.click('#tileStudio'); await page.waitForTimeout(500);

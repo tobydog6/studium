@@ -3,7 +3,7 @@
   // frame is what every room shows (the original stays underneath, so reopening carries on from the same sliders).
   // The filmstrip moves between frames (← →, or click). Ctrl/Cmd-click or Shift-click selects more frames, and
   // SYNC puts this frame's settings (not its crop) on all of them. Copy and paste settings with Ctrl+C / Ctrl+V.
-  var DEV_CROP=["aspect","zoom","cx","cy","rot"], DEV_VIEW=["secLight","secColor","secEffects","secMix","secGrade"], devClip=null, devSel={}, devAnchor=-1, devBusy=false, devScope=null;   // devScope: just one library folder's frames, when edited as a group
+  var DEV_CROP=["aspect","zoom","cx","cy","rot","cropRatio"], DEV_VIEW=["secLight","secColor","secEffects","secMix","secGrade"], devClip=null, devSel={}, devAnchor=-1, devBusy=false, devScope=null;   // devScope: just one library folder's frames, when edited as a group
   function devList(){ return devScope&&devScope.length?devScope.filter(function(i){ return i<photos.length; }):photos.map(function(_,i){ return i; }); }
   function devClone(E){ var o={}; for(var k in EDEF) o[k]=E[k]==null?EDEF[k]:E[k]; return o; }   // older edits get today's defaults for newer controls
   function devIsDefault(E){ for(var k in EDEF){ if(DEV_VIEW.indexOf(k)>=0) continue; if(E[k]!==EDEF[k]) return false; } return true; }
@@ -43,7 +43,8 @@
     if(e.ctrlKey||e.metaKey){ if(i!==cur){ devSel[i]=!devSel[i]; devAnchor=i; } devStrip(); return; }
     devSel={}; devAnchor=i; devGo(i); }
   function devCopy(){ if(!edState) return; devClip=devSettings(edState); devStrip(); toast("Settings copied. Ctrl+V pastes them onto another frame."); }
-  function devPaste(){ if(!edState||!devClip) return; for(var k in devClip) edState[k]=devClip[k]; syncEditUI(); queueRender(); edPushHist(); setTimeout(drawHist,140); toast("Settings pasted"); }
+  var devPasteN=0;
+  function devPaste(){ if(!edState||!devClip) return; devPasteN++; for(var k in devClip) edState[k]=devClip[k]; syncEditUI(); queueRender(); edPushHist(); setTimeout(drawHist,140); toast("Settings pasted"); }
   function devSelectAll(){ devSel={}; devList().forEach(function(i){ devSel[i]=true; }); devStrip(); }
   // render other frames with this frame's settings, one at a time, then put the open frame back
   // put this frame's settings (not its crop) on the selected frames; they render in the background

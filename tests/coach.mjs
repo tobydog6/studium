@@ -19,6 +19,7 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.googleapis|supabase|net::ERR/i.test(m.text())) errors.push(m.text()); });
 const ok = (c, m) => { if (!c) throw new Error(m); };
+const gdClick = async (k) => { const sel = '#gdPop [data-gd="' + k + '"]'; await page.waitForFunction((s) => { const b = document.querySelector(s); return b && !b.disabled; }, sel, { timeout: 120000, polling: 200 }); await page.$eval(sel, (b) => b.click()); };   // the popup sits over a 1 fps scene here, so click it directly once it unlocks
 const ev = (f, a) => page.evaluate(f, a);
 const co = () => ev(() => window.__co.state());
 const shot = (n) => page.screenshot({ path: join(OUT, `coach-${n}.png`), timeout: 240000 });
@@ -30,7 +31,7 @@ try {
   await page.click('#signin [data-si="demo"]');
   await waitStep('basics');
   ok(!/W A S D/.test(await page.$eval('#gdPop', (e) => e.textContent)), 'no wall of hotkeys on the welcome');
-  await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(800);
+  await gdClick('go'); await page.waitForTimeout(800);
   ok(await page.$('#coCard.show'), 'the coach card shows');
   ok(!(await page.$('#chMarks.show')) && !(await page.$('#gdCard.show')), 'frames and their markers are hidden during the warm-up');
   await page.waitForTimeout(600); await shot('1-look');
@@ -51,13 +52,15 @@ try {
   // the settings one at a time: a card with a clip of what it does, then turn the dial for it
   await page.waitForSelector('#coCard.media canvas.co-media'); await page.waitForTimeout(2500); await shot('3-shutter-clip');
   ok(await page.$eval('canvas.co-media', (c) => c.width > 0), 'the clip draws');
+  ok(await page.$eval('#coCard [data-co-next]', (b) => b.disabled), 'GOT IT waits a few seconds so the card gets read');
   const dial = async (i, label, row) => {
     await page.click('#coCard [data-co-next]'); await next(i, label + ' card');
-    await page.waitForFunction((r) => document.querySelector('#coRing.show') && document.body.classList.contains('co-dial') && document.querySelector('#camback .cb-scale.sel[data-cb-row="' + r + '"]'), row, { timeout: 30000 });
+    await page.waitForFunction((r) => document.querySelector('#coRing.show') && document.querySelector('#camback .cb-scale.sel[data-cb-row="' + r + '"]'), row, { timeout: 30000 });
     if (row === 0) { await page.waitForTimeout(400); await shot('4-shutter-dial'); }
-    const b = await (await page.$('#camback [data-cb-row="' + row + '"]')).boundingBox();
-    await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
-    for (let k = 0; k < 3; k++) { await page.mouse.wheel(0, row === 2 ? -120 : 120); await page.waitForTimeout(250); }
+    // grab the knob and drag it along the track
+    const k = await (await page.$('#camback [data-cb-row="' + row + '"] .cb-knob')).boundingBox(), t = await (await page.$('#camback [data-cb-row="' + row + '"] .cb-track')).boundingBox();
+    const tx = k.x + k.width / 2 < t.x + t.width / 2 ? t.x + t.width * 0.95 : t.x + t.width * 0.05;
+    await page.mouse.move(k.x + k.width / 2, k.y + k.height / 2); await page.mouse.down(); await page.mouse.move(tx, k.y + k.height / 2, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(300);
     await next(i + 1, label + ' dial'); };
   await dial(12, 'shutter', 0); await dial(14, 'aperture', 1); await dial(16, 'ISO', 2);
   await page.click('#coCard [data-co-next]'); await next(18, 'meter card');
@@ -66,7 +69,7 @@ try {
   await waitStep('challenges');
   ok((await co()).done, 'the warm-up is done');
   ok(!/W A S D/.test(await page.$eval('#gdPop', (e) => e.textContent)), 'the challenges popup is short too');
-  await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(1500);
+  await gdClick('go'); await page.waitForTimeout(1500);
   ok(await page.$('#chMarks.show'), 'the frames unlock after the warm-up');
   await shot('5-unlocked');
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));

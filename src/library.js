@@ -28,6 +28,7 @@
     if(!folders.some(function(f){ return f.key===key; })) key=LIB.key="all";
     var items=libItems(key), sel=libSelList(), onPage={};
     if(ctx==="board"){ var B=stBoard(); if(B) B.page().items.forEach(function(it){ if(it.pid) onPage[it.pid]=1; }); }
+    if(ctx==="gallery"&&typeof gaPrints==="function") gaPrints().forEach(function(i){ onPage[stId(i)]=1; });
     function row(f){ var n=libItems(f.key).length, on=f.key===key, pr=f.kind==="proj";
       if(pr&&LIB.naming===f.key) return '<div class="lib-f on naming"><span class="ic">'+LIB_ICON.proj+'</span><input class="lib-in" value="'+cbEsc(f.name)+'" data-lib-rename="'+f.key+'"></div>';
       return '<div class="lib-f'+(on?' on':'')+(pr?' proj':'')+(f.kind==="sub"?' sub':'')+'" data-lib-f="'+cbEsc(f.key)+'" draggable="true" title="'+(pr?'Drop frames here to add them. Drag the folder onto a page to place them all.':'Drag the folder onto a page to place them all')+'"><span class="ic">'+LIB_ICON[f.kind]+'</span><span class="nm">'+cbEsc(f.name)+'</span><i>'+n+'</i>'
@@ -44,7 +45,7 @@
       el.innerHTML=h; el.classList.add("lib-host","lib-sel"); var i0=el.querySelector(".lib-in"); if(i0){ i0.focus(); i0.select(); } libWire(el, ctx); return; }
     h+='<div class="lib-grid-h"><span class="eb">'+cbEsc(libName(key).toUpperCase())+' · '+items.length+'</span>'+(sel.length?'<button data-lib-clear>'+sel.length+' SELECTED ✕</button>':'')+'</div><div class="lib-grid">'
       +(items.length?items.map(function(i){ var id=stId(i);
-        return '<div class="bd-pic'+(LIB.sel[i]?' sel':'')+(ctx==="select"&&i===st.cur?' cur':'')+'" draggable="true" data-bd-pic="'+i+'" title="Frame '+(i+1)+(ctx==="board"?' · click to add, Ctrl-click to select':'')+'"><img src="'+(typeof hubThumb==="function"?hubThumb(i):photos[i].url)+'" alt="Frame '+(i+1)+'" draggable="false"><span class="m"><span>'+cbPad(i+1)+'</span>'+(onPage[id]?'<span class="in">ON PAGE</span>':photos[i].pick?'<span class="pk">★</span>':'')+'</span></div>'; }).join("")
+        return '<div class="bd-pic'+(LIB.sel[i]?' sel':'')+(ctx==="select"&&i===st.cur?' cur':'')+'" draggable="true" data-bd-pic="'+i+'" title="Frame '+(i+1)+(ctx==="board"?' · click to add, Ctrl-click to select':'')+'"><img src="'+(typeof hubThumb==="function"?hubThumb(i):photos[i].url)+'" alt="Frame '+(i+1)+'" draggable="false"><span class="m"><span>'+cbPad(i+1)+'</span>'+(onPage[id]?'<span class="in">'+(ctx==="gallery"?'ON WALL':'ON PAGE')+'</span>':photos[i].pick?'<span class="pk">★</span>':'')+'</span></div>'; }).join("")
         :'<p class="lib-none">'+(key.indexOf("proj:")===0?'Empty. Drag frames onto this project to add them.':'Nothing here yet.')+'</p>')+'</div>';
     el.innerHTML=h; el.classList.add("lib-host");
     var inp=el.querySelector(".lib-in"); if(inp){ inp.focus(); inp.select(); }

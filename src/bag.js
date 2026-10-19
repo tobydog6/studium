@@ -17,7 +17,7 @@
   // lens kits per system; hot = the lens's hit area on the 840 x 560 hero, measured off each render
   var LENS_KITS={
     "35":[
-      {id:"2470", label:"24–70", long:"24–70 mm f/2.8", kind:"ZOOM", mm:50, zoom:[24,28,35,50,70], hot:[336,170,425,349], note:"The everyday zoom. Wide for places, longer for people, without changing lens. In the viewfinder, press 4 and scroll to zoom."},
+      {id:"2470", label:"24–70", long:"24–70 mm f/2.8", kind:"ZOOM", mm:50, zoom:[24,28,35,50,70], hot:[336,170,425,349], note:"The everyday zoom. Wide for places, longer for people, without changing lens. In the viewfinder, scroll to zoom."},
       {id:"50", label:"50", long:"50 mm f/1.8", kind:"NORMAL", mm:50, hot:[335,170,327,297], note:"50 mm sees roughly what your eye does. Small, light and sharp."},
       {id:"85", label:"85", long:"85 mm f/1.4", kind:"PORTRAIT", mm:85, hot:[336,169,424,350], note:"85 mm pulls backgrounds closer and softer. Good for picking out one thing."},
       {id:"135", label:"135", long:"135 mm f/2", kind:"TELE", mm:135, hot:[335,165,498,388], note:"135 mm isolates details from far away. Hold it steady."}],

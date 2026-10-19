@@ -87,17 +87,19 @@
       +'<div class="cb-foot"><span>'+footL+'</span><span>'+footR+'</span></div><div class="cb-glass"></div>'; }
   function cbCounter(label,num,of){ return '<span class="cb-rec"></span><span>'+label+'</span><span class="cb-count">'+num+'</span>'+(of?'<span class="cb-of">of '+of+'</span>':''); }
 
-  // ---- 01 SHOOT: three tape scales and the meter ----
+  // ---- 01 SHOOT: three sliders and the meter ----
+  // Every stop is printed along its track, so you can see the whole range and where you are in it. Click a stop, or
+  // grab the knob (or anywhere on the track) and drag. Arrow keys still step.
   function cbShootRows(){ return [
     {key:"sh", cap:"Shutter", unit:"seconds", vals:SHUTTER_LABELS, idx:shIdx},
     {key:"ap", cap:"Aperture", unit:"f-stop", vals:APERTURES.map(function(a){ return String(a); }), idx:apIdx},
     {key:"iso",cap:"ISO", unit:"sensor", vals:ISOS.map(String), idx:isoIdx}]; }
+  function cbFmt(r,v){ return r.key==="ap"?"f/"+v:v; }
   function cbShoot(){ var rows=cbShootRows(), html="";
-    rows.forEach(function(r,ri){ var cells="";
-      for(var o=-3;o<=3;o++){ var i=r.idx+o, v=(i>=0&&i<r.vals.length)?r.vals[i]:"";
-        cells+='<button class="cb-cell'+(o===0?' cur':'')+'"'+(v?' data-cb-set="'+r.key+':'+i+'"':' tabindex="-1"')+'><span class="v">'+cbEsc(v)+'</span><span class="t"></span></button>'; }
-      html+='<div class="cb-scale'+(ri===cbRow?' sel':'')+'" data-cb-row="'+ri+'"><div class="cb-cap"><span class="c">'+r.cap+'</span><span class="u">'+r.unit+'</span></div>'
-        +'<div class="cb-tape">'+cells+'</div><span class="cb-index"></span></div>'; });
+    rows.forEach(function(r,ri){ var n=r.vals.length, stops="", pc=function(i){ return (n>1?i/(n-1)*100:50).toFixed(3)+"%"; };
+      r.vals.forEach(function(v,i){ stops+='<button class="cb-stop'+(i===r.idx?' cur':'')+'" style="left:'+pc(i)+'" data-cb-set="'+r.key+':'+i+'"><i></i><span>'+cbEsc(v)+'</span></button>'; });
+      html+='<div class="cb-scale'+(ri===cbRow?' sel':'')+'" data-cb-row="'+ri+'"><div class="cb-cap"><span class="c">'+r.cap+'</span><span class="now">'+cbEsc(cbFmt(r,r.vals[r.idx]))+'</span></div>'
+        +'<div class="cb-track" data-cb-track="'+r.key+'"><div class="cb-line"><b style="width:'+pc(r.idx)+'"></b></div>'+stops+'<span class="cb-knob" style="left:'+pc(r.idx)+'"></span></div></div>'; });
     var m=cbMeterWords(), a=Math.max(-3,Math.min(3,evStops))/3*55*Math.PI/180;
     var nx=(66+48*Math.sin(a)).toFixed(1), ny=(66-48*Math.cos(a)).toFixed(1), b=curBody();
     html+='<div class="cb-meter"><svg width="132" height="72" viewBox="0 0 132 72" role="img" aria-label="Light meter: '+cbEsc(m.head)+'">'
@@ -106,8 +108,11 @@
       +'<text x="9" y="58" fill="#6f695d" font-size="10" font-family="Geist Mono, monospace">−</text><text x="117" y="58" fill="#6f695d" font-size="10" font-family="Geist Mono, monospace">+</text>'
       +'<path d="M66 66 L'+nx+' '+ny+'" stroke="#e3ad57" stroke-width="1.6" stroke-linecap="round"/><circle cx="66" cy="66" r="3.5" fill="#e3ad57"/></svg>'
       +'<div class="cb-words"><span class="h">'+cbEsc(m.head)+'</span><span class="b">'+cbEsc(m.body)+'</span>'+(m.shake?'<span class="s">'+cbEsc(m.shake)+'</span>':'')+'</div>'
-      +'<div class="cb-info"><span>'+cbEsc((b.fmt||"").toUpperCase())+'</span><span>'+focalMM+' MM</span><span>FOCUS '+focusBars()+'</span></div></div>';
+      +(cbTask()||'<div class="cb-info"><span>'+cbEsc((b.fmt||"").toUpperCase())+'</span><span>'+focalMM+' MM</span><span>FOCUS '+focusBars()+'</span></div>')+'</div>';
     return cbChrome(cbCounter("FRAME",cbPad(photos.length+1)), cbEsc(cbPlace.toUpperCase()), "SPACE · BACK TO THE VIEWFINDER", html); }
+  // standing in a gold frame: its checklist comes onto the back with you, so you can see what to set
+  function cbTask(){ if(typeof CH==="undefined"||!(CH.active>=0)||!CH.pads[CH.active]) return ""; var P=CH.pads[CH.active], ck=chChecks(P).slice(1);
+    return '<div class="cb-task"><span class="k">CHALLENGE · '+cbEsc(P.c.title||"")+'</span>'+ck.map(function(x){ return '<span class="r'+(x.ok?' ok':'')+'"><i>'+(x.ok?'✓':'')+'</i><em>'+cbEsc(x.label.replace(/:.*$/,""))+'</em><b>'+cbEsc(x.now||"")+'</b></span>'; }).join("")+'</div>'; }
   function cbShootStep(d){ var r=cbShootRows()[cbRow]; var i=Math.max(0,Math.min(r.vals.length-1,r.idx+d)); if(i===r.idx) return;
     if(r.key==="sh") shIdx=i; else if(r.key==="ap") apIdx=i; else isoIdx=i; computeCam(); cbRender(); }
   function cbShootSet(key,i){ if(key==="sh") shIdx=i; else if(key==="ap") apIdx=i; else isoIdx=i;
@@ -205,7 +210,7 @@
     ui.innerHTML= cbTab==="shoot"?cbShoot() : cbTab==="review"?cbReviewHtml() : cbTab==="brief"?cbBriefHtml() : cbSetupHtml();
     Array.prototype.forEach.call(document.querySelectorAll("[data-cb-print]"),function(p){ p.classList.toggle("on", p.getAttribute("data-cb-print")===cbTab); });
     Array.prototype.forEach.call(document.querySelectorAll("[data-cb-btn]"),function(h){ h.classList.toggle("on", h.getAttribute("data-cb-btn")===cbTab); });
-    var hints={ shoot:[["Space","Viewfinder"],["Q E","Tabs"],["↑ ↓","Select"],["Scroll","Turn dial"],["B","Camera bag"]],
+    var hints={ shoot:[["Space","Viewfinder"],["Q E","Tabs"],["Click / drag","Change a setting"],["← →","Step"],["B","Camera bag"]],
       review:[["Space","Viewfinder"],["Q E","Tabs"],["← →","Step"],["1–5","Rate"],["P","Pick"]],
       brief:[["Space","Viewfinder"],["Q E","Tabs"],["↑ ↓","Choose"],["↵","Set brief"]],
       setup:[["Space","Viewfinder"],["Q E","Tabs"],["↑ ↓","Choose"],["← →","Change"],["↵","Do"]] }[cbTab];
@@ -231,8 +236,9 @@
     return true; }
   function cbWheel(e){ if(!cbOpen) return; e.preventDefault(); var d=e.deltaY>0?1:-1;
     var now=performance.now(); if(now-(cbWheel._t||0)<70) return; cbWheel._t=now;   // one detent per notch, trackpads included
+    if(cbTab==="shoot") return;   // settings are clicked or dragged now; the wheel was too fiddly
     cbPress("shoot");
-    if(cbTab==="shoot") cbShootStep(d); else if(cbTab==="review"){ cbReview=Math.max(0,Math.min(photos.length-1,cbReview+d)); cbRender(); }
+    if(cbTab==="review"){ cbReview=Math.max(0,Math.min(photos.length-1,cbReview+d)); cbRender(); }
     else if(cbTab==="brief"){ cbBriefSel=Math.max(0,Math.min(BRIEFS.length,cbBriefSel+d)); cbRender(); }
     else { cbSetupChange(d,false); } }
   function cbClick(e){ var t=e.target.closest("[data-cb-tab],[data-cb-set],[data-cb-row],[data-cb-frame],[data-cb-rate],[data-cb-pick],[data-cb-brief],[data-cb-setup],[data-cb-btn]"); if(!t) return;
@@ -246,6 +252,15 @@
     if(t.hasAttribute("data-cb-pick")) return cbTogglePick();
     if(t.hasAttribute("data-cb-brief")){ var b=+t.getAttribute("data-cb-brief"); if(b===cbBriefSel) cbBriefPick(); else { cbBriefSel=b; cbRender(); } return; }
     if(t.hasAttribute("data-cb-setup")){ var r=+t.getAttribute("data-cb-setup"); if(r===cbSetupRow) cbSetupChange(1,true); else { cbSetupRow=r; cbRender(); if(cbSetupRows()[r].k==="name"){ var nm=$("cbName"); if(nm) nm.focus(); } } } }
+  // drag along a track: the nearest stop to the pointer, live. The track is rebuilt on every change, so its
+  // position is measured once when you grab it.
+  var cbDrag=null;
+  function cbDragTo(x){ var d=cbDrag, n=d.n, i=Math.max(0,Math.min(n-1,Math.round((x-d.l)/d.w*(n-1)))); if(i!==d.i){ d.i=i; cbShootSet(d.key,i); } }
+  function cbDown(e){ var tr=e.target.closest&&e.target.closest("[data-cb-track]"); if(!tr||cbTab!=="shoot"||e.button!==0) return; e.preventDefault();
+    var key=tr.getAttribute("data-cb-track"), r=cbShootRows().filter(function(x){ return x.key===key; })[0], b=tr.getBoundingClientRect();
+    cbDrag={key:key, n:r.vals.length, i:r.idx, l:b.left, w:Math.max(1,b.width)}; cbRow=key==="sh"?0:key==="ap"?1:2; cbDragTo(e.clientX); $("camback").classList.add("dragging"); }
+  window.addEventListener("pointermove",function(e){ if(cbDrag) cbDragTo(e.clientX); });
+  window.addEventListener("pointerup",function(){ if(cbDrag){ cbDrag=null; var el=$("camback"); if(el) el.classList.remove("dragging"); cbRender(); } });
   (function wireBack(){ var el=$("camback"); if(!el) return;
-    el.addEventListener("wheel",cbWheel,{passive:false}); el.addEventListener("click",cbClick);
+    el.addEventListener("wheel",cbWheel,{passive:false}); el.addEventListener("click",cbClick); el.addEventListener("pointerdown",cbDown);
     window.addEventListener("resize",function(){ if(cbOpen) cbLayout(); }); })();

@@ -31,7 +31,7 @@
       <div id="vfToast" class="vf-toast" aria-live="polite"></div>
     </div>
     <div id="vfStrip" aria-label="Exposure"></div>
-    <div id="vfHints"><span><b>CLICK</b>Shoot</span><span><b>1 2 3</b>Pick dial</span><span><b>SCROLL</b>Turn dial</span><span><b>SHIFT+SCROLL</b>Focus</span><span><b>G</b>Guides</span><span id="vfVert" class="vfvert"><b>X</b>Vertical</span><span><b>SPACE</b>Camera back</span><span><b>P</b>Lower camera</span></div>
+    <div id="vfHints"><span><b>CLICK</b>Shoot</span><span><b>SCROLL</b>Zoom</span><span><b>SPACE</b>Settings</span><span><b>SHIFT+SCROLL</b>Focus</span><span><b>G</b>Guides</span><span id="vfVert" class="vfvert"><b>X</b>Vertical</span><span><b>SPACE</b>Camera back</span><span><b>P</b>Lower camera</span></div>
     <div id="vfCompLbl" class="vfcomp-lbl"></div>
     <div id="vfAF"></div>
     <div id="vfBar">
@@ -239,11 +239,14 @@
       </aside>
     </div>
     <div id="st-gallery" class="st-room hidden">
+      <aside class="ga-lib st-lib" title="Click or drag a photo onto the wall to hang it"></aside>
       <div class="ga-area"><div class="ga-wall"><div class="ga-in"><img class="ga-bg" alt="" draggable="false"><div class="ga-eye"><span>EYE LINE</span><span>1450 MM</span></div><div class="ga-hang"></div><div class="ga-cap"><span>WALL A · 6 M · CEILING 3.2 M</span><span>CENTRES AT 1450 MM</span></div></div></div></div>
       <aside class="ga-side">
         <div><span class="eb">THE ROOM</span><svg class="ga-map" width="228" height="140" viewBox="0 0 228 140" aria-label="Floor plan, wall A"><rect x="14" y="14" width="200" height="112" fill="none" stroke="rgba(240,232,214,.25)"/><path d="M14 14H214" stroke="#e3ad57" stroke-width="3"/><path d="M90 126h48" stroke="#0c0b0a" stroke-width="3"/><g class="ga-plan"></g><text x="114" y="9" fill="#e3ad57" font-size="9" font-family="Geist Mono, monospace" text-anchor="middle">A</text><text x="114" y="138" fill="#4f4a41" font-size="8" font-family="Geist Mono, monospace" text-anchor="middle">DOOR</text><circle cx="114" cy="92" r="4" fill="#e4552e"/></svg></div>
         <div><span class="eb">FRAME <i>F</i></span><div class="ga-frames"><button data-ga-frame="black"><i style="border-color:#151311"></i>BLACK</button><button data-ga-frame="oak"><i style="border-color:#8a6a45"></i>OAK</button><button data-ga-frame="white"><i style="border-color:#f4f1ea"></i>WHITE</button><button data-ga-frame="float"><i class="fl"></i>FLOAT</button></div></div>
         <div><div class="ga-row"><span class="eb">SPACING <i>← →</i></span><span class="ga-gapv"></span></div><div class="ga-gapbar"><i></i><b></b></div><p class="ga-note">Drag prints anywhere on the wall; they snap to the 1450 mm eye line, the gallery standard. Click a print to change its size.</p></div>
+        <div><span class="eb">TITLE CARD <i>DRAG IT ANYWHERE</i></span><div class="ga-frames ga-labels"><button data-ga-label="card">CARD</button><button data-ga-label="plaque">PLAQUE</button><button data-ga-label="vinyl">ON THE WALL</button><button data-ga-label="none">NONE</button></div>
+          <div class="ga-frames ga-lsizes"><button data-ga-lsize="1">S</button><button data-ga-lsize="2">M</button><button data-ga-lsize="3">L</button></div></div>
         <button class="ws-b ga-rehang hidden" data-ga-act="rehang">Re-hang evenly</button>
         <button class="ws-b" data-ga-act="walk">Walk the show <kbd>W</kbd></button>
         <button class="ws-gold" data-ga-act="export">SAVE THE WALL AS AN IMAGE</button>
@@ -364,24 +367,33 @@
         <div class="lr-topbar">
           <button class="lr-back" id="eCancel">‹ Back to Select</button>
           <div class="lr-croptools">
-            <span class="lr-ct-lab">Crop</span>
-            <button class="lr-ct on" data-a="free">Free</button>
+            <button class="lr-ct crop-go" id="eCrop" title="Crop (C)">CROP <kbd>C</kbd></button>
+            <button class="lr-ct" data-a="free">Free</button>
+            <button class="lr-ct" data-a="orig">Original</button>
             <button class="lr-ct" data-a="1">1:1</button>
+            <button class="lr-ct" data-a="0.8">4:5</button>
             <button class="lr-ct" data-a="1.33333">4:3</button>
             <button class="lr-ct" data-a="1.5">3:2</button>
-            <button class="lr-ct" data-a="0.8">4:5</button>
             <button class="lr-ct" data-a="1.77778">16:9</button>
+            <button class="lr-ct ic crop-only" id="eCropSwap" title="Swap portrait and landscape">⇄</button>
             <span class="lr-ct-sep"></span>
             <button class="lr-ct ic" id="eRotL" title="Rotate left">⟲</button>
             <button class="lr-ct ic" id="eRotR" title="Rotate right">⟳</button>
+            <button class="lr-ct crop-only" id="eCropReset" title="The whole photo">Reset</button>
+            <button class="lr-ct crop-only" id="eCropCancel" title="Esc">Cancel</button>
+            <button class="lr-ct crop-only apply" id="eCropApply" title="Enter">✓ Apply</button>
           </div>
           <div class="lr-topright">
+            <button class="lr-ghost" id="eBefore" title="Before and after (\)">Before / After <kbd>\</kbd></button>
             <button class="lr-ghost" id="eReset">Reset</button>
             <button class="lr-ghost" id="eCopy" title="A second frame with this edit">Make a copy</button>
             <button class="lr-save" id="eSave">Done</button>
           </div>
         </div>
         <div id="editStage"><canvas id="editCanvas"></canvas><div id="editHint">drag to reposition · scroll to zoom</div>
+          <div id="cropUI" class="hidden"><div class="crop-box"><i class="g v1"></i><i class="g v2"></i><i class="g h1"></i><i class="g h2"></i>
+            <b data-crop-h="nw"></b><b data-crop-h="n"></b><b data-crop-h="ne"></b><b data-crop-h="e"></b><b data-crop-h="se"></b><b data-crop-h="s"></b><b data-crop-h="sw"></b><b data-crop-h="w"></b>
+            <span class="crop-size"></span></div><div class="crop-hint">Drag a corner or edge to crop · drag inside to move · <kbd>Enter</kbd> applies · <kbd>Esc</kbd> cancels</div></div>
           <button class="dv-nav prev" id="dvPrev" aria-label="Previous frame">‹</button><button class="dv-nav next" id="dvNext" aria-label="Next frame">›</button></div>
         <div class="dv-bar">
           <div class="dv-top"><span id="dvCount" class="dv-count"></span><span class="dv-help">CLICK A FRAME TO EDIT IT · CTRL-CLICK OR SHIFT-CLICK TO SELECT MORE, THEN SYNC</span>

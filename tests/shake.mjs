@@ -20,7 +20,7 @@ const sharp = (url) => ev(async (u) => { const im = new Image(); im.src = u; awa
   const g = c.getContext('2d'); g.drawImage(im, 0, 0); const d = g.getImageData(0, 0, c.width, c.height).data; let s = 0, n = 0;
   for (let y = 0; y < c.height; y += 2) for (let x = 0; x < c.width - 1; x += 2) { const i = (y * c.width + x) * 4; s += Math.abs(d[i + 1] - d[i + 5]); n++; } return s / n; }, url);
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev');
+  await page.goto(pathToFileURL(FILE).href + '?dev&quick');
   await page.waitForSelector('#tileSplat', { state: 'visible', timeout: 60000 });
   await page.click('#tileSplat'); await page.click('.scenecard');
   await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 }); await page.waitForTimeout(1500);

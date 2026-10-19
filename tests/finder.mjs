@@ -22,7 +22,7 @@ const ok = (c, m) => { if (!c) throw new Error(m); };
 const cb = (f) => page.evaluate(f);
 const shot = (n) => page.screenshot({ path: join(OUT, `finder-${n}.png`), timeout: 240000 });
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev');
+  await page.goto(pathToFileURL(FILE).href + '?dev&quick');
   await page.waitForSelector('#tileSplat', { state: 'visible', timeout: 20000 });
   await page.click('#tileSplat'); await page.click('.scenecard'); await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 }); await page.waitForTimeout(1500);
   const walkFov = await cb(() => window.__cb.fov());
@@ -33,10 +33,12 @@ try {
   ok((await page.textContent('#vfStrip')).includes('SHUTTER'), 'strip missing');
   await shot('1-raised');
 
-  await page.keyboard.press('Digit2'); ok(await cb(() => window.__cb.dial()) === 'ap', '2 should pick aperture');
-  const ap0 = (await cb(() => window.__cb.cam())).ap;
-  await page.mouse.move(720, 400); await page.mouse.wheel(0, 120); await page.waitForTimeout(120);
-  ok((await cb(() => window.__cb.cam())).ap > ap0, 'scroll should stop the aperture down');
+  // settings live on the camera back now: in the viewfinder the wheel only zooms a zoom lens
+  const c0 = await cb(() => window.__cb.cam());
+  await page.mouse.move(720, 400); await page.mouse.wheel(0, -120); await page.waitForTimeout(200);
+  const c1 = await cb(() => window.__cb.cam());
+  ok(c1.ap === c0.ap && c1.sh === c0.sh && c1.iso === c0.iso, 'scroll should not change the exposure settings');
+  ok(c0.lens !== '2470' || c1.mm > c0.mm, 'scrolling up zooms the 24-70 in: ' + JSON.stringify([c0, c1]));
   const f0 = await cb(() => window.__cb.focus());
   await page.keyboard.down('Shift'); await page.mouse.wheel(0, -120); await page.keyboard.up('Shift'); await page.waitForTimeout(120);
   ok(await cb(() => window.__cb.focus()) !== f0, 'shift+scroll should rack focus');

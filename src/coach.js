@@ -9,7 +9,7 @@
   // Progress lives in the guide step's flags (GD.flags.co), so a reload carries on from the same prompt.
   var CO={tour:null, i:0, on:false, s:{}, keys:{}, look:0, walked:0, lx:null, lz:null, lyaw:null, done:false, raf:0, html:"", okT:0, t0:0, seen:-1};
   function coK(k){ return '<kbd data-co-k="'+k+'"'+(CO.keys[k]?' class="on"':'')+'>'+k+'</kbd>'; }
-  function coPickN(){ return GD.demo?3:8; }
+  function coPickN(){ return GD.demo?5:8; }
   function coPicks(){ return photos.filter(function(p){ return p.pick; }).length; }
   function coEdIdx(){ return typeof devOpenIdx==="function"?devOpenIdx():-1; }
   function coInEditor(){ return typeof editor!=="undefined"&&editor&&!editor.classList.contains("hidden")&&!!edState; }
@@ -23,6 +23,7 @@
   function coWsEl(test){ var pg=coWs(), k=-1; pg.items.forEach(function(it,j){ if(k<0&&test(it)) k=j; }); return k<0?null:document.querySelector('#st-workshop .bd-sheet [data-bd="'+k+'"]'); }
   function coArrow(){ var a=null; coWs().items.forEach(function(it){ if(it.t==="line"&&it.head!=="none") a=it; }); return a; }
   function coInPhoto(x,y){ return coWs().items.some(function(it){ if(it.t!=="photo") return false; var h=it.w/((typeof stAspect==="function"&&stById(it.pid)>=0)?stAspect(stById(it.pid)):1.5); return x>=it.x&&x<=it.x+it.w&&y>=it.y&&y<=it.y+h; }); }
+  function coRanked(){ return coWs().items.filter(function(it){ return it.t==="text"&&it.rank&&String(it.text||"").trim().length>=8; }).length; }
   function coFoSec(){ return typeof foB!=="undefined"?foB.secItems("0.0"):[]; }
   function coRoom(r){ return typeof st!=="undefined"&&st.open&&st.room===r; }
 
@@ -77,10 +78,27 @@
     g.font="500 13px 'Geist Mono',ui-monospace,monospace"; g.fillStyle="#e3ad57"; g.textBaseline="alphabetic"; g.fillText(M.vals[i].replace(/^ISO (?=\d{3,4}$)/,""),x0,H-26);
     var words=t<0.25?M.lo:t>0.75?M.hi:(M.mid&&Math.abs(t-0.5)<0.12?M.mid:"");
     if(words){ g.font="400 13px 'Geist',ui-sans-serif,system-ui,sans-serif"; g.fillStyle="#f4f1ea"; g.textAlign="right"; g.fillText(words,x1,H-26); g.textAlign="left"; } }
-  // a dial step on the camera back: the row lit up, the dial lit up, scroll to turn it
+  // edit tour: drag a slider to the gold mark. It ticks once you've let go on it, so you can wiggle it back and
+  // forth as much as you like first.
+  function coMark(id,val){ coUnmark(); var inp=$(id); if(!inp) return; var row=inp.closest(".lr-row"); if(!row) return; row.classList.add("co-markrow");
+    var mn=+inp.min, mx=+inp.max, f=(val-mn)/(mx-mn), th=7, m=document.createElement("i"); m.className="co-mark";
+    m.style.left=(inp.offsetLeft+th+f*(inp.offsetWidth-2*th)).toFixed(1)+"px"; m.style.top=(inp.offsetTop+inp.offsetHeight/2)+"px"; row.appendChild(m); }
+  function coUnmark(){ Array.prototype.forEach.call(document.querySelectorAll(".co-mark"),function(m){ m.parentNode.removeChild(m); }); Array.prototype.forEach.call(document.querySelectorAll(".co-markrow"),function(r){ r.classList.remove("co-markrow"); }); }
+  function coFmt(key,v){ return key==="exposure"?fmtExp(v):(v>0?"+":"")+v; }
+  function coSet(sec,id,key,val,tol,name,what){ return {ch:sec==="light"?"LIGHT":sec==="color"?"COLOUR":"EFFECTS",
+      line:function(){ var v=edState?edState[key]:0, ok=Math.abs(v-val)<=tol; return 'Drag <b>'+name+'</b> to the gold mark: <b>'+coFmt(key,val)+'</b>'+(ok&&CO.down?' <span class="co-now ok">let go</span>':''); },
+      sub:name+" "+what, target:coRow(id), mark:[id,val], dwell:500, place:"low",
+      prep:function(){ coSec(sec); coShow(coRow(id)); setTimeout(function(){ coMark(id,val); },120); },
+      done:function(){ return !CO.down&&Math.abs(edState[key]-val)<=tol; },
+      bar:function(){ var v=edState[key]; return Math.max(0,1-Math.abs(v-val)/Math.max(Math.abs(val),20)); }}; }
+  function coEditTotal(){ return typeof devList==="function"?devList().length:0; }
+  function coEditedN(){ var L=typeof devList==="function"?devList():[]; return L.filter(function(i){ if(edState&&edState.i===i) return !devIsDefault(edState); var p=photos[i]; return p&&!!p.dev; }).length; }
+  document.addEventListener("pointerdown",function(){ CO.down=true; },true);
+  window.addEventListener("pointerup",function(){ CO.down=false; },true);
+  // a slider step on the camera back: the row lit up, drag it (or click a number) at least two stops
   function coDialVal(k){ return k==="sh"?shIdx:k==="ap"?apIdx:isoIdx; }
-  function coDial(row,key,name,sub){ return {ch:"SETTINGS", line:function(){ return '<kbd>SCROLL</kbd> to turn the dial and change the <b>'+name+'</b>'; }, sub:sub,
-      target:'#camback [data-cb-row="'+row+'"]', dial:true, place:"bottom", need:"back", dwell:1200,
+  function coDial(row,key,name,sub){ return {ch:"SETTINGS", line:function(){ return '<kbd>DRAG</kbd> the <b>'+name+'</b> slider'; }, sub:sub,
+      target:'#camback [data-cb-row="'+row+'"]', place:"bottom", need:"back", dwell:1200,
       prep:function(){ cbTab="shoot"; cbRow=row; if(cbOpen) cbRender(); }, start:function(){ CO.s.v=coDialVal(key); },
       done:function(){ return Math.abs(coDialVal(key)-CO.s.v)>=2; }, bar:function(){ return Math.min(1,Math.abs(coDialVal(key)-CO.s.v)/2); }}; }
   var CO_TOURS={
@@ -111,7 +129,7 @@
         done:function(){ return cbOpen; }},
       {ch:"SETTINGS", media:"shutter", info:true, need:"back", line:function(){ return 'The <b>shutter speed</b> is how long the camera looks'; },
         sub:"Fast, like 1/1000, freezes everything but lets in less light. Slow, like 1/15, lets in lots of light, but any wobble in your hands smears the photo. The longer the lens, the faster you need."},
-      coDial(0,"sh","shutter speed","Or click a number. Watch the needle at the bottom swing as you go."),
+      coDial(0,"sh","shutter speed","Or click any number on it. Watch the needle at the bottom swing as you go."),
       {ch:"SETTINGS", media:"aperture", info:true, need:"back", line:function(){ return 'The <b>aperture</b> is how wide the lens opens'; },
         sub:"A small number, like f/2, is a wide hole: lots of light, and a soft background that makes your subject pop. A big number, like f/16, is a pinhole: darker, but sharp from front to back."},
       coDial(1,"ap","aperture","Small numbers open it up, big numbers close it down."),
@@ -127,64 +145,68 @@
     select:{where:function(){ return typeof st!=="undefined"&&st.open&&st.room==="select"; }, steps:[
       {ch:"LOOK", line:function(){ return 'Every photo you took is on the <b>light table</b>'; }, sub:"Picking your best is half of photography. Take your time.",
         target:'#st-select .st-sheet', info:true},
-      {ch:"LOOK", line:function(){ return '<b>Click a photo</b> to see it big'; }, sub:"Or use "+'← →'+" to move along.",
-        target:'#st-select .st-cell:not(.cur)', start:function(){ CO.s.cur=st.cur; }, done:function(){ return st.cur!==CO.s.cur; }},
+      {ch:"LOOK", line:function(){ return '<b>Click any photo</b> to see it big'; }, sub:"Whichever catches your eye. Or use "+'← →'+" to move along.",
+        target:'#st-select .st-sheet', start:function(){ CO.s.cur=st.cur; }, done:function(){ return st.cur!==CO.s.cur; }},
       {ch:"CHOOSE", line:function(){ return '<b>Pick</b> keeps it for your folio'; }, sub:"Click Pick, or press P. The pencil ring shows it's in.",
         target:'#st-select [data-st-act="pick"]', done:function(){ var p=photos[st.cur]; return !!(p&&p.pick); }},
       {ch:"CHOOSE", line:function(){ return '<b>Reject</b> the ones you won\'t use'; }, sub:"Click a weaker photo first, then Reject (or press X). It's struck out, not deleted.",
         target:'#st-select [data-st-act="reject"]', start:function(){ CO.s.r=photos.filter(function(p){ return p.reject; }).length; }, done:function(){ return photos.filter(function(p){ return p.reject; }).length>CO.s.r; }},
       {ch:"CHOOSE", line:function(){ return 'Now pick your best <b>'+coPickN()+'</b>'; }, sub:"Click a photo, then Pick. Click Pick again to change your mind.",
-        target:'#st-select .st-loupe .brief', done:function(){ return coPicks()===coPickN(); }, bar:function(){ return coPicks()/coPickN(); }}]},
-    edit:{where:coInEditor, steps:[
-      {ch:"LIGHT", line:function(){ return 'These are the <b>Light</b> sliders'; }, sub:"They brighten and darken parts of the photo without wrecking the colour.",
+        target:'#st-select .st-loupe .brief', nodim:true, done:function(){ return coPicks()===coPickN(); }, bar:function(){ return coPicks()/coPickN(); }}]},
+    // One photo, every slider to a gold mark (the photo stays bright, and it only ticks once you let go on the mark),
+    // then the image resets and it's yours: edit, Copy, next photo, Paste, and the rest of the picks.
+    edit:{where:coInEditor, nodim:true, steps:[
+      {ch:"LIGHT", line:function(){ return 'These are the <b>Light</b> sliders'; }, sub:"We'll set each one to its gold mark on this photo, so you see what it does. Then you're on your own.",
         target:'#editor .lr-sec[data-sec="light"]', prep:function(){ coSec("light"); coShow('#editor .lr-sec[data-sec="light"]'); }, info:true},
-      {ch:"LIGHT", line:function(){ return 'Drag <b>Exposure</b> to brighten or darken the whole photo'; }, sub:"Double-click any slider to put it back to zero.",
-        target:coRow("pExposure"), prep:function(){ coSec("light"); }, done:function(){ return edState.exposure!==0; }},
-      {ch:"LIGHT", line:function(){ return 'Pull <b>Highlights</b> down to bring back the bright parts'; }, sub:"Watch the sky and anything white get detail back.",
-        target:coRow("pHighlights"), done:function(){ return edState.highlights<0; }},
-      {ch:"LIGHT", line:function(){ return 'Push <b>Shadows</b> up to open up the dark parts'; }, sub:"",
-        target:coRow("pShadows"), done:function(){ return edState.shadows>0; }},
-      {ch:"LIGHT", line:function(){ return 'Press '+coK("\\")+' to see before and after'; }, sub:"Press it again to come back to your edit.",
-        done:function(){ return CO.keys["\\"]; }},
-      {ch:"LIGHT", line:function(){ return 'On to your second photo: <b>›</b>'; }, sub:"Or press →. Your edit stays on this one.",
-        target:'#dvNext', start:function(){ CO.s.i=coEdIdx(); }, done:function(){ return coEdIdx()!==CO.s.i; }},
-      {ch:"B&W", line:function(){ return 'Black and white by hand: drag <b>Saturation</b> all the way left'; }, sub:"No colour left, just light.",
-        target:coRow("pSaturation"), prep:function(){ coSec("color"); coShow(coRow("pSaturation")); }, done:function(){ return edState.saturation<=-90; }},
-      {ch:"B&W", line:function(){ return 'Push <b>Contrast</b> up to give the greys some punch'; }, sub:"Black and white lives on contrast.",
-        target:coRow("pContrast"), prep:function(){ coShow(coRow("pContrast")); }, done:function(){ return edState.contrast>=20; }},
-      {ch:"B&W", line:function(){ return 'Pull <b>Blacks</b> down for deep shadows'; }, sub:"And try Whites up for clean brights.",
-        target:coRow("pBlacks"), done:function(){ return edState.blacks<0; }},
-      {ch:"B&W", line:function(){ return 'On to your third photo: <b>›</b>'; }, sub:"",
-        target:'#dvNext', start:function(){ CO.s.i=coEdIdx(); }, done:function(){ return coEdIdx()!==CO.s.i; }},
-      {ch:"CROP", line:function(){ return 'Crop: <b>pick a shape</b>'; }, sub:"Square, 4:5 for a portrait feel, 16:9 for cinema.",
-        target:'#editor .lr-croptools', done:function(){ return edState.aspect!=="free"; }},
-      {ch:"CROP", line:function(){ return '<b>Drag the photo</b> to choose what\'s in the crop'; }, sub:"Put the stump where it looks best: try a third of the way in.",
-        target:'#editCanvas', start:function(){ CO.s.cx=edState.cx; CO.s.cy=edState.cy; }, done:function(){ return Math.abs(edState.cx-CO.s.cx)+Math.abs(edState.cy-CO.s.cy)>0.02; }},
+      coSet("light","pExposure","exposure",15,3,"Exposure","brightens or darkens everything at once."),
+      coSet("light","pContrast","contrast",20,4,"Contrast","pushes the darks darker and the brights brighter."),
+      coSet("light","pHighlights","highlights",-60,5,"Highlights","brings back detail in the brightest parts, like the sky."),
+      coSet("light","pShadows","shadows",45,5,"Shadows","opens up the dark parts without touching the rest."),
+      coSet("light","pWhites","whites",15,4,"Whites","sets how bright the very brightest point is."),
+      coSet("light","pBlacks","blacks",-25,4,"Blacks","sets how deep the very darkest point is."),
+      coSet("color","pTemp","temp",12,4,"Temperature","warms the photo up (right) or cools it down (left)."),
+      coSet("color","pVibrance","vibrance",25,5,"Vibrance","lifts the dull colours more than the strong ones, so skin and sky stay natural."),
+      coSet("effects","pClarity","clarity",20,4,"Clarity","adds punch to the mid-tones: bark, ivy, texture."),
+      coSet("effects","pVignette","vignette",-25,5,"Vignette","darkens the corners to pull the eye in."),
       {ch:"GRADE", line:function(){ return '<b>Color Grading</b> tints the shadows, midtones and highlights'; }, sub:"Film looks, moods, sunsets. A little goes a long way.",
         target:'#lrGrade', prep:function(){ coSec("grading"); if(typeof cgTab!=="undefined"&&cgTab!=="3"){ cgTab="3"; edpGrade(); } coShow('#lrGrade .cg-pair'); }, info:true},
       {ch:"GRADE", line:function(){ return 'Drag in the <b>Shadows</b> wheel towards blue'; }, sub:"Further from the middle is stronger.",
-        target:'#lrGrade .cg-disc[data-cg="gSh"]', done:function(){ return edState.gShS>=10; }},
+        target:'#lrGrade .cg-disc[data-cg="gSh"]', place:"low", done:function(){ return edState.gShS>=10&&!CO.down; }},
       {ch:"GRADE", line:function(){ return 'And the <b>Highlights</b> wheel towards orange'; }, sub:"Cool shadows, warm light: the classic film look.",
-        target:'#lrGrade .cg-disc[data-cg="gHi"]', done:function(){ return edState.gHiS>=10; }},
-      {ch:"GRADE", line:function(){ return '<b>Done</b> saves your edits'; }, sub:"They stay on each photo. Come back any time and the sliders are where you left them.",
+        target:'#lrGrade .cg-disc[data-cg="gHi"]', place:"low", done:function(){ return edState.gHiS>=10&&!CO.down; }},
+      {ch:"CROP", line:function(){ return 'Click <b>Crop</b>'; }, sub:"Or press "+coK("C")+". The whole photo comes back with a box over it.",
+        target:'#eCrop', done:function(){ return cropActive(); }},
+      {ch:"CROP", line:function(){ return 'Pick <b>4:5</b>'; }, sub:"A tall shape, like a print or a phone screen. Free lets you make any shape.",
+        target:'#editor .lr-ct[data-a="0.8"]', done:function(){ return cropActive()&&edCrop.ratio===0.8; }, need:"crop"},
+      {ch:"CROP", line:function(){ return '<b>Drag a corner</b> in, then drag inside the box to move it'; }, sub:"Put the stump a third of the way in, not dead centre.",
+        target:'#cropUI .crop-box', start:function(){ CO.s.b=edCrop?edCrop.w+","+edCrop.x+","+edCrop.y:""; }, done:function(){ return cropActive()&&edCrop.w<0.97&&!CO.down; }, need:"crop"},
+      {ch:"CROP", line:function(){ return '<b>Apply</b> the crop'; }, sub:"Or press "+coK("ENTER")+". You can open it again any time and the box is where you left it.",
+        target:'#eCropApply', done:function(){ return !cropActive()&&edState.aspect!=="free"; }},
+      {ch:"COMPARE", line:function(){ return 'Click <b>Before / After</b> to see how far you\'ve come'; }, sub:"The "+coK("\\")+" key does the same. Click it again to come back.",
+        target:'#eBefore', start:function(){ CO.s.saw=false; }, done:function(){ if(edShowOrig) CO.s.saw=true; return CO.s.saw&&!edShowOrig; }},
+      {ch:"YOURS", line:function(){ return 'Now <b>try it on your own</b>'; }, sub:"We've reset the photo. Make it look the way you want: any sliders, any crop. There's no right answer.",
+        prep:function(){ if(edState){ var i=edState.i, r=edState.rot; edState=defEd(i); edState.rot=r; buildRotated(); edResetView(); syncEditUI(); queueRender(); edPushHist(); setTimeout(drawHist,140); } }, info:true},
+      {ch:"YOURS", line:function(){ return 'When you\'re happy, press <b>Copy</b>'; }, sub:"It copies your look so you can put it on another photo.",
+        target:'#dvCopy', start:function(){ CO.s.clip=devClip; }, done:function(){ return !!devClip&&devClip!==CO.s.clip; }},
+      {ch:"YOURS", line:function(){ return 'On to the next photo: <b>›</b>'; }, sub:"",
+        target:'#dvNext', start:function(){ CO.s.i=coEdIdx(); }, done:function(){ return coEdIdx()!==CO.s.i; }},
+      {ch:"YOURS", line:function(){ return '<b>Paste</b> your look onto this one'; }, sub:"Same light, same colour: that's how a set of photos starts to belong together.",
+        target:'#dvPaste', start:function(){ CO.s.n=devPasteN; }, done:function(){ return devPasteN>CO.s.n; }},
+      {ch:"YOURS", line:function(){ return 'Now edit <b>the rest of your picks</b>'; }, sub:"Click each one in the strip. Paste is a good start, then tweak each so it works on its own.",
+        target:'#dvFilm', done:function(){ return coEditedN()>=coEditTotal(); }, bar:function(){ return coEditedN()/Math.max(1,coEditTotal()); }},
+      {ch:"YOURS", line:function(){ return '<b>Done</b> takes you on to the workbook'; }, sub:"Your edits stay on each photo. Come back any time and the sliders are where you left them.",
         target:'#eSave', away:true, done:function(){ return !coInEditor(); }}]},
     workbook:{where:function(){ return coRoom("workshop"); }, steps:[
-      {ch:"PAGE", line:function(){ return 'Your <b>workbook</b> is where you show your thinking'; }, sub:"Photos, notes and arrows on A3 pages, like the workbooks that win scholarships.",
+      {ch:"PAGE", line:function(){ return 'Your <b>workbook</b> is where you show your thinking'; }, sub:"Photos and writing on A3 pages, like the workbooks that win scholarships.",
         target:'#st-workshop .bd-sheet', info:true},
-      {ch:"PAGE", line:function(){ return 'Start a page from the <b>Compare</b> template'; }, sub:"Templates give you a layout with questions already in the text boxes.",
-        target:'#st-workshop [data-bd-tmpl="0"]', done:function(){ return coWs().tpl==="compare"; }},
-      {ch:"PHOTOS", line:function(){ return '<b>Drag a photo</b> from the left into Photo A'; }, sub:"Or click the space, then click a photo.",
-        target:'#st-workshop .bd-it.sl', done:function(){ return coWsN("photo")>=1; }},
-      {ch:"PHOTOS", line:function(){ return 'And another into <b>Photo B</b>'; }, sub:"Two you'd like to compare: different angles, light or lenses.",
-        target:'#st-workshop .bd-it.sl', done:function(){ return coWsN("photo")>=2; }},
-      {ch:"ARROW", line:function(){ return 'Add an <b>arrow</b> from the rail'; }, sub:"Arrows tie what you write to the exact part of a photo.",
-        target:'#st-workshop .bd-tools [data-bd-act="arrow"]', start:function(){ CO.s.n=coWsN("line"); }, done:function(){ return coWsN("line")>CO.s.n; }},
-      {ch:"ARROW", line:function(){ return 'Drag the <b>arrow\'s tip</b> onto one thing in a photo'; }, sub:"A shadow, a line, a texture: something you could talk about.",
-        target:'#st-workshop [data-bd-h="b"]', start:function(){ var a=coArrow(); CO.s.a=a?{x:a.x,y:a.y,x2:a.x2,y2:a.y2}:null; },
-        done:function(){ var a=coArrow(), s=CO.s.a; return !!(a&&s&&(Math.abs(a.x2-s.x2)+Math.abs(a.y2-s.y2)+Math.abs(a.x-s.x)+Math.abs(a.y-s.y)>4)&&coInPhoto(a.x2,a.y2)); }},
-      {ch:"WRITE", line:function(){ return '<b>Write a caption</b> about what your arrow points at'; }, sub:"Click the caption box and say what it is and what it does in the photo.",
-        target:function(){ return coWsEl(function(it){ return it.t==="text"&&it.role==="caption"; }); }, done:function(){ return coWs().items.some(function(it){ return it.t==="text"&&String(it.text||"").trim().length>=15; }); }},
-      {ch:"WRITE", line:function(){ return '<b>Save the page</b> when you\'re happy with it'; }, sub:"Your workbook keeps every page. Add more with the templates any time.",
+      {ch:"PAGE", line:function(){ return 'Start a page from the <b>Rank</b> template'; }, sub:"You'll rank your five picks, from 5 up to your best, and say why.",
+        target:'#st-workshop [data-bd-tmpl="0"]', done:function(){ return coWs().tpl==="rank"; }},
+      {ch:"RANK", line:function(){ return '<b>Drag your five photos</b> into the spaces'; }, sub:"Weakest at the top (#5), your best at the bottom. Or click a space, then click a photo.",
+        target:'#st-workshop .bd-it.sl', done:function(){ return coWsN("photo")>=5; }, bar:function(){ return coWsN("photo")/5; }},
+      {ch:"WHY", line:function(){ return '<b>Say why</b> each one sits where it does'; }, sub:"Click a box and write a sentence or two. Compare it with the ones above and below.",
+        target:function(){ return coWsEl(function(it){ return it.t==="text"&&it.rank&&String(it.text||"").trim().length<8; }); },
+        done:function(){ return coRanked()>=5; }, bar:function(){ return coRanked()/5; }},
+      {ch:"WHY", line:function(){ return '<b>Save the page</b> when you\'re happy with it'; }, sub:"Your workbook keeps every page. Add more with the templates any time: arrows and captions are on the rail.",
         target:'#st-workshop [data-bd-act="save"]', start:function(){ CO.s.v=wsB.saves_(); }, done:function(){ return wsB.saves_()>CO.s.v; }}]},
     folio:{where:function(){ return coRoom("folio"); }, steps:[
       {ch:"BOARD", line:function(){ return 'Your <b>folio board</b>: three A1 panels, side by side'; }, sub:"Each panel is split into thirds, and each third packs itself edge to edge.",
@@ -193,11 +215,13 @@
         target:'#st-folio [data-bd-zoom="0"]', done:function(){ return foB.view_()===0; }},
       {ch:"FILL", line:function(){ return '<b>Drag a photo</b> in from the left'; }, sub:"Or click one to add it.",
         target:'#st-folio .lib-grid', done:function(){ return coFoSec().length>=1; }},
-      {ch:"FILL", line:function(){ return 'Fill it up: <b>5 photos</b>'; }, sub:"The same photo more than once is fine. Watch them pack to fill the space.",
+      {ch:"FILL", line:function(){ return 'Fill it up: <b>5 photos</b>'; }, sub:"The same photo more than once is fine. They always fill the whole third: no white space.",
         target:'#st-folio .lib-grid', done:function(){ return coFoSec().length>=5; }, bar:function(){ return coFoSec().length/5; }},
       {ch:"ARRANGE", line:function(){ return '<b>Drag one photo onto another</b> to swap them'; }, sub:"The order changes how the third fills and reads.",
         target:'#st-folio .bd-sheet .bd-it.ph', start:function(){ CO.s.o=coFoSec().map(function(it){ return it.id; }).join(); }, done:function(){ return coFoSec().map(function(it){ return it.id; }).join()!==CO.s.o; }},
-      {ch:"ARRANGE", line:function(){ return 'Try <b>Rows</b>, <b>Columns</b> or <b>Hero</b>'; }, sub:"Same photos, a different arrangement.",
+      {ch:"ARRANGE", line:function(){ return 'Click <b>SIZE</b> in the middle of a photo to make it bigger'; }, sub:"Click again for bigger still, and once more to go back. The rest make room.",
+        target:'#st-folio .bd-sheet .bd-szb', start:function(){ CO.s.z=foB.sizes_(); }, done:function(){ return foB.sizes_()>CO.s.z; }},
+      {ch:"ARRANGE", line:function(){ return 'Try <b>Rows</b>, <b>Columns</b> or <b>Hero</b>'; }, sub:"Same photos, a different arrangement. Hero gives your biggest photo its own block.",
         target:function(){ var b=document.querySelector('#st-folio .bd-side [data-bd-style]'); return b?b.parentNode:null; }, start:function(){ CO.s.st=foB.secStyle("0.0"); }, done:function(){ return foB.secStyle("0.0")!==CO.s.st; }},
       {ch:"ARRANGE", line:function(){ return '<b>Shuffle</b> mixes up the order and sizes'; }, sub:"Keep pressing until something surprises you.",
         target:'#st-folio [data-bd-shuffle]', start:function(){ CO.s.sh=foB.shuffles_(); }, done:function(){ return foB.shuffles_()>CO.s.sh; }},
@@ -211,11 +235,17 @@
       {ch:"BOOK", line:function(){ return 'Pages come in <b>spreads</b>, so pairs matter'; }, sub:"Drag pages along the strip to change the sequence.",
         target:'#st-book .bk-strip', info:true}]},
     gallery:{where:function(){ return coRoom("gallery"); }, steps:[
-      {ch:"GALLERY", line:function(){ return 'The <b>Gallery</b> hangs your work on a real wall'; }, sub:"At eye height, at real print sizes, like a show.",
+      {ch:"WALL", line:function(){ return 'The <b>Gallery</b> hangs your work on a real wall'; }, sub:"At eye height, at real print sizes, like a show.",
         target:'#st-gallery .ga-wall', info:true},
-      {ch:"GALLERY", line:function(){ return 'Try a different <b>frame</b>'; }, sub:"",
-        target:'#st-gallery .ga-frames', click:'#st-gallery [data-ga-frame]'},
-      {ch:"GALLERY", line:function(){ return '<b>Drag prints</b> along the wall to hang your show'; }, sub:"Spacing and sequence tell the story.",
+      {ch:"WALL", line:function(){ return '<b>Hang another photo</b>: click one in the library'; }, sub:"Or drag it onto the wall, right where you want it.",
+        target:'#st-gallery .ga-lib .lib-grid', prep:function(){ LIB.key="all"; gaRender(); }, start:function(){ CO.s.n=gaPrints().length; }, done:function(){ return gaPrints().length>CO.s.n; }},
+      {ch:"WALL", line:function(){ return '<b>Take one down</b>: the × on its corner'; }, sub:"A show is as much about what you leave out.",
+        target:function(){ return document.querySelector('#st-gallery .ga-x'); }, start:function(){ CO.s.r=ga.removed||0; }, done:function(){ return (ga.removed||0)>CO.s.r; }},
+      {ch:"FRAME", line:function(){ return 'Try a different <b>frame</b>'; }, sub:"",
+        target:'#st-gallery .ga-frames:not(.ga-labels):not(.ga-lsizes)', click:'#st-gallery [data-ga-frame]'},
+      {ch:"TITLE", line:function(){ return 'Give the <b>title card</b> a style'; }, sub:"Then drag it wherever it reads best. Click it to type the show's name.",
+        target:'#st-gallery .ga-labels', start:function(){ CO.s.l=ga.labelStyles||0; }, done:function(){ return (ga.labelStyles||0)>CO.s.l; }},
+      {ch:"TITLE", line:function(){ return '<b>Drag prints</b> along the wall to hang your show'; }, sub:"Spacing and sequence tell the story.",
         target:'#st-gallery .ga-hang', info:true}]},
     library:{where:function(){ return coRoom("select"); }, steps:[
       {ch:"YOURS", line:function(){ return 'Make a <b>folder</b> for your own project: + NEW'; }, sub:"A shoot, a theme, a series. Whatever you're working on.",
@@ -237,8 +267,8 @@
         if(ev.target.closest("[data-co-next]")){ ev.stopPropagation(); CO.s.ok=true; } }); } return e; }
   function coStart(tour){ tour=tour||"basics"; if(CO.on&&CO.tour===tour) return; if(CO.on) coStop(); CO.ticking=false;
     CO.tour=tour; CO.on=true; CO.done=false; if(GD.flags.co==null) GD.flags.co=0; CO.i=GD.flags.co; CO.look=0; CO.walked=0; CO.lx=null; CO.seen=-1; coEnter(); coLoop(); }
-  function coEnter(){ var s=coSteps()[CO.i]; CO.s={}; CO.keys={}; CO.t0=performance.now(); CO.seen=-1; if(s&&s.start) s.start(); CO.html=""; }
-  function coStop(){ if(CO.tgt){ CO.tgt.classList.remove("co-target"); CO.tgt=null; } CO.on=false; cancelAnimationFrame(CO.raf); var e=$("coCard"), r=$("coRing"); if(e) e.classList.remove("show","media"); if(r) r.classList.remove("show"); document.body.classList.remove("co-on","co-dial"); }
+  function coEnter(){ coUnmark(); var s=coSteps()[CO.i]; CO.s={}; CO.keys={}; CO.t0=performance.now(); CO.seen=-1; CO.lockTo=s&&s.info?CO.t0+READ_MS:0; if(s&&s.start) s.start(); CO.html=""; }
+  function coStop(){ coUnmark(); if(CO.tgt){ CO.tgt.classList.remove("co-target"); CO.tgt=null; } CO.on=false; cancelAnimationFrame(CO.raf); var e=$("coCard"), r=$("coRing"); if(e) e.classList.remove("show","media"); if(r) r.classList.remove("show"); document.body.classList.remove("co-on","co-dial"); }
   function coFinish(skipped){ CO.done=true; GD.flags.co=coSteps().length; if(typeof gdSave==="function") gdSave(); coStop();
     if(skipped) toast(CO.tour==="basics"?"Warm-up skipped. The gold frames are out.":"Tour skipped."); }
   function coLoop(){ cancelAnimationFrame(CO.raf); CO.raf=requestAnimationFrame(coLoop); if(!CO.on) return; var T=CO_TOURS[CO.tour], e0;
@@ -264,13 +294,14 @@
     if(s.need==="vf"&&!viewfinderOn&&!bg.open&&!cbOpen) pre='Raise the camera first: '+coK("P");
     else if((s.need==="bag"||s.need==="lens")&&!bg.open) pre='Open the bag again: '+coK("B");
     else if(s.need==="back"&&!cbOpen) pre='Open the camera back again: '+coK("SPACE");
+    else if(s.need==="crop"&&!cropActive()) pre='Open the crop again: click <b>Crop</b> or press '+coK("C");
     var b=s.bar?Math.max(0,Math.min(1,s.bar())):null;
     var html='<div class="co-top">'+chs.map(function(c){ var on=c.ch===s.ch, past=CO.i>c.first&&!on; return '<span class="co-ch'+(on?' on':'')+(past?' past':'')+'">'+c.ch+'</span>'; }).join('<i></i>')
       +'<button class="co-skip" data-co-skip title="Skip this tour">SKIP</button></div>'
       +(s.media&&!pre?'<canvas class="co-media" data-co-media="'+s.media+'"></canvas>':'')
       +'<div class="co-line">'+(pre||s.line())+'</div>'+((pre?'':s.sub)?'<div class="co-sub">'+s.sub+'</div>':'')
       +'<div class="co-foot"><div class="co-dots">'+inCh.map(function(_,j){ return '<i class="'+(j<k?'d':j===k?'c':'')+'"></i>'; }).join("")+'</div>'
-      +(s.info?'<button class="co-next" data-co-next>GOT IT ›</button>':'')+'</div>'
+      +(s.info?(performance.now()<CO.lockTo?'<button class="co-next rl" data-co-next disabled style="--rl:'+Math.round(CO.lockTo-performance.now())+'ms">GOT IT ›</button>':'<button class="co-next" data-co-next>GOT IT ›</button>'):'')+'</div>'
       +(b!=null?'<div class="co-bar"><b style="width:'+(b*100).toFixed(0)+'%"></b></div>':'');
     if(html!==CO.html){ e.innerHTML=html; CO.html=html; }
     e.classList.add("show"); document.body.classList.add("co-on");
@@ -279,14 +310,17 @@
     // light up the thing to click, and sit the card beside it: to its left for the side panels, else below or above
     var t=s.target&&!pre?(typeof s.target==="function"?s.target():document.querySelector(s.target)):null, r=t?t.getBoundingClientRect():null;
     if(CO.tgt!==t){ if(CO.tgt) CO.tgt.classList.remove("co-target"); CO.tgt=t; if(t) t.classList.add("co-target"); }
+    ring.classList.toggle("nodim", !!(s.nodim||(CO_TOURS[CO.tour]||{}).nodim));
+    if(s.mark&&!document.querySelector(".co-mark")) coMark(s.mark[0],s.mark[1]);
     if(r&&r.width>2&&r.bottom>0&&r.top<window.innerHeight){ var p=6; ring.style.left=(r.left-p)+"px"; ring.style.top=(r.top-p)+"px"; ring.style.width=(r.width+2*p)+"px"; ring.style.height=(r.height+2*p)+"px"; ring.classList.add("show");
       var W=window.innerWidth, H=window.innerHeight, cw=e.offsetWidth||440, chh=e.offsetHeight||130, x, y;
       if(r.left>W*0.55&&r.left-p-20-cw>12){ x=r.left-p-20-cw; y=Math.max(12,Math.min(H-chh-12,r.top+r.height/2-chh/2)); }
       else { var below=r.bottom+p+16+chh<H-10; x=Math.max(12,Math.min(W-cw-12,r.left+r.width/2-cw/2)); y=below?r.bottom+p+16:Math.max(12,r.top-p-16-chh); }
+      if(s.place==="low"){ var stg=document.querySelector("#editStage"), sr=stg?stg.getBoundingClientRect():{left:0,width:W}; x=Math.max(12,Math.min(W-cw-12,sr.left+sr.width/2-cw/2)); y=H-chh-10; }   // over the film strip, clear of the photo
       if(s.place==="bottom"){ x=Math.max(12,Math.min(W-cw-12,r.left+r.width/2-cw/2)); y=Math.max(r.bottom+p+16,H-chh-64); if(y+chh>H-8) y=H-chh-8; }   // under the screen, clear of the rows
       e.style.left=x+"px"; e.style.top=y+"px"; e.style.bottom="auto"; e.style.transform="none"; e.classList.add("pinned"); }
     else { ring.classList.remove("show"); e.style.left=""; e.style.top=""; e.style.bottom=""; e.style.transform=""; e.classList.remove("pinned"); } }
   document.addEventListener("click",function(e){ if(!CO.on) return; var s=coSteps()[CO.i]; if(s&&s.click&&e.target.closest&&e.target.closest(s.click)) CO.s.ok=true; }, true);
-  document.addEventListener("keydown",function(e){ if(!CO.on) return; var m={KeyW:"W",KeyA:"A",KeyS:"S",KeyD:"D",KeyQ:"Q",KeyE:"E",KeyP:"P",KeyB:"B",Space:"SPACE",Digit2:"2",Backslash:"\\",Escape:"ESC",Enter:"ENTER"}[e.code]; if(m) CO.keys[m]=true; }, true);
+  document.addEventListener("keydown",function(e){ if(!CO.on) return; var m={KeyW:"W",KeyA:"A",KeyS:"S",KeyD:"D",KeyQ:"Q",KeyE:"E",KeyP:"P",KeyB:"B",Space:"SPACE",Digit2:"2",Backslash:"\\",Escape:"ESC",Enter:"ENTER",KeyC:"C"}[e.code]; if(m) CO.keys[m]=true; }, true);
   if(/[?&]dev/.test(location.search)) window.__co={ state:function(){ var s=coSteps()[CO.i]; return {on:CO.on, tour:CO.tour, done:CO.done, i:CO.i, n:coSteps().length, ch:s&&s.ch, shown:!!document.querySelector("#coCard.show"), ed:edState?{i:edState.i, a:edState.aspect, cx:+edState.cx.toFixed(3), cy:+edState.cy.toFixed(3)}:null}; }, skip:function(){ coFinish(true); },
     next:function(){ CO.s.ok=true; }, clip:function(kind,cv,ms){ coMediaDraw(kind,cv,ms); }, nudge:function(o){ if(o.look) CO.look+=o.look; if(o.walk) CO.walked+=o.walk; if(o.keys) o.keys.forEach(function(k){ CO.keys[k]=true; }); } };

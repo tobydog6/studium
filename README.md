@@ -32,8 +32,9 @@ lives inside it.
 
 - **Real places, not stock photos.** Scenes are Gaussian-splat scans you can walk around, with collision, ground-following
   and a sky dome built from the scan itself. Three detail levels (Light, Balanced, Full) keep it smooth on school laptops.
-- **A camera that teaches.** Raise the camera (`P`) for a true-FOV viewfinder. Flip to the back (`Space`) for the dials,
-  the meter and a Review tab. Shutter speed causes real handheld blur, aperture sets real depth of field, and `X` turns
+- **A camera that teaches.** Raise the camera (right click or `P`) for a true-FOV viewfinder; the scroll wheel zooms a
+  zoom lens. Flip to the back (`Space`) for shutter, aperture and ISO as sliders you click or drag, the meter, and a
+  Review tab. Stand in a gold frame and its checklist comes onto the back with you. Shutter speed causes real handheld blur, aperture sets real depth of field, and `X` turns
   the camera vertical.
 - **A camera bag.** Three bodies (full-frame DSLR, APS-C mirrorless at 1.6×, a 6×7 film SLR on a ten-frame roll), each
   with its own lenses, from a 24–70 zoom to a 165 mm on the 6×7, plus an animated lens swap.
@@ -44,17 +45,22 @@ lives inside it.
   drag-and-drop import from the computer (EXIF included).
 - **Develop, on a real Camera Raw engine.** A JavaScript port of PhotoCraft's pipeline runs in Web Workers:
   Highlights/Shadows as a local Laplacian filter, measured Whites/Blacks curves, Dehaze, Clarity, Texture, an HSL **Color
-  Mixer** and 3-way **Color Grading** wheels. Previews show the full stage at full sharpness, and full-size renders bake in the background.
-- **Workbook.** A3 pages with templates made for the NCEA workbook: Compare, Annotate, Before & after, Contact sheet,
-  Artist model, Experiment, Mood & ideas, What's next? It also has arrows, captions, layers and page colours.
-- **Folio.** Three A1 portrait panels, worked one third at a time. Drop photos in (repeats allowed) and each third packs
-  itself edge to edge, in Rows, Columns or Hero. **Shuffle** deals a new arrangement that still fills the space. Exports to PDF.
+  Mixer** and 3-way **Color Grading** wheels, a proper **crop tool** (handles, free or fixed ratios, rule of thirds) and a
+  Before / After button. Previews show the full stage at full sharpness, and full-size renders bake in the background.
+- **Workbook.** A3 pages with templates made for the NCEA workbook: Rank, Compare, Annotate, Before & after, Contact
+  sheet, Artist model, Experiment, Mood & ideas, What's next? It also has arrows, captions, layers and page colours.
+- **Folio.** Three A1 portrait panels, worked one third at a time. Drop photos in (repeats allowed) and each third fills
+  edge to edge with no white space, photos cropping a little to fit. Click **SIZE** on a photo to make it bigger; try
+  Rows, Columns or Hero; **Shuffle** deals a new arrangement. Exports to PDF.
 - **Book and Gallery.** A lay-flat photobook with spreads and page templates, and a gallery wall at real print sizes on
-  the 1450 mm eye line, with frames.
+  the 1450 mm eye line: hang photos from the library, take them down, choose frames, and a title card you can restyle
+  and drag anywhere.
 - **Lessons and teachers.** A teacher timeline, a live class view, heads-up and move-on cards, and a hub that walks each
   student through Shoot → Pick → Edit → Make → Show.
-- **Learn by doing.** A game-style warm-up (WASD, look, raise, bag, settings) unlocks the gold frames. After that,
-  hands-on tours run through every room, and there's a **ten-minute demo** for playtesters.
+- **Learn by doing.** A game-style warm-up (WASD, look, raise, bag, then each camera setting with a little clip of what
+  it does) unlocks the gold frames. After that, hands-on tours run through every room: on one photo you drag each
+  slider to a gold mark, then edit your own way. Popups wait a few seconds before they can be dismissed, so they get
+  read. There's a **ten-minute demo** for playtesters.
 
 ## A lesson in Studium
 
@@ -79,6 +85,11 @@ lives inside it.
 
 ## News
 
+- **19 Oct 2026.** Playtest round: the viewfinder wheel just zooms; the camera back is sliders, and carries a
+  challenge's checklist; bigger popups that wait to be read; a bigger loupe and pick five; the edit tour slider by
+  slider to gold marks, then your own edit with copy and paste; a real crop tool; a Rank workbook page; folio thirds
+  with no white space and a size button; the gallery gets a library and a movable title card. The sign-in page is just
+  the demo for now.
 - **18 Oct 2026.** Hands-on tours for every room: Select, Edit (light, black and white, crop, grading), Workbook, Folio,
   Book, Gallery. They end with *go and shoot your own*. The folio is now one third at a time, with Shuffle. New workbook
   templates.
@@ -131,6 +142,7 @@ Open `dist/studium.html` in Chrome. Add `?dev` to expose the test hooks (`window
 | `src/styles/main.css` | The whole stylesheet. The darkroom tokens live in `:root`. |
 | `src/app.js` | The app: movement, camera sim, menu, editor, save/resume, and the include list for the rest. |
 | `src/engine.js` | Entry for three.js + @mkkellogg/gaussian-splats-3d, bundled by esbuild. |
+| `src/crop.js` | The crop tool: a box over the whole photo with handles, ratios and a thirds grid. |
 | `src/crdev.js`, `src/crtables.js` | The Develop engine, a port of PhotoCraft's Camera Raw pipeline, run in Web Workers, plus its measured curve tables. |
 | `src/edpanels.js` | Color Mixer and Color Grading panels. |
 | `src/studio.js`, `src/board.js` | The Studio rooms; the Workbook and Folio boards and their templates. |

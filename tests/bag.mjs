@@ -23,7 +23,7 @@ const cb = (f) => page.evaluate(f);
 const key = async (k, wait = 80) => { await page.keyboard.press(k); await page.waitForTimeout(wait); };
 const shot = (n) => page.screenshot({ path: join(OUT, `bag-${n}.png`), timeout: 240000 });
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev');
+  await page.goto(pathToFileURL(FILE).href + '?dev&quick');
   await page.waitForSelector('#tileSplat', { state: 'visible', timeout: 20000 });
   await page.click('#tileSplat'); await page.click('.scenecard'); await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 }); await page.waitForTimeout(1500);
   ok((await cb(() => window.__cb.cam())).body === 'dslr', 'should start on the full-frame DSLR');
@@ -59,8 +59,8 @@ try {
   await key('KeyB', 500);
   ok(await cb(() => window.__cb.state()) === 'viewfinder', 'closing the bag should return to the raised camera');
   ok((await page.textContent('#vfStrip')).includes('ZOOM'), 'zoom dial should show for the 24-70');
-  await key('Digit4'); await page.mouse.move(720, 400); await page.mouse.wheel(0, 120); await page.waitForTimeout(150);
-  ok((await cb(() => window.__cb.cam())).mm === 70, 'scrolling the zoom dial should go to 70 mm');
+  await page.mouse.move(720, 400); await page.mouse.wheel(0, -120); await page.waitForTimeout(150);
+  ok((await cb(() => window.__cb.cam())).mm === 70, 'scrolling up should zoom the 24-70 in to 70 mm');
   ok(await cb(() => window.__cb.fov()) > mlFov * 0.5, 'fov sanity');
   await shot('5-zoom-dial');
 

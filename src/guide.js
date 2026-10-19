@@ -46,15 +46,15 @@
      checks:function(){ var n=gdPicked().length; return [{t:"Learn to pick and reject", ok:coTourDone("select")}, {t:"Pick exactly 8 frames", ok:n===8, now:n+" / 8"}]; },
      tick:function(){ gdTour("select", st.open&&st.room==="select"); }},
     {id:"edit", where:"edit", title:"Edit your picks",
-     body:"Your picks are in The Stump › Picked photos. A tour takes you through your first three: the light on one, black and white by hand on the next, then a crop and some colour grading. After that, select the rest in the strip and Sync your look across them.",
+     body:"Your picks are in The Stump › Picked photos. A tour takes you through one photo slider by slider, then you edit it your own way, copy the look onto the next and edit the rest. Select several in the strip and Sync to share a look across them.",
      btn:"OPEN EDIT", go:function(){ var key=null; libFolders().forEach(function(f){ if(f.kind==="sub"&&!key) key=f.key; }); var ids=key?libItems(key):stPicks(); if(key) LIB.key=key; devScope=ids.slice(); st.cur=ids[0]; openStudio("edit"); coStart("edit"); },
-     checks:function(){ return [{t:"Edit three photos with the tour", ok:coTourDone("edit")},
+     checks:function(){ return [{t:"Do the edit tour", ok:coTourDone("edit")},
        {t:"Sync your settings to other frames (select several in the strip, then Sync)", ok:!!GD.flags.synced}]; },
      tick:function(){ gdTour("edit", coInEditor()); }},
     {id:"workbook", where:"workbook", title:"Make a workbook page",
-     body:"The workbook is where you show your thinking. You'll make one page: two photos compared, an arrow on the detail that matters, and a caption about it.",
+     body:"The workbook is where you show your thinking. You'll make one page: your picks ranked from 5 up to your best, with why each one sits where it does.",
      btn:"OPEN THE WORKBOOK", go:function(){ openStudio("workshop"); coStart("workbook"); },
-     checks:function(){ return [{t:"Make a Compare page with the tour", ok:coTourDone("workbook")}]; }, tick:function(){ gdTour("workbook", coRoom("workshop")); }},
+     checks:function(){ return [{t:"Make a Rank page with the tour", ok:coTourDone("workbook")}]; }, tick:function(){ gdTour("workbook", coRoom("workshop")); }},
     {id:"folio", where:"folio", title:"Start your folio board",
      body:"Your folio board is three A1 panels, filled edge to edge. You'll fill the top third of the first panel and try its arrangements.",
      btn:"OPEN THE FOLIO", go:function(){ openStudio("folio"); coStart("folio"); },
@@ -81,22 +81,22 @@
     {id:"stump-fgbg", over:{title:"Wide and close, on a crop sensor", mm:38,
       brief:"The APS-C camera's smaller sensor crops the picture 1.6×, so even the zoom's widest setting looks tighter. Get low and close: the stump fills the left, the dead tree stands behind it, and f/11 keeps both sharp.",
       need:[{k:"body",id:"ml",label:"Swap to the APS-C mirrorless: press B, pick it under Bodies"},
-        {k:"mm",max:40,label:"24–70 zoomed right out: raise the camera (P), press 4, scroll"},
-        {k:"f",min:11,label:"Aperture f/11 or smaller: press 2, scroll"},
-        {k:"ev",tol:1,label:"Exposure within a stop: press 1 for shutter, scroll until the meter centres"}]}},
+        {k:"mm",max:40,label:"24–70 zoomed right out: raise the camera (right click), scroll down"},
+        {k:"f",min:11,label:"Aperture f/11 or smaller: on the camera back (Space)"},
+        {k:"ev",tol:1,label:"Exposure within a stop: change the shutter on the back until the needle centres"}]}},
     {id:"stump-dof", over:{title:"Shallow depth of field",
       brief:"Back to the full-frame DSLR, with the 85 mm portrait lens wide open. Focus on the stump and let everything behind it melt away.",
       need:[{k:"body",id:"dslr",label:"Full-frame DSLR: press B, pick it under Bodies"},
         {k:"lens",mm:85,label:"85 mm f/1.4: in the bag (B), under Lens"},
-        {k:"f",max:1.4,label:"Wide open at f/1.4: raise the camera (P), press 2, scroll"},
-        {k:"ev",tol:1,label:"Exposure within a stop: wide open lets in lots of light, so press 1 for a faster shutter"}]}},
+        {k:"f",max:1.4,label:"Wide open at f/1.4: on the camera back (Space)"},
+        {k:"ev",tol:1,label:"Exposure within a stop: wide open lets in lots of light, so pick a faster shutter on the back"}]}},
     {id:"stump-67", over:{title:"Medium format, vertical",
       brief:"Now the 6×7 film camera: a big negative and only ten frames to a roll. Turn it on its side and stop down. Meter carefully, because film doesn't give you a second go.",
       need:[{k:"body",id:"67",label:"6×7 film SLR: press B, pick it under Bodies"},
         {k:"lens",mm:105,label:"105 mm, its standard lens: in the bag (B), under Lens"},
         {k:"vert",label:"Turn the camera vertical: press X"},
-        {k:"f",min:8,label:"f/8 or smaller: raise the camera (P), press 2, scroll"},
-        {k:"ev",tol:0.7,label:"Exposure within ⅔ of a stop: press 1 for shutter, or 3 for ISO"}]}}];
+        {k:"f",min:8,label:"f/8 or smaller: on the camera back (Space)"},
+        {k:"ev",tol:0.7,label:"Exposure within ⅔ of a stop: shutter or ISO on the camera back"}]}}];
   function gdDemoChallenges(all){ return GD_DEMO_CH.map(function(d){ var c=all.filter(function(x){ return x.id===d.id; })[0]; if(!c) return null; var o={}, k; for(k in c) o[k]=c[k]; for(k in d.over) o[k]=d.over[k]; return o; }).filter(Boolean); }
   var GD_DEMO=[
     {id:"basics", where:"scene", title:"Welcome to the Stump",
@@ -113,18 +113,18 @@
      btn:"KEEP SHOOTING", onStart:function(){ GD.base=photos.length; },
      checks:function(){ var n=gdNew().length, lc=Object.keys(gdLensCount()).length;
        return [{t:"Take 5 photos", ok:n>=5, now:Math.min(n,5)+" / 5"}, {t:"Use 2 different lenses", ok:lc>=2, now:Math.min(lc,2)+" / 2"}, {t:"Use 2 different apertures", ok:gdDistinct("f")>=2, now:Math.min(gdDistinct("f"),2)+" / 2"}]; }},
-    {id:"select", where:"select", title:"Pick your best 3",
-     body:"The light table shows everything you shot. A quick tour shows you how to pick and reject, then choose your 3 strongest.",
+    {id:"select", where:"select", title:"Pick your best 5",
+     body:"The light table shows everything you shot. A quick tour shows you how to pick and reject, then choose your 5 strongest.",
      btn:"OPEN SELECT", go:GD_FULL[3].go,
-     checks:function(){ var n=gdPicked().length; return [{t:"Learn to pick and reject", ok:coTourDone("select")}, {t:"Pick 3 frames", ok:n===3, now:n+" / 3"}]; },
+     checks:function(){ var n=gdPicked().length; return [{t:"Learn to pick and reject", ok:coTourDone("select")}, {t:"Pick 5 frames", ok:n===5, now:n+" / 5"}]; },
      tick:GD_FULL[3].tick},
-    {id:"edit", where:"edit", title:"Edit your three",
-     body:"Three photos, three things to learn: the light on the first, black and white by hand on the second, then a crop and some colour grading on the third. Follow the prompts beside the sliders.",
+    {id:"edit", where:"edit", title:"Edit your five",
+     body:"First, one photo step by step: drag each slider to its gold mark and see what it does, then grade and crop it. Then the photo resets and it's yours to edit. Copy your look, paste it onto the next, and edit the rest.",
      btn:"OPEN EDIT", go:GD_FULL[4].go,
-     checks:function(){ return [{t:"Edit your three photos with the tour", ok:coTourDone("edit")}]; },
+     checks:function(){ return [{t:"Edit your five photos with the tour", ok:coTourDone("edit")}]; },
      tick:GD_FULL[4].tick},
     {id:"workbook", where:"workbook", title:"One workbook page",
-     body:"The workbook is where you show your thinking. You'll compare two photos, point an arrow at the detail that matters, and write a caption about it.",
+     body:"The workbook is where you show your thinking. You'll rank your five picks from 5 up to your best, and write why each one sits where it does.",
      btn:"OPEN THE WORKBOOK", go:GD_FULL[5].go, checks:GD_FULL[5].checks, tick:GD_FULL[5].tick},
     {id:"folio", where:"folio", title:"The top of a folio panel",
      body:"Folio boards are big panels filled edge to edge. You'll fill one third with five photos and try its arrangements.",
@@ -148,7 +148,13 @@
       +(checks.length?'<div class="gd-list">'+checks.map(function(c){ return '<span><i></i>'+cbEsc(c.t)+'</span>'; }).join("")+'</div>':'')
       +(s.final?'<div class="gd-two"><button data-gd="shootown">GO AND SHOOT YOUR OWN</button></div>':'')
       +'<div class="gd-acts"><button class="gd-skip" data-gd="skip">'+(s.final?'':'Skip the guide')+'</button>'+(s.final?'':'<button class="gd-skip gd-next" data-gd="next" title="Move on to the next step without doing this one">Skip this step ›</button>')+'<button class="gd-go" data-gd="go">'+s.btn+'</button></div></div>';
-    el.classList.add("show"); GD.open=true; GD.shown=GD.step; gdSave(); }
+    el.classList.add("show"); GD.open=true; GD.shown=GD.step; gdSave();
+    Array.prototype.forEach.call(el.querySelectorAll("[data-gd]"),function(b){ readLock(b); }); }
+  // Read first: a popup's buttons wait a few seconds, with a gold bar filling across them, so it gets read rather than
+  // clicked straight through. ?quick (for the tests) cuts it right down.
+  var READ_MS=/[?&]quick(&|=|$)/.test(location.search)?250:5000;
+  function readLock(b,ms){ ms=ms==null?READ_MS:ms; if(!b||ms<=0) return; b.disabled=true; b.classList.add("rl"); b.style.setProperty("--rl",ms+"ms");
+    setTimeout(function(){ b.disabled=false; b.classList.remove("rl"); },ms); }
   function gdClose(){ var el=$("gdPop"); if(el) el.classList.remove("show"); GD.open=false; gdCard(); }
   function gdCard(){ var el=gdEl("gdCard","gd-track"), s=GD_STEPS[GD.step];
     if(!gdActive()||!s||s.final||GD.open||s.id==="basics"||coActive()){ el.classList.remove("show"); return; }
@@ -159,7 +165,7 @@
     if(el._html!==html){ el.innerHTML=html; el._html=html; }   // only when it changes, so its buttons stay clickable
     el.classList.add("show"); }
   function gdTour(id, here){ if(here&&!GD.open&&GD.shown===GD.step&&!coTourDone(id)&&!(CO.on&&CO.tour===id)) coStart(id); }
-  function gdNext(){ if(CO.on) coStop(); GD.step++; GD.flags={}; var s=GD_STEPS[GD.step]; if(s&&s.onStart) s.onStart(); gdSave(); if(s) setTimeout(gdPop, 500); else gdCard(); }
+  function gdNext(){ if(CO.on) coStop(); GD.step++; GD.flags={}; var s=GD_STEPS[GD.step]; if(s&&s.onStart) s.onStart(); gdSave(); if(s) setTimeout(function(){ if(GD.shown!==GD.step&&!GD.open) gdPop(); }, 500); else gdCard(); }   // unless the tracker already showed it
   function gdTick(){ if(!gdActive()){ var c=$("gdCard"); if(c) c.classList.remove("show"); return; } var s=GD_STEPS[GD.step];
     if(s.where==="scene"&&!loaded&&!st.open) return;   // waits for a location to load
     if(s.tick) s.tick();

@@ -23,12 +23,13 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.googleapis|supabase|net::ERR/i.test(m.text())) errors.push(m.text()); });
 const ok = (c, m) => { if (!c) throw new Error(m); };
+const gdClick = async (k) => { const sel = '#gdPop [data-gd="' + k + '"]'; await page.waitForFunction((s) => { const b = document.querySelector(s); return b && !b.disabled; }, sel, { timeout: 120000, polling: 200 }); await page.$eval(sel, (b) => b.click()); };   // the popup sits over a 1 fps scene here, so click it directly once it unlocks
 const ev = (f, a) => page.evaluate(f, a);
 const gd = () => ev(() => window.__gd.state());
 const waitStep = (id) => page.waitForFunction((x) => window.__gd.state().id === x && window.__gd.state().open, id, { timeout: 120000, polling: 300 });
 const shot = (n) => page.screenshot({ path: join(OUT, `demo-${n}.png`), timeout: 240000 });
 try {
-  await page.goto(PAGE + '?dev');
+  await page.goto(PAGE + '?dev&quick');
   await page.waitForSelector('#signin [data-si="demo"]', { state: 'visible', timeout: 60000 });
   await shot('0-signin');
   await page.click('#signin [data-si="demo"]');
@@ -36,20 +37,20 @@ try {
   await waitStep('basics');
   let g = await gd(); ok(g.demo && g.n === 11, 'the demo guide should be running: ' + JSON.stringify(g));
   ok(/ten-minute/.test(await page.$eval('#gdPop', (e) => e.textContent)), 'the welcome says it is the short demo');
-  await page.click('#gdPop [data-gd="next"]'); await waitStep('challenges');
+  await gdClick('next'); await waitStep('challenges');
   const dp = await ev(() => window.__ch.pads()); ok(dp.length === 3 && dp.map((p) => p.id).join() === 'stump-fgbg,stump-dof,stump-67', 'the demo has three challenges, one per camera: ' + JSON.stringify(dp.map((p) => p.id)));
   await shot('1-welcome');
-  await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(1200);
+  await gdClick('go'); await page.waitForTimeout(1200);
   await shot('1b-scene');
   ok(/DEMO · STEP 2/.test(await page.$eval('#gdCard', (e) => e.textContent)), 'the tracker is marked DEMO');
   await page.click('#gdCard [data-gd="next"]'); await waitStep('shoot');
-  await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(300);
+  await gdClick('go'); await page.waitForTimeout(300);
   await ev((fr) => { const L = ['2470', '85'], F = [11, 1.8]; for (let i = 0; i < 5; i++) window.__cb.addPhoto({ url: fr[i % fr.length], f: F[i % 2], sh: '1/250', iso: 400, mm: 50, lens: L[i % 2], body: 'Full-frame DSLR', place: 'The Stump' }); }, frames);
   await waitStep('select');   // five photos, two lenses, two apertures: done by itself
-  for (const id of ['edit', 'workbook', 'folio', 'book', 'gallery', 'yours', 'done']) { await page.click('#gdPop [data-gd="next"]'); await waitStep(id); }
+  for (const id of ['edit', 'workbook', 'folio', 'book', 'gallery', 'yours', 'done']) { await gdClick('next'); await waitStep(id); }
   ok(/DONE IN \d+ MIN/.test(await page.$eval('#gdPop', (e) => e.textContent)), 'the end says how long the demo took');
   await shot('2-done');
-  await page.click('#gdPop [data-gd="go"]'); await page.waitForTimeout(500);
+  await gdClick('go'); await page.waitForTimeout(500);
   ok((await gd()).step === -1, 'finishing ends the demo');
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));
   console.log(`PASS  demo (${FILE})`);

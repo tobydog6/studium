@@ -52,7 +52,7 @@ async function buildEngine() {
 }
 
 const engine = await buildEngine();
-const shell = readFileSync(join(ROOT, 'src', 'index.html'), 'utf8');
+const shell = resolveAssets(readFileSync(join(ROOT, 'src', 'index.html'), 'utf8'));   // the page's own head (site icon) can use asset: too
 // Included files may themselves contain @@include lines (e.g. app.js pulls in back.js inside its closure).
 const readSrc = (p) => stripNl(readFileSync(join(ROOT, 'src', p), 'utf8'))
   .replace(/^[ \t]*@@include (\S+)@@$/gm, (_, q) => readSrc(q));

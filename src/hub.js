@@ -52,7 +52,7 @@
     // the loupe
     var lp=stPicks(), li=lp.length?lp[lp.length-1]:(photos.length?photos.length-1:-1); h.querySelector(".d7-loupe img").src=li>=0?hubThumb(li):HUB_FILL[5];
     var crit=""; if(pl){ var T=lsTimes(pl); pl.phases.forEach(function(p,j){ if(!crit&&p.opens==="punctum"&&j>=cur) crit=j===cur?"OPEN NOW":"OPENS AT "+lsHM(T[j].s); }); }
-    h.querySelector(".d7-loupe small").textContent=crit||"READ YOUR CLASS’S WORK";
+    h.querySelector(".d7-loupe small").textContent=crit||"LOOK CLOSELY AT OTHER PHOTOGRAPHERS";
     // one action, under whichever thing is next
     var k=lsKind(ph), cta=h.querySelector(".h6-cta"); cta.innerHTML=lsCta(ph)+' <kbd>↵</kbd>'; cta.setAttribute("data-h6-go", ph.opens);
     h.querySelector(".h6-status").textContent=k!=="none"&&ph.n?Math.min(lsCount(k),ph.n)+" OF "+ph.n+" "+(k==="shots"?"SHOT":k==="picks"?"PICKED":k==="edits"?"EDITED":"DONE"):"";

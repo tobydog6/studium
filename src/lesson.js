@@ -99,7 +99,7 @@
       ["hub","punctum","teacher"].forEach(hubHide);
       if(loaded){ hubShow("hud"); App.go("scene"); updatePrompt(); }
       else { var sc=(window.SPLAT_SCENES||[])[0]; if(sc){ App.go("landing"); loadBundled(sc); } else openSplatViewer(); } return; }
-    if(o==="punctum"){ if(st.open){ stHideLegacy(); st.open=false; $("studioX").classList.add("hidden"); } if(viewfinderOn) lowerCamera(); hubHide("hud"); openPunctum(); return; }
+    if(o==="punctum"){ if(viewfinderOn) lowerCamera(); hubHide("hud"); hubHide("hub"); openStudio("research"); return; }   // Punctum is Research, in the studio
     if(o==="hub"){ if(st.open) closeStudio(); showHub(); return; }
     hubHide("hub"); hubHide("punctum"); openStudio(o); }
 

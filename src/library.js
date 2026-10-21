@@ -15,7 +15,7 @@
   function libItems(key){ if(key==="picks") return stPicks();
     if(key.indexOf("place:")===0){ var pl=key.slice(6), pk=/\|picks$/.test(pl), a=[]; if(pk) pl=pl.slice(0,-6); photos.forEach(function(p,i){ if((stPlaceOf(p)||"Uploads")===pl&&(!pk||p.pick)) a.push(i); }); return a; }
     if(key.indexOf("proj:")===0){ var pr=libProjects().filter(function(x){ return "proj:"+x.id===key; })[0]; return pr?pr.ids.map(stById).filter(function(i){ return i>=0; }):[]; }
-    return photos.map(function(_,i){ return i; }); }
+    return photos.map(function(_,i){ return i; }).filter(function(i){ return !photos[i].research; }); }   // research references live in their own folder
   function libName(key){ var f=libFolders().filter(function(x){ return x.key===key; })[0]; return f?f.name:"All frames"; }
   function libSelList(){ return Object.keys(LIB.sel).filter(function(k){ return LIB.sel[k]; }).map(Number).filter(function(i){ return i<photos.length; }); }
   var LIB_ICON={all:'<svg viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="5"/><rect x="9" y="2" width="5" height="5"/><rect x="2" y="9" width="5" height="5"/><rect x="9" y="9" width="5" height="5"/></svg>',

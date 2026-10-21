@@ -60,7 +60,7 @@ try {
   await gdClick('go'); await page.waitForTimeout(800);
   ok((await ev(() => window.__cb.studio())).room === 'workshop', 'the button opens the workbook');
   // each of these rooms runs its tour (tested in tours.mjs); here, skip each tour and check the guide moves on
-  for (const [id, room] of [['folio', 'folio'], ['book', 'book'], ['gallery', 'gallery'], ['yours', 'select']]) {
+  for (const [id, room] of [['folio', 'folio'], ['book', 'book'], ['gallery', 'gallery'], ['research', 'research'], ['yours', 'select']]) {
     await page.waitForFunction(() => window.__co.state().on, null, { timeout: 60000 }); await ev(() => window.__co.skip());
     await waitStep(id); await gdClick('go'); await page.waitForTimeout(800);
     ok((await ev(() => window.__cb.studio())).room === room, 'the button opens ' + room);

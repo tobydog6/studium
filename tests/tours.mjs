@@ -32,6 +32,15 @@ const at = (tour, i) => page.waitForFunction(([t, k]) => { const s = window.__co
 const gotIt = () => page.click('#coCard [data-co-next]');
 const slide = (id, v) => ev(([i, val]) => { const e = document.getElementById(i); e.value = val; e.dispatchEvent(new Event('input', { bubbles: true })); e.dispatchEvent(new Event('change', { bubbles: true })); }, [id, v]);
 const drag = async (sel, fx, fy) => { const b = await (await page.$(sel)).boundingBox(); await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await page.mouse.down(); await page.mouse.move(b.x + b.width * fx, b.y + b.height * fy, { steps: 5 }); await page.mouse.up(); };
+// Research reads Punctum's packs from Supabase: answer those calls with a test pack, and keep what gets written back
+const posted = [];
+await page.route('https://xddjfwoppmuhyagkhalk.supabase.co/rest/v1/**', async (route) => { const req = route.request(), u = req.url();
+  if (req.method() === 'POST') { posted.push({ table: u.split('/rest/v1/')[1].split('?')[0], rows: JSON.parse(req.postData() || '[]') }); return route.fulfill({ status: 201, body: '' }); }
+  const json = (d) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(d) });
+  if (u.includes('/packs?')) return json([{ id: 7, name: 'Test photographer', links: 'Tate profile: https://www.tate.org.uk/art/artists/test', type: 'punctum' }]);
+  if (u.includes('/images?')) return json(frames.slice(0, 4).map((f, i) => ({ id: 70 + i, pack_id: 7, url: f, position: i })));
+  if (u.includes('/responses?')) return json([{ image_id: 71, struck: true }, { image_id: 71, struck: false }, { image_id: 70, struck: false }]);
+  return json([]); });
 try {
   await page.goto(pathToFileURL(FILE).href + '?dev&quick');
   await page.waitForSelector('#signin [data-si="demo"]', { state: 'visible', timeout: 60000 });
@@ -136,6 +145,28 @@ try {
   await page.click('#st-gallery [data-ga-label="plaque"]'); await at('gallery', 5);
   ok(await page.$('#st-gallery .ga-label.plaque'), 'the title card takes the style');
   await gotIt();
+
+  // ---- Research: a Punctum round on a pack, a detail tapped and written about, into the workbook ----
+  await waitStep('research'); await gdClick('go'); await at('research', 0); await page.waitForTimeout(500); await shot('12a-research');
+  ok(await page.$('#st-research .rs-pack'), 'the packs come from Supabase');
+  ok(/Test photographer/.test(await page.$eval('#st-research', (e) => e.textContent)), 'the pack is named');
+  await gotIt(); await at('research', 1);
+  await page.click('#st-research [data-rs-act="round"]'); await at('research', 2);
+  await page.click('#st-research [data-rs-act="no"]'); await page.waitForTimeout(200);
+  await page.click('#st-research [data-rs-act="yes"]'); await at('research', 3);
+  { const w = await (await page.$('#st-research .rs-stage .rs-imgw')).boundingBox(); await page.mouse.click(w.x + w.width * 0.4, w.y + w.height * 0.6); }
+  await at('research', 4); await shot('12b-punctum');
+  await page.fill('#st-research [data-rs-note="note"]', 'The bright ivy leaf on the dark stump.'); await at('research', 5);
+  await page.click('#st-research [data-rs-act="next"]');
+  while (await ev(() => window.__rs.state().view === 'round')) { await page.click('#st-research [data-rs-act="no"]'); await page.waitForTimeout(150); }
+  await at('research', 6); await page.waitForTimeout(300); await shot('12c-results');
+  ok(/1 of 2 caught/.test(await page.$eval('#st-research .rs-res', (e) => e.textContent)), 'the class numbers come back');
+  ok(posted.some((p) => p.table === 'responses' && p.rows.length === 4) && posted.some((p) => p.table === 'punctum_picks' && /ivy leaf/.test(p.rows[0].note)), 'the round is saved to Punctum: ' + JSON.stringify(posted.map((p) => p.table)));
+  await page.click('#st-research .rs-wb');
+  await page.waitForFunction(() => window.__cb.studio().room === 'workshop', null, { timeout: 20000 });
+  const art = await ev(() => window.__cb.studio().ws.pages.slice(-1)[0]);
+  ok(art.some((i) => i.t === 'photo') && art.some((i) => i.t === 'line') && art.some((i) => /ivy leaf/.test(i.text || '')), 'an Artist model page with the photo, an arrow and the answer: ' + JSON.stringify(art.map((i) => i.t)));
+  await page.waitForTimeout(500); await shot('12d-artist-page');
 
   // ---- A folder of their own ----
   await waitStep('yours'); await gdClick('go'); await at('library', 0);

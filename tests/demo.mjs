@@ -35,7 +35,7 @@ try {
   await page.click('#signin [data-si="demo"]');
   await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 });
   await waitStep('basics');
-  let g = await gd(); ok(g.demo && g.n === 11, 'the demo guide should be running: ' + JSON.stringify(g));
+  let g = await gd(); ok(g.demo && g.n === 12, 'the demo guide should be running: ' + JSON.stringify(g));
   ok(/ten-minute/.test(await page.$eval('#gdPop', (e) => e.textContent)), 'the welcome says it is the short demo');
   await gdClick('next'); await waitStep('challenges');
   const dp = await ev(() => window.__ch.pads()); ok(dp.length === 3 && dp.map((p) => p.id).join() === 'stump-fgbg,stump-dof,stump-67', 'the demo has three challenges, one per camera: ' + JSON.stringify(dp.map((p) => p.id)));
@@ -47,7 +47,7 @@ try {
   await gdClick('go'); await page.waitForTimeout(300);
   await ev((fr) => { const L = ['2470', '85'], F = [11, 1.8]; for (let i = 0; i < 5; i++) window.__cb.addPhoto({ url: fr[i % fr.length], f: F[i % 2], sh: '1/250', iso: 400, mm: 50, lens: L[i % 2], body: 'Full-frame DSLR', place: 'The Stump' }); }, frames);
   await waitStep('select');   // five photos, two lenses, two apertures: done by itself
-  for (const id of ['edit', 'workbook', 'folio', 'book', 'gallery', 'yours', 'done']) { await gdClick('next'); await waitStep(id); }
+  for (const id of ['edit', 'workbook', 'folio', 'book', 'gallery', 'research', 'yours', 'done']) { await gdClick('next'); await waitStep(id); }
   ok(/DONE IN \d+ MIN/.test(await page.$eval('#gdPop', (e) => e.textContent)), 'the end says how long the demo took');
   await shot('2-done');
   await gdClick('go'); await page.waitForTimeout(500);

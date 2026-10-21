@@ -41,6 +41,9 @@ lives inside it.
 - **Gold-frame challenges, Skate-style.** Briefs float in the scene as glowing frames: *Shallow depth of field*,
   *Silhouette*, *Telephoto detail*, *Medium format, vertical*. Walk into the pulse and it pulls you into position. Then
   it's up to you to nail the settings.
+- **Research.** Punctum, rebuilt inside the studio. Artist packs from your Punctum account: the Punctum round (does
+  anything prick you? tap the detail, say why) and the Culling Game (two at a time to a top three), with what the class
+  thought, and one click turns a photograph and your notes into an Artist model page.
 - **Select.** A light table with pick (`P`), reject (`X`), stars, notes on *why this one*, folders, projects and
   drag-and-drop import from the computer (EXIF included).
 - **Develop, on a real Camera Raw engine.** A JavaScript port of PhotoCraft's pipeline runs in Web Workers:
@@ -142,6 +145,7 @@ Open `dist/studium.html` in Chrome. Add `?dev` to expose the test hooks (`window
 | `src/styles/main.css` | The whole stylesheet. The darkroom tokens live in `:root`. |
 | `src/app.js` | The app: movement, camera sim, menu, editor, save/resume, and the include list for the rest. |
 | `src/engine.js` | Entry for three.js + @mkkellogg/gaussian-splats-3d, bundled by esbuild. |
+| `src/research.js` | Research: Punctum's packs from Supabase, the Punctum round, the Culling Game, into the workbook. |
 | `src/crop.js` | The crop tool: a box over the whole photo with handles, ratios and a thirds grid. |
 | `src/crdev.js`, `src/crtables.js` | The Develop engine, a port of PhotoCraft's Camera Raw pipeline, run in Web Workers, plus its measured curve tables. |
 | `src/edpanels.js` | Color Mixer and Color Grading panels. |

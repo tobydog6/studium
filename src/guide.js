@@ -67,6 +67,10 @@
      body:"And the Gallery: your photos hung on a wall at real size, the way a show is planned.",
      btn:"OPEN THE GALLERY", go:function(){ openStudio("gallery"); coStart("gallery"); },
      checks:function(){ return [{t:"Look round the Gallery", ok:coTourDone("gallery")}]; }, tick:function(){ gdTour("gallery", coRoom("gallery")); }},
+    {id:"research", where:"research", title:"Research",
+     body:"Every photographer looks closely at other people's work. Research is where you do it: find the detail in a photograph that pricks you, say why, and take it into your workbook.",
+     btn:"OPEN RESEARCH", go:function(){ openStudio("research"); coStart("research"); },
+     checks:function(){ return [{t:"Play a Punctum round and take one photo into your workbook", ok:coTourDone("research")}]; }, tick:function(){ gdTour("research", coRoom("research")); }},
     {id:"yours", where:"select", title:"Now make it yours",
      body:"Last thing: a folder for your own project, ready for the photos you take next.",
      btn:"OPEN THE LIBRARY", go:function(){ LIB.key="all"; openStudio("select"); coStart("library"); },
@@ -98,6 +102,7 @@
         {k:"f",min:8,label:"f/8 or smaller: on the camera back (Space)"},
         {k:"ev",tol:0.7,label:"Exposure within ⅔ of a stop: shutter or ISO on the camera back"}]}}];
   function gdDemoChallenges(all){ return GD_DEMO_CH.map(function(d){ var c=all.filter(function(x){ return x.id===d.id; })[0]; if(!c) return null; var o={}, k; for(k in c) o[k]=c[k]; for(k in d.over) o[k]=d.over[k]; return o; }).filter(Boolean); }
+  function gdById(id){ return GD_FULL.filter(function(s){ return s.id===id; })[0]; }
   var GD_DEMO=[
     {id:"basics", where:"scene", title:"Welcome to the Stump",
      body:"This is a ten-minute taste of Studium, in a real place scanned in 3D. Before the challenges, a two-minute warm-up: how to move, how to use the camera, and what's in your bag. Just follow the prompts at the bottom of the screen.",
@@ -129,7 +134,7 @@
     {id:"folio", where:"folio", title:"The top of a folio panel",
      body:"Folio boards are big panels filled edge to edge. You'll fill one third with five photos and try its arrangements.",
      btn:"OPEN THE FOLIO", go:GD_FULL[6].go, checks:GD_FULL[6].checks, tick:GD_FULL[6].tick},
-    GD_FULL[7], GD_FULL[8], GD_FULL[9],
+    gdById("book"), gdById("gallery"), gdById("research"), gdById("yours"),
     {id:"done", where:"any", title:"That's the demo",
      body:"Shoot, select, edit, workbook, folio: a photography project from start to finish. Your folder's waiting if you'd like to keep going.",
      btn:"FINISH", final:true, checks:function(){ return []; }}];

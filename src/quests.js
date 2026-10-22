@@ -116,7 +116,9 @@
     if(at>=11) s.boardOpen=now; if(g.flags&&g.flags.synced) s.flags.synced=1; }
 
   // ---- checkpoints: the class's dates, or weeks 3, 6 and 10 from this student's first session ----
-  function qCheckpoints(){ var set=qSet(); return (set.checkpoints||[]).map(function(c){ var d=Q.cps&&Q.cps[c.id];
+  /* the class's dates win (set by the teacher, carried on the plan when synced), then this student's own, then weeks from their start */
+  function qClassCps(){ try{ var w=lsWho(); if(!w||!w.code) return null; var c=lsDB.classes[w.code], p=lsDB.plans[w.code]; return (c&&c.cps)||(p&&p.cps)||null; }catch(e){ return null; } }
+  function qCheckpoints(){ var set=qSet(), cc=qClassCps(); return (set.checkpoints||[]).map(function(c){ var d=(cc&&cc[c.id])||(Q.cps&&Q.cps[c.id]);
       if(!d){ var t=new Date(Q.first||Date.now()); t.setDate(t.getDate()+c.week*7); d=t.getFullYear()+"-"+("0"+(t.getMonth()+1)).slice(-2)+"-"+("0"+t.getDate()).slice(-2); }   /* local date, not UTC */ return {id:c.id, name:c.name, date:d}; }); }
   function qCp(id){ return qCheckpoints().filter(function(c){ return c.id===id; })[0]||null; }
 
@@ -143,6 +145,9 @@
       if(st.every(function(t){ return t.ok; })){ s.done=Date.now(); changed=true; qEmit("complete",{id:id});
         if(x.type==="foundation"&&qFoundations().every(function(f){ return qIsDone(f.id); })&&!Q.boardOpen){ Q.boardOpen=Date.now(); qEmit("board",{}); }
         if(Q.tracked===id) Q.tracked=null; } });
+    /* a teacher can tick a foundation off outright, so the board can also open here */
+    if(!Q.boardOpen&&qFoundations().every(function(f){ return qIsDone(f.id); })){ Q.boardOpen=Date.now(); changed=true; qEmit("board",{}); }
+    if(Q.tracked&&qIsDone(Q.tracked)){ Q.tracked=null; changed=true; }
     if(changed) qSave(); return changed; }
 
   // ---- hooks the rest of Studium calls ----

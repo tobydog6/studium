@@ -152,3 +152,30 @@
   // the hub's "today" and the nav bar's task show the tracked quest when there's no live lesson plan
   var qHubBase=hubRender; hubRender=function(){ qHubBase.apply(this,arguments); var h=$("hub"); if(h) qHubRender(h); };
   var qNavBase=navScene; navScene=function(){ qNavBase.apply(this,arguments); var t=$("navTask"); if(t&&App.is("scene")) qNavTask(t); };
+
+  // ================= teacher side: a student's quests in a few numbers, and where that puts them =================
+  // qSummary goes out with presence; qStanding reads one back against the class's checkpoint dates.
+  function qSummary(){ var t=qTally(), tl={}; Object.keys(t).forEach(function(p){ tl[p]=[t[p].done, t[p].of]; });
+    var tr=Q.tracked&&qGet(Q.tracked), sp=tr?qProgress(Q.tracked):null;
+    return {tracked:Q.tracked||null, title:tr?tr.title:null, step:sp?[sp.done, sp.of]:null, f:qFoundations().filter(function(f){ return qIsDone(f.id); }).length,
+      done:qAll().filter(function(x){ return qIsDone(x.id); }).map(function(x){ return x.id; }), tally:tl, by:Object.keys(Q.quests).filter(function(k){ return Q.quests[k].by==="teacher"; }) }; }
+  function qTallyOf(done){ var t={}; ["context","craft","environment","drive"].forEach(function(p){ t[p]=[0,0]; });
+    qAll().forEach(function(x){ if(x.type==="side") return; qPillars(x).forEach(function(p){ if(!t[p]) return; t[p][1]++; if(done.indexOf(x.id)>=0) t[p][0]++; }); }); return t; }
+  function qIso(d){ return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
+  /* status against the next checkpoint: what's due there (foundations count toward the first), how much of it is done,
+     and how much of the time to it has gone. Anything left from a checkpoint already past is behind. */
+  function qStanding(done, cps, today){ today=today||qIso(new Date()); var set=qSet(), defs=set.checkpoints||[];
+    var due=function(id){ return qAll().filter(function(x){ return x.type!=="side"&&x.checkpoint===id&&!(x.type==="main"&&x.locked&&x.locked()); }); };
+    var start=new Date(cps[0].date+"T00:00"); start.setDate(start.getDate()-(defs[0]?defs[0].week:3)*7);
+    for(var i=0;i<cps.length;i++){ var D=due(cps[i].id), n=D.filter(function(x){ return done.indexOf(x.id)>=0; }).length;
+      if(cps[i].date<today){ if(n<D.length) return {s:"behind", cp:cps[i], n:n, of:D.length, why:(D.length-n)+" left from "+cps[i].name}; continue; }
+      var a=i?new Date(cps[i-1].date+"T00:00"):start, b=new Date(cps[i].date+"T00:00"), now=new Date(today+"T12:00"),
+        e=Math.max(0,Math.min(1,(now-a)/Math.max(1,b-a))), f=D.length?n/D.length:1, s;
+      if(f>=1) s=e<0.8?"ahead":"on"; else if(f>=e-0.15) s="on"; else if(f>=e-0.4) s="close"; else s="behind";
+      return {s:s, cp:cps[i], n:n, of:D.length, e:e}; }
+    return {s:"done", cp:null, n:0, of:0}; }
+  var Q_STANDING={ahead:"AHEAD", on:"ON TRACK", close:"CLOSE", behind:"BEHIND", done:"ALL DONE"};
+  // a teacher's tick: a whole quest, or one step of it, marked done from the teacher's side
+  function qTeacherTick(id, i){ var x=qGet(id); if(!x) return false; var s=Q.quests[id]||(Q.quests[id]={started:Date.now(), base:{photos:photos.length, t:Date.now()}, done:null, stepDone:{}});
+    if(i==null){ if(!s.done){ s.done=Date.now(); s.by="teacher"; qEmit("complete",{id:id}); } } else s.stepDone[i]=true;
+    qSave(); qTick(); return true; }

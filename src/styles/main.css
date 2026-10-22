@@ -2325,3 +2325,41 @@ button.rl::after{content:"";position:absolute;left:0;bottom:0;height:3px;width:1
 .h6-quests{margin-left:14px;background:none;border:1px solid rgba(240,232,214,.18);border-radius:8px;height:40px;padding:0 14px;color:#d8d2c6;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.14em;cursor:pointer}
 .h6-quests:hover{border-color:#e3ad57;color:#e3ad57}
 @media (max-width:760px){.q-cards{grid-template-columns:1fr}}
+/* teacher: quests tab */
+.tc-quests{margin:0 64px;padding-bottom:40px}.tc-quests.hidden{display:none}
+.tc-quests .tc-head p{color:#a69f91;font-size:14px;margin:10px 0 0}
+.tq-cps{display:flex;gap:12px;align-items:flex-end}
+.tq-cps label{display:flex;flex-direction:column;gap:6px}
+.tq-cps label.past .eb{color:#5f594e}
+.tq-cps input{height:34px;padding:0 10px;border-radius:6px;background:#17140f;border:1px solid rgba(240,232,214,.12);color:#f4f1ea;font:500 12.5px 'Geist Mono',ui-monospace,monospace;color-scheme:dark}
+.tq-f{margin-top:26px;display:flex;gap:8px}
+.tq-f .k-on i{background:#8fc7a0}.tq-f .k-close i{background:#e3ad57}.tq-f .k-behind i{background:#e4552e}.tq-f .k-ahead i{background:#c9a7e8}
+.tq-f i{width:7px;height:7px;border-radius:50%}
+.tq-main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:40px;margin-top:18px}
+.tq-rows{display:flex;flex-direction:column}
+.tq-r{display:grid;grid-template-columns:150px minmax(0,1fr) 96px 150px 96px;gap:16px;align-items:center;padding:11px 12px;border:0;border-bottom:1px solid rgba(240,232,214,.07);background:none;color:#f4f1ea;text-align:left;cursor:pointer;font:inherit;border-radius:6px}
+.tq-r:hover{background:rgba(240,232,214,.03)}.tq-r.pick{background:rgba(227,173,87,.07)}
+.tq-r b{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tq-r .wk{font-size:13.5px;color:#d9d3c6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tq-r .wk small{font:500 10.5px 'Geist Mono',monospace;color:#8d8678;margin-left:6px}.tq-r .wk em{color:#6d675b}
+.tq-hd{cursor:default;padding-top:0}.tq-hd:hover{background:none}.tq-hd span{font:500 9.5px 'Geist Mono',monospace;letter-spacing:.14em;color:#6d675b}
+.tq-r .fd{display:flex;gap:4px}.tq-r .fd i{width:12px;height:12px;border-radius:3px;background:#26221a}.tq-r .fd i.on{background:#e3ad57}
+.tq-r .tl{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.tq-bar{height:6px;border-radius:3px;background:#26221a;overflow:hidden}.tq-bar i{display:block;height:100%}
+.tq-bar.context i{background:#c9a7e8}.tq-bar.craft i{background:#e3ad57}.tq-bar.environment i{background:#8fc7a0}.tq-bar.drive i{background:#ef8f74}
+.sd{font:600 10px 'Geist Mono',monospace;letter-spacing:.12em;white-space:nowrap}
+.sd.ahead{color:#c9a7e8}.sd.on{color:#8fc7a0}.sd.close{color:#e3ad57}.sd.behind{color:#e4552e}.sd.done{color:#8fc7a0}
+.tq-side .who .sd{font-size:10px}
+.tq-hint{margin:6px 0 10px;font-size:12.5px;color:#7c7568}
+.tq-list{display:flex;flex-direction:column;gap:2px;max-height:52vh;overflow:auto}
+.tq-q{display:grid;grid-template-columns:1fr auto;align-items:center;border-bottom:1px solid rgba(240,232,214,.06)}
+.tq-q .nm{display:flex;align-items:center;gap:9px;background:none;border:0;color:#f4f1ea;font:inherit;font-size:13.5px;text-align:left;padding:9px 0;cursor:pointer}
+.tq-q .nm small{font:500 9px 'Geist Mono',monospace;letter-spacing:.12em;color:#8d8678}
+.tq-q.dn .nm{color:#7c7568}
+.tq-p{width:8px;height:8px;border-radius:50%;flex:none}.tq-p.context{background:#c9a7e8}.tq-p.craft{background:#e3ad57}.tq-p.environment{background:#8fc7a0}.tq-p.drive{background:#ef8f74}.tq-p.all{background:#f4f1ea}
+.tq-q .ok{font:600 9.5px 'Geist Mono',monospace;letter-spacing:.12em;color:#8fc7a0}
+.tq-q .tk{height:24px;padding:0 10px;border-radius:5px;border:1px solid rgba(240,232,214,.14);background:none;color:#e3ad57;font:600 9.5px 'Geist Mono',monospace;letter-spacing:.12em;cursor:pointer}
+.tq-q .tk:hover{border-color:#e3ad57}
+.tq-steps{grid-column:1/-1;display:flex;flex-direction:column;gap:2px;padding:0 0 10px 17px}
+.tq-steps button{display:flex;gap:9px;align-items:center;background:none;border:0;color:#a69f91;font:inherit;font-size:12.5px;text-align:left;padding:4px 0;cursor:pointer}
+.tq-steps button i{width:12px;height:12px;border-radius:3px;border:1px solid rgba(240,232,214,.25);flex:none}
+.tq-steps button:hover i{border-color:#e3ad57}.tq-steps button.ok{color:#6d675b;cursor:default}.tq-steps button.ok i{background:#8fc7a0;border-color:#8fc7a0}

@@ -32,6 +32,7 @@ create table if not exists presence (    -- where each student is, every 20 s
   student    text not null,
   user_id    uuid default auth.uid(),
   state      text, frames int, picks int, edits int,
+  quest      jsonb,                       -- {tracked, title, step, f, done[], tally, by[]} from qSummary()
   seen_at    timestamptz default now(),
   primary key (class_code, student)
 );
@@ -62,3 +63,8 @@ create policy "student writes self"  on presence for all   using (user_id = auth
 create policy "teacher reads class"  on presence for select using (exists (select 1 from classes c where c.code = presence.class_code and c.teacher_id = auth.uid()));
 create policy "teacher writes notes" on notes   for all    using (exists (select 1 from classes c where c.code = notes.class_code and c.teacher_id = auth.uid()));
 create policy "student reads notes"  on notes   for select using (exists (select 1 from members m where m.class_code = notes.class_code and m.user_id = auth.uid() and m.name = notes.student));
+
+-- quests (added with the quest system). Run on an existing project:
+alter table presence add column if not exists quest jsonb;
+-- A teacher ticking a quest off for a student is a note whose body is "§tick:<quest id>" or "§tick:<quest id>:<step>".
+-- The student's app applies it once and never shows it. Class checkpoint dates ride on the plan body as "cps".

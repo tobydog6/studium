@@ -30,11 +30,15 @@
     function beat(){ if(!on()||busy) return; var w=lsWho(); if(!w||!w.code) return; busy=true;
       var jobs=[];
       if(w.role==="student"){
-        jobs.push(presence({class_code:w.code, student:w.name, state:App.state, frames:photos.length, picks:stPicks().length, edits:lsCount("edits"), seen_at:new Date().toISOString()}));
+        jobs.push(presence({class_code:w.code, student:w.name, state:App.state, frames:photos.length, picks:stPicks().length, edits:lsCount("edits"), quest:(typeof qMode==="function"&&qMode())?qSummary():null, seen_at:new Date().toISOString()}));
         jobs.push(pullPlan(w.code).then(function(p){ if(p){ lsDB.plans[w.code]=p; try{ localStorage.setItem(LS_KEY, JSON.stringify(lsDB)); }catch(e){} } }).catch(function(){}));
         jobs.push(pullNotes(w.code, w.name).then(function(r){ var key=w.code+"/"+w.name, have=lsDB.notes[key]||[];
-          (r||[]).forEach(function(n){ if(!have.some(function(h){ return h.id===n.id; })) have.push({id:n.id, text:n.body, when:new Date(n.created_at).toLocaleDateString("en-NZ",{weekday:"short"}).toUpperCase(), read:false}); });
+          (r||[]).forEach(function(n){ if(have.some(function(h){ return h.id===n.id; })) return;
+            /* "§tick:m3" or "§tick:m3:1" is the teacher ticking a quest or one step off; applied once, never shown as a note */
+            var tk=/^§tick:(\w+)(?::(\d+))?$/.exec(n.body||""); if(tk){ if(typeof qTeacherTick==="function") qTeacherTick(tk[1], tk[2]!=null?+tk[2]:null); have.push({id:n.id, tick:true, read:true, text:""}); return; }
+            have.push({id:n.id, text:n.body, when:new Date(n.created_at).toLocaleDateString("en-NZ",{weekday:"short"}).toUpperCase(), read:false}); });
           lsDB.notes[key]=have; }).catch(function(){})); }
+      if(w.role==="teacher") jobs.push(roster(w.code).then(function(r){ if(typeof tc!=="undefined") tc.remote=r||null; }).catch(function(){}));
       if(w.role==="teacher"&&dirty){ var p=lsDB.plans[w.code]; if(p&&p.sent) jobs.push(pushPlan(p)); dirty=false; }
       Promise.all(jobs).then(function(){ busy=false; },function(){ busy=false; }); }
     if(on()) setInterval(beat, 20000);

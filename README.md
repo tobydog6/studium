@@ -144,7 +144,7 @@ Open `dist/studium.html` in Chrome. Add `?dev` to expose the test hooks (`window
 | `src/index.html` | Page shell: all markup. `@@include x@@` lines pull in the files below. |
 | `src/styles/main.css` | The whole stylesheet. The darkroom tokens live in `:root`. |
 | `src/app.js` | The app: movement, camera sim, menu, editor, save/resume, and the include list for the rest. |
-| `src/engine.js` | Entry for three.js + @mkkellogg/gaussian-splats-3d, bundled by esbuild. |
+| `src/engine.js` | Entry for three.js + Spark 2 (World Labs), bundled by esbuild. |
 | `src/research.js` | Research: Punctum's packs from Supabase, the Punctum round, the Culling Game, into the workbook. |
 | `src/crop.js` | The crop tool: a box over the whole photo with handles, ratios and a thirds grid. |
 | `src/crdev.js`, `src/crtables.js` | The Develop engine, a port of PhotoCraft's Camera Raw pipeline, run in Web Workers, plus its measured curve tables. |
@@ -162,8 +162,7 @@ Open `dist/studium.html` in Chrome. Add `?dev` to expose the test hooks (`window
 In any source file, `asset:path/to/file` becomes a base64 `data:` URI, and `asset-b64:path/to/file` becomes the bare
 base64. Paths are relative to the repo root.
 
-**Pinned engine.** `three@0.160.0`, `@mkkellogg/gaussian-splats-3d@0.4.7` and `esbuild@0.24.2` rebuild the original
-engine byte-for-byte. Upgrade them on purpose, never by accident.
+**Pinned engine.** `three@0.180.0`, `@sparkjsdev/spark@2.3.1` and `esbuild@0.24.2`. Spark streams level of detail, so big scans stay within a per-frame splat budget; lighting runs as a Spark modifier on the GPU, and depth of field is Spark's own.
 
 **Adding a scene.** Put `name.splat` and `name-thumb.jpg` in `assets/scenes/`, then add an entry to `src/scenes.js`
 with `thumb:"asset:assets/scenes/name-thumb.jpg"` and `data:"asset-b64:assets/scenes/name.splat"`.
@@ -176,7 +175,7 @@ with `thumb:"asset:assets/scenes/name-thumb.jpg"` and `data:"asset-b64:assets/sc
 
 ## Credits
 
-- [three.js](https://threejs.org) and [GaussianSplats3D](https://github.com/mkkellogg/GaussianSplats3D) render the scans.
+- [three.js](https://threejs.org) and [Spark](https://github.com/sparkjsdev/spark) by World Labs render the scans, with level of detail.
 - The Develop engine is ported from PhotoCraft (MIT, see `licenses/`).
 - Type is [Fraunces](https://fonts.google.com/specimen/Fraunces), [Geist](https://vercel.com/font) and Courier Prime,
   all under the SIL Open Font License.

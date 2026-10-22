@@ -6,7 +6,7 @@
 //
 // Source conventions
 //   @@include <path>@@   (alone on a line in src/index.html, or inside an included file) is replaced by src/<path>.
-//   @@include engine@@   is replaced by the esbuild bundle of src/engine.js (three + gaussian-splats-3d).
+//   @@include engine@@   is replaced by the esbuild bundle of src/engine.js (three + Spark 2).
 //   asset:<path>         inside any included file becomes a base64 data: URI of <path> (repo-relative).
 //   asset-b64:<path>     becomes the bare base64 of <path> (used for the scene data and Punctum).
 import { readFileSync, writeFileSync, mkdirSync, rmSync, statSync } from 'node:fs';

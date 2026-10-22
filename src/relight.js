@@ -1,11 +1,11 @@
-  // ================= LIGHTING: lights you place, relighting the splats =================
+  // ================= LIGHTING: lights you place, relighting the splats (on the graphics card) =================
   // Splats carry no surfaces, but each one is a stretched blob, and on a surface it flattens like a disc: its thinnest
-  // axis is a good guess at the surface normal. So every splat gets a normal and a "how flat is it" confidence. Each
-  // light (a bare bulb, or a spot with a cone) scales a splat's own colour by how much it faces the light and how far
-  // away it is (inverse square), on top of the daylight. No shadows yet. It recolours on the CPU and re-uploads the
-  // colours, so it updates when something changes, not every frame.
-  var RL={on:false, ready:false, busy:false, N:0, orig:null, P:null, Nrm:null, conf:null, S:1,
-    dusk:1, ambK:6500, exp:0, sunPow:0, sunAz:null, sunEl:40, sunK:5600, ui:false, view:"eye", shadows:true, plan:false, planH:1, lights:[], sel:-1, nid:1, t:0, grid:null};
+  // axis is a good guess at the surface normal, and how flat it is says how far to trust it. A Spark "world modifier"
+  // runs on the GPU for every splat Spark draws (level of detail included): daylight, the sun and up to 8 lights, each
+  // with inverse-square falloff, spot beams, and shadows marched through a density grid of the scan. Changing a light
+  // only changes a few numbers, so lights move live.
+  var RL={on:false, ready:false, busy:false, N:0, P:null, A:null, S:1,
+    dusk:1, ambK:6500, exp:0, sunPow:0, sunAz:null, sunEl:40, sunK:5600, ui:false, view:"eye", shadows:true, plan:false, planH:1, lights:[], sel:-1, nid:1, t:0, grid:null, gpu:null};
   var RL_MAX=8;
   // colour temperature in kelvin to an RGB multiplier, normalised so 6500 K is white (Tanner Helland's fit)
   function rlKelvin(k){ var t=k/100, r, g, b;
@@ -18,94 +18,106 @@
   function rlGel(hex){ var n=parseInt((hex||"#ffffff").slice(1),16); return [(n>>16&255)/255,(n>>8&255)/255,(n&255)/255]; }
   function rlLightRGB(L){ var k=rlRGB(L.k), g=rlGel(L.gel); return [k[0]*g[0],k[1]*g[1],k[2]*g[2]]; }
   function rlHex(c){ var m=Math.max(c[0],c[1],c[2],1e-6); return "#"+c.map(function(v){ return ("0"+Math.round(v/m*255).toString(16)).slice(-2); }).join(""); }
-  function rlMesh(){ return viewer&&viewer.splatMesh; }
   // Bundled scenes are in metres with a walk map. Your own scans have neither (no ground to look up, and any scale: a
   // Spirula scan can be 2 units across), so there the ground is the bottom of the scan and every distance is scaled.
   function rlScale(){ return WK.col?1:Math.max(0.02,Math.min(50,(sceneMaxDim||8)/8)); }
   function rlGround(x,z){ var g=WK.col&&typeof wkGround==="function"?wkGround(x,z):NaN; if(g>-1e8&&g<1e8) return g; return WK.col?camPos.y-1.6:Math.min(boxMin.y,camPos.y-0.2*RL.S); }
 
-  // read every splat once: its centre, a normal from its thinnest axis, and how flat (trustworthy) that axis is
-  function rlPrepare(done){ var mesh=rlMesh(); if(!mesh||!mesh.splatDataTextures||!mesh.splatDataTextures.baseData.colors){ toast("Lighting test: the scan isn't ready yet"); return; }
-    var N=mesh.getSplatCount(), base=mesh.splatDataTextures.baseData; RL.N=N; RL.orig=new Uint8Array(base.colors.subarray(0,N*4)); RL.S=rlScale();
-    RL.P=new Float32Array(N*3); RL.Nrm=new Float32Array(N*3); RL.conf=new Float32Array(N);
-    var c=new THREE.Vector3(), s=new THREE.Vector3(), q=new THREE.Quaternion(), ax=new THREE.Vector3(), i=0;
-    RL.busy=true; rlStatus("Reading "+N.toLocaleString()+" splats…");
-    (function chunk(){ var end=Math.min(N,i+60000);
-      for(;i<end;i++){ mesh.getSplatCenter(i,c,true); mesh.getSplatScaleAndRotation(i,s,q,true);
-        RL.P[i*3]=c.x; RL.P[i*3+1]=c.y; RL.P[i*3+2]=c.z;
-        var sx=Math.abs(s.x), sy=Math.abs(s.y), sz=Math.abs(s.z), k=sx<=sy&&sx<=sz?0:sy<=sz?1:2, mn=Math.min(sx,sy,sz), md=sx+sy+sz-mn-Math.max(sx,sy,sz);
-        ax.set(k===0?1:0,k===1?1:0,k===2?1:0).applyQuaternion(q).normalize();
-        RL.Nrm[i*3]=ax.x; RL.Nrm[i*3+1]=ax.y; RL.Nrm[i*3+2]=ax.z; RL.conf[i]=Math.max(0,Math.min(1,1-mn/Math.max(md,1e-6)*1.4)); }   // a disc is flat: thin axis much smaller than the next
-      if(i<N){ rlStatus("Reading splats… "+Math.round(i/N*100)+"%"); setTimeout(chunk,0); } else { RL.ready=true; RL.busy=false; rlStatus(""); done&&done(); } })(); }
+  // the splat centres and opacities Studium read when the scan loaded
+  function rlPrepare(done){ if(!viewer||!viewer.P||!viewer.mesh){ toast("Lighting: the scan isn't ready yet"); return; }
+    RL.P=viewer.P; RL.A=viewer.A; RL.N=RL.P.length/3; RL.S=rlScale(); rlInstall(); RL.ready=true; RL.busy=false; done&&done(); }
 
-  // ---- shadows: a density grid of the scan ----
-  // Splats have no surfaces to cast shadows with, so the scan becomes a 3D grid of "how much stuff is here" (opacity
-  // per cell, normalised so a typical surface cell is nearly opaque). From each lit splat we march to the light adding
-  // up what it passes through: solid things block, leaves let some light through. Worked out once per light position.
-  function rlGrid(){ if(RL.grid) return RL.grid; var N=RL.N, P=RL.P, o=RL.orig, mn=boxMin, mx=boxMax, pad=0.05*(sceneMaxDim||8);
+  // ---- shadows: a density grid of the scan, uploaded as a 3D texture ----
+  // Opacity per cell, normalised so only the densest cells (solid things) come out near-opaque, blurred twice so shadows
+  // are soft. On the GPU each lit splat marches toward its light through it: solid things block, leaves let light through.
+  function rlGrid(){ if(RL.grid) return RL.grid; var N=RL.N, P=RL.P, A=RL.A, mn=boxMin, mx=boxMax, pad=0.05*(sceneMaxDim||8);
     var x0=mn.x-pad, y0=mn.y-pad, z0=mn.z-pad, ex=mx.x-x0+pad, ey=mx.y-y0+pad, ez=mx.z-z0+pad, cell=Math.max(ex,ey,ez)/200;
-    var nx=Math.max(1,Math.ceil(ex/cell)), ny=Math.max(1,Math.ceil(ey/cell)), nz=Math.max(1,Math.ceil(ez/cell)), raw=new Float32Array(nx*ny*nz), i;
+    var nx=Math.max(2,Math.ceil(ex/cell)), ny=Math.max(2,Math.ceil(ey/cell)), nz=Math.max(2,Math.ceil(ez/cell)), raw=new Float32Array(nx*ny*nz), i;
     for(i=0;i<N;i++){ var gx=((P[i*3]-x0)/cell)|0, gy=((P[i*3+1]-y0)/cell)|0, gz=((P[i*3+2]-z0)/cell)|0;
-      if(gx<0||gy<0||gz<0||gx>=nx||gy>=ny||gz>=nz) continue; raw[(gz*ny+gy)*nx+gx]+=o[i*4+3]/255; }
+      if(gx<0||gy<0||gz<0||gx>=nx||gy>=ny||gz>=nz) continue; raw[(gz*ny+gy)*nx+gx]+=A?A[i]:1; }
     var nzv=[]; for(i=0;i<raw.length;i+=7) if(raw[i]>0) nzv.push(raw[i]); nzv.sort(function(a,b){ return a-b; });
-    var med=nzv.length?nzv[Math.floor(nzv.length*0.8)]:1, k=(RL.shK||0.35)/med;   // only the densest fifth of cells (solid stuff) come out near-opaque
-    // soften by one cell each way so shadows don't come out pixelly
+    var med=nzv.length?nzv[Math.floor(nzv.length*0.8)]:1, k=(RL.shK||0.35)/med;
     var T=new Float32Array(raw.length), a=raw, b=T, d, x, y, z;
     for(d=0;d<6;d++){ var st=d%3===0?1:d%3===1?nx:nx*ny, len=d%3===0?nx:d%3===1?ny:nz;
       for(z=0;z<nz;z++) for(y=0;y<ny;y++) for(x=0;x<nx;x++){ var c=(z*ny+y)*nx+x, q=d%3===0?x:d%3===1?y:z;
         b[c]=a[c]*0.5+(q>0?a[c-st]:0)*0.25+(q<len-1?a[c+st]:0)*0.25; }
       var t=a; a=b; b=t; }
-    for(i=0;i<a.length;i++) a[i]=Math.min(a[i]*k,6);
-    RL.grid={x0:x0,y0:y0,z0:z0,cell:cell,nx:nx,ny:ny,nz:nz,tau:a}; return RL.grid; }
-  // how much light gets from L to splat i (0 = fully shadowed)
-  function rlMarch(G,px,py,pz,L){ var dx=L.x-px, dy=L.y-py, dz=L.z-pz, d=Math.sqrt(dx*dx+dy*dy+dz*dz), c=G.cell, st=c*0.8; if(d<c*2) return 1;
-    dx/=d; dy/=d; dz/=d; var acc=0, tau=G.tau, nx=G.nx, ny=G.ny, nz=G.nz, iv=1/c;
-    for(var t=c*(RL.shOff||3);t<d-c;t+=st){ var fx=(px+dx*t-G.x0)*iv-0.5, fy=(py+dy*t-G.y0)*iv-0.5, fz=(pz+dz*t-G.z0)*iv-0.5, gx=Math.floor(fx), gy=Math.floor(fy), gz=Math.floor(fz);
-      if(gx<0||gy<0||gz<0||gx>=nx-1||gy>=ny-1||gz>=nz-1) break; var ux=fx-gx, uy=fy-gy, uz=fz-gz, o=(gz*ny+gy)*nx+gx, sy=nx, sz=nx*ny;   // trilinear: no blocky cells
-      var v=((tau[o]*(1-ux)+tau[o+1]*ux)*(1-uy)+(tau[o+sy]*(1-ux)+tau[o+sy+1]*ux)*uy)*(1-uz)+((tau[o+sz]*(1-ux)+tau[o+sz+1]*ux)*(1-uy)+(tau[o+sz+sy]*(1-ux)+tau[o+sz+sy+1]*ux)*uy)*uz;
-      acc+=v*0.8; if(acc>4) break; }
-    return 0.22+0.78*Math.exp(-acc); }   // never pitch black: light bounces, so shadows keep some fill
+    var h=new Uint16Array(a.length); for(i=0;i<a.length;i++) h[i]=THREE.DataUtils.toHalfFloat(Math.min(a[i]*k,6));
+    var tex=new THREE.Data3DTexture(h,nx,ny,nz); tex.format=THREE.RedFormat; tex.type=THREE.HalfFloatType; tex.minFilter=tex.magFilter=THREE.LinearFilter;
+    tex.wrapS=tex.wrapT=tex.wrapR=THREE.ClampToEdgeWrapping; tex.unpackAlignment=1; tex.needsUpdate=true;
+    RL.grid={x0:x0,y0:y0,z0:z0,cell:cell,nx:nx,ny:ny,nz:nz,tex:tex}; return RL.grid; }
 
-  // the sun is a light so far away its rays are parallel: march in one direction until we leave the scan (or a few metres)
-  function rlMarchDir(G,px,py,pz,dx,dy,dz){ var c=G.cell, st=c*1.2, acc=0, tau=G.tau, nx=G.nx, ny=G.ny, nz=G.nz, iv=1/c, end=c*70;
-    for(var t=c*(RL.shOff||3);t<end;t+=st){ var fx=(px+dx*t-G.x0)*iv-0.5, fy=(py+dy*t-G.y0)*iv-0.5, fz=(pz+dz*t-G.z0)*iv-0.5, gx=Math.floor(fx), gy=Math.floor(fy), gz=Math.floor(fz);
-      if(gx<0||gy<0||gz<0||gx>=nx-1||gy>=ny-1||gz>=nz-1) break; var ux=fx-gx, uy=fy-gy, uz=fz-gz, o=(gz*ny+gy)*nx+gx, sy=nx, sz=nx*ny;
-      acc+=(((tau[o]*(1-ux)+tau[o+1]*ux)*(1-uy)+(tau[o+sy]*(1-ux)+tau[o+sy+1]*ux)*uy)*(1-uz)+((tau[o+sz]*(1-ux)+tau[o+sz+1]*ux)*(1-uy)+(tau[o+sz+sy]*(1-ux)+tau[o+sz+sy+1]*ux)*uy)*uz)*1.2; if(acc>4) break; }
-    return Math.exp(-acc); }   // no bounce floor here: the daylight (ambient) already fills the shadows
-  function rlSunDir(){ var a=RL.sunAz*Math.PI/180, e=RL.sunEl*Math.PI/180; return [Math.cos(e)*Math.sin(a), Math.sin(e), Math.cos(e)*Math.cos(a)]; }
+  // ---- the GPU side: one Spark modifier for the whole scan ----
+  var RL_GLSL=[
+    "precision highp sampler3D;",
+    "vec3 rlRot(vec4 q, vec3 v){ return v + 2.0*cross(q.xyz, cross(q.xyz, v) + q.w*v); }",
+    "float rlTau(sampler3D G, vec3 p, vec3 o, vec3 inv){ vec3 uv=(p-o)*inv; if(any(lessThan(uv,vec3(0.0)))||any(greaterThan(uv,vec3(1.0)))) return -1.0; return texture(G,uv).r; }",
+    // to a lamp: never pitch black (light bounces), so shadows keep a fifth of the light
+    "float rlMarchP(sampler3D G, vec3 o, vec3 inv, float cell, vec3 p, vec3 L){ vec3 d=L-p; float dist=length(d); if(dist<cell*2.0) return 1.0; d/=dist; float acc=0.0;",
+    "  for(int i=0;i<128;i++){ float t=cell*3.0+float(i)*cell*0.8; if(t>dist-cell) break; float v=rlTau(G,p+d*t,o,inv); if(v<0.0) break; acc+=v*0.8; if(acc>4.0) break; }",
+    "  return 0.22+0.78*exp(-acc); }",
+    // to the sun: parallel rays, out of the scan or a few metres; the daylight fills the shade
+    "float rlMarchD(sampler3D G, vec3 o, vec3 inv, float cell, vec3 p, vec3 d){ float acc=0.0;",
+    "  for(int i=0;i<70;i++){ float t=cell*3.0+float(i)*cell*1.2; float v=rlTau(G,p+d*t,o,inv); if(v<0.0) break; acc+=v*1.2; if(acc>4.0) break; }",
+    "  return exp(-acc); }"].join("\n");
+  function rlInstall(){ if(RL.gpu&&RL.gpu.mesh===viewer.mesh) return; var D=SPARK.dyno, U={}, mesh=viewer.mesh;
+    var dummy=new THREE.Data3DTexture(new Uint16Array([0]),1,1,1); dummy.format=THREE.RedFormat; dummy.type=THREE.HalfFloatType; dummy.needsUpdate=true;
+    var lt=new THREE.DataTexture(new Float32Array(4*4*RL_MAX),4,RL_MAX,THREE.RGBAFormat,THREE.FloatType); lt.needsUpdate=true;
+    U.on=D.dynoFloat(0); U.amb=D.dynoVec3(new THREE.Vector3(1,1,1)); U.cam=D.dynoVec3(new THREE.Vector3());
+    U.sunOn=D.dynoFloat(0); U.sunDir=D.dynoVec3(new THREE.Vector3(0,1,0)); U.sunCol=D.dynoVec3(new THREE.Vector3());
+    U.nl=D.dynoInt(0); U.lt=D.dynoSampler2D(lt); U.is2=D.dynoFloat(1);
+    U.shad=D.dynoFloat(0); U.grid=D.dynoSampler3D(dummy); U.go=D.dynoVec3(new THREE.Vector3()); U.ginv=D.dynoVec3(new THREE.Vector3(1,1,1)); U.cell=D.dynoFloat(1); U.cut=D.dynoFloat(1e30);
+    var types={gsplat:D.Gsplat, on:"float", amb:"vec3", cam:"vec3", sunOn:"float", sunDir:"vec3", sunCol:"vec3", nl:"int", lt:"sampler2D", is2:"float", shad:"float", grid:"sampler3D", go:"vec3", ginv:"vec3", cell:"float", cut:"float"};
+    var mod=D.dynoBlock({gsplat:D.Gsplat},{gsplat:D.Gsplat},function(io){ var ins={gsplat:io.gsplat}; for(var k in U) ins[k]=U[k];
+      var dd=D.dyno({inTypes:types, outTypes:{gsplat:D.Gsplat}, inputs:ins, globals:function(){ return [RL_GLSL]; },
+        statements:function(c){ var i=c.inputs, o=c.outputs.gsplat; return [
+          o+" = "+i.gsplat+";",
+          "if("+i.on+" > 0.5 && isGsplatActive("+o+".flags)){",
+          "  vec3 c="+o+".center; vec3 s=abs("+o+".scales);",
+          "  int k=(s.x<=s.y && s.x<=s.z)?0:((s.y<=s.z)?1:2); vec3 ax=k==0?vec3(1.0,0.0,0.0):(k==1?vec3(0.0,1.0,0.0):vec3(0.0,0.0,1.0));",
+          "  vec3 n=normalize(rlRot("+o+".quaternion, ax));",
+          "  float mn=min(s.x,min(s.y,s.z)), mxv=max(s.x,max(s.y,s.z)), md=s.x+s.y+s.z-mn-mxv; float f=clamp(1.0-mn/max(md,1e-6)*1.4,0.0,1.0);",   // a disc is flat: thin axis much smaller than the next
+          "  if(dot(n,"+i.cam+"-c)<0.0) n=-n;",   // a disc has two sides: take the one you can see
+          "  vec3 Lt="+i.amb+";",
+          "  if("+i.sunOn+">0.5){ float sl=max(dot(n,"+i.sunDir+"),0.0); float ss=sl*f+0.45*(1.0-f); if(ss>0.002){ if("+i.shad+">0.5) ss*=rlMarchD("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c,"+i.sunDir+"); Lt+=ss*"+i.sunCol+"; } }",
+          "  for(int m=0;m<"+RL_MAX+";m++){ if(m>="+i.nl+") break;",
+          "    vec4 la=texelFetch("+i.lt+",ivec2(0,m),0), lb=texelFetch("+i.lt+",ivec2(1,m),0), le=texelFetch("+i.lt+",ivec2(2,m),0), lf=texelFetch("+i.lt+",ivec2(3,m),0);",
+          "    vec3 l=la.xyz-c; float r2=dot(l,l); float d=max(sqrt(r2),1e-6); float lam=max(dot(n,l)/d,0.0); float sh=lam*f+0.45*(1.0-f);",   // blobby splats get a soft half-light
+          "    if(lb.a>0.5){ float ca=-dot(l,le.xyz)/d; if(ca<=le.w) continue; if(ca<lf.x){ float u=(ca-le.w)/(lf.x-le.w); sh*=u*u*(3.0-2.0*u); } }",
+          "    if("+i.shad+">0.5) sh*=rlMarchP("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c,la.xyz);",
+          "    Lt+=sh/(r2*"+i.is2+"+la.w)*lb.rgb; }",
+          "  "+o+".rgba.rgb=min("+o+".rgba.rgb*Lt, vec3(1.0));",
+          "  if(c.y>"+i.cut+") "+o+".rgba.a=0.0;",   // plan view: hide everything above head height
+          "}"]; } });
+      return {gsplat:dd.outputs.gsplat}; });
+    mesh.worldModifier=mod; mesh.updateGenerator(); RL.gpu={mesh:mesh, U:U, lt:lt, dummy:dummy}; }
 
-  // recolour every splat for the current lights, then upload the colours
-  function rlApply(){ if(!RL.ready) return; var mesh=rlMesh(), base=mesh.splatDataTextures.baseData, col=base.colors, o=RL.orig, N=RL.N, P=RL.P, Nm=RL.Nrm, cf=RL.conf;
-    var E=Math.pow(2,RL.exp), A=rlRGB(RL.ambK), D=RL.plan?Math.max(RL.dusk,0.4):RL.dusk, ar=D*A[0]*E, ag=D*A[1]*E, ab=D*A[2]*E, iS2=1/(RL.S*RL.S), ex=camPos.x, ey=camPos.y, ez=camPos.z, t0=performance.now();
-    // flatten the lights that are on into plain numbers for the hot loop
-    var Ls=RL.lights.filter(function(L){ return L.on&&L.power>0; }).map(function(L){ var c=rlLightRGB(L), half=L.cone*Math.PI/360;
-      var key=L.x.toFixed(4)+','+L.y.toFixed(4)+','+L.z.toFixed(4); if(RL.shadows&&(!L.vis||L.vis.length!==N||L.visKey!==key)){ if(!L.vis||L.vis.length!==N) L.vis=new Float32Array(N); L.vis.fill(-1); L.visKey=key; }
-      return {vis:RL.shadows?L.vis:null, x:L.x,y:L.y,z:L.z, r:c[0]*L.power*E, g:c[1]*L.power*E, b:c[2]*L.power*E, soft:L.soft, spot:L.type==="spot", dx:L.dir[0],dy:L.dir[1],dz:L.dir[2], co:Math.cos(half), ci:Math.cos(half*0.7)}; });
-    var SUN=RL.sunPow>0&&RL.sunEl>0, sd=SUN?rlSunDir():null, sc=SUN?rlRGB(RL.sunK):null, sr=SUN?sc[0]*RL.sunPow*E:0, sg=SUN?sc[1]*RL.sunPow*E:0, sb=SUN?sc[2]*RL.sunPow*E:0;
-    var G=RL.shadows&&(Ls.length||SUN)?rlGrid():null, sv=null;
-    if(SUN&&G){ var skey=RL.sunAz.toFixed(1)+","+RL.sunEl.toFixed(1); if(!RL.sunVis||RL.sunVis.length!==N||RL.sunKey!==skey){ if(!RL.sunVis||RL.sunVis.length!==N) RL.sunVis=new Float32Array(N); RL.sunVis.fill(-1); RL.sunKey=skey; } sv=RL.sunVis; }
-    var nL=Ls.length, cut=RL.plan?RL.cutY:1e30;
-    for(var i=0;i<N;i++){ var j=i*3, r=ar, g=ag, b=ab, px=P[j], py=P[j+1], pz=P[j+2], nx=Nm[j], ny=Nm[j+1], nz=Nm[j+2], f=cf[i];
-      if((nL||SUN)&&nx*(ex-px)+ny*(ey-py)+nz*(ez-pz)<0){ nx=-nx; ny=-ny; nz=-nz; }   // a disc has two sides: take the one you can see
-      if(SUN){ var sl=nx*sd[0]+ny*sd[1]+nz*sd[2]; if(sl<0) sl=0; var ss=sl*f+0.45*(1-f); if(ss>0.002){ if(sv){ var vv=sv[i]; if(vv<0) vv=sv[i]=rlMarchDir(G,px,py,pz,sd[0],sd[1],sd[2]); ss*=vv; } r+=ss*sr; g+=ss*sg; b+=ss*sb; } }
-      for(var m=0;m<nL;m++){ var L=Ls[m], lx=L.x-px, ly=L.y-py, lz=L.z-pz, r2=lx*lx+ly*ly+lz*lz, d=Math.sqrt(r2)||1e-6;
-        var lam=(nx*lx+ny*ly+nz*lz)/d; if(lam<0) lam=0; var sh=lam*f+0.45*(1-f);   // blobby splats get a soft half-light
-        if(L.spot){ var ca=-(lx*L.dx+ly*L.dy+lz*L.dz)/d; if(ca<=L.co) continue; if(ca<L.ci){ var u=(ca-L.co)/(L.ci-L.co); sh*=u*u*(3-2*u); } }
-        if(L.vis&&G){ var v=L.vis[i]; if(v<0) v=L.vis[i]=rlMarch(G,px,py,pz,L); sh*=v; }
-        var I=sh/(r2*iS2+L.soft); r+=I*L.r; g+=I*L.g; b+=I*L.b; }
-      var k=i*4; col[k]=Math.min(255,o[k]*r); col[k+1]=Math.min(255,o[k+1]*g); col[k+2]=Math.min(255,o[k+2]*b); col[k+3]=py>cut?0:o[k+3]; }
-    var cc=mesh.splatDataTextures.centerColors; mesh.constructor.updateCenterColorsPaddedData(0,N-1,base.centers,col,cc.data); cc.texture.needsUpdate=true;
+  // push the current lights to the GPU, then ask Spark to re-run the modifier
+  function rlApply(){ if(!RL.ready||!RL.gpu) return; var G0=RL.gpu, U=G0.U, t0=performance.now();
+    var E=Math.pow(2,RL.exp), A=rlRGB(RL.ambK), D=RL.plan?Math.max(RL.dusk,0.4):RL.dusk;
+    U.on.value=1; U.amb.value.set(D*A[0]*E, D*A[1]*E, D*A[2]*E); U.cam.value.set(camPos.x,camPos.y,camPos.z); U.is2.value=1/(RL.S*RL.S);
+    var SUN=RL.sunPow>0&&RL.sunEl>0; U.sunOn.value=SUN?1:0;
+    if(SUN){ var sd=rlSunDir(), sc=rlRGB(RL.sunK); U.sunDir.value.set(sd[0],sd[1],sd[2]); U.sunCol.value.set(sc[0]*RL.sunPow*E, sc[1]*RL.sunPow*E, sc[2]*RL.sunPow*E); }
+    var on=RL.lights.filter(function(L){ return L.on&&L.power>0; }), lt=G0.lt.image.data; lt.fill(0);
+    on.slice(0,RL_MAX).forEach(function(L,m){ var c=rlLightRGB(L), half=L.cone*Math.PI/360, o=m*16;
+      lt.set([L.x,L.y,L.z,L.soft, c[0]*L.power*E,c[1]*L.power*E,c[2]*L.power*E, L.type==="spot"?1:0, L.dir[0],L.dir[1],L.dir[2],Math.cos(half), Math.cos(half*0.7),0,0,0], o); });
+    G0.lt.needsUpdate=true; U.nl.value=Math.min(on.length,RL_MAX);
+    var useG=RL.shadows&&(on.length||SUN); U.shad.value=useG?1:0;
+    if(useG){ var G=rlGrid(); U.grid.value=G.tex; U.go.value.set(G.x0,G.y0,G.z0); U.ginv.value.set(1/(G.nx*G.cell),1/(G.ny*G.cell),1/(G.nz*G.cell)); U.cell.value=G.cell; }
+    U.cut.value=RL.plan?RL.cutY:1e30;
+    G0.mesh.updateVersion();
     if(typeof SKY!=="undefined"&&SKY.mesh) SKY.mesh.material.uniforms.dim.value=Math.max(0.05,Math.min(1,D*E));   // the sky goes down with the daylight
     RL.ms=Math.round(performance.now()-t0); rlMarkers(); rlPlanUI(); rlPanel(); }
-  function rlRestore(){ if(!RL.ready) return; var mesh=rlMesh(), base=mesh.splatDataTextures.baseData; base.colors.set(RL.orig);
-    var cc=mesh.splatDataTextures.centerColors; mesh.constructor.updateCenterColorsPaddedData(0,RL.N-1,base.centers,base.colors,cc.data); cc.texture.needsUpdate=true;
+  function rlRestore(){ if(!RL.gpu) return; RL.gpu.U.on.value=0; RL.gpu.mesh.updateVersion();
     if(typeof SKY!=="undefined"&&SKY.mesh) SKY.mesh.material.uniforms.dim.value=1; }
+  function rlSunDir(){ var a=RL.sunAz*Math.PI/180, e=RL.sunEl*Math.PI/180; return [Math.cos(e)*Math.sin(a), Math.sin(e), Math.cos(e)*Math.cos(a)]; }
 
   // the splat under the crosshair: the nearest one close to the line you're looking down
   function rlPick(){ if(!RL.ready) return null; var f=new THREE.Vector3(); camera.getWorldDirection(f); var P=RL.P, N=RL.N, ox=camPos.x, oy=camPos.y, oz=camPos.z, best=-1, bt=1e30, mt=0.05*RL.S;
     for(var i=0;i<N;i++){ var vx=P[i*3]-ox, vy=P[i*3+1]-oy, vz=P[i*3+2]-oz, t=vx*f.x+vy*f.y+vz*f.z; if(t<mt||t>=bt) continue;
       var p2=vx*vx+vy*vy+vz*vz-t*t, lim=t*0.012+0.004*RL.S; if(p2<lim*lim){ bt=t; best=i; } }
     return best<0?null:{x:P[best*3], y:P[best*3+1], z:P[best*3+2], t:bt}; }
+
   // ---- the kit: real fixtures are presets ----
   var RL_FX={ fresnel:{n:"Fresnel",d:"Hard, warm spot",type:"spot",k:3200,power:12,soft:0.05,cone:35,h:1.6},
     led:{n:"LED panel",d:"Big and soft",type:"bulb",k:5600,power:9,soft:0.6,cone:90,h:1.4},
@@ -197,12 +209,12 @@
     else { var g=rlOnPlane(e,RL.gRef); rlDrag={pan:true, sx:e.clientX, sy:e.clientY, c:{x:RL.planC.x,z:RL.planC.z}, g:g}; }
     window.addEventListener("pointermove",rlPlanMove); window.addEventListener("pointerup",rlPlanUp,{once:true}); }
   function rlPlanMove(e){ if(!rlDrag) return;
-    if(rlDrag.sun){ var g=rlOnPlane(e,RL.gRef), T=RL.target; if(g){ RL.sunAz=((Math.atan2(g.x-T.x,g.z-T.z)*180/Math.PI)%360+360)%360; rlDrag.moved=true; var n2=performance.now(); if(RL.N<1200000&&n2-rlDragT>350){ rlDragT=n2; rlApply(); } } return; }
+    if(rlDrag.sun){ var g=rlOnPlane(e,RL.gRef), T=RL.target; if(g){ RL.sunAz=((Math.atan2(g.x-T.x,g.z-T.z)*180/Math.PI)%360+360)%360; rlDrag.moved=true; rlApply(); } return; }
     if(rlDrag.pan){ var k=RL.planExt*RL.planH/Math.min(innerWidth,innerHeight)*1.15; RL.planC.x=rlDrag.c.x-(e.clientX-rlDrag.sx)*k; RL.planC.z=rlDrag.c.z-(e.clientY-rlDrag.sy)*k; return; }
     var L=rlDrag.L;
     if(rlDrag.aim){ var g=rlOnPlane(e,RL.target.y); if(g) rlAimAt(L,{x:g.x,y:RL.target.y,z:g.z}); }
     else { var p=rlOnPlane(e,L.y); if(p) rlSetPos(L,p.x+rlDrag.ox,p.z+rlDrag.oz); }
-    rlDrag.moved=true; var now=performance.now(); if(RL.N<1200000&&now-rlDragT>250){ rlDragT=now; rlApply(); } }   // big scans relight when you let go
+    rlDrag.moved=true; rlApply(); }   // big scans relight when you let go
   function rlPlanUp(){ window.removeEventListener("pointermove",rlPlanMove); var d=rlDrag; rlDrag=null; if(d&&d.sun){ rlApply(); return; } if(d&&!d.pan){ if(d.moved) RL.moved=(RL.moved||0)+1; rlApply(); } }
 
   // ---- open and close: Lighting is one place. Done keeps your lights; "Natural light" takes them all away ----
@@ -237,7 +249,7 @@
   var rlT=0;
   function rlInput(e){ var k=e.target.getAttribute("data-rl-k"); if(!k) return; var obj=e.target.getAttribute("data-rl-s")==="l"?rlCur():RL; if(!obj) return;
     var v=RL_SL[k][2](+e.target.value); obj[k]=v; var em=e.target.parentNode.querySelector("em"); if(em) em.textContent=rlShow(k,v); if(k==="h") rlSetPos(obj,obj.x,obj.z);
-    clearTimeout(rlT); rlT=setTimeout(rlApply, RL.N>1500000?200:90); }
+    rlApply(); }
   function rlClick(e){ var b=e.target.closest("[data-rl],[data-rl-pick],[data-rl-fx],[data-rl-time],[data-rl-view],[data-rl-gel]"); if(!b) return; e.stopPropagation(); var L=rlCur();
     if(!RL.ready&&!b.hasAttribute("data-rl")) return;
     if(b.hasAttribute("data-rl-fx")) return rlAdd(b.getAttribute("data-rl-fx"));
@@ -250,7 +262,7 @@
     else if(!L) return; else if(a==="onoff"){ L.on=!L.on; rlPlanUI(); rlApply(); }
     else if(a==="del"){ rlDrop(L); RL.lights.splice(RL.sel,1); RL.sel=Math.min(RL.sel,RL.lights.length-1); rlPlanUI(); rlApply(); } }
   // a new scan: everything starts over
-  function rlForget(){ RL.ui=false; RL.plan=false; rlPlanUI(); RL.grid=null; RL.target=null; RL.lights.forEach(rlDrop); RL.lights=[]; RL.sel=-1; RL.on=false; RL.ready=false; RL.orig=null; rlPanel(); }
+  function rlForget(){ RL.ui=false; RL.plan=false; rlPlanUI(); if(RL.grid&&RL.grid.tex) RL.grid.tex.dispose(); RL.grid=null; RL.gpu=null; RL.target=null; RL.lights.forEach(rlDrop); RL.lights=[]; RL.sel=-1; RL.on=false; RL.ready=false; RL.orig=null; rlPanel(); }
   window.addEventListener("keydown",function(e){ if(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName)) return;
     if(RL.ui&&e.code==="Escape"){ e.preventDefault(); e.stopImmediatePropagation(); rlClose(); return; }
     if(e.code==="KeyL"&&loaded&&(App.is("scene")||App.is("viewfinder"))){ e.preventDefault(); rlToggle(); } },true);

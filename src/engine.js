@@ -1,6 +1,6 @@
 // Engine entry: bundled by build.mjs with esbuild into the single HTML file.
-// Pinned versions (package.json) reproduce the original bundle byte-for-byte.
+// three 0.180 + Spark 2 (World Labs): splats with level of detail, so big scans stay within a per-frame budget.
 import * as THREE from 'three';
-import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+import { SparkRenderer, SplatMesh, dyno } from '@sparkjsdev/spark';
 window.THREE = THREE;
-window.GaussianSplats3D = GaussianSplats3D;
+window.Spark = { SparkRenderer, SplatMesh, dyno };

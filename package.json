@@ -11,8 +11,8 @@
     "serve": "node tools/serve.mjs dist/web 8080"
   },
   "devDependencies": {
-    "@mkkellogg/gaussian-splats-3d": "0.4.7",
+    "@sparkjsdev/spark": "2.3.1",
     "esbuild": "0.24.2",
-    "three": "0.160.0"
+    "three": "0.180.0"
   }
 }

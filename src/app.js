@@ -1,6 +1,7 @@
 (function(){
   "use strict";
-  var THREE=window.THREE, GS=window.GaussianSplats3D;
+  var THREE=window.THREE, SPARK=window.Spark;
+  window.addEventListener("unhandledrejection",function(e){ if(/Worker terminate/.test(String(e.reason&&e.reason.message||e.reason))) e.preventDefault(); });
   var $=function(id){return document.getElementById(id);};
 @@include state.js@@
   var viewport=$("viewport"), landing=$("landing"), menu=$("menu"), gallery=$("gallery"),
@@ -8,9 +9,9 @@
       viewfinder=$("viewfinder"), loader=$("loader"), loadmsg=$("loadmsg"), loadsub=$("loadsub"),
       toastEl=$("toast"), photoNum=$("photoNum"), landingNote=$("landingNote"), editor=$("editor");
 
-  if(!THREE||!GS){ landingNote.innerHTML="<b style='color:#ff6b6b'>The 3D engine did not load.</b> Please re-download this file and open it directly in Google Chrome."; return; }
+  if(!THREE||!SPARK){ landingNote.innerHTML="<b style='color:#ff6b6b'>The 3D engine did not load.</b> Please re-download this file and open it directly in Google Chrome."; return; }
 
-  var FMT={ply:GS.SceneFormat.Ply, splat:GS.SceneFormat.Splat, ksplat:GS.SceneFormat.KSplat};
+  var FMT={ply:"ply", splat:"splat", ksplat:"ksplat", spz:"spz"};
   var UPY=new THREE.Vector3(0,1,0);
 
   // ---- camera-sim tables ----
@@ -404,44 +405,34 @@
   // ---- depth: the splats drawn a second time with each one's distance as its colour ----
   // Blended back-to-front like the picture itself, colour divided by coverage gives the distance of what you see at each
   // pixel, so the lens can blur by real distance. Half resolution: blur doesn't need more.
-  var dRT=null, dMat=null, dMatFor=null, dOK=true, afPending=false, _dsz=new THREE.Vector2();
-  function dMaterial(m){ if(dMat&&dMatFor===m) return dMat; var k="vec4 viewCenter = transformModelViewMatrix * vec4(splatCenter, 1.0);", vs=m.vertexShader;
-    if(!vs||vs.indexOf(k)<0||(m.fragmentShader||"").indexOf("vPosition")<0){ dOK=false; return null; }
-    vs=vs.replace("void main","varying float vDep;\nvoid main").replace(k,k+"\nvDep = -viewCenter.z;");
-    var fs="precision highp float;\nvarying vec4 vColor; varying vec2 vPosition; varying float vDep;\nvoid main(){ float A=dot(vPosition,vPosition); if(A>8.0) discard; float o=exp(-0.5*A)*vColor.a; gl_FragColor=vec4(vDep,vDep,vDep,o); }";
-    dMat=new THREE.ShaderMaterial({uniforms:m.uniforms, vertexShader:vs, fragmentShader:fs, transparent:true, blending:THREE.NormalBlending, depthTest:m.depthTest, depthWrite:false, side:m.side});
-    if(m.defines) dMat.defines=m.defines; if(m.extensions) dMat.extensions=m.extensions; dMatFor=m; return dMat; }
-  function dPass(){ if(!dOK||!viewer||!viewer.splatMesh) return false; renderer.getDrawingBufferSize(_dsz); var w=Math.max(1,_dsz.x>>1), h=Math.max(1,_dsz.y>>1);
-    if(!dRT) dRT=new THREE.WebGLRenderTarget(w,h,{type:THREE.HalfFloatType, minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter, depthBuffer:false}); else if(dRT.width!==w||dRT.height!==h) dRT.setSize(w,h);
-    var mesh=viewer.splatMesh, mat=dMaterial(mesh.material); if(!mat) return false; var old=mesh.material;
-    try{ mesh.material=mat; renderer.setRenderTarget(dRT); renderer.setClearColor(0x000000,0); renderer.clear(true,false,false); renderer.render(mesh,camera); }catch(e){ dOK=false; console.warn("depth pass off",e); }
-    mesh.material=old; if(dOK&&afPending){ afPending=false; autoFocus(); } return dOK; }
+  // ---- the lens: Spark blurs every splat by its own distance from the focus plane (real depth of field) ----
+  var dOK=true, afPending=false;
+  function sparkLens(){ var sp=viewer&&viewer.spark; if(!sp) return; var on=viewfinderOn&&loaded&&gDof>0;
+    if(afPending&&on){ afPending=false; autoFocus(); }
+    if(!on){ sp.apertureAngle=0; return; } var sc=sceneScale(), S=focusMetres()*sc, fm=(focalMM||50)/1000*sc, N=APERTURES[apIdx]||8;
+    sp.focalDistance=S; sp.apertureAngle=2*Math.atan(fm/N/2/S)*gDof; }   // the aperture's width, seen from the focus point
   // focus is a distance: the slider and keys move along a log scale, 0.3 m to 18 m (scaled to your own scans)
   function sceneScale(){ return WK.col?1:Math.max(0.02,Math.min(50,(sceneMaxDim||8)/8)); }
   function focusMetres(){ return 0.3*Math.pow(60,focusDist); }
-  function half2f(h){ var sg=(h&0x8000)?-1:1, e=(h>>10)&0x1f, f=h&0x3ff; return e===0?sg*Math.pow(2,-14)*(f/1024):e===31?(f?NaN:sg*Infinity):sg*Math.pow(2,e-15)*(1+f/1024); }
-  // autofocus: the nearest thing in the middle of the frame, like a camera's centre AF point
-  function autoFocus(){ if(!dRT) return; try{ var b=new Uint16Array(4*9), cx=dRT.width>>1, cy=dRT.height>>1, best=1e9; renderer.readRenderTargetPixels(dRT,cx-1,cy-1,3,3,b);
-      for(var i=0;i<9;i++){ var a=half2f(b[i*4+3]); if(a>0.05){ var d=half2f(b[i*4])/a; if(d>0&&d<best) best=d; } }
-      if(best<1e8){ var m=best/sceneScale(); setFocus(Math.log(Math.max(0.3,Math.min(18,m))/0.3)/Math.log(60)); }
-    }catch(e){ console.warn("autofocus",e); } }
+  // autofocus: the nearest splat on the line through the middle of the frame, like a camera's centre AF point
+  function autoFocus(){ var P=viewer&&viewer.P; if(!P) return; var f=new THREE.Vector3(); camera.getWorldDirection(f); var o=camera.position, best=1e30, N=P.length/3, sc=sceneScale(), mt=0.2*sc;
+    for(var i=0;i<N;i++){ var vx=P[i*3]-o.x, vy=P[i*3+1]-o.y, vz=P[i*3+2]-o.z, t=vx*f.x+vy*f.y+vz*f.z; if(t<mt||t>=best) continue; var p2=vx*vx+vy*vy+vz*vz-t*t, lim=t*0.01+0.01*sc; if(p2<lim*lim) best=t; }
+    if(best<1e29){ var m=best/sc; setFocus(Math.log(Math.max(0.3,Math.min(18,m))/0.3)/Math.log(60)); } }
 
   // ---- render ----
   function renderFrame(dt){
-    var tgtE=viewfinderOn?(curBody().optical?1:expMult):1, tgtF=viewfinderOn?1:0, tgtV=viewfinderOn?apVig:0.1, tgtG=viewfinderOn?isoGrain:0, tgtD=viewfinderOn?(dOK?1:dofStrength):0;
+    var tgtE=viewfinderOn?(curBody().optical?1:expMult):1, tgtF=viewfinderOn?1:0, tgtV=viewfinderOn?apVig:0.1, tgtG=viewfinderOn?isoGrain:0, tgtD=0;
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
     renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
-    if(viewer){ try{ viewer.update(); skyFollow(); viewer.render(); chRender(dt); }catch(e){} }
-    var useD=viewfinderOn&&fx.dof>0.01&&loaded&&dPass();
+    if(viewer){ try{ skyFollow(); sparkLens(); renderer.render(scene,camera); chRender(dt); }catch(e){} }
+    var useD=false;
     if(loaded&&dt>0) chTick(dt);
     renderer.setRenderTarget(null);
     fsMat.uniforms.tDiffuse.value=sceneRT.texture;
     fsMat.uniforms.exposure.value=fx.exposure; fsMat.uniforms.filmic.value=fx.filmic;
     fsMat.uniforms.vignette.value=fx.vignette; fsMat.uniforms.grain.value=fx.grain; fsMat.uniforms.dof.value=fx.dof; fsMat.uniforms.focus.value=focusDist;
-    fsMat.uniforms.useDepth.value=useD?1:0; if(useD){ var sc=sceneScale(), S=focusMetres(), bd=curBody(), fm=(focalMM||50)/1000, N=APERTURES[apIdx]||8;
-      fsMat.uniforms.tDepth.value=dRT.texture; fsMat.uniforms.focusD.value=S*sc;
-      fsMat.uniforms.cocK.value=fm*fm/(N*S)/((bd.sensorW||36)/1000)*_sz.x*0.81; }   // circle of confusion in pixels across the frame
+    fsMat.uniforms.useDepth.value=0;
     fsMat.uniforms.gCon.value=gCon; fsMat.uniforms.gSat.value=gSat; fsMat.uniforms.gWarm.value=gWarm+camWarm;
     fsMat.uniforms.gBloom.value=gBloom; fsMat.uniforms.gDof.value=gDof; fsMat.uniforms.gGrain.value=gGrain;
     seedCounter=(seedCounter+1)%9973; fsMat.uniforms.seed.value=seedCounter;
@@ -472,7 +463,7 @@
     var pctVal=function(h,mn,rng,p){ var T=0,k,L=h.length; for(k=0;k<L;k++)T+=h[k]; if(T<=0) return mn+0.5*rng;
       var tgt=T*p,acc=0; for(k=0;k<L;k++){ acc+=h[k]; if(acc>=tgt) return mn+(k+0.5)/L*rng; } return mn+0.5*rng; };
     try{
-      var mesh=viewer&&viewer.splatMesh, N=(mesh&&mesh.getSplatCount)?mesh.getSplatCount():0;
+      var PP=viewer&&viewer.P, N=PP?PP.length/3:0, mesh={getSplatCenter:function(i,v){ v.set(PP[i*3],PP[i*3+1],PP[i*3+2]); }};
       if(N>200){
         var stride=Math.max(1,Math.floor(N/250000)), tmp=new THREE.Vector3(), i;
         var mnx=1e30,mny=1e30,mnz=1e30,mxx=-1e30,mxy=-1e30,mxz=-1e30,cnt=0;
@@ -494,7 +485,7 @@
       }
     }catch(e){ console.warn("robust frame failed",e); }
     if(!robust){
-      try{ var box=viewer.splatMesh.computeBoundingBox(true);
+      try{ var box=new THREE.Box3().setFromObject(viewer.mesh);
         if(box && isFinite(box.min.x) && isFinite(box.max.x)){ box.getCenter(center); box.getSize(size); maxDim=Math.max(size.x,size.y,size.z)||8;
           rmin.copy(box.min); rmax.copy(box.max); }
       }catch(e2){ console.warn("bbox unavailable",e2); }
@@ -508,27 +499,36 @@
   }
 
   function loadSplat(source, up, keepCol){ if(!keepCol){ WK.col=null; skySet(null); CH.spec=null; }
-    var isFile=(source instanceof File), url=source, format;
+    var isFile=(source instanceof File), format;
     if(isFile){ var ext=source.name.split(".").pop().toLowerCase(); format=FMT[ext];
-      if(format===undefined){ toast("Unsupported file. Use a .ply, .splat or .ksplat."); return; } url=URL.createObjectURL(source);
-    } else { var e2=source.split("?")[0].split(".").pop().toLowerCase(); format=(FMT[e2]!==undefined)?FMT[e2]:GS.SceneFormat.Splat; }
-    if(typeof rlForget==="function") rlForget();   // a new scan: the lighting test starts over
+      if(format===undefined){ toast("Unsupported file. Use a .ply, .splat, .ksplat or .spz."); return; }
+    } else { var e2=source.split("?")[0].split(".").pop().toLowerCase(); format=FMT[e2]||"splat"; }
+    if(typeof rlForget==="function") rlForget();   // a new scan: the lighting starts over
     lastSource=source; lastFormat=format; lastUp=up||"yup"; highlightUp(lastUp);
     viewfinderOn=false; viewfinder.classList.remove("on");
     hide(landing); hide(menu); hide(gallery); hide(prompt); showLoader("Loading scene…");
     var q=upQuat(lastUp);
-    var disposeOld=viewer?Promise.resolve(viewer.dispose()).catch(function(){}):Promise.resolve();
-    disposeOld.then(function(){
-      viewer=null; loaded=false; scene=new THREE.Scene(); skyAttach(scene);
-      viewer=new GS.Viewer({selfDrivenMode:false,useBuiltInControls:false,renderer:renderer,camera:camera,threeScene:scene,sharedMemoryForWorkers:false});
-      return viewer.addSplatScene(url,{format:format, rotation:[q.x,q.y,q.z,q.w], showLoadingUI:false, progressiveLoad:false, splatAlphaRemovalThreshold:5, onProgress:function(p,l){updateLoader(p,l);}});
+    if(viewer){ try{ viewer.dispose(); }catch(e){} viewer=null; } loaded=false;
+    (isFile?source.arrayBuffer():fetch(source).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.arrayBuffer(); })).then(function(ab){
+      scene=new THREE.Scene(); skyAttach(scene); showLoader("Building detail levels…");
+      // one Spark renderer for the whole session (its workers stay up); only the scan is swapped
+      var spark=window.__sparkR||(window.__sparkR=new SPARK.SparkRenderer({renderer:renderer})); spark.lodSplatScale=(DETAIL[sceneDetail]||DETAIL.balanced).lod||1; scene.add(spark);
+      // Studium draws into its own buffer and grades in sRGB (like the old engine): Spark would otherwise convert to linear there
+      if(!spark.__srgb){ spark.__srgb=true; var obr=spark.onBeforeRender; spark.onBeforeRender=function(){ obr.apply(spark,arguments); if(spark.uniforms&&spark.uniforms.encodeLinear) spark.uniforms.encodeLinear.value=false; }; }
+      var mesh=new SPARK.SplatMesh({fileBytes:new Uint8Array(ab), fileType:format, lod:true}); mesh.quaternion.copy(q); scene.add(mesh);
+      viewer={spark:spark, mesh:mesh, splatMesh:mesh, P:null, dispose:function(){ scene.remove(mesh); scene.remove(spark); try{ mesh.dispose(); }catch(e){} }};
+      // Spark says "initialized" before its level-of-detail build has the splats ready: wait for them
+      return mesh.initialized.then(function(){ return new Promise(function(res,rej){ var t0=performance.now(); (function poll(){ if(mesh.numSplats>0) return res(); if(performance.now()-t0>180000) return rej(new Error("the scan never finished loading")); setTimeout(poll,100); })(); }); }).then(function(){ mesh.updateMatrixWorld(true);
+        // every splat's centre in world space, once: framing, autofocus and lighting all read it
+        var src=mesh, n=mesh.numSplats, P=new Float32Array(n*3), A=new Float32Array(n), v=new THREE.Vector3();
+        src.forEachSplat(function(i,c,sc,qq,op){ v.copy(c).applyQuaternion(q); P[i*3]=v.x; P[i*3+1]=v.y; P[i*3+2]=v.z; A[i]=op; }); viewer.P=P; viewer.A=A; viewer.q=q.clone(); });
     }).then(function(){
       frameScene(); chAttach(); loaded=true; hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       if(!(typeof gdActive==="function"&&gdActive())) toast("Click to look around · P raises the camera · Space for the menu");   // the guide's first popup covers the controls
     }).catch(function(err){
       console.error("Load failed:",err); hideLoader();
-      if(viewer){ try{viewer.dispose();}catch(e){} viewer=null; } loaded=false; show(landing);
+      if(viewer){ try{ viewer.dispose(); }catch(e){} viewer=null; } loaded=false; show(landing);
       var m=String(err&&err.message||err||"");
       if(/fetch|network|Failed to fetch|CORS/i.test(m)) toast("Couldn't download that sample — check the connection, or load a file from this computer instead.");
       else toast("Couldn't load that splat ("+m.slice(0,80)+")");
@@ -540,7 +540,7 @@
   // Light detail keeps the more solid half of the splats for slower school computers.
   // Scan detail (camera back › Handling): how much of the scan to draw, and at how many pixels. Splats cost most per
   // pixel drawn, so the lighter levels also render a little under the screen's full resolution.
-  var DETAIL={ light:{keep:0.3, dpr:1, label:"LIGHT"}, balanced:{keep:0.55, dpr:1.5, label:"BALANCED"}, full:{keep:1, dpr:2, label:"FULL"}, test:{keep:0.1, dpr:1, label:"TEST"} };
+  var DETAIL={ light:{keep:0.3, dpr:1, lod:0.5, label:"LIGHT"}, balanced:{keep:0.55, dpr:1.5, lod:1, label:"BALANCED"}, full:{keep:1, dpr:2, lod:1.5, label:"FULL"}, test:{keep:0.1, dpr:1, lod:0.3, label:"TEST"} };
   var sceneDetail=(function(){ var v=null; try{ v=localStorage.getItem("studium_detail"); }catch(e){} return DETAIL[v]?v:"balanced"; })();
   function detailDpr(){ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, DETAIL[sceneDetail].dpr)); }
   // Keep the splats that show most: rank by opacity and keep the top share. Faint haze goes first and the small,
@@ -1385,7 +1385,7 @@
     foPack:foPack,foShuffle:foShuffle,foSeed:foSeed,importPhotoFiles:importPhotoFiles,pbExportPDF:pbExportPDF,pbBuildPDF:pbBuildPDF,pbInit:pbInit,updateCamArt:updateCamArt,switchCamTab:switchCamTab,camArtSVG:camArtSVG,gxRender:gxRender,gxBuildLayouts:gxBuildLayouts,gxBindDrag:gxBindDrag,loadSplat:loadSplat,showHub:showHub,openSplatViewer:openSplatViewer,openStudioHome:openStudioHome,openPunctum:openPunctum,photoTip:photoTip,saveSessionNow:saveSessionNow,loadSession:loadSession,clearSession:clearSession,showTutorial:showTutorial,cycleComp:cycleComp,drawComp:drawComp,raiseCamera:raiseCamera,shutter:shutter,get foItems(){return foItems;},get pbPages(){return pbPages;},get foBW(){return foBW;},get foBH(){return foBH;}}; }catch(e){} }
   if(/[?&]dev/.test(location.search)){ window.__ls={db:function(){ return lsDB; }, setClock:function(hm){ var m=/^(\d+):(\d+)$/.exec(hm), d=new Date(); d.setHours(+m[1],+m[2],0,0); lsClockOff=d.getTime()-Date.now(); lsTick(); }, tick:lsTick, who:lsWho, plan:lsPlan, cur:function(){ var p=lsPlan(); return p?lsCur(p):null; }, count:lsCount, moveOpen:lsMoveOpen, pill:function(){ return ls.pill; }, tc:tc, tcPlan:tcPlan, roster:function(){ return tcRoster(tcPlan()); }}; }
   if(/[?&]dev/.test(location.search)) window.__dof={ ap:function(N){ var i=APERTURES.indexOf(N); if(i>=0){ apIdx=i; computeCam(); } }, focus:function(v){ setFocus(v); }, af:function(){ afPending=true; },
-    state:function(){ return {ok:dOK, ready:!!dRT, metres:+focusMetres().toFixed(2), N:APERTURES[apIdx], k:+fsMat.uniforms.cocK.value.toFixed(2), use:fsMat.uniforms.useDepth.value}; } };
+    state:function(){ var sp=viewer&&viewer.spark; var mm=viewer&&viewer.mesh; return {np:viewer&&viewer.P?viewer.P.length/3:-1, ps:mm&&mm.packedSplats?mm.packedSplats.numSplats:-1, ms:mm?mm.numSplats:-1, lod:mm&&mm.lodSplats?mm.lodSplats.numSplats:-1, ok:dOK, ready:!!sp, metres:+focusMetres().toFixed(2), N:APERTURES[apIdx], angle:sp?+sp.apertureAngle.toFixed(5):0, focal:sp?+sp.focalDistance.toFixed(2):0}; } };
   if(/[?&]dev/.test(location.search)){ window.__cb={open:openBack, close:closeBack, tab:cbSetTab, state:function(){ return App.state; },
     cam:function(){ return {ap:APERTURES[apIdx], sh:SHUTTER_LABELS[shIdx], iso:ISOS[isoIdx], ev:+evStops.toFixed(2), mm:focalMM, body:curBody().id, lens:lensId}; }, bag:function(){ return {open:bg.open, stage:bg.stage, body:bg.body, lens:bg.lens, busy:bg.busy}; }, studio:function(){ var bd=function(B){ var d=B.doc_(); return {cur:d.cur, paper:d.paper, pages:d.pages.map(function(p){ return p.items.map(function(it){ return {t:it.t, i:it.pid?stById(it.pid):-1, x:Math.round(it.x), y:Math.round(it.y), w:Math.round(it.w), h:Math.round(B.hOf(it)), hidden:!!it.hidden, locked:!!it.locked, f:it.f||null, text:it.text||null, sec:it.sec||null, pid:it.pid||null, sz:it.sz||1, ch:it.ch!=null?Math.round(it.ch):null}; }); }), sel:B.selected()}; };
       return {open:st.open, room:st.room, cur:st.cur, ws:bd(wsB), fo:bd(foB), book:{size:bk.size, spread:bk.spread, focus:bk.focus, sel:bk.sel, pages:bk.pages.map(function(p){ return {tpl:p.tpl, imgs:p.imgs.map(stById)}; })}}; }, addPhoto:function(p){ p.t=new Date(); photos.push(p); refreshCount(); }, fill:function(){ return foB.fill_(); }, projects:function(){ return (st.projects||[]).map(function(p){ return {name:p.name, n:p.ids.length}; }); }, open_:function(){ return cbOpen; }, photos:photos, fov:function(){ return camera.fov; }, pose:function(o){ if(o){ if(o.x!=null) camPos.x=o.x; if(o.z!=null) camPos.z=o.z; if(o.yaw!=null) yaw=o.yaw; if(o.pitch!=null) pitch=o.pitch; if(o.eye!=null) WK.eye=o.eye; _vel.set(0,0,0); basis(); } return {x:camPos.x, y:camPos.y, z:camPos.z, yaw:yaw, pitch:pitch, eye:WK.eye}; }, dial:function(){ return vfDial; }, focus:function(){ return focusDist; } }; }

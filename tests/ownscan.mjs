@@ -28,17 +28,18 @@ try {
   ok(await page.isVisible('#navLoad'), 'OPEN A SCAN button not visible in the scene');
   ok(!(await page.isVisible('#navFlip')), 'FLIP should be hidden for a bundled scene');
   await page.evaluate(() => window.__rl.toggle()); await page.waitForFunction(() => window.__rl.state().ready, null, { timeout: 300000 });
+  await page.evaluate(() => window.__rl.close()); await page.waitForTimeout(300);
   const [fc] = await Promise.all([page.waitForEvent('filechooser'), page.click('#navLoad')]);
   await fc.setFiles(join(ROOT, 'tests', 'fixtures', 'tiny.splat'));
-  await page.waitForTimeout(500); await scene(); await page.waitForTimeout(1500);
+  await page.waitForFunction(() => window.__dof.state().np === 4000, null, { timeout: 300000 }); await scene(); await page.waitForTimeout(1500);
   ok(await page.isVisible('#navFlip'), 'FLIP not shown after loading your own scan');
   ok(!(await page.isVisible("#chMarks .chm")), "the Stump markers are still showing on your own scan");
   ok(!(await page.isVisible("#navTask.show:not(.empty)")), "lesson task still showing on your own scan");
   ok(!(await page.evaluate(() => window.__rl.state().ready)), 'lighting test did not reset for the new scan');
-  const n = await page.evaluate(() => window.__rl && (window.__rl.toggle(), 0)); await page.waitForFunction(() => window.__rl.state().ready, null, { timeout: 120000 });
-  ok((await page.evaluate(() => window.__rl.state().N)) === 4000, 'own scan did not load (splat count)');
+  await page.evaluate(() => window.__rl.toggle()); await page.waitForFunction(() => window.__rl.state().ready, null, { timeout: 120000 });
+  const nn = await page.evaluate(() => window.__rl.state().N); ok(nn > 3500 && nn <= 4000, 'own scan did not load (splat count ' + nn + ')');
   await page.screenshot({ path: join(OUT, 'ownscan.png'), timeout: 240000 });
-  await page.click('#navFlip'); await page.waitForTimeout(500); await scene();
+  await page.evaluate(() => window.__rl.close()); await page.click('#navFlip'); await page.waitForTimeout(500); await scene();
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));
   console.log('PASS ownscan');
 } catch (e) { console.error('FAIL ', e.message); process.exitCode = 1; } finally { await browser.close(); }

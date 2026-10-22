@@ -30,7 +30,7 @@ try {
     await page.waitForSelector('[data-si="solo"]', { state: 'visible', timeout: 20000 });   // first run: the sign-in screen
     await page.click('[data-si="solo"]');
     await page.waitForSelector('#tileSplat', { state: 'visible', timeout: 20000 });
-    ok(await page.evaluate(() => !!(window.THREE && window.GaussianSplats3D && window.__ed)), 'engine or dev hook missing');
+    ok(await page.evaluate(() => !!(window.THREE && window.Spark && window.__ed)), 'engine or dev hook missing');
   });
   await step('2-scene-picker', async () => {
     await page.click('#tileSplat');

@@ -75,7 +75,7 @@
     stRenderLoupe(); }
   function stRenderLoupe(){ var side=$("st-select").querySelector(".st-loupe"), p=photos[st.cur]; if(!p){ side.innerHTML=""; return; }
     var r=p.rating||0, stars=""; for(var s=1;s<=5;s++) stars+='<button class="st-star'+(s<=r?' on':'')+'" data-st-rate="'+s+'" aria-label="'+s+' stars">★</button>';
-    var picks=stPicks(), brief=activeBrief>=0?BRIEFS[activeBrief]:null, target=(typeof gdActive==="function"&&gdActive())?coPickN():5, slots="";
+    var picks=stPicks(), brief=activeBrief>=0?BRIEFS[activeBrief]:null, target=5, slots="";
     for(var j=0;j<target;j++){ var pi=picks[j]; slots+='<span class="slot'+(pi!=null?' on':'')+'">'+(pi!=null?'<img src="'+photos[pi].url+'" alt="">':'')+'</span>'; }
     side.innerHTML='<div class="lp"><img src="'+p.url+'" alt="Frame '+(st.cur+1)+'"></div>'
       +'<div class="row1"><span class="fn">Frame '+cbPad(st.cur+1)+'</span><span class="ml">'+(p.mm?p.mm+" MM · ":"")+(p.f?"f/"+p.f+" · ":"")+(p.sh||"")+(p.iso?" · ISO "+p.iso:"")+'</span></div>'

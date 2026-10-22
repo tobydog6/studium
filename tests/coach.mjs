@@ -23,17 +23,16 @@ const gdClick = async (k) => { const sel = '#gdPop [data-gd="' + k + '"]'; await
 const ev = (f, a) => page.evaluate(f, a);
 const co = () => ev(() => window.__co.state());
 const shot = (n) => page.screenshot({ path: join(OUT, `coach-${n}.png`), timeout: 240000 });
-const waitStep = (id) => page.waitForFunction((x) => window.__gd.state().id === x && window.__gd.state().open, id, { timeout: 300000, polling: 300 });
 const next = async (i, label) => { await page.waitForFunction((k) => window.__co.state().i > k || window.__co.state().done, i, { timeout: 90000, polling: 200 }).catch(async () => { throw new Error('warm-up stuck at step ' + (i + 1) + ' (' + label + '): ' + JSON.stringify(await co())); }); };
 try {
   await page.goto(pathToFileURL(FILE).href + '?dev');
   await page.waitForSelector('#signin [data-si="demo"]', { state: 'visible', timeout: 60000 });
   await page.click('#signin [data-si="demo"]');
-  await waitStep('basics');
-  ok(!/W A S D/.test(await page.$eval('#gdPop', (e) => e.textContent)), 'no wall of hotkeys on the welcome');
-  await gdClick('go'); await page.waitForTimeout(800);
+  // the demo tracks D1, Step inside; its first step is the warm-up, offered from the quest card's "Show me how"
+  await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene' && window.__q && window.__q.state().tracked === 'd1', null, { timeout: 300000, polling: 300 });
+  await ev(() => { window.__qu.closeAll(); window.__qu.how(); }); await page.waitForTimeout(1200);
   ok(await page.$('#coCard.show'), 'the coach card shows');
-  ok(!(await page.$('#chMarks.show')) && !(await page.$('#gdCard.show')), 'frames and their markers are hidden during the warm-up');
+  ok(!(await page.$('#chMarks.show')) && !(await page.$('#qHud.show')), 'frames and their markers are hidden during the warm-up');
   await page.waitForTimeout(600); await shot('1-look');
   await ev(() => window.__co.nudge({ look: 2 })); await next(0, 'look');
   await ev(() => window.__co.nudge({ walk: 4 })); await next(1, 'walk');
@@ -67,13 +66,13 @@ try {
   await page.click('#coCard [data-co-next]'); await next(18, 'meter card');
   await ev(() => window.__ch.set({ meter: true })); await next(19, 'meter');
   await page.keyboard.press('Space'); await next(20, 'back to the scene');
-  await waitStep('challenges');
-  ok((await co()).done, 'the warm-up is done');
-  ok(!/W A S D/.test(await page.$eval('#gdPop', (e) => e.textContent)), 'the challenges popup is short too');
-  await gdClick('go'); await page.waitForTimeout(1500);
+  await page.waitForFunction(() => window.__co.state().done, null, { timeout: 30000, polling: 300 });
+  ok((await ev(() => window.__q.state().tours)).includes('basics'), 'the warm-up counts toward D1');
+  await page.keyboard.press('KeyP');   // lower the camera: the frames show in the scene, not the viewfinder
+  await page.waitForTimeout(1500);
   ok(await page.$('#chMarks.show'), 'the frames unlock after the warm-up');
   await shot('5-unlocked');
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));
   console.log(`PASS  coach (${FILE})`);
-} catch (e) { console.error('FAIL ', e.message); try { console.error('STATE', JSON.stringify(await page.evaluate(() => ({ gd: window.__gd && window.__gd.state(), co: window.__co && window.__co.state(), pop: !!document.querySelector('#gdPop.show'), top: (() => { const b = document.querySelector('#gdPop [data-gd]'); if (!b) return null; const r = b.getBoundingClientRect(); const e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && (e.id || e.className); })() })))); } catch (e2) {} if (errors.length) console.error(errors.join('\n')); process.exitCode = 1; await shot('fail').catch(() => {}); }
+} catch (e) { console.error('FAIL ', e.message); try { console.error('STATE', JSON.stringify(await page.evaluate(() => ({ co: window.__co && window.__co.state(), pop: !!document.querySelector('#gdPop.show'), top: (() => { const b = document.querySelector('#gdPop [data-gd]'); if (!b) return null; const r = b.getBoundingClientRect(); const e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e && (e.id || e.className); })() })))); } catch (e2) {} if (errors.length) console.error(errors.join('\n')); process.exitCode = 1; await shot('fail').catch(() => {}); }
 finally { await browser.close(); }

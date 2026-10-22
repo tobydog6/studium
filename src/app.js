@@ -533,7 +533,7 @@
     }).then(function(){
       frameScene(); chAttach(); loaded=true; hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
-      if(!(typeof gdActive==="function"&&gdActive())) toast("Click to look around · P raises the camera · Space for the menu");   // the guide's first popup covers the controls
+      toast("Click to look around · P raises the camera · Space for the menu");   // the guide's first popup covers the controls
     }).catch(function(err){
       console.error("Load failed:",err); hideLoader();
       if(viewer){ try{ viewer.dispose(); }catch(e){} viewer=null; } loaded=false; show(landing);
@@ -1022,7 +1022,7 @@
   if($("tutNext")) $("tutNext").onclick=function(){ if(tutI>=TUT.length-1) endTutorial(); else { tutI++; renderTut(); } };
   if($("tutBack")) $("tutBack").onclick=function(){ if(tutI>0){ tutI--; renderTut(); } };
   if($("tutSkip")) $("tutSkip").onclick=endTutorial;
-  if($("btnHelp")) $("btnHelp").onclick=function(){ if(typeof qMode==="function"&&qMode()) qLogOpen(); else gdHelp(); };
+  if($("btnHelp")) $("btnHelp").onclick=function(){ if(typeof qMode==="function"&&qMode()) qLogOpen(); else toast("Click to look around · P raises the camera · Space for the kit"); };
   $("mAp").addEventListener("input",function(){ apIdx=+this.value; computeCam(); });
   $("mSh").addEventListener("input",function(){ shIdx=+this.value; computeCam(); });
   $("mIso").addEventListener("input",function(){ isoIdx=+this.value; computeCam(); });
@@ -1411,7 +1411,6 @@
 
   initCameraUI();
   buildScenePicker();
-  gdStart();
   var bootDemo=/[?&]demo(&|=|$)/.test(location.search)&&!(lsWho()&&lsWho().demo);
   loadSession(function(ok,n){ if(bootDemo){ siShow(); siAct("demo"); return; }   // a ?demo link starts a fresh demo once saved work has loaded (it stays saved)
     if(ok){ if(typeof studioSync==="function") studioSync(); if(lsWho()) toast("Restored your last session · "+n+" photo"+(n>1?"s":"")); } if(App.is("hub")) hubRender(); });

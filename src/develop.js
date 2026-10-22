@@ -54,7 +54,7 @@
     q.forEach(function(i){ var p=photos[i]; if(!p) return; var E=p.dev?devClone(p.dev):defEd(i); for(var s in set) E[s]=set[s];
       if(devIsDefault(E)){ if(p.orig){ p.url=p.orig; delete p.orig; delete p.dev; delete p.baked; p.edited=false; devChanged(p); } return; }
       if(!p.orig) p.orig=p.url; p.dev=devClone(E); p.edited=true; devSyncN++; devQueue(i); });
-    if(!devSyncN) toast("Synced"); if(typeof GD!=="undefined") GD.flags.synced=1; if(!Q.flags.synced) qFlag("synced"); devStrip(); }
+    if(!devSyncN) toast("Synced"); if(!Q.flags.synced) qFlag("synced"); devStrip(); }
   (function wireDevelop(){ var f=$("dvFilm"); if(f) f.addEventListener("click",function(e){ var b=e.target.closest("[data-dv]"); if(b) devClick(+b.getAttribute("data-dv"), e); });
     var b; if((b=$("dvCopy"))) b.onclick=devCopy; if((b=$("dvPaste"))) b.onclick=devPaste; if((b=$("dvSync"))) b.onclick=devSync;
     if((b=$("dvPrev"))) b.onclick=function(){ devStep(-1); }; if((b=$("dvNext"))) b.onclick=function(){ devStep(1); };

@@ -532,7 +532,7 @@
           ps.forEachSplat(function(i,c,sc,qq,op){ v.copy(c).applyQuaternion(q); P[i*3]=v.x; P[i*3+1]=v.y; P[i*3+2]=v.z; A[i]=op; });
           try{ ps.dispose(); }catch(e){} viewer.P=P; viewer.A=A; viewer.q=q.clone(); });
     }).then(function(){
-      frameScene(); chAttach(); loaded=true; updateCamera(0); ptSetup(); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
+      frameScene(); chAttach(); loaded=true; updateCamera(0); ptDispose(); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       toast("Click to look around · P raises the camera · Space for the menu");   // the guide's first popup covers the controls
     }).catch(function(err){
@@ -1137,6 +1137,7 @@
     else if(e.code==="KeyG"){ if(viewfinderOn) cycleComp(); else toggleGrid(); }
     else if(e.code==="KeyX"){ e.preventDefault(); if(loaded) setVertical(!vertical); }
     else if(e.code==="Tab"){ e.preventDefault(); openStudio("select"); }
+    else if(e.code==="KeyT"&&loaded){ e.preventDefault(); ptToggle(); }   // open a portal in front of you (T again closes it)
     else if(e.code==="KeyF"&&viewfinderOn){ e.preventDefault(); afPending="say"; }   // refocus on the middle of the frame
     else if(e.code==="ArrowUp"){ e.preventDefault(); setFocus(focusDist+0.05); }
     else if(e.code==="ArrowDown"){ e.preventDefault(); setFocus(focusDist-0.05); }

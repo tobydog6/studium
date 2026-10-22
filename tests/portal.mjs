@@ -26,21 +26,24 @@ try {
   await page.waitForSelector('.scenecard', { state: 'visible', timeout: 10000 }); await page.click('.scenecard');
   await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 });
   await ev(() => window.__qu.closeAll()); await page.waitForTimeout(3000);
-  const st = await ev(() => window.__pt.state()); console.log(JSON.stringify(st));
-  ok(st.on && st.n === 2, 'two portal ends');
-  await ev(() => window.__pt.face(0, 3.2)); await page.waitForTimeout(12000);
-  ok((await ev(() => window.__pt.state())).live === 0, 'the near end is live');
-  await shot('portal-1-front');
-  await ev(() => window.__pt.face(0, 1.6)); await page.waitForTimeout(2000); await shot('portal-2-close');
-  const before = await ev(() => window.__pt.pos());
-  // walk through: small steps across the disk
-  for (let i = 0; i < 8; i++) { await ev(() => window.__pt.step(0.3));   // one step per drawn frame (software rendering is slow)
-    await page.waitForFunction(() => { const d = window.__pt.dbg(); return d.prev && d.prev.every((v, k) => Math.abs(v - d.cam[k]) < 1e-6); }, null, { timeout: 120000, polling: 200 }); }
-  const after = await ev(() => window.__pt.pos());
-  const e1 = st.ends[1]; const d1 = Math.hypot(after.x - e1.x, after.z - e1.z), d0 = Math.hypot(after.x - st.ends[0].x, after.z - st.ends[0].z);
-  console.log('before', before, 'after', after, 'to far end', d1.toFixed(2), 'to near end', d0.toFixed(2));
-  ok(d1 < d0 && d1 < 2.5, 'walked through to the far end');
-  await page.waitForTimeout(1500); await shot('portal-3-through');
+  ok(!(await ev(() => window.__pt.state())).on, 'no portal until you ask');
+  await page.keyboard.press('KeyT'); await page.waitForTimeout(700);
+  ok((await ev(() => window.__pt.state())).state === 'opening', 'T opens a portal');
+  await shot('portal-0-opening');
+  await page.waitForFunction(() => window.__pt.state().state === 'open', null, { timeout: 120000, polling: 300 });
+  await page.waitForTimeout(9000); await shot('portal-1-open'); await page.waitForTimeout(3000); await shot('portal-1b-open');
+  const st = await ev(() => window.__pt.state()); console.log(JSON.stringify(st)); ok(st.live, 'the far side is showing');
+  // walk through, one step per drawn frame (software rendering is slow)
+  for (let i = 0; i < 12 && (await ev(() => window.__pt.state().state)) !== 'closing'; i++) { await ev(() => window.__pt.step(0.35));
+    await page.waitForFunction(() => { const d = window.__pt.dbg(); return !d.prev || d.prev.every((v, k) => Math.abs(v - d.cam[k]) < 1e-6); }, null, { timeout: 120000, polling: 200 }); }
+  const after = await ev(() => window.__pt.pos()), far = st.far, d = Math.hypot(after.x - far[0], after.z - far[2]);
+  console.log('after', after, 'from the far spot', d.toFixed(2)); ok(d < 1.5, 'walked through to the far spot');
+  ok((await ev(() => window.__pt.state())).state === 'closing', 'it closes behind you');
+  await ev(() => window.__pt.turn(Math.PI)); await page.waitForTimeout(400); await shot('portal-2-closing-behind');
+  await page.waitForFunction(() => !window.__pt.state().on, null, { timeout: 120000, polling: 300 });
+  // T then T: open and close without going through
+  await page.keyboard.press('KeyT'); await page.waitForTimeout(300); await page.keyboard.press('KeyT');
+  await page.waitForFunction(() => !window.__pt.state().on, null, { timeout: 120000, polling: 300 });
   ok(!errors.length, 'page errors: ' + errors.join(' | '));
   console.log('PASS portal');
 } catch (e) { console.error('FAIL', e.message); console.error(errors.join('\n')); process.exitCode = 1; await shot('portal-fail'); }

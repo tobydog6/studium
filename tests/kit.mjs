@@ -29,9 +29,9 @@ try {
   await page.keyboard.press('Digit2'); await page.waitForTimeout(800); const s1 = await state(); console.log('after 2:', s1);
   ok(!(await page.isVisible('#kitMenu.show')), 'kit should close after choosing');
   await page.keyboard.press('Escape'); await page.waitForTimeout(800);
-  await page.keyboard.press('Space'); await page.waitForTimeout(200); await page.keyboard.press('Space'); await page.waitForTimeout(800); const s2 = await state(); console.log('after Space Space:', s2);
+  await page.keyboard.press('Space'); await page.waitForTimeout(200); await page.keyboard.press('Digit1'); await page.waitForTimeout(800); ok((await state()) === 'back', 'Digit1 should open the camera back');
   await page.keyboard.press('Space'); await page.waitForTimeout(800);
-  await page.keyboard.press('Space'); await page.waitForTimeout(200); await page.keyboard.press('Digit4');
+  await page.keyboard.press('Space'); await page.waitForTimeout(200); await page.keyboard.press('Digit3');
   await page.waitForSelector('#rlPlanUI.show', { timeout: 300000 });
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));
   console.log('PASS kit');

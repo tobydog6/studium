@@ -44,38 +44,30 @@
     navRender(); })();
 
   // ================= KIT MENU (Space in the scene) =================
-  // One key for everything you carry: the camera back, the bag, the lights and the lighting plan. Space again (or Enter)
-  // takes the highlighted one, so Space-Space still opens the camera back. B and L stay as shortcuts.
+  // One key for everything you carry: the camera back, the bag and the lights. Space again closes it. B and L stay as shortcuts.
   var KIT={open:false, sel:0};
-  var KIT_ITEMS=[["back","Camera back","SETTINGS · YOUR PHOTOS","1"],["bag","Camera bag","BODIES · LENSES","2"],["lights","Lighting","TIME OF DAY · LIGHTS","3"],["plan","Lighting plan","ARRANGE FROM ABOVE","4"]];
+  var KIT_ITEMS=[["back","Camera back","SETTINGS · YOUR PHOTOS","1"],["bag","Camera bag","BODIES · LENSES","2"],["lights","Lighting","TIME OF DAY · LIGHTS · PLAN","3"]];
   var KIT_ART={
     back:'<img class="ka-back" src="asset:assets/camera/dslr-back.webp" alt="" draggable="false">',
     bag:'<img class="ka-l1" src="asset:assets/bag/lens-2470.webp" alt="" draggable="false"><img class="ka-l2" src="asset:assets/bag/lens-85.webp" alt="" draggable="false"><img class="ka-l3" src="asset:assets/bag/lens-50.webp" alt="" draggable="false">',
-    lights:'<i class="ka-floor"></i><i class="ka-beam"></i><i class="ka-head"></i><i class="ka-stand"></i>',
-    plan:'<svg class="ka-plansvg" viewBox="0 0 200 150" aria-hidden="true"><defs><pattern id="kaGrid" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M12 0H0V12" fill="none" stroke="rgba(227,173,87,.10)" stroke-width=".6"/></pattern></defs><rect width="200" height="150" fill="url(#kaGrid)"/>'
-      +'<path d="M52 38 L104 70 L86 92 Z" fill="rgba(255,226,168,.13)" stroke="rgba(227,173,87,.55)" stroke-width=".8"/><path d="M150 44 L106 74 L118 92 Z" fill="rgba(160,200,255,.10)" stroke="rgba(160,200,255,.45)" stroke-width=".8"/>'
-      +'<circle cx="100" cy="80" r="11" fill="none" stroke="#e3ad57" stroke-width="1.2"/><circle cx="100" cy="80" r="2" fill="#e3ad57"/>'
-      +'<circle cx="52" cy="38" r="5.5" fill="#ffe2a8"/><circle cx="150" cy="44" r="5.5" fill="#a9ccff"/>'
-      +'<path d="M100 132 l-7 11 h14 z" fill="#f4f1ea"/><path d="M100 128 V96" stroke="rgba(244,241,234,.5)" stroke-dasharray="3 3"/>'
-      +'<text x="60" y="30" class="t">KEY</text><text x="132" y="35" class="t">RIM</text><text x="112" y="140" class="t">CAMERA</text></svg>'};
+    lights:'<i class="ka-floor"></i><i class="ka-beam"></i><i class="ka-head"></i><i class="ka-stand"></i>'};
   function kitRender(){ var k=$("kitMenu"); if(!k){ k=document.createElement("div"); k.id="kitMenu"; document.body.appendChild(k);
       k.addEventListener("click",function(e){ var b=e.target.closest("[data-kit]"); if(b){ e.stopPropagation(); kitGo(b.getAttribute("data-kit")); } else if(!e.target.closest(".kit-card")) kitClose(); });
       k.addEventListener("mouseover",function(e){ var b=e.target.closest("[data-kit-i]"); if(b&&+b.getAttribute("data-kit-i")!==KIT.sel){ KIT.sel=+b.getAttribute("data-kit-i"); kitMark(); } }); }
     k.classList.toggle("show",KIT.open); if(!KIT.open) return;
     k.innerHTML='<div class="kit-wrap"><div class="kit-top"><span class="kit-eb">YOUR KIT</span><h2>What do you need?</h2><em>&ldquo;Everything you carry, one key away&rdquo;</em></div>'
       +'<div class="kit-row">'+KIT_ITEMS.map(function(it,i){ return '<button class="kit-card" data-kit="'+it[0]+'" data-kit-i="'+i+'"><div class="kit-art ka-'+it[0]+'">'+KIT_ART[it[0]]+'</div><div class="kit-meta"><b>'+it[1]+'</b><span>'+it[2]+'</span></div><kbd>'+it[3]+'</kbd></button>'; }).join("")+'</div>'
-      +'<div class="kit-foot"><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> Choose</span><span><kbd>Space</kbd> Take the highlighted one</span><span><kbd>Esc</kbd> Back to the scene</span></div></div>';
+      +'<div class="kit-foot"><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> or click to choose</span><span><kbd>Space</kbd> or <kbd>Esc</kbd> back to the scene</span></div></div>';
     kitMark(); }
   function kitMark(){ Array.prototype.forEach.call(document.querySelectorAll("#kitMenu .kit-card"),function(c,i){ c.classList.toggle("on", i===KIT.sel); }); }
   function kitOpen(){ if(!loaded||(typeof st!=="undefined"&&st.open)) return; if(looking) document.exitPointerLock(); KIT.open=true; KIT.sel=0; kitRender(); }
   function kitClose(){ KIT.open=false; kitRender(); }
-  function kitToggle(){ if(KIT.open) kitGo(KIT_ITEMS[KIT.sel][0]); else kitOpen(); }
+  function kitToggle(){ if(KIT.open) kitClose(); else kitOpen(); }
   function kitGo(a){ kitClose();
     if(a==="back") openBack(); else if(a==="bag") openBag();
-    else if(typeof RL!=="undefined"){ if(a==="lights"){ if(!RL.on) rlToggle(); }
-      else if(a==="plan"){ if(!RL.on) rlToggle(); (function wait(){ if(!RL.on) return; if(!RL.ready){ if(!RL.busy) rlPrepare(function(){ rlApply(); }); setTimeout(wait,200); return; } if(!RL.plan) rlPlanToggle(); })(); } }
+    else if(a==="lights"&&typeof rlOpen==="function"){ if(!RL.ui) rlOpen(); }
     navRender(); }
-  window.addEventListener("keydown",function(e){ if(!KIT.open) return; var c=e.code, n={Digit1:0,Digit2:1,Digit3:2,Digit4:3}[c];
+  window.addEventListener("keydown",function(e){ if(!KIT.open) return; var c=e.code, n={Digit1:0,Digit2:1,Digit3:2}[c];
     if(n!=null||c==="Space"||c==="Enter"||c==="Escape"||c==="ArrowLeft"||c==="ArrowRight"||c==="Tab"){ e.preventDefault(); e.stopImmediatePropagation(); } else return;
-    if(n!=null) kitGo(KIT_ITEMS[n][0]); else if(c==="Space"||c==="Enter") kitGo(KIT_ITEMS[KIT.sel][0]); else if(c==="Escape"||c==="Tab") kitClose();
+    if(n!=null) kitGo(KIT_ITEMS[n][0]); else if(c==="Enter") kitGo(KIT_ITEMS[KIT.sel][0]); else if(c==="Escape"||c==="Tab"||c==="Space") kitClose();
     else { KIT.sel=(KIT.sel+(c==="ArrowRight"?1:KIT_ITEMS.length-1))%KIT_ITEMS.length; kitMark(); } },true);

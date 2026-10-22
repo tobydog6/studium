@@ -34,27 +34,31 @@ try {
   ok(!(await page.isVisible('#chMarks.show')), 'HIDE FRAMES did not hide the markers');
   ok((await page.textContent('#navFrames')).includes('SHOW'), 'button should now say SHOW FRAMES');
   // lights
-  await page.keyboard.press('KeyL'); await page.waitForFunction(() => window.__rl.state().ready, null, { timeout: 300000 });
-  await page.waitForSelector('#coCard.show', { timeout: 30000 }); ok(/Lighting/.test(await page.textContent('#coCard')), 'the lighting tour did not start'); await shot('lighting-tour');
+  // open Lighting from the kit: it goes straight to the view from above
+  await page.keyboard.press('Space'); await page.waitForSelector('#kitMenu.show'); await page.keyboard.press('Digit3');
+  await page.waitForFunction(() => window.__rl.state().ready && window.__rl.state().view === 'plan', null, { timeout: 300000 });
+  ok(!(await page.isVisible('#kitMenu.show')), 'kit should close');
+  await page.waitForSelector('#coCard.show', { timeout: 30000 }); ok(/Lighting/.test(await page.textContent('#coCard')), 'the lighting tour did not start');
   await tap('#rlPanel [data-rl-time="night"]');
-  await tap('#rlPanel [data-rl-fx="fresnel"]'); await page.waitForTimeout(300);
-  await page.evaluate(() => window.__rl.light({ gel: '#5aa0ff' }));
-  await tap('#rlPanel [data-rl-fx="led"]'); await page.waitForTimeout(300);
+  await tap('#rlPanel [data-rl-fx="fresnel"]'); await tap('#rlPanel [data-rl-fx="led"]'); await page.waitForTimeout(800);
   ok((await st()).n === 2, 'expected two lights');
-  await tap('#rlPanel [data-rl-pick="0"]'); ok((await st()).sel === 0, 'picking light 1 failed');
-  await tap('#rlPanel [data-rl="dup"]'); ok((await st()).n === 3, 'duplicate failed');
-  await tap('#rlPanel [data-rl="del"]'); ok((await st()).n === 2, 'delete failed');
-  await page.waitForTimeout(1500); await shot('lighting');
-  // plan view: drag light 2 sideways
-  await tap('#rlPanel [data-rl="plan"]'); await page.waitForTimeout(2500);
-  const box = await page.locator('#rlPlanUI .rlp-l[data-i="1"] i').boundingBox(); ok(box, 'no light icon in plan view');
-  const x0 = await page.evaluate(() => window.__rl.dbg().lights[1].x);
-  await page.mouse.move(box.x + 11, box.y + 11); await page.mouse.down(); await page.mouse.move(box.x - 120, box.y + 60, { steps: 4 }); await page.mouse.up();
+  // drag light 1 by its icon
+  const p = await page.evaluate(() => window.__rl.scr(0)); const x0 = (await st()).light.x;
+  await page.mouse.move(p.x + 4, p.y + 3); await page.mouse.down(); await page.mouse.move(p.x - 140, p.y + 50, { steps: 4 }); await page.mouse.up(); await page.waitForTimeout(600);
+  ok(Math.abs((await st()).light.x - x0) > 0.3 && (await st()).moved === 1, 'dragging a light did not move it');
+  // pan: drag empty ground, then WASD
+  const c0 = (await st()).planC; await page.mouse.move(300, 450); await page.mouse.down(); await page.mouse.move(420, 520, { steps: 3 }); await page.mouse.up();
+  const c1 = (await st()).planC; ok(Math.hypot(c1.x - c0.x, c1.z - c0.z) > 0.2, 'dragging the ground did not pan');
+  await page.keyboard.down('KeyD'); await page.waitForTimeout(5000); await page.keyboard.up('KeyD');
+  ok((await st()).planC.x > c1.x + 0.05, 'D did not pan');
   await page.waitForTimeout(2500); await shot('lighting-plan');
-  ok(Math.abs((await page.evaluate(() => window.__rl.dbg().lights[1].x)) - x0) > 0.5, 'dragging in plan view did not move the light');
-  await page.keyboard.press('Escape'); await page.waitForTimeout(500);
-  ok(!(await page.isVisible('#rlPlanUI.show')), 'Esc did not leave plan view');
-  await tap('#rlPanel [data-rl="reset"]'); ok((await st()).n === 0, 'reset failed');
+  await tap('#rlPanel [data-rl-view="eye"]'); await page.waitForTimeout(2500); await shot('lighting');
+  await tap('#rlPanel [data-rl="done"]'); await page.waitForTimeout(300);
+  ok(!(await page.isVisible('#rlPanel.show')) && (await st()).on && (await st()).n === 2, 'Done should close the panel and keep the lights');
+  await page.keyboard.press('Space'); await page.waitForSelector('#kitMenu.show'); await page.keyboard.press('Space'); await page.waitForTimeout(300);
+  ok(!(await page.isVisible('#kitMenu.show')) && (await page.evaluate(() => window.__cb.state())) === 'scene', 'Space should close the kit, not open the camera back');
+  await page.keyboard.press('KeyL'); await page.waitForSelector('#rlPanel.show'); await tap('#rlPanel [data-rl="natural"]');
+  ok((await st()).n === 0 && !(await st()).on, 'Natural light should clear the lights');
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));
   console.log('PASS lighting');
 } catch (e) { console.error('FAIL ', e.message); await shot('lighting-fail').catch(()=>{}); process.exitCode = 1; } finally { await browser.close(); }

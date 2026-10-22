@@ -47,17 +47,26 @@
   // One key for everything you carry: the camera back, the bag, the lights and the lighting plan. Space again (or Enter)
   // takes the highlighted one, so Space-Space still opens the camera back. B and L stay as shortcuts.
   var KIT={open:false, sel:0};
-  var KIT_ITEMS=[["back","CAMERA BACK","Settings and your photos","1"],["bag","CAMERA BAG","Bodies and lenses","2"],["lights","LIGHTING","Time of day and lights","3"],["plan","LIGHTING PLAN","Arrange lights from above","4"]];
-  var KIT_ICONS={back:'<rect x="3" y="6" width="18" height="13" rx="2"/><circle cx="12" cy="12.5" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/>',
-    bag:'<path d="M4 8h16v11H4z"/><path d="M9 8V5h6v3"/><path d="M4 12h16"/>',
-    lights:'<circle cx="12" cy="10" r="4"/><path d="M12 2v2M4.2 4.2l1.4 1.4M2 10h2M20 10h2M18.4 4.2l-1.4 1.4M10 17h4M10.5 20h3"/>',
-    plan:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8" cy="9" r="1.8"/><circle cx="16" cy="14" r="1.8"/><path d="M8 9l6 4"/><path d="M12 21v-4"/>'};
+  var KIT_ITEMS=[["back","Camera back","SETTINGS · YOUR PHOTOS","1"],["bag","Camera bag","BODIES · LENSES","2"],["lights","Lighting","TIME OF DAY · LIGHTS","3"],["plan","Lighting plan","ARRANGE FROM ABOVE","4"]];
+  var KIT_ART={
+    back:'<img class="ka-back" src="asset:assets/camera/dslr-back.webp" alt="" draggable="false">',
+    bag:'<img class="ka-l1" src="asset:assets/bag/lens-2470.webp" alt="" draggable="false"><img class="ka-l2" src="asset:assets/bag/lens-85.webp" alt="" draggable="false"><img class="ka-l3" src="asset:assets/bag/lens-50.webp" alt="" draggable="false">',
+    lights:'<i class="ka-floor"></i><i class="ka-beam"></i><i class="ka-head"></i><i class="ka-stand"></i>',
+    plan:'<svg class="ka-plansvg" viewBox="0 0 200 150" aria-hidden="true"><defs><pattern id="kaGrid" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M12 0H0V12" fill="none" stroke="rgba(227,173,87,.10)" stroke-width=".6"/></pattern></defs><rect width="200" height="150" fill="url(#kaGrid)"/>'
+      +'<path d="M52 38 L104 70 L86 92 Z" fill="rgba(255,226,168,.13)" stroke="rgba(227,173,87,.55)" stroke-width=".8"/><path d="M150 44 L106 74 L118 92 Z" fill="rgba(160,200,255,.10)" stroke="rgba(160,200,255,.45)" stroke-width=".8"/>'
+      +'<circle cx="100" cy="80" r="11" fill="none" stroke="#e3ad57" stroke-width="1.2"/><circle cx="100" cy="80" r="2" fill="#e3ad57"/>'
+      +'<circle cx="52" cy="38" r="5.5" fill="#ffe2a8"/><circle cx="150" cy="44" r="5.5" fill="#a9ccff"/>'
+      +'<path d="M100 132 l-7 11 h14 z" fill="#f4f1ea"/><path d="M100 128 V96" stroke="rgba(244,241,234,.5)" stroke-dasharray="3 3"/>'
+      +'<text x="60" y="30" class="t">KEY</text><text x="132" y="35" class="t">RIM</text><text x="112" y="140" class="t">CAMERA</text></svg>'};
   function kitRender(){ var k=$("kitMenu"); if(!k){ k=document.createElement("div"); k.id="kitMenu"; document.body.appendChild(k);
-      k.addEventListener("click",function(e){ var b=e.target.closest("[data-kit]"); if(b){ e.stopPropagation(); kitGo(b.getAttribute("data-kit")); } else if(e.target===k) kitClose(); });
-      k.addEventListener("mousemove",function(e){ var b=e.target.closest("[data-kit-i]"); if(b&&+b.getAttribute("data-kit-i")!==KIT.sel){ KIT.sel=+b.getAttribute("data-kit-i"); kitRender(); } }); }
+      k.addEventListener("click",function(e){ var b=e.target.closest("[data-kit]"); if(b){ e.stopPropagation(); kitGo(b.getAttribute("data-kit")); } else if(!e.target.closest(".kit-card")) kitClose(); });
+      k.addEventListener("mouseover",function(e){ var b=e.target.closest("[data-kit-i]"); if(b&&+b.getAttribute("data-kit-i")!==KIT.sel){ KIT.sel=+b.getAttribute("data-kit-i"); kitMark(); } }); }
     k.classList.toggle("show",KIT.open); if(!KIT.open) return;
-    k.innerHTML='<div class="kit-card"><div class="kit-h">KIT</div><div class="kit-row">'+KIT_ITEMS.map(function(it,i){ return '<button data-kit="'+it[0]+'" data-kit-i="'+i+'" class="'+(i===KIT.sel?'on':'')+'"><svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true">'+KIT_ICONS[it[0]]+'</svg><b>'+it[1]+'</b><span>'+it[2]+'</span><kbd>'+it[3]+'</kbd></button>'; }).join("")+'</div>'
-      +'<p class="kit-f"><kbd>1</kbd>–<kbd>4</kbd> or click · <kbd>Space</kbd> takes the highlighted one · <kbd>Esc</kbd> closes</p></div>'; }
+    k.innerHTML='<div class="kit-wrap"><div class="kit-top"><span class="kit-eb">YOUR KIT</span><h2>What do you need?</h2><em>&ldquo;Everything you carry, one key away&rdquo;</em></div>'
+      +'<div class="kit-row">'+KIT_ITEMS.map(function(it,i){ return '<button class="kit-card" data-kit="'+it[0]+'" data-kit-i="'+i+'"><div class="kit-art ka-'+it[0]+'">'+KIT_ART[it[0]]+'</div><div class="kit-meta"><b>'+it[1]+'</b><span>'+it[2]+'</span></div><kbd>'+it[3]+'</kbd></button>'; }).join("")+'</div>'
+      +'<div class="kit-foot"><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> Choose</span><span><kbd>Space</kbd> Take the highlighted one</span><span><kbd>Esc</kbd> Back to the scene</span></div></div>';
+    kitMark(); }
+  function kitMark(){ Array.prototype.forEach.call(document.querySelectorAll("#kitMenu .kit-card"),function(c,i){ c.classList.toggle("on", i===KIT.sel); }); }
   function kitOpen(){ if(!loaded||(typeof st!=="undefined"&&st.open)) return; if(looking) document.exitPointerLock(); KIT.open=true; KIT.sel=0; kitRender(); }
   function kitClose(){ KIT.open=false; kitRender(); }
   function kitToggle(){ if(KIT.open) kitGo(KIT_ITEMS[KIT.sel][0]); else kitOpen(); }
@@ -69,4 +78,4 @@
   window.addEventListener("keydown",function(e){ if(!KIT.open) return; var c=e.code, n={Digit1:0,Digit2:1,Digit3:2,Digit4:3}[c];
     if(n!=null||c==="Space"||c==="Enter"||c==="Escape"||c==="ArrowLeft"||c==="ArrowRight"||c==="Tab"){ e.preventDefault(); e.stopImmediatePropagation(); } else return;
     if(n!=null) kitGo(KIT_ITEMS[n][0]); else if(c==="Space"||c==="Enter") kitGo(KIT_ITEMS[KIT.sel][0]); else if(c==="Escape"||c==="Tab") kitClose();
-    else { KIT.sel=(KIT.sel+(c==="ArrowRight"?1:KIT_ITEMS.length-1))%KIT_ITEMS.length; kitRender(); } },true);
+    else { KIT.sel=(KIT.sel+(c==="ArrowRight"?1:KIT_ITEMS.length-1))%KIT_ITEMS.length; kitMark(); } },true);

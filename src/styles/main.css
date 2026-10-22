@@ -2259,3 +2259,8 @@ button.rl::after{content:"";position:absolute;left:0;bottom:0;height:3px;width:1
 #kitMenu .kit-foot{display:flex;justify-content:center;gap:34px;margin-top:34px;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.14em;color:#6f695d;text-transform:uppercase}
 #kitMenu .kit-foot kbd{font-family:inherit;font-size:10px;color:#d8d2c6;background:#1d1a15;border:1px solid rgba(240,232,214,.14);border-bottom-width:2px;border-radius:5px;padding:2px 7px;margin-right:4px}
 @media (max-width:900px){#kitMenu .kit-row{grid-template-columns:repeat(2,1fr)}#kitMenu .kit-art{height:22vh}#kitMenu .kit-foot{flex-wrap:wrap;gap:14px}}
+#rlPanel .rl-sun{margin-top:6px}
+#rlPlanUI .rlp-sun{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none}
+#rlPlanUI .rlp-sun i{position:absolute;left:-17px;top:-17px;width:34px;height:34px;border-radius:50%;background:radial-gradient(circle,#fff3d0 30%,#f2b54e 62%,rgba(242,181,78,0) 72%);box-shadow:0 0 26px 8px rgba(242,181,78,.45)}
+#rlPlanUI .rlp-sun span{position:absolute;left:-20px;top:20px;width:40px;text-align:center;font-family:'Geist Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.16em;color:#f2b54e;text-shadow:0 1px 3px #000}
+#rlPlanUI svg line.sun{stroke:rgba(242,181,78,.55);stroke-width:1.2;stroke-dasharray:2 5}

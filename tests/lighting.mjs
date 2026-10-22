@@ -39,6 +39,8 @@ try {
   await page.waitForFunction(() => window.__rl.state().ready && window.__rl.state().view === 'plan', null, { timeout: 300000 });
   ok(!(await page.isVisible('#kitMenu.show')), 'kit should close');
   await page.waitForSelector('#coCard.show', { timeout: 30000 }); ok(/Lighting/.test(await page.textContent('#coCard')), 'the lighting tour did not start');
+  await tap('#rlPanel [data-rl-time="golden"]'); await page.waitForTimeout(500);
+  ok((await st()).sunPow > 0 && await page.$('#rlPanel .rl-sun') && await page.$('#rlPlanUI .rlp-sun'), 'golden hour should bring the sun, its sliders and its handle');
   await tap('#rlPanel [data-rl-time="night"]');
   await tap('#rlPanel [data-rl-fx="fresnel"]'); await tap('#rlPanel [data-rl-fx="led"]'); await page.waitForTimeout(800);
   ok((await st()).n === 2, 'expected two lights');

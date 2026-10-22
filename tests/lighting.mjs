@@ -35,6 +35,7 @@ try {
   ok((await page.textContent('#navFrames')).includes('SHOW'), 'button should now say SHOW FRAMES');
   // lights
   await page.keyboard.press('KeyL'); await page.waitForFunction(() => window.__rl.state().ready, null, { timeout: 300000 });
+  await page.waitForSelector('#coCard.show', { timeout: 30000 }); ok(/Lighting/.test(await page.textContent('#coCard')), 'the lighting tour did not start'); await shot('lighting-tour');
   await tap('#rlPanel [data-rl-time="night"]');
   await tap('#rlPanel [data-rl-fx="fresnel"]'); await page.waitForTimeout(300);
   await page.evaluate(() => window.__rl.light({ gel: '#5aa0ff' }));

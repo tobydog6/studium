@@ -151,22 +151,18 @@ try {
   ok(await page.$('#st-research .rs-pack'), 'the packs come from Supabase');
   ok(/Test photographer/.test(await page.$eval('#st-research', (e) => e.textContent)), 'the pack is named');
   await gotIt(); await at('research', 1);
-  await page.click('#st-research [data-rs-act="round"]'); await at('research', 2);
-  await page.click('#st-research [data-rs-act="no"]'); await page.waitForTimeout(200);
-  await page.click('#st-research [data-rs-act="yes"]'); await at('research', 3);
-  { const w = await (await page.$('#st-research .rs-stage .rs-imgw')).boundingBox(); await page.mouse.click(w.x + w.width * 0.4, w.y + w.height * 0.6); }
-  await at('research', 4); await shot('12b-punctum');
-  await page.fill('#st-research [data-rs-note="note"]', 'The bright ivy leaf on the dark stump.'); await at('research', 5);
-  await page.click('#st-research [data-rs-act="next"]');
-  while (await ev(() => window.__rs.state().view === 'round')) { await page.click('#st-research [data-rs-act="no"]'); await page.waitForTimeout(150); }
-  await at('research', 6); await page.waitForTimeout(300); await shot('12c-results');
-  ok(/1 of 2 caught/.test(await page.$eval('#st-research .rs-res', (e) => e.textContent)), 'the class numbers come back');
-  ok(posted.some((p) => p.table === 'responses' && p.rows.length === 4) && posted.some((p) => p.table === 'punctum_picks' && /ivy leaf/.test(p.rows[0].note)), 'the round is saved to Punctum: ' + JSON.stringify(posted.map((p) => p.table)));
-  await page.click('#st-research .rs-wb');
+  await page.$eval('#st-research [data-rs-act="cull"]', (b) => b.click()); await at('research', 2);
+  while (await ev(() => window.__rs.state().view === 'cull')) { await page.$eval('#st-research [data-rs-act="pick"]', (b) => b.click()); await page.waitForTimeout(150); }
+  await at('research', 3); await shot('12b-cull');
+  ok(posted.some((p) => p.table === 'cullings'), 'the culling game is saved to Punctum: ' + JSON.stringify(posted.map((p) => p.table)));
+  await page.$eval('#st-research [data-rs-act="mood"]', (b) => b.click()); await at('research', 4);
+  for (let i = 1; i <= 4; i++) await page.$eval(`#st-research .rs-mt:nth-child(${i})`, (b) => b.click());
+  await at('research', 5); await shot('12c-mood');
+  await page.$eval('#st-research [data-rs-act="moodmake"]', (b) => b.click());
   await page.waitForFunction(() => window.__cb.studio().room === 'workshop', null, { timeout: 20000 });
-  const art = await ev(() => window.__cb.studio().ws.pages.slice(-1)[0]);
-  ok(art.some((i) => i.t === 'photo') && art.some((i) => i.t === 'line') && art.some((i) => /ivy leaf/.test(i.text || '')), 'an Artist model page with the photo, an arrow and the answer: ' + JSON.stringify(art.map((i) => i.t)));
-  await page.waitForTimeout(500); await shot('12d-artist-page');
+  const mood = await ev(() => window.__cb.studio().ws.pages.slice(-1)[0]);
+  ok(mood.filter((i) => i.t === 'photo').length === 4 && mood.some((i) => /Photographs:/.test(i.text || '')), 'a moodboard page with four photos and credits: ' + JSON.stringify(mood.map((i) => i.t)));
+  await page.waitForTimeout(500); await shot('12d-mood-page');
 
   // ---- A folder of their own ----
   await waitStep('yours'); await gdClick('go'); await at('library', 0);

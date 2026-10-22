@@ -168,10 +168,11 @@
     if(rlDrag.aim){ var g=rlOnPlane(e,L.g); if(g) rlAimAt(L,{x:g.x,y:L.g+0.3*S,z:g.z}); }
     else { var p=rlOnPlane(e,L.y); if(p){ L.x=p.x; L.z=p.z; L.g=rlGround(L.x,L.z); L.y=L.g+L.h*S; } }
     var now=performance.now(); if(RL.N<1200000&&now-rlDragT>300){ rlDragT=now; rlApply(); } }   // big scans relight when you let go
-  function rlPlanUp(){ window.removeEventListener("pointermove",rlPlanMove); rlDrag=null; rlApply(); }
+  function rlPlanUp(){ window.removeEventListener("pointermove",rlPlanMove); rlDrag=null; RL.moved=(RL.moved||0)+1; rlApply(); }
   window.addEventListener("keydown",function(e){ if(RL.plan&&e.code==="Escape"){ e.preventDefault(); e.stopImmediatePropagation(); rlPlanToggle(); } },true);
 
-  function rlToggle(){ if(RL.on&&RL.plan) rlPlanToggle(); RL.on=!RL.on; if(RL.on){ rlPanel(); if(!RL.ready) rlPrepare(function(){ rlApply(); }); else rlApply(); }
+  function rlToggle(){ if(RL.on&&RL.plan) rlPlanToggle(); RL.on=!RL.on;
+    if(RL.on&&typeof coStart==="function"&&!CO.on){ var seen="1"; try{ seen=localStorage.getItem("studium_lighttour"); localStorage.setItem("studium_lighttour","1"); }catch(e){} if(seen!=="1"){ GD.flags.col=0; coStart("lighting"); } } if(RL.on){ rlPanel(); if(!RL.ready) rlPrepare(function(){ rlApply(); }); else rlApply(); }
     else { rlRestore(); rlMarkers(); rlPanel(); } }
   function rlReset(){ RL.lights.forEach(rlDrop); RL.lights=[]; RL.sel=-1; RL.dusk=0.25; RL.ambK=6500; RL.exp=0; rlApply(); }
   function rlStatus(t){ RL.status=t; rlPanel(); }

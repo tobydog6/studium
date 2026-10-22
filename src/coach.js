@@ -248,20 +248,33 @@
       {ch:"TITLE", line:function(){ return '<b>Drag prints</b> along the wall to hang your show'; }, sub:"Spacing and sequence tell the story.",
         target:'#st-gallery .ga-hang', info:true}]},
     research:{where:function(){ return coRoom("research"); }, steps:[
-      {ch:"LOOK", line:function(){ return '<b>Research</b>: look closely at other photographers'; }, sub:"Each pack is one photographer or idea. The Punctum round asks what pricks you.",
+      {ch:"LOOK", line:function(){ return '<b>Research</b>: look closely at other photographers'; }, sub:"Each pack is one photographer or idea. Start with one Culling Game: it's quick.",
         target:'#st-research .rs-shelf', info:true},
-      {ch:"LOOK", line:function(){ return 'Start a <b>Punctum round</b>'; }, sub:"",
-        target:'#st-research [data-rs-act="round"]', done:function(){ return rs.view==="round"; }},
-      {ch:"PUNCTUM", line:function(){ return 'When something in a photo <b>pricks you</b>, say so'; }, sub:"A small detail that catches you, not just the subject. Pass on the ones that don't.",
-        target:'#st-research .rs-yn', nodim:true, place:"low", done:function(){ var r=rs.round; return !!r&&Object.keys(r.struck).some(function(k){ return r.struck[k]; }); }},
-      {ch:"PUNCTUM", line:function(){ return '<b>Tap the detail</b> right on the photograph'; }, sub:"",
-        target:'#st-research .rs-imgw', nodim:true, place:"low", start:function(){ CO.s.t=rs.taps||0; }, done:function(){ return (rs.taps||0)>CO.s.t; }},
-      {ch:"WHY", line:function(){ return '<b>Say why</b> it caught you'; }, sub:"Name the detail first. The other two are there if you've got more to say.",
-        target:'#st-research [data-rs-note="note"]', nodim:true, place:"low", done:function(){ var r=rs.round; if(!r) return false; var im=r.imgs[Math.min(r.k,r.imgs.length-1)], n=r.notes[im.id]; return !!(n&&String(n.note||"").trim().length>=10); }},
-      {ch:"WHY", line:function(){ return '<b>Finish the round</b>'; }, sub:"Yes or no on the rest. Write about any others that prick you.",
-        target:'#st-research .rs-side', nodim:true, place:"low", done:function(){ return (rs.rounds||0)>0; }},
-      {ch:"KEEP", line:function(){ return 'Take one <b>into your workbook</b>'; }, sub:"It makes an Artist model page: the photo, an arrow to your detail, and what you wrote.",
-        target:'#st-research .rs-wb', away:true, start:function(){ CO.s.s=rs.sent||0; }, done:function(){ return (rs.sent||0)>CO.s.s; }}]},
+      {ch:"CULL", line:function(){ return 'Play the <b>Culling Game</b> on any pack'; }, sub:"",
+        target:'#st-research [data-rs-act="cull"]', done:function(){ return rs.view==="cull"; }},
+      {ch:"CULL", line:function(){ return 'Pick the <b>stronger photograph</b>, every time'; }, sub:"Go with your gut. It builds your top three as you go.",
+        target:'#st-research .rs-ab', nodim:true, place:"low", done:function(){ return (rs.culls||0)>0; }},
+      {ch:"MOOD", line:function(){ return 'Now make a <b>moodboard</b>'; }, sub:"Every photograph from every pack, in one place.",
+        target:'#st-research [data-rs-act="mood"]', done:function(){ return rs.view==="mood"; }},
+      {ch:"MOOD", line:function(){ return 'Pick <b>at least four</b> you love'; }, sub:"Light, colour, framing, mood: whatever you want to bring to your own shoot.",
+        target:'#st-research .rs-mgrid', nodim:true, place:"low", done:function(){ return (rs.mood||[]).length>=4; }},
+      {ch:"KEEP", line:function(){ return '<b>Make the A3 page</b>'; }, sub:"It lands in your workbook, with the photographers credited.",
+        target:'#st-research [data-rs-act="moodmake"]', away:true, start:function(){ CO.s.m=rs.moods||0; }, done:function(){ return (rs.moods||0)>CO.s.m; }}]},
+    lighting:{where:function(){ return loaded&&typeof RL!=="undefined"&&RL.on&&!(typeof st!=="undefined"&&st.open); }, steps:[
+      {ch:"LIGHT", line:function(){ return '<b>Lighting</b>: you bring the light'; }, sub:"Real fixtures, real falloff, real shadows. Set the time, place lights, then shoot.",
+        target:'#rlPanel', info:true},
+      {ch:"TIME", line:function(){ return 'Make it <b>night</b>'; }, sub:"Lights show best when the daylight's gone.",
+        target:'#rlPanel [data-rl-time="night"]', nodim:true, done:function(){ return RL.dusk<=0.05; }},
+      {ch:"KEY", line:function(){ return 'Add a <b>key light</b>: try the FRESNEL'; }, sub:"Look at what you want lit first. Spots aim at your crosshair.",
+        target:'#rlPanel .rl-fx', nodim:true, done:function(){ return RL.lights.length>=1; }},
+      {ch:"FILL", line:function(){ return 'Add a <b>second light</b> to fill or rim'; }, sub:"An LED panel is soft. A torch is a hard little beam.",
+        target:'#rlPanel .rl-fx', nodim:true, done:function(){ return RL.lights.length>=2; }},
+      {ch:"PLAN", line:function(){ return 'Open <b>plan view</b> to arrange them'; }, sub:"",
+        target:'#rlPanel [data-rl="plan"]', nodim:true, done:function(){ return RL.plan; }},
+      {ch:"PLAN", line:function(){ return '<b>Drag a light</b> somewhere new'; }, sub:"Behind the subject for a rim, low for drama, high for daylight.",
+        target:'#rlPlanUI .rlp-l', nodim:true, place:"low", start:function(){ CO.s.m=RL.moved||0; }, done:function(){ return (RL.moved||0)>CO.s.m; }},
+      {ch:"SHOOT", line:function(){ return 'Back to eye level, then <b>raise the camera and shoot</b>'; }, sub:"Night means slow shutters: meter carefully.",
+        target:'#rlPanel [data-rl="plan"]', nodim:true, start:function(){ CO.s.n=photos.length; }, done:function(){ return photos.length>CO.s.n; }}]},
     library:{where:function(){ return coRoom("select"); }, steps:[
       {ch:"YOURS", line:function(){ return 'Make a <b>folder</b> for your own project: + NEW'; }, sub:"A shoot, a theme, a series. Whatever you're working on.",
         target:'#st-select [data-lib-new]', start:function(){ CO.s.p=(st.projects||[]).length; }, done:function(){ return LIB.naming==="new"||(st.projects||[]).length>CO.s.p; }},
@@ -281,15 +294,15 @@
       e.addEventListener("click",function(ev){ if(ev.target.closest("[data-co-skip]")){ ev.stopPropagation(); coFinish(true); }
         if(ev.target.closest("[data-co-next]")){ ev.stopPropagation(); CO.s.ok=true; } }); } return e; }
   function coStart(tour){ tour=tour||"basics"; if(CO.on&&CO.tour===tour) return; if(CO.on) coStop(); CO.ticking=false;
-    CO.tour=tour; CO.on=true; CO.done=false; if(GD.flags.co==null) GD.flags.co=0; CO.i=GD.flags.co; CO.look=0; CO.walked=0; CO.lx=null; CO.seen=-1; coEnter(); coLoop(); }
+    CO.tour=tour; CO.fk=tour==="lighting"?"col":"co"; CO.on=true; CO.done=false; if(GD.flags[CO.fk]==null) GD.flags[CO.fk]=0; CO.i=GD.flags[CO.fk]; CO.look=0; CO.walked=0; CO.lx=null; CO.seen=-1; coEnter(); coLoop(); }
   function coEnter(){ coUnmark(); var s=coSteps()[CO.i]; CO.s={}; CO.keys={}; CO.t0=performance.now(); CO.seen=-1; CO.lockTo=s&&s.info?CO.t0+READ_MS:0; if(s&&s.start) s.start(); CO.html=""; }
   function coStop(){ coUnmark(); if(CO.tgt){ CO.tgt.classList.remove("co-target"); CO.tgt=null; } CO.on=false; cancelAnimationFrame(CO.raf); var e=$("coCard"), r=$("coRing"); if(e) e.classList.remove("show","media"); if(r) r.classList.remove("show"); document.body.classList.remove("co-on","co-dial"); }
-  function coFinish(skipped){ CO.done=true; GD.flags.co=coSteps().length; if(typeof gdSave==="function") gdSave(); coStop();
+  function coFinish(skipped){ CO.done=true; GD.flags[CO.fk||"co"]=coSteps().length; if(typeof gdSave==="function") gdSave(); coStop();
     if(skipped) toast(CO.tour==="basics"?"Warm-up skipped. The gold frames are out.":"Tour skipped."); }
   function coLoop(){ cancelAnimationFrame(CO.raf); CO.raf=requestAnimationFrame(coLoop); if(!CO.on) return; var T=CO_TOURS[CO.tour], e0;
     var cur=coSteps()[CO.i], here=T&&T.where()&&!GD.open;
     if(!here){ e0=$("coCard"); if(e0) e0.classList.remove("show"); e0=$("coRing"); if(e0) e0.classList.remove("show"); document.body.classList.remove("co-on","co-dial");
-      if(cur&&cur.away&&!CO.ticking&&cur.done()){ CO.ticking=true; CO.i++; GD.flags.co=CO.i; CO.ticking=false; if(typeof gdSave==="function") gdSave(); if(CO.i>=coSteps().length) coFinish(false); else coEnter(); }   // a prompt that finishes by leaving (Done)
+      if(cur&&cur.away&&!CO.ticking&&cur.done()){ CO.ticking=true; CO.i++; GD.flags[CO.fk||"co"]=CO.i; CO.ticking=false; if(typeof gdSave==="function") gdSave(); if(CO.i>=coSteps().length) coFinish(false); else coEnter(); }   // a prompt that finishes by leaving (Done)
       return; }
     // what the student has done since the last frame
     if(looking&&CO.lyaw!=null){ var dy=Math.abs(yaw-CO.lyaw); if(dy<1) CO.look+=dy; } CO.lyaw=yaw;
@@ -299,7 +312,7 @@
     var isDone=(s.info||s.click)?CO.s.ok:s.done();
     if(!CO.ticking&&performance.now()-CO.t0>(s.info?0:(s.dwell||900))&&isDone){ coTicked(); return; }   // one tick per prompt, however late the timer runs
     coRender(s); }
-  function coTicked(){ CO.ticking=true; var e=coEl(); e.classList.add("ok"); setTimeout(function(){ CO.ticking=false; e.classList.remove("ok"); CO.i++; GD.flags.co=CO.i; if(typeof gdSave==="function") gdSave();
+  function coTicked(){ CO.ticking=true; var e=coEl(); e.classList.add("ok"); setTimeout(function(){ CO.ticking=false; e.classList.remove("ok"); CO.i++; GD.flags[CO.fk||"co"]=CO.i; if(typeof gdSave==="function") gdSave();
       if(CO.i>=coSteps().length){ coFinish(false); return; } coEnter(); }, 600); }
   function coRender(s){ var e=coEl(), ring=$("coRing"), steps=coSteps();
     var chs=[], prev=null; steps.forEach(function(x,i){ if(x.ch!==prev){ chs.push({ch:x.ch, first:i}); prev=x.ch; } });

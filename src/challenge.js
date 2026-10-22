@@ -23,7 +23,7 @@
   function chFStop(){ return APERTURES[apIdx]; }
   function chAttach(){ CH.fx=new THREE.Scene(); CH.pads=[]; CH.active=-1; CH.cardFor=-1; CH.pull=-1; CH.locked=false; CH.cool=-1; chCard(null);
     var spec=(CH.spec&&CH.spec.challenges)||[]; if(typeof gdIsDemo==="function"&&gdIsDemo()) spec=gdDemoChallenges(spec);   // the demo has three, one per camera
-    CH.list=spec; if(!spec.length||!WK.col) return;
+    CH.list=spec; if(!spec.length||!WK.col){ chMarkers(); return; }   // a scan with no frames clears the last one's markers
     CH.done=chDoneSet();
     var S=CH.spec.subject||[0,0];
     spec.forEach(function(c){ var tx=S[0]+(c.look[0]||0), tz=S[1]+(c.look[2]||0), x=S[0]+Math.sin(c.az*Math.PI/180)*c.dist, z=S[1]+Math.cos(c.az*Math.PI/180)*c.dist, dx=x-tx, dz=z-tz, L=Math.hypot(dx,dz)||1;

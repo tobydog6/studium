@@ -469,6 +469,7 @@
     if(isFile){ var ext=source.name.split(".").pop().toLowerCase(); format=FMT[ext];
       if(format===undefined){ toast("Unsupported file. Use a .ply, .splat or .ksplat."); return; } url=URL.createObjectURL(source);
     } else { var e2=source.split("?")[0].split(".").pop().toLowerCase(); format=(FMT[e2]!==undefined)?FMT[e2]:GS.SceneFormat.Splat; }
+    if(typeof RL!=="undefined"){ if(RL.marker) RL.marker.visible=false; RL.on=false; RL.ready=false; RL.light=null; RL.orig=null; if(typeof rlPanel==="function") rlPanel(); }   // a new scan: the lighting test starts over
     lastSource=source; lastFormat=format; lastUp=up||"yup"; highlightUp(lastUp);
     viewfinderOn=false; viewfinder.classList.remove("on");
     hide(landing); hide(menu); hide(gallery); hide(prompt); showLoader("Loading scene…");
@@ -520,7 +521,7 @@
     var urls=v.slice(7).split(","), done=0;
     return Promise.all(urls.map(function(u){ return fetch(u).then(function(r){ if(!r.ok) throw new Error("Couldn't download "+u); return r.arrayBuffer(); }).then(function(b){ done++; if(onPart) onPart(done,urls.length); return b; }); }))
       .then(function(bufs){ var n=0; bufs.forEach(function(b){ n+=b.byteLength; }); var out=new Uint8Array(n), o=0; bufs.forEach(function(b){ out.set(new Uint8Array(b),o); o+=b.byteLength; }); return out.buffer; }); }
-  function loadBundled(sc){ if(sc&&sc.name) cbPlace=sc.name; showLoader("Opening "+(sc.name||"the scan")+"…");
+  function loadBundled(sc){ if(sc&&sc.name) cbPlace=sc.name; ownLoaded=false; var fb=$("navFlip"); if(fb) fb.classList.add("hidden"); showLoader("Opening "+(sc.name||"the scan")+"…");
     assetBytes(sc.data, function(d,n){ if(d<n) showLoader("Downloading "+(sc.name||"the scan")+" · "+Math.round(d/n*100)+"%"); else showLoader("Opening "+(sc.name||"the scan")+"…"); }).then(function(ab){
       if(sc.ext!=="stm") return {buf:ab, ext:sc.ext||"splat"};
       var ds=new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate")));
@@ -908,12 +909,17 @@
   // ---- wire: landing ----
   var dropzone=$("dropzone"), fileInput=$("fileInput");
   dropzone.onclick=function(){ fileInput.click(); };
-  fileInput.onchange=function(e){ if(e.target.files&&e.target.files[0]) loadSplat(e.target.files[0],"ydown"); };
+  // your own scan: from the landing, the OPEN A SCAN button up top, or dropped anywhere. FLIP turns it over if it lands upside down.
+  function ownScan(f,up){ ownLoaded=true; var fb=$("navFlip"); if(fb) fb.classList.remove("hidden"); cbPlace=f.name.replace(/\.[^.]+$/,""); loadSplat(f,up||"ydown"); }
+  var ownLoaded=false;
+  fileInput.onchange=function(e){ if(e.target.files&&e.target.files[0]) ownScan(e.target.files[0]); fileInput.value=""; };
+  $("navLoad").onclick=function(e){ e.stopPropagation(); if(looking) document.exitPointerLock(); fileInput.click(); };
+  $("navFlip").onclick=function(e){ e.stopPropagation(); if(lastSource) loadSplat(lastSource, lastUp==="ydown"?"yup":"ydown"); };
   ["dragenter","dragover"].forEach(function(ev){ dropzone.addEventListener(ev,function(e){e.preventDefault();dropzone.classList.add("hot");}); });
   ["dragleave","drop"].forEach(function(ev){ dropzone.addEventListener(ev,function(e){e.preventDefault();dropzone.classList.remove("hot");}); });
-  dropzone.addEventListener("drop",function(e){ var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) loadSplat(f,"ydown"); });
+  dropzone.addEventListener("drop",function(e){ e.stopPropagation(); var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) ownScan(f); });
   window.addEventListener("dragover",function(e){e.preventDefault();});
-  window.addEventListener("drop",function(e){ e.preventDefault(); if(menuOpen())return; var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) loadSplat(f,lastUp||"ydown"); });
+  window.addEventListener("drop",function(e){ e.preventDefault(); if(menuOpen())return; var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f&&/\.(ply|splat|ksplat)$/i.test(f.name)) ownScan(f); });
   Array.prototype.forEach.call(document.querySelectorAll("[data-sample]"),function(b){ b.onclick=function(){ loadSplat(b.getAttribute("data-sample"), b.getAttribute("data-up")||"ydown"); }; });
 
   // ---- wire: menu controls ----

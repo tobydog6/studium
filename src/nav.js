@@ -25,6 +25,7 @@
     top.querySelector(".pl").textContent=(cbPlace||"").toUpperCase(); top.querySelector(".fr").textContent=photos.length?"· "+photos.length+" FRAME"+(photos.length===1?"":"S"):"";
     // today's step, from the teacher's plan or the self-paced run
     var pl=lsPlan(), ph=null; if(pl){ var c=lsCur(pl); ph=c.ph||null; } if(!ph){ var S=lsSoloSteps(); for(var i=0;i<S.length;i++){ if(!lsDone(S[i])){ ph=S[i]; break; } } }
+    if(typeof ownLoaded!=="undefined"&&ownLoaded) ph=null;   // your own scan: no lesson task on it
     if(ph){ var k=lsKind(ph); task.innerHTML='<i></i><span class="t">'+cbEsc(ph.title)+'</span>'+(k!=="none"&&ph.n?'<span class="n">· '+Math.min(lsCount(k),ph.n)+' / '+ph.n+'</span>':''); task.classList.remove("empty"); } else task.classList.add("empty");
     var coach=$("navCoach"); if(coach) coach.classList.toggle("show", !looking&&!navSeenLook()); }
   function navSeenLook(){ try{ return localStorage.getItem("studium_looked")==="1"; }catch(e){ return true; } }

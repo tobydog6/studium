@@ -23,9 +23,9 @@
       if(i<N){ rlStatus("Reading splats… "+Math.round(i/N*100)+"%"); setTimeout(chunk,0); } else { RL.ready=true; RL.busy=false; rlStatus(""); done&&done(); } })(); }
   // recolour every splat for the current light, then upload the colours
   function rlApply(){ if(!RL.ready) return; var mesh=rlMesh(), base=mesh.splatDataTextures.baseData, col=base.colors, o=RL.orig, N=RL.N, P=RL.P, Nm=RL.Nrm, cf=RL.conf;
-    var L=RL.light, D=RL.dusk, W=RL.power, T=RL_TEMPS[RL.temp], ex=camPos.x, ey=camPos.y, ez=camPos.z, t0=performance.now();
+    var L=RL.light, iS2=1/((RL.S||1)*(RL.S||1)), D=RL.dusk, W=RL.power, T=RL_TEMPS[RL.temp], ex=camPos.x, ey=camPos.y, ez=camPos.z, t0=performance.now();
     for(var i=0;i<N;i++){ var j=i*3, r=D, g=D, b=D;
-      if(L){ var lx=L.x-P[j], ly=L.y-P[j+1], lz=L.z-P[j+2], d2=lx*lx+ly*ly+lz*lz+0.12, d=Math.sqrt(d2), nx=Nm[j], ny=Nm[j+1], nz=Nm[j+2];
+      if(L){ var lx=L.x-P[j], ly=L.y-P[j+1], lz=L.z-P[j+2], r2=lx*lx+ly*ly+lz*lz, d2=r2*iS2+0.12, d=Math.sqrt(r2), nx=Nm[j], ny=Nm[j+1], nz=Nm[j+2];
         if(nx*(ex-P[j])+ny*(ey-P[j+1])+nz*(ez-P[j+2])<0){ nx=-nx; ny=-ny; nz=-nz; }   // a disc has two sides: take the one you can see
         var lam=(nx*lx+ny*ly+nz*lz)/d; if(lam<0) lam=0; var f=cf[i], sh=lam*f+0.45*(1-f), I=W*sh/d2;   // blobby splats get a soft half-light
         r+=I*T[0]; g+=I*T[1]; b+=I*T[2]; }
@@ -37,10 +37,15 @@
     var cc=mesh.splatDataTextures.centerColors; mesh.constructor.updateCenterColorsPaddedData(0,RL.N-1,base.centers,base.colors,cc.data); cc.texture.needsUpdate=true;
     if(typeof SKY!=="undefined"&&SKY.mesh) SKY.mesh.material.uniforms.dim.value=1; }
   // the light: put it where you're standing, a little in front and above, like a light on a stand
-  function rlPlace(){ var f=new THREE.Vector3(); camera.getWorldDirection(f); var g=typeof wkGround==="function"?wkGround(camPos.x+f.x*1.1,camPos.z+f.z*1.1):camPos.y-1.6;
-    RL.light={x:camPos.x+f.x*1.1, y:(isFinite(g)?g:camPos.y-1.6)+0.7, z:camPos.z+f.z*1.1};   // a light on a short stand, a step in front of you
+  // Bundled scenes are in metres with a walk map. Your own scans have neither: no ground to look up (it reports -1e9)
+  // and any scale (a Spirula scan can be 2 units across). So for those, the ground is the bottom of the scan and every
+  // distance, the light's stand and its falloff are scaled to the scan's size.
+  function rlScale(){ return WK.col?1:Math.max(0.02,Math.min(50,(sceneMaxDim||8)/8)); }
+  function rlPlace(){ var f=new THREE.Vector3(); camera.getWorldDirection(f); var S=RL.S=rlScale(), lx=camPos.x+f.x*1.1*S, lz=camPos.z+f.z*1.1*S;
+    var g=WK.col&&typeof wkGround==="function"?wkGround(lx,lz):NaN; if(!(g>-1e8&&g<1e8)) g=WK.col?camPos.y-1.6:Math.min(boxMin.y,camPos.y-0.2*S);
+    RL.light={x:lx, y:Math.min(g+0.7*S,camPos.y), z:lz};   // a light on a short stand, a step in front of you
     if(!RL.marker){ RL.marker=new THREE.Mesh(new THREE.SphereGeometry(0.025,16,12), new THREE.MeshBasicMaterial({color:0xffe2a8})); scene.add(RL.marker); }
-    RL.marker.position.set(RL.light.x,RL.light.y,RL.light.z); RL.marker.visible=true; RL.placed=(RL.placed||0)+1; rlApply(); }
+    RL.marker.scale.setScalar(S); RL.marker.position.set(RL.light.x,RL.light.y,RL.light.z); RL.marker.visible=true; RL.placed=(RL.placed||0)+1; rlApply(); }
   function rlToggle(){ RL.on=!RL.on; if(RL.on){ rlPanel(); if(!RL.ready) rlPrepare(function(){ rlApply(); }); else rlApply(); }
     else { rlRestore(); if(RL.marker) RL.marker.visible=false; rlPanel(); } }
   function rlStatus(t){ RL.status=t; rlPanel(); }
@@ -63,4 +68,4 @@
   if(/[?&]relight(&|=|$)/.test(location.search)){
     window.addEventListener("keydown",function(e){ if(e.code==="KeyL"&&loaded&&(App.is("scene")||App.is("viewfinder"))&&!(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName))){ e.preventDefault(); rlToggle(); } });
     setTimeout(function(){ toast("Lighting test is on: press L in the scene"); },1500); }
-  if(/[?&]dev/.test(location.search)) window.__rl={ toggle:rlToggle, place:rlPlace, set:function(o){ for(var k in o) RL[k]=o[k]; rlApply(); }, state:function(){ return {on:RL.on, ready:RL.ready, N:RL.N, light:RL.light, ms:RL.ms, placed:RL.placed||0}; } };
+  if(/[?&]dev/.test(location.search)) window.__rl={ toggle:rlToggle, place:rlPlace, set:function(o){ for(var k in o) RL[k]=o[k]; rlApply(); }, state:function(){ return {on:RL.on, ready:RL.ready, N:RL.N, light:RL.light, ms:RL.ms, placed:RL.placed||0, S:RL.S, cam:[camPos.x,camPos.y,camPos.z], lo:boxMin.y}; } };

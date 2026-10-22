@@ -50,7 +50,7 @@
   var KIT_ART={
     back:'<img class="ka-back" src="asset:assets/camera/dslr-back.webp" alt="" draggable="false">',
     bag:'<img class="ka-l1" src="asset:assets/bag/lens-2470.webp" alt="" draggable="false"><img class="ka-l2" src="asset:assets/bag/lens-85.webp" alt="" draggable="false"><img class="ka-l3" src="asset:assets/bag/lens-50.webp" alt="" draggable="false">',
-    lights:'<i class="ka-floor"></i><i class="ka-beam"></i><i class="ka-head"></i><i class="ka-stand"></i>'};
+    lights:'<i class="ka-floor"></i><i class="ka-glow"></i><img class="ka-soft" src="asset:assets/kit/softbox.webp" alt="" draggable="false">'};
   function kitRender(){ var k=$("kitMenu"); if(!k){ k=document.createElement("div"); k.id="kitMenu"; document.body.appendChild(k);
       k.addEventListener("click",function(e){ var b=e.target.closest("[data-kit]"); if(b){ e.stopPropagation(); kitGo(b.getAttribute("data-kit")); } else if(!e.target.closest(".kit-card")) kitClose(); });
       k.addEventListener("mouseover",function(e){ var b=e.target.closest("[data-kit-i]"); if(b&&+b.getAttribute("data-kit-i")!==KIT.sel){ KIT.sel=+b.getAttribute("data-kit-i"); kitMark(); } }); }

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Engine Test</title>
+<style>
+:root{--bg:#0d0b09;--panel:rgba(17,15,12,.92);--line:rgba(240,232,214,.12);--ink:#f4f1ea;--mut:#8d8678;--gold:#e3ad57}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+#view{position:fixed;inset:0}#view canvas{display:block}
+.bar{position:fixed;left:16px;right:16px;top:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;z-index:5}
+.grp{display:flex;gap:4px;padding:4px;border-radius:10px;background:var(--panel);border:1px solid var(--line)}
+.bar b{font:600 11px/1 ui-monospace,Menlo,monospace;letter-spacing:.16em;color:var(--gold);padding:0 8px}
+button{height:32px;padding:0 12px;border-radius:7px;border:1px solid transparent;background:none;color:#cfc8ba;font:500 12px system-ui,sans-serif;cursor:pointer}
+button:hover{color:var(--ink);border-color:var(--line)}button.on{background:#2a251c;color:var(--ink);border-color:rgba(227,173,87,.5)}
+button.go{background:var(--gold);color:#17140d;font-weight:600}button:disabled{opacity:.4;cursor:default}
+#hud{position:fixed;right:16px;bottom:16px;width:min(560px,calc(100vw - 32px));padding:14px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--line);z-index:5}
+#live{display:flex;gap:18px;align-items:baseline;font:500 13px ui-monospace,Menlo,monospace;color:var(--mut)}#live em{font-style:normal;color:var(--ink);font-size:20px}
+#status{margin-top:6px;font-size:12.5px;color:var(--gold);min-height:16px}
+table{width:100%;margin-top:10px;border-collapse:collapse;font-size:12px}th,td{padding:5px 6px;text-align:left;border-top:1px solid var(--line)}th{color:var(--mut);font-weight:500}td.n{font-variant-numeric:tabular-nums}
+.tip{position:fixed;left:16px;bottom:16px;max-width:380px;font-size:12px;color:var(--mut);z-index:5}
+</style></head><body>
+<div id="view"></div>
+<div class="bar">
+  <div class="grp"><b>ENGINE</b><button data-e="gs" class="on">Current (GS3D 0.4.7)</button><button data-e="spark">Spark 2</button><button data-e="sparklod">Spark 2 + LoD</button></div>
+  <div class="grp"><b>SCAN</b><button data-s="stump" class="on">The Stump · 2.3M</button><button id="openBtn">Open your own…</button><button id="flipBtn">Flip</button></div>
+  <div class="grp"><button class="go" id="benchBtn">Run benchmark · 12 s</button><button id="allBtn">Run all three</button></div>
+</div>
+<div id="hud"><div id="live"><span><em id="fps">–</em> fps</span><span><em id="ms">–</em> ms</span><span id="cnt"></span><span id="load"></span></div><div id="status">Loading…</div>
+  <table><thead><tr><th>Engine</th><th>Scan</th><th>Load</th><th>Avg fps</th><th>1% low</th></tr></thead><tbody id="res"></tbody></table></div>
+<p class="tip">Drag to orbit, scroll to zoom. The benchmark flies the same circle round the scan for every engine so the numbers are fair. Close other tabs first.</p>
+<input type="file" id="file" accept=".ply,.splat,.ksplat,.spz" hidden>
+<script id="stm" type="application/octet-stream">@@STM@@</script>
+<script>@@GS@@</script>
+<script>@@SPARK@@</script>
+<script>
+(function(){
+  var $=function(id){ return document.getElementById(id); }, view=$("view");
+  var S={eng:"gs", scan:"stump", flip:true, bytes:null, ext:"splat", name:"The Stump", cur:null, busy:false, ft:[], bench:null};
+  var ENG={ gs:{api:function(){ return window.ENG_GS; }, lod:false, label:"Current (GS3D 0.4.7)"}, spark:{api:function(){ return window.ENG_SPARK; }, lod:false, label:"Spark 2.3.1"}, sparklod:{api:function(){ return window.ENG_SPARK; }, lod:true, label:"Spark 2.3.1 + LoD"} };
+  function status(t){ $("status").textContent=t||""; }
+  // the Stump ships compressed in Studium's own format; unpack it to a standard .splat once
+  function stumpBytes(){ if(S.stump) return Promise.resolve(S.stump);
+    status("Unpacking the Stump…"); var b64=$("stm").textContent.trim(), bin=atob(b64), u=new Uint8Array(bin.length); for(var i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+    return new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer().then(function(ab){
+      var dv=new DataView(ab), n=dv.getUint32(4,true), f=new Float32Array(ab.slice(8,40)), b=new Uint8Array(ab,40), out=new ArrayBuffer(n*32), F=new Float32Array(out), U=new Uint8Array(out);
+      var sx=[(f[3]-f[0])/65535,(f[4]-f[1])/65535,(f[5]-f[2])/65535], ss=(f[7]-f[6])/65535;
+      for(var i=0;i<n;i++){ var fo=i*8, uo=i*32; for(var ch=0;ch<6;ch++){ var base=ch*2*n, v=b[base+i]|(b[base+n+i]<<8); F[fo+ch]=ch<3?f[ch]+v*sx[ch]:Math.exp(f[6]+v*ss); } for(var k=0;k<8;k++) U[uo+24+k]=b[12*n+k*n+i]; }
+      S.stump=new Uint8Array(out); return S.stump; }); }
+  function frameView(c){ var T=c.THREE, t, p;
+    if(S.scan==="stump"){ t=new T.Vector3(0.15,0.4,-0.12); p=new T.Vector3(0.15,1.4,2.6); }
+    else { var b=c.box, mn=b?b.min:[-1,-1,-1], mx=b?b.max:[1,1,1], ctr=[(mn[0]+mx[0])/2,(mn[1]+mx[1])/2,(mn[2]+mx[2])/2], sz=Math.max(mx[0]-mn[0],mx[2]-mn[2])||2;
+      sz=Math.min(sz,50); t=new T.Vector3(ctr[0],ctr[1],ctr[2]); p=new T.Vector3(ctr[0],ctr[1]+sz*0.18,ctr[2]+sz*0.45); }
+    c.camera.position.copy(p); c.controls.target.copy(t); c.camera.near=Math.max(0.01,p.distanceTo(t)*0.01); c.camera.updateProjectionMatrix(); c.controls.update();
+    S.orbit={t:t.clone(), r:Math.hypot(p.x-t.x,p.z-t.z), h:p.y, a0:Math.atan2(p.x-t.x,p.z-t.z)}; }
+  function load(){ if(S.busy) return; S.busy=true; buttons();
+    if(S.cur){ try{ S.cur.dispose(); }catch(e){} S.cur=null; }
+    var E=ENG[S.eng], api=E.api(), t0;
+    (S.scan==="stump"?stumpBytes():Promise.resolve(S.bytes)).then(function(bytes){
+      status("Loading "+S.name+" in "+E.label+"…"); t0=performance.now();
+      return api.start(view, bytes, S.scan==="stump"?"splat":S.ext, S.flip, E.lod); })
+    .then(function(c){ S.cur=c; frameView(c); var first=true;
+      return new Promise(function(res){ requestAnimationFrame(function(){ c.frame(); requestAnimationFrame(function(){ c.frame(); S.loadMs=performance.now()-t0; res(); }); }); }); })
+    .then(function(){ $("load").textContent="loaded in "+(S.loadMs/1000).toFixed(1)+" s"; $("cnt").textContent=(S.cur.count?(S.cur.count/1e6).toFixed(2)+"M splats":""); status(""); S.busy=false; buttons(); if(S.queue) S.queue(); })
+    .catch(function(e){ console.error(e); status("Couldn't load: "+(e&&e.message||e)); S.busy=false; buttons(); if(S.queue) S.queue(); }); }
+  // the render loop and the meter
+  var last=performance.now(), ema=0;
+  (function loop(now){ requestAnimationFrame(loop); var dt=now-last; last=now; if(!S.cur) return;
+    if(S.bench){ var B=S.bench, k=(now-B.t0)/12000, o=S.orbit; if(k>=1){ benchDone(); } else { var a=o.a0+k*Math.PI*2; S.cur.camera.position.set(o.t.x+Math.sin(a)*o.r, o.h, o.t.z+Math.cos(a)*o.r); S.cur.controls.target.copy(o.t); if(k>0.04) B.ft.push(dt); } }
+    S.cur.frame(); ema=ema?ema*0.92+dt*0.08:dt; })(last);
+  setInterval(function(){ if(!S.cur||!ema) return; $("fps").textContent=Math.round(1000/ema); $("ms").textContent=ema.toFixed(1); },250);
+  function bench(){ if(!S.cur||S.busy||S.bench) return; frameView(S.cur); S.bench={t0:performance.now()+400, ft:[]}; status("Benchmarking… hands off for 12 seconds"); buttons(); }
+  function benchDone(){ var ft=S.bench.ft.slice().sort(function(a,b){ return a-b; }); S.bench=null; buttons();
+    if(ft.length<5){ status("Too few frames to measure."); return; }
+    var avg=ft.reduce(function(a,b){ return a+b; },0)/ft.length, p99=ft[Math.min(ft.length-1,Math.floor(ft.length*0.99))];
+    var tr=document.createElement("tr"); tr.innerHTML="<td>"+ENG[S.eng].label+"</td><td>"+S.name+"</td><td class='n'>"+(S.loadMs/1000).toFixed(1)+" s</td><td class='n'><b>"+(1000/avg).toFixed(0)+"</b></td><td class='n'>"+(1000/p99).toFixed(0)+"</td>";
+    $("res").appendChild(tr); status("Done. Try another engine, or Run all three."); if(S.queue) S.queue(); }
+  function buttons(){ var dis=S.busy||!!S.bench; Array.prototype.forEach.call(document.querySelectorAll("button"),function(b){ b.disabled=dis; });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-e]"),function(b){ b.classList.toggle("on",b.getAttribute("data-e")===S.eng); });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-s]"),function(b){ b.classList.toggle("on",S.scan==="stump"); });
+    $("openBtn").classList.toggle("on",S.scan==="own"); $("flipBtn").classList.toggle("on",!!S.flip); }
+  document.querySelectorAll("[data-e]").forEach(function(b){ b.onclick=function(){ S.eng=b.getAttribute("data-e"); S.queue=null; load(); }; });
+  document.querySelector("[data-s]").onclick=function(){ S.scan="stump"; S.name="The Stump"; S.flip=true; S.queue=null; load(); };
+  $("openBtn").onclick=function(){ $("file").click(); };
+  $("file").onchange=function(e){ var f=e.target.files&&e.target.files[0]; if(!f) return; S.ext=f.name.split(".").pop().toLowerCase(); S.name=f.name; status("Reading "+f.name+"…");
+    f.arrayBuffer().then(function(ab){ S.bytes=new Uint8Array(ab); S.scan="own"; S.flip=true; S.queue=null; load(); }); e.target.value=""; };
+  $("flipBtn").onclick=function(){ S.flip=!S.flip; S.queue=null; load(); };
+  $("benchBtn").onclick=function(){ S.queue=null; bench(); };
+  // run all three: load, settle, benchmark, next
+  $("allBtn").onclick=function(){ var order=["gs","spark","sparklod"], i=0;
+    function step(){ if(i>=order.length){ S.queue=null; status("All three done."); return; } S.eng=order[i]; var stage=0;
+      S.queue=function(){ if(stage===0){ stage=1; setTimeout(bench,1500); } else { i++; step(); } }; load(); }
+    step(); };
+  addEventListener("resize",function(){ if(S.cur) S.cur.resize(innerWidth,innerHeight); });
+  buttons(); if(!/[?&]noauto/.test(location.search)) load(); else { S.busy=false; status('Open a scan to start.'); }
+})();
+</script>
+</body></html>

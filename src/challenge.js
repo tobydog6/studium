@@ -23,7 +23,7 @@
   function chFStop(){ return APERTURES[apIdx]; }
   function chAttach(){ CH.fx=new THREE.Scene(); CH.pads=[]; CH.active=-1; CH.cardFor=-1; CH.pull=-1; CH.locked=false; CH.cool=-1; chCard(null);
     var spec=(CH.spec&&CH.spec.challenges)||[]; if(typeof gdIsDemo==="function"&&gdIsDemo()) spec=gdDemoChallenges(spec);   // the demo has three, one per camera
-    CH.list=spec; if(!spec.length||!WK.col){ chMarkers(); return; }   // a scan with no frames clears the last one's markers
+    CH.list=spec; if(!spec.length||!WK.col){ chMarkers(); chFramesBtn(); return; }   // a scan with no frames clears the last one's markers
     CH.done=chDoneSet();
     var S=CH.spec.subject||[0,0];
     spec.forEach(function(c){ var tx=S[0]+(c.look[0]||0), tz=S[1]+(c.look[2]||0), x=S[0]+Math.sin(c.az*Math.PI/180)*c.dist, z=S[1]+Math.cos(c.az*Math.PI/180)*c.dist, dx=x-tx, dz=z-tz, L=Math.hypot(dx,dz)||1;
@@ -39,10 +39,14 @@
       CH.pads.push({c:c, x:x, z:z, E:E, T:T, d:d, F:F, D:D, w:w, h:h, frame:fr, rings:rings, target:T, vis:vis}); });
     // starting inside a frame's range doesn't count as walking into it
     CH.focus=-1; CH.pads.forEach(function(P,i){ if(CH.cool<0&&Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z)<CH_LEAVE) CH.cool=i; });
-    chMarkers(); }
+    chMarkers(); chFramesBtn(); }
   function chAlign(P){ var dp=P.E.clone().sub(camPos), hz=Math.hypot(dp.x,dp.z), dy=dp.y, ang=Math.acos(Math.max(-1,Math.min(1,P.d.dot(_fwd))))*180/Math.PI;
     return {hz:hz, dy:dy, ang:ang, ok:hz<0.3&&Math.abs(dy)<0.2&&ang<6}; }
-  function chOff(){ return typeof coHidesFrames==="function"&&coHidesFrames(); }   // hidden during the first-time warm-up
+  function chOff(){ return CH.hidden||(typeof coHidesFrames==="function"&&coHidesFrames()); }
+  // HIDE FRAMES in the top bar: the gold frames and their markers go, until you bring them back (remembered)
+  try{ CH.hidden=localStorage.getItem("studium_frames_off")==="1"; }catch(e){}
+  function chSetHidden(on){ CH.hidden=!!on; try{ localStorage.setItem("studium_frames_off",on?"1":"0"); }catch(e){} chFramesBtn(); chMarkers(); }
+  function chFramesBtn(){ var b=$("navFrames"); if(!b) return; b.classList.toggle("hidden", !(CH.pads&&CH.pads.length)); b.textContent=CH.hidden?"SHOW FRAMES":"HIDE FRAMES"; b.classList.toggle("on", !!CH.hidden); }   // hidden during the first-time warm-up
   function chRender(dt){ chGlowCss(); if(!CH.fx||!CH.pads.length||CH.capturing||viewfinderOn||chOff()) return;   // camera up: nothing in the way of the picture
     CH.t+=dt||0.016; var br=0.5+0.5*Math.sin(CH.t*1.7);   // a slow breath while it has you
     CH.pads.forEach(function(P,i){ var u=P.frame.material.uniforms, a=chAlign(P), dist=P.F.distanceTo(camPos), mine=(CH.pull===i);

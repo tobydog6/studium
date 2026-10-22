@@ -469,7 +469,7 @@
     if(isFile){ var ext=source.name.split(".").pop().toLowerCase(); format=FMT[ext];
       if(format===undefined){ toast("Unsupported file. Use a .ply, .splat or .ksplat."); return; } url=URL.createObjectURL(source);
     } else { var e2=source.split("?")[0].split(".").pop().toLowerCase(); format=(FMT[e2]!==undefined)?FMT[e2]:GS.SceneFormat.Splat; }
-    if(typeof RL!=="undefined"){ if(RL.marker) RL.marker.visible=false; RL.on=false; RL.ready=false; RL.light=null; RL.orig=null; if(typeof rlPanel==="function") rlPanel(); }   // a new scan: the lighting test starts over
+    if(typeof rlForget==="function") rlForget();   // a new scan: the lighting test starts over
     lastSource=source; lastFormat=format; lastUp=up||"yup"; highlightUp(lastUp);
     viewfinderOn=false; viewfinder.classList.remove("on");
     hide(landing); hide(menu); hide(gallery); hide(prompt); showLoader("Loading scene…");
@@ -914,6 +914,7 @@
   var ownLoaded=false;
   fileInput.onchange=function(e){ if(e.target.files&&e.target.files[0]) ownScan(e.target.files[0]); fileInput.value=""; };
   $("navLoad").onclick=function(e){ e.stopPropagation(); if(looking) document.exitPointerLock(); fileInput.click(); };
+  $("navFrames").onclick=function(e){ e.stopPropagation(); chSetHidden(!CH.hidden); };
   $("navFlip").onclick=function(e){ e.stopPropagation(); if(lastSource) loadSplat(lastSource, lastUp==="ydown"?"yup":"ydown"); };
   ["dragenter","dragover"].forEach(function(ev){ dropzone.addEventListener(ev,function(e){e.preventDefault();dropzone.classList.add("hot");}); });
   ["dragleave","drop"].forEach(function(ev){ dropzone.addEventListener(ev,function(e){e.preventDefault();dropzone.classList.remove("hot");}); });

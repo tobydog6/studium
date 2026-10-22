@@ -133,7 +133,7 @@
   // ---- helpers ----
   function show(el){el.classList.remove("hidden");} function hide(el){el.classList.add("hidden");}
   function anyOutputOpen(){ return ["folio","photobook","galleryshow"].some(function(id){ var e=document.getElementById(id); return e && !e.classList.contains("hidden"); }); }
-  function menuOpen(){ return (typeof cbOpen!=="undefined"&&cbOpen)||(typeof bg!=="undefined"&&bg.open)||(typeof st!=="undefined"&&st.open)||!menu.classList.contains("hidden")||!gallery.classList.contains("hidden")||!landing.classList.contains("hidden")||!editor.classList.contains("hidden")||anyOutputOpen(); }
+  function menuOpen(){ return (typeof KIT!=="undefined"&&KIT.open)||(typeof cbOpen!=="undefined"&&cbOpen)||(typeof bg!=="undefined"&&bg.open)||(typeof st!=="undefined"&&st.open)||!menu.classList.contains("hidden")||!gallery.classList.contains("hidden")||!landing.classList.contains("hidden")||!editor.classList.contains("hidden")||anyOutputOpen(); }
   var toastTimer=null;
   function toast(m){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(function(){toastEl.classList.remove("show");},3200); }
   function updatePrompt(){ if(loaded && !looking && !viewfinderOn && !menuOpen()) show(prompt); else hide(prompt); }
@@ -1047,7 +1047,7 @@
     keys[e.code]=true;
     if(e.code==="Escape" && anyOutputOpen()){ e.preventDefault(); ["folio","photobook","galleryshow"].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.add("hidden"); }); return; }
     if(e.code==="Space"){ e.preventDefault(); if(!loaded || anyOutputOpen() || !gallery.classList.contains("hidden") || !editor.classList.contains("hidden")) return;
-      if(!menu.classList.contains("hidden")) closeMenu(); else openBack(); return; }
+      if(!menu.classList.contains("hidden")) closeMenu(); else if(viewfinderOn) openBack(); else kitToggle(); return; }
     if(e.code==="KeyB" && loaded && !menuOpen()){ e.preventDefault(); openBag(); return; }
     if(menuOpen()){ if(e.code==="Escape"){ if(!editor.classList.contains("hidden")){ closeEditor(); buildGallery(); show(gallery); } else if(!gallery.classList.contains("hidden")){hide(gallery);updatePrompt();} else if(!menu.classList.contains("hidden")){closeMenu();} } return; }
     if(e.code==="KeyP"){ e.preventDefault(); toggleViewfinder(); }

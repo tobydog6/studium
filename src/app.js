@@ -83,12 +83,16 @@
   var fsCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
   var fsMat=new THREE.ShaderMaterial({
     uniforms:{ tDiffuse:{value:sceneRT.texture}, exposure:{value:1}, filmic:{value:0}, vignette:{value:0.1}, grain:{value:0}, dof:{value:0}, focus:{value:0.5}, seed:{value:0},
-      gCon:{value:1}, gSat:{value:1}, gWarm:{value:0}, gBloom:{value:1}, gDof:{value:1}, gGrain:{value:1}, resolution:{value:new THREE.Vector2(_sz.x,_sz.y)} },
+      gCon:{value:1}, gSat:{value:1}, gWarm:{value:0}, gBloom:{value:1}, gDof:{value:1}, gGrain:{value:1}, resolution:{value:new THREE.Vector2(_sz.x,_sz.y)},
+      tDepth:{value:null}, useDepth:{value:0}, focusD:{value:2}, cocK:{value:0}, maxR:{value:22} },
     vertexShader:"varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }",
     fragmentShader:[
       "precision highp float;",
       "varying vec2 vUv;",
       "uniform sampler2D tDiffuse; uniform float exposure,filmic,vignette,grain,dof,focus,seed,gCon,gSat,gWarm,gBloom,gDof,gGrain; uniform vec2 resolution;",
+      "uniform sampler2D tDepth; uniform float useDepth,focusD,cocK,maxR;",
+      "float depthAt(vec2 uv){ vec4 d=texture2D(tDepth,uv); return d.a>0.03?d.r/d.a:1.0e5; }",
+      "float cocAt(vec2 uv){ return min(maxR, cocK*abs(1.0-focusD/depthAt(uv))); }",   // thin lens: blur grows with distance from the focus plane
       "float hash(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+34.345); return fract(p.x*p.y); }",
       "void main(){",
       "  vec2 dc=vUv-vec2(0.5); float r=length(dc); vec2 tx=1.0/resolution;",
@@ -96,7 +100,16 @@
       "  float band=abs(vUv.y-focus);",                       // manual focus: rack the sharp plane up/down the frame
       "  float dofB=dof*gDof*smoothstep(0.05,0.55,band);",     // sharp at the focus plane, blurs away from it
       "  vec3 c;",
-      "  if(dofB>0.002){ float rad=dofB*13.0; vec3 s=vec3(0.0); float wsum=0.0;",
+      "  if(useDepth>0.5){ float rad=cocAt(vUv)*dof*gDof;",   // real depth of field: every pixel blurs by its own distance from the focus plane
+      "    if(rad>0.6){ vec3 s=vec3(0.0); float wsum=0.0;",
+      "      for(int i=0;i<24;i++){ float a=float(i)*2.3999632; float rr=sqrt((float(i)+0.5)/24.0)*rad; vec2 off=vec2(cos(a),sin(a))*rr*tx;",
+      "        float w=clamp(cocAt(vUv+off)*dof*gDof-rr+1.0,0.0,1.0);",   // only points whose own blur reaches here count: a sharp subject doesn't smear
+      "        vec3 sm=vec3(texture2D(tDiffuse,vUv+off+dc*ca).r, texture2D(tDiffuse,vUv+off).g, texture2D(tDiffuse,vUv+off-dc*ca).b);",
+      "        w*=1.0+max(sm.r+sm.g+sm.b-1.2,0.0)*2.5; s+=sm*w; wsum+=w; }",
+      "      vec3 c0=vec3(texture2D(tDiffuse,vUv+dc*ca).r, texture2D(tDiffuse,vUv).g, texture2D(tDiffuse,vUv-dc*ca).b);",
+      "      c=wsum>0.01?s/wsum:c0; }",
+      "    else { c=vec3(texture2D(tDiffuse,vUv+dc*ca).r, texture2D(tDiffuse,vUv).g, texture2D(tDiffuse,vUv-dc*ca).b); } }",
+      "  else if(dofB>0.002){ float rad=dofB*13.0; vec3 s=vec3(0.0); float wsum=0.0;",
       "    for(int i=0;i<16;i++){ float a=float(i)*2.3999632; float rr=sqrt((float(i)+0.5)/16.0)*rad;",
       "      vec2 off=vec2(cos(a),sin(a))*rr*tx;",
       "      vec3 sm=vec3(texture2D(tDiffuse,vUv+off+dc*ca).r, texture2D(tDiffuse,vUv+off).g, texture2D(tDiffuse,vUv+off-dc*ca).b);",
@@ -347,7 +360,7 @@
     s+=caLens(208,176,70);
     s+='</svg>'; return s;
   }
-  function focusBars(){ var n=Math.round(focusDist*5), s=""; for(var i=0;i<5;i++){ s+=(i<n?"▮":"▯"); } return s; }
+  function focusBars(){ var m=focusMetres(); return (m<10?m.toFixed(1):Math.round(m))+" M"; }
   function setFocus(v){ focusDist=Math.max(0,Math.min(1,v)); var s=$("mFocus"); if(s) s.value=Math.round(focusDist*100); var fv=$("mFocusVal"); if(fv) fv.textContent=Math.round(focusDist*100); var vf=$("vfFocus"); if(vf) vf.textContent="FOCUS "+focusBars(); }
 
   // ---- camera basis (level FPS) ----
@@ -388,18 +401,47 @@
     if(typeof RL!=="undefined"&&RL.plan) rlPlanCam();
   }
 
+  // ---- depth: the splats drawn a second time with each one's distance as its colour ----
+  // Blended back-to-front like the picture itself, colour divided by coverage gives the distance of what you see at each
+  // pixel, so the lens can blur by real distance. Half resolution: blur doesn't need more.
+  var dRT=null, dMat=null, dMatFor=null, dOK=true, afPending=false, _dsz=new THREE.Vector2();
+  function dMaterial(m){ if(dMat&&dMatFor===m) return dMat; var k="vec4 viewCenter = transformModelViewMatrix * vec4(splatCenter, 1.0);", vs=m.vertexShader;
+    if(!vs||vs.indexOf(k)<0||(m.fragmentShader||"").indexOf("vPosition")<0){ dOK=false; return null; }
+    vs=vs.replace("void main","varying float vDep;\nvoid main").replace(k,k+"\nvDep = -viewCenter.z;");
+    var fs="precision highp float;\nvarying vec4 vColor; varying vec2 vPosition; varying float vDep;\nvoid main(){ float A=dot(vPosition,vPosition); if(A>8.0) discard; float o=exp(-0.5*A)*vColor.a; gl_FragColor=vec4(vDep,vDep,vDep,o); }";
+    dMat=new THREE.ShaderMaterial({uniforms:m.uniforms, vertexShader:vs, fragmentShader:fs, transparent:true, blending:THREE.NormalBlending, depthTest:m.depthTest, depthWrite:false, side:m.side});
+    if(m.defines) dMat.defines=m.defines; if(m.extensions) dMat.extensions=m.extensions; dMatFor=m; return dMat; }
+  function dPass(){ if(!dOK||!viewer||!viewer.splatMesh) return false; renderer.getDrawingBufferSize(_dsz); var w=Math.max(1,_dsz.x>>1), h=Math.max(1,_dsz.y>>1);
+    if(!dRT) dRT=new THREE.WebGLRenderTarget(w,h,{type:THREE.HalfFloatType, minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter, depthBuffer:false}); else if(dRT.width!==w||dRT.height!==h) dRT.setSize(w,h);
+    var mesh=viewer.splatMesh, mat=dMaterial(mesh.material); if(!mat) return false; var old=mesh.material;
+    try{ mesh.material=mat; renderer.setRenderTarget(dRT); renderer.setClearColor(0x000000,0); renderer.clear(true,false,false); renderer.render(mesh,camera); }catch(e){ dOK=false; console.warn("depth pass off",e); }
+    mesh.material=old; if(dOK&&afPending){ afPending=false; autoFocus(); } return dOK; }
+  // focus is a distance: the slider and keys move along a log scale, 0.3 m to 18 m (scaled to your own scans)
+  function sceneScale(){ return WK.col?1:Math.max(0.02,Math.min(50,(sceneMaxDim||8)/8)); }
+  function focusMetres(){ return 0.3*Math.pow(60,focusDist); }
+  function half2f(h){ var sg=(h&0x8000)?-1:1, e=(h>>10)&0x1f, f=h&0x3ff; return e===0?sg*Math.pow(2,-14)*(f/1024):e===31?(f?NaN:sg*Infinity):sg*Math.pow(2,e-15)*(1+f/1024); }
+  // autofocus: the nearest thing in the middle of the frame, like a camera's centre AF point
+  function autoFocus(){ if(!dRT) return; try{ var b=new Uint16Array(4*9), cx=dRT.width>>1, cy=dRT.height>>1, best=1e9; renderer.readRenderTargetPixels(dRT,cx-1,cy-1,3,3,b);
+      for(var i=0;i<9;i++){ var a=half2f(b[i*4+3]); if(a>0.05){ var d=half2f(b[i*4])/a; if(d>0&&d<best) best=d; } }
+      if(best<1e8){ var m=best/sceneScale(); setFocus(Math.log(Math.max(0.3,Math.min(18,m))/0.3)/Math.log(60)); }
+    }catch(e){ console.warn("autofocus",e); } }
+
   // ---- render ----
   function renderFrame(dt){
-    var tgtE=viewfinderOn?(curBody().optical?1:expMult):1, tgtF=viewfinderOn?1:0, tgtV=viewfinderOn?apVig:0.1, tgtG=viewfinderOn?isoGrain:0, tgtD=viewfinderOn?dofStrength:0;
+    var tgtE=viewfinderOn?(curBody().optical?1:expMult):1, tgtF=viewfinderOn?1:0, tgtV=viewfinderOn?apVig:0.1, tgtG=viewfinderOn?isoGrain:0, tgtD=viewfinderOn?(dOK?1:dofStrength):0;
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
     renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
     if(viewer){ try{ viewer.update(); skyFollow(); viewer.render(); chRender(dt); }catch(e){} }
+    var useD=viewfinderOn&&fx.dof>0.01&&loaded&&dPass();
     if(loaded&&dt>0) chTick(dt);
     renderer.setRenderTarget(null);
     fsMat.uniforms.tDiffuse.value=sceneRT.texture;
     fsMat.uniforms.exposure.value=fx.exposure; fsMat.uniforms.filmic.value=fx.filmic;
     fsMat.uniforms.vignette.value=fx.vignette; fsMat.uniforms.grain.value=fx.grain; fsMat.uniforms.dof.value=fx.dof; fsMat.uniforms.focus.value=focusDist;
+    fsMat.uniforms.useDepth.value=useD?1:0; if(useD){ var sc=sceneScale(), S=focusMetres(), bd=curBody(), fm=(focalMM||50)/1000, N=APERTURES[apIdx]||8;
+      fsMat.uniforms.tDepth.value=dRT.texture; fsMat.uniforms.focusD.value=S*sc;
+      fsMat.uniforms.cocK.value=fm*fm/(N*S)/((bd.sensorW||36)/1000)*_sz.x*0.81; }   // circle of confusion in pixels across the frame
     fsMat.uniforms.gCon.value=gCon; fsMat.uniforms.gSat.value=gSat; fsMat.uniforms.gWarm.value=gWarm+camWarm;
     fsMat.uniforms.gBloom.value=gBloom; fsMat.uniforms.gDof.value=gDof; fsMat.uniforms.gGrain.value=gGrain;
     seedCounter=(seedCounter+1)%9973; fsMat.uniforms.seed.value=seedCounter;
@@ -624,7 +666,7 @@
   function endTutorial(){ var e=$("tutorial"); if(e) e.classList.add("hidden"); setTutSeen(); }
 
   // ---- viewfinder + photos ----
-  function raiseCamera(){ if(!loaded) return; if(soundOn){ try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); shutterLoad(); }catch(e){} } App.note("viewfinder"); viewfinderOn=true; viewfinder.classList.add("on"); updateCrosshair(); updatePrompt(); computeCam(); applyFinder(); drawComp(); }
+  function raiseCamera(){ if(!loaded) return; if(soundOn){ try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); shutterLoad(); }catch(e){} } App.note("viewfinder"); afPending=true; viewfinderOn=true; viewfinder.classList.add("on"); updateCrosshair(); updatePrompt(); computeCam(); applyFinder(); drawComp(); }
   function lowerCamera(){ if(App.state==="viewfinder") App.note("scene"); var was=viewfinderOn; viewfinderOn=false; viewfinder.classList.remove("on"); updateCrosshair(); updatePrompt(); applyFinder(); if(was) computeCam(); }
   // ---- composition / framing guides (in-frame, teach composition in any scene) ----
   var COMP=["off","thirds","phi","center","diagonal","grid"], compIdx=1;
@@ -1055,6 +1097,7 @@
     else if(e.code==="KeyG"){ if(viewfinderOn) cycleComp(); else toggleGrid(); }
     else if(e.code==="KeyX"){ e.preventDefault(); if(loaded) setVertical(!vertical); }
     else if(e.code==="Tab"){ e.preventDefault(); openStudio("select"); }
+    else if(e.code==="KeyF"&&viewfinderOn){ e.preventDefault(); afPending=true; }   // refocus on the middle of the frame
     else if(e.code==="ArrowUp"){ e.preventDefault(); setFocus(focusDist+0.05); }
     else if(e.code==="ArrowDown"){ e.preventDefault(); setFocus(focusDist-0.05); }
     else if(e.code==="Escape"){ if(viewfinderOn) lowerCamera(); }
@@ -1341,6 +1384,8 @@
   if(/[?&]dev/.test(location.search)){ try{ window.__ed={openEditor:openEditor,eglInit:eglInit,photos:photos,defEd:defEd,editRender:editRender,selectBody:selectBody,BODIES:BODIES,openFolio:openFolio,openPhotobook:openPhotobook,openGalleryShow:openGalleryShow,
     foPack:foPack,foShuffle:foShuffle,foSeed:foSeed,importPhotoFiles:importPhotoFiles,pbExportPDF:pbExportPDF,pbBuildPDF:pbBuildPDF,pbInit:pbInit,updateCamArt:updateCamArt,switchCamTab:switchCamTab,camArtSVG:camArtSVG,gxRender:gxRender,gxBuildLayouts:gxBuildLayouts,gxBindDrag:gxBindDrag,loadSplat:loadSplat,showHub:showHub,openSplatViewer:openSplatViewer,openStudioHome:openStudioHome,openPunctum:openPunctum,photoTip:photoTip,saveSessionNow:saveSessionNow,loadSession:loadSession,clearSession:clearSession,showTutorial:showTutorial,cycleComp:cycleComp,drawComp:drawComp,raiseCamera:raiseCamera,shutter:shutter,get foItems(){return foItems;},get pbPages(){return pbPages;},get foBW(){return foBW;},get foBH(){return foBH;}}; }catch(e){} }
   if(/[?&]dev/.test(location.search)){ window.__ls={db:function(){ return lsDB; }, setClock:function(hm){ var m=/^(\d+):(\d+)$/.exec(hm), d=new Date(); d.setHours(+m[1],+m[2],0,0); lsClockOff=d.getTime()-Date.now(); lsTick(); }, tick:lsTick, who:lsWho, plan:lsPlan, cur:function(){ var p=lsPlan(); return p?lsCur(p):null; }, count:lsCount, moveOpen:lsMoveOpen, pill:function(){ return ls.pill; }, tc:tc, tcPlan:tcPlan, roster:function(){ return tcRoster(tcPlan()); }}; }
+  if(/[?&]dev/.test(location.search)) window.__dof={ ap:function(N){ var i=APERTURES.indexOf(N); if(i>=0){ apIdx=i; computeCam(); } }, focus:function(v){ setFocus(v); }, af:function(){ afPending=true; },
+    state:function(){ return {ok:dOK, ready:!!dRT, metres:+focusMetres().toFixed(2), N:APERTURES[apIdx], k:+fsMat.uniforms.cocK.value.toFixed(2), use:fsMat.uniforms.useDepth.value}; } };
   if(/[?&]dev/.test(location.search)){ window.__cb={open:openBack, close:closeBack, tab:cbSetTab, state:function(){ return App.state; },
     cam:function(){ return {ap:APERTURES[apIdx], sh:SHUTTER_LABELS[shIdx], iso:ISOS[isoIdx], ev:+evStops.toFixed(2), mm:focalMM, body:curBody().id, lens:lensId}; }, bag:function(){ return {open:bg.open, stage:bg.stage, body:bg.body, lens:bg.lens, busy:bg.busy}; }, studio:function(){ var bd=function(B){ var d=B.doc_(); return {cur:d.cur, paper:d.paper, pages:d.pages.map(function(p){ return p.items.map(function(it){ return {t:it.t, i:it.pid?stById(it.pid):-1, x:Math.round(it.x), y:Math.round(it.y), w:Math.round(it.w), h:Math.round(B.hOf(it)), hidden:!!it.hidden, locked:!!it.locked, f:it.f||null, text:it.text||null, sec:it.sec||null, pid:it.pid||null, sz:it.sz||1, ch:it.ch!=null?Math.round(it.ch):null}; }); }), sel:B.selected()}; };
       return {open:st.open, room:st.room, cur:st.cur, ws:bd(wsB), fo:bd(foB), book:{size:bk.size, spread:bk.spread, focus:bk.focus, sel:bk.sel, pages:bk.pages.map(function(p){ return {tpl:p.tpl, imgs:p.imgs.map(stById)}; })}}; }, addPhoto:function(p){ p.t=new Date(); photos.push(p); refreshCount(); }, fill:function(){ return foB.fill_(); }, projects:function(){ return (st.projects||[]).map(function(p){ return {name:p.name, n:p.ids.length}; }); }, open_:function(){ return cbOpen; }, photos:photos, fov:function(){ return camera.fov; }, pose:function(o){ if(o){ if(o.x!=null) camPos.x=o.x; if(o.z!=null) camPos.z=o.z; if(o.yaw!=null) yaw=o.yaw; if(o.pitch!=null) pitch=o.pitch; if(o.eye!=null) WK.eye=o.eye; _vel.set(0,0,0); basis(); } return {x:camPos.x, y:camPos.y, z:camPos.z, yaw:yaw, pitch:pitch, eye:WK.eye}; }, dial:function(){ return vfDial; }, focus:function(){ return focusDist; } }; }

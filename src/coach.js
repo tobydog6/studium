@@ -6,7 +6,7 @@
   //   select  on the light table: look at a photo, Pick, Reject, then choose your best
   //   edit    across the three picks: the Light sliders on the first, black and white by hand on the second, then
   //           a crop and the Color Grading wheels on the third
-  // Progress lives in the guide step's flags (GD.flags.co), so a reload carries on from the same prompt.
+  // Progress and completion live per tour in the quest state (Q.tourStep, Q.tours), so a reload carries on from the same prompt.
   var CO={tour:null, i:0, on:false, s:{}, keys:{}, look:0, walked:0, lx:null, lz:null, lyaw:null, done:false, raf:0, html:"", okT:0, t0:0, seen:-1};
   function coK(k){ return '<kbd data-co-k="'+k+'"'+(CO.keys[k]?' class="on"':'')+'>'+k+'</kbd>'; }
   function coPickN(){ return GD.demo?5:8; }
@@ -285,7 +285,8 @@
   function coSteps(){ return (CO_TOURS[CO.tour]||{steps:[]}).steps; }
   function coLen(id){ return (CO_TOURS[id]||{steps:[]}).steps.length; }
   var CO_STEPS=CO_TOURS.basics.steps;   // the guide's basics step counts these
-  function coTourDone(id){ return (GD.flags.co||0)>=coLen(id); }
+  function coTourDone(id){ return !!Q.tours[id]; }
+  function coProg(id){ return Q.tourStep[id]||0; }
   function coActive(){ return CO.on&&!CO.done; }
   // the gold frames wait until the warm-up's done
   function coHidesFrames(){ return typeof gdActive==="function"&&gdActive()&&GD_STEPS[GD.step]&&GD_STEPS[GD.step].id==="basics"; }
@@ -294,15 +295,15 @@
       e.addEventListener("click",function(ev){ if(ev.target.closest("[data-co-skip]")){ ev.stopPropagation(); coFinish(true); }
         if(ev.target.closest("[data-co-next]")){ ev.stopPropagation(); CO.s.ok=true; } }); } return e; }
   function coStart(tour){ tour=tour||"basics"; if(CO.on&&CO.tour===tour) return; if(CO.on) coStop(); CO.ticking=false;
-    CO.tour=tour; CO.fk=tour==="lighting"?"col":"co"; CO.on=true; CO.done=false; if(GD.flags[CO.fk]==null) GD.flags[CO.fk]=0; CO.i=GD.flags[CO.fk]; CO.look=0; CO.walked=0; CO.lx=null; CO.seen=-1; coEnter(); coLoop(); }
+    CO.tour=tour; CO.on=true; CO.done=false; if(Q.tours[tour]&&(Q.tourStep[tour]||0)>=coLen(tour)) Q.tourStep[tour]=0; CO.i=Q.tourStep[tour]||0; CO.look=0; CO.walked=0; CO.lx=null; CO.seen=-1; coEnter(); coLoop(); }
   function coEnter(){ coUnmark(); var s=coSteps()[CO.i]; CO.s={}; CO.keys={}; CO.t0=performance.now(); CO.seen=-1; CO.lockTo=s&&s.info?CO.t0+READ_MS:0; if(s&&s.start) s.start(); CO.html=""; }
   function coStop(){ coUnmark(); if(CO.tgt){ CO.tgt.classList.remove("co-target"); CO.tgt=null; } CO.on=false; cancelAnimationFrame(CO.raf); var e=$("coCard"), r=$("coRing"); if(e) e.classList.remove("show","media"); if(r) r.classList.remove("show"); document.body.classList.remove("co-on","co-dial"); }
-  function coFinish(skipped){ CO.done=true; GD.flags[CO.fk||"co"]=coSteps().length; if(typeof gdSave==="function") gdSave(); coStop();
+  function coFinish(skipped){ CO.done=true; Q.tourStep[CO.tour]=coSteps().length; Q.tours[CO.tour]=true; qSave(); if(typeof gdSave==="function") gdSave(); coStop();
     if(skipped) toast(CO.tour==="basics"?"Warm-up skipped. The gold frames are out.":"Tour skipped."); }
   function coLoop(){ cancelAnimationFrame(CO.raf); CO.raf=requestAnimationFrame(coLoop); if(!CO.on) return; var T=CO_TOURS[CO.tour], e0;
     var cur=coSteps()[CO.i], here=T&&T.where()&&!GD.open;
     if(!here){ e0=$("coCard"); if(e0) e0.classList.remove("show"); e0=$("coRing"); if(e0) e0.classList.remove("show"); document.body.classList.remove("co-on","co-dial");
-      if(cur&&cur.away&&!CO.ticking&&cur.done()){ CO.ticking=true; CO.i++; GD.flags[CO.fk||"co"]=CO.i; CO.ticking=false; if(typeof gdSave==="function") gdSave(); if(CO.i>=coSteps().length) coFinish(false); else coEnter(); }   // a prompt that finishes by leaving (Done)
+      if(cur&&cur.away&&!CO.ticking&&cur.done()){ CO.ticking=true; CO.i++; Q.tourStep[CO.tour]=CO.i; qSave(); CO.ticking=false; if(CO.i>=coSteps().length) coFinish(false); else coEnter(); }   // a prompt that finishes by leaving (Done)
       return; }
     // what the student has done since the last frame
     if(looking&&CO.lyaw!=null){ var dy=Math.abs(yaw-CO.lyaw); if(dy<1) CO.look+=dy; } CO.lyaw=yaw;
@@ -312,7 +313,7 @@
     var isDone=(s.info||s.click)?CO.s.ok:s.done();
     if(!CO.ticking&&performance.now()-CO.t0>(s.info?0:(s.dwell||900))&&isDone){ coTicked(); return; }   // one tick per prompt, however late the timer runs
     coRender(s); }
-  function coTicked(){ CO.ticking=true; var e=coEl(); e.classList.add("ok"); setTimeout(function(){ CO.ticking=false; e.classList.remove("ok"); CO.i++; GD.flags[CO.fk||"co"]=CO.i; if(typeof gdSave==="function") gdSave();
+  function coTicked(){ CO.ticking=true; var e=coEl(); e.classList.add("ok"); setTimeout(function(){ CO.ticking=false; e.classList.remove("ok"); CO.i++; Q.tourStep[CO.tour]=CO.i; qSave();
       if(CO.i>=coSteps().length){ coFinish(false); return; } coEnter(); }, 600); }
   function coRender(s){ var e=coEl(), ring=$("coRing"), steps=coSteps();
     var chs=[], prev=null; steps.forEach(function(x,i){ if(x.ch!==prev){ chs.push({ch:x.ch, first:i}); prev=x.ch; } });

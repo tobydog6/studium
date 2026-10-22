@@ -9,8 +9,8 @@
   var GD={step:-1, base:0, flags:{}, shown:-1, timer:0, open:false, demo:false, t0:0};
   function gdLoad(){ var raw=null; try{ raw=localStorage.getItem(GD_KEY); }catch(e){}
     if(raw==="off"){ GD.step=-1; GD.demo=false; GD_STEPS=GD_FULL; return; }
-    try{ var d=JSON.parse(raw||"null"); if(d&&typeof d.step==="number"){ GD.step=d.step; GD.base=d.base||0; GD.flags=d.flags||{}; GD.shown=d.shown; GD.demo=!!d.demo; GD.t0=d.t0||0; GD_STEPS=GD.demo?GD_DEMO:GD_FULL; return; } }catch(e){}
-    GD.step=0; GD.shown=-1; }
+    try{ var d=JSON.parse(raw||"null"); if(d&&typeof d.step==="number"){ GD.step=d.step; GD.base=d.base||0; GD.flags=d.flags||{}; GD.shown=d.shown; GD.demo=!!d.demo; GD.t0=d.t0||0; GD_STEPS=GD.demo?GD_DEMO:GD_FULL; if(!GD.demo) GD.step=-1; return; } }catch(e){}
+    GD.step=-1; GD.shown=-1; }   // quests replace the full guided path; only the demo still runs here
   function gdSave(){ try{ localStorage.setItem(GD_KEY, GD.step<0?"off":JSON.stringify({step:GD.step, base:GD.base, flags:GD.flags, shown:GD.shown, demo:GD.demo, t0:GD.t0})); }catch(e){} }
   function gdActive(){ return GD.step>=0&&GD.step<GD_STEPS.length&&!(typeof lsPlan==="function"&&lsPlan()); }
   function gdNew(){ return photos.slice(GD.base); }
@@ -25,7 +25,7 @@
     {id:"basics", where:"scene", title:"Welcome to the Stump",
      body:"You're standing in a real place, scanned in 3D. Before the challenges, a two-minute warm-up: how to move, how to use the camera, and what's in your bag. Just follow the prompts at the bottom of the screen.",
      btn:"LET'S GO", go:function(){ coStart("basics"); },
-     checks:function(){ var n=GD.flags.co||0; return [{t:"Warm up: moving, shooting, the bag and the settings", ok:n>=CO_STEPS.length, now:Math.min(n,CO_STEPS.length)+" / "+CO_STEPS.length}]; },
+     checks:function(){ var n=coProg("basics"); return [{t:"Warm up: moving, shooting, the bag and the settings", ok:n>=CO_STEPS.length, now:Math.min(n,CO_STEPS.length)+" / "+CO_STEPS.length}]; },
      tick:function(){ gdTour("basics", true); }},
     {id:"challenges", where:"scene", title:"The gold frames",
      body:"Six gold frames hang around the clearing, each one a shot to take. Walk into a frame's glow and it draws you in, then set the camera the way its card asks and shoot. The markers point the way.",
@@ -107,7 +107,7 @@
     {id:"basics", where:"scene", title:"Welcome to the Stump",
      body:"This is a ten-minute taste of Studium, in a real place scanned in 3D. Before the challenges, a two-minute warm-up: how to move, how to use the camera, and what's in your bag. Just follow the prompts at the bottom of the screen.",
      btn:"LET'S GO", go:function(){ coStart("basics"); },
-     checks:function(){ var n=GD.flags.co||0; return [{t:"Warm up: moving, shooting, the bag and the settings", ok:n>=CO_STEPS.length, now:Math.min(n,CO_STEPS.length)+" / "+CO_STEPS.length}]; },
+     checks:function(){ var n=coProg("basics"); return [{t:"Warm up: moving, shooting, the bag and the settings", ok:n>=CO_STEPS.length, now:Math.min(n,CO_STEPS.length)+" / "+CO_STEPS.length}]; },
      tick:function(){ gdTour("basics", true); }},
     {id:"challenges", where:"scene", title:"The gold frames",
      body:"Three gold frames hang around the clearing, each needing a different camera from your bag. Walk into a frame's glow and it draws you in, then set the camera the way its card asks and shoot.",

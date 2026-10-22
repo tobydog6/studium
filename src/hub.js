@@ -78,7 +78,7 @@
     var sv=h.querySelector(".h6-saved"); if(sv) sv.classList.toggle("off", !photos.length); }
   function hubNote(){ var w=lsWho(); if(!w||!w.code) return null; var list=(lsDB.notes[w.code+"/"+w.name]||[]).filter(function(n){ return !n.read; }); return list[list.length-1]||null; }
   function hubAct(a, el){ var who=lsWho();
-    if(a==="go") return lsGo(el.getAttribute("data-h6-go")||"shoot");
+    if(a==="go"){ if(typeof qMode==="function"&&qMode()&&!qPlanLive()) return qHubGo(); return lsGo(el.getAttribute("data-h6-go")||"shoot"); }
     if(a==="me"){ if(who&&who.preview){ lsSetWho({role:"teacher", name:who.teacherName||"Teacher", code:who.code}); return openTeacher("plan"); } if(who&&who.role==="student") lsSetWho(null); return siShow(); }
     if(a==="teacher") return openTeacher("plan");
     if(a==="read"){ var w=lsWho(), L=lsDB.notes[w.code+"/"+w.name]||[]; L.forEach(function(n){ n.read=true; }); lsSave(); return hubRender(); } }

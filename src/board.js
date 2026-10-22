@@ -166,7 +166,7 @@
         tries.push({o:o2, s:stl, c:cst, sz:sz}); if(cst<best) best=cst; }
       var ok=tries.filter(function(x){ return x.c<=best*1.6+0.08&&look(x.o,x.s)!==cur; }); if(!ok.length) ok=tries.filter(function(x){ return look(x.o,x.s)!==cur; }); var pick=(ok.length?ok:tries)[Math.floor(Math.random()*(ok.length||tries.length))];
       var moved=pick.o.map(function(j){ var m=pg.items[ks[j]]; m.sz=pick.sz[j]; return m; }); ks.forEach(function(k,j){ pg.items[k]=moved[j]; });
-      page().secStyle=page().secStyle||{}; page().secStyle[key]=pick.s; B.shuffles=(B.shuffles||0)+1; commit(); }
+      page().secStyle=page().secStyle||{}; page().secStyle[key]=pick.s; B.shuffles=(B.shuffles||0)+1; if(o.sections&&typeof qFolioArranged==="function") qFolioArranged(parseInt(key,10)); commit(); }
     function curSec(){ var S=secs(); if(B.view>=0&&S[B.view]) return S[B.view].key; if(B.sel.length){ var it=page().items[B.sel[0]]; if(it&&it.sec) return it.sec; } return null; }
     function targetSec(){ var k=curSec(); if(k) return k; var S=secs(), best=null, bn=1e9; S.forEach(function(q){ var n=secItems(q.key).length; if(n<bn){ bn=n; best=q.key; } }); return best; }
     // put frames into a section (moving them if they're already on the board), then find the order that fills it best
@@ -485,7 +485,7 @@
       if(has("data-bd-page")){ d.cur=+g("data-bd-page"); B.sel=[]; o.save(d); return render(); }
       if(has("data-bd-tpl")) return o.sections?fillBoard(o.layouts[+g("data-bd-tpl")].style):applyLayout(o.layouts[+g("data-bd-tpl")]);
       if(has("data-bd-split")){ page().splits=page().splits||{}; page().splits[+g("data-bd-p")]=g("data-bd-split"); B.view=-1; pg.items.forEach(function(it){ if(it.sec&&it.sec.split(".")[0]===g("data-bd-p")) delete it.sec; }); return commit(); }
-      if(has("data-bd-style")){ page().secStyle=page().secStyle||{}; page().secStyle[g("data-bd-key")]=g("data-bd-style"); return commit(); }
+      if(has("data-bd-style")){ page().secStyle=page().secStyle||{}; page().secStyle[g("data-bd-key")]=g("data-bd-style"); if(o.sections&&typeof qFolioArranged==="function") qFolioArranged(parseInt(g("data-bd-key"),10)); return commit(); }
       if(has("data-bd-shuffle")) return shuffleSec(g("data-bd-shuffle"));
       if(has("data-bd-bestorder")){ bestOrderSec(g("data-bd-bestorder")); toast("Reordered for the fullest fit"); return commit(); }
       if(has("data-bd-clearsec")){ var ck=g("data-bd-clearsec"); pg.items=pg.items.filter(function(it){ return it.sec!==ck; }); B.sel=[]; return commit(); }

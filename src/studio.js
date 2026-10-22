@@ -176,7 +176,7 @@
       var sl=e.target.closest("[data-bk-slot]"), pg=e.target.closest("[data-bk-page]"); bk.sel=null;
       if(sl){ var q=sl.getAttribute("data-bk-slot").split(":"); bkPlace(i,+q[0],+q[1]); } else if(pg) bkPlace(i,+pg.getAttribute("data-bk-page")); }); }
   // export: every spread as one PDF page at 150 dpi, trimmed to the book size
-  function bkExport(){ if(!bk.pages.length) return; var sp=bkSpreads(), a=bkMM(), k=150/25.4, PW=Math.round(a[0]*k), PH=Math.round(a[1]*k), cans=[], left=0, started=false; toast("Building your book PDF…");
+  function bkExport(){ if(!bk.pages.length) return; var sp=bkSpreads(), a=bkMM(), k=150/25.4, PW=Math.round(a[0]*k), PH=Math.round(a[1]*k), cans=[], left=0, started=false; toast("Building your book PDF…"); qFlag("bookPdf");
     sp.forEach(function(s,j){ var cv=document.createElement("canvas"); cv.width=PW*s.length; cv.height=PH; var g=cv.getContext("2d"); g.fillStyle="#f4f1ea"; g.fillRect(0,0,cv.width,cv.height); cans[j]=cv;
       s.forEach(function(pi,c){ var pg=bk.pages[pi];
         if(pi>0&&!pg.back&&pg.tpl!=="bleed"){ g.fillStyle="#9a9384"; g.font=Math.round(3*k)+"px Geist Mono, monospace"; g.textAlign=c===0&&s.length>1?"left":"right"; g.fillText(String(pi+1), c===0&&s.length>1?c*PW+14*k:c*PW+PW-14*k, PH-12*k); }

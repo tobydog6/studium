@@ -385,6 +385,7 @@
     if(dt>0) wkSettle(dt);
     camera.up.set(0,1,0); camera.position.copy(camPos);
     camera.lookAt(camPos.x+_fwd.x, camPos.y+_fwd.y, camPos.z+_fwd.z);
+    if(typeof RL!=="undefined"&&RL.plan) rlPlanCam();
   }
 
   // ---- render ----

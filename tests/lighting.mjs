@@ -35,17 +35,24 @@ try {
   ok((await page.textContent('#navFrames')).includes('SHOW'), 'button should now say SHOW FRAMES');
   // lights
   await page.keyboard.press('KeyL'); await page.waitForFunction(() => window.__rl.state().ready, null, { timeout: 300000 });
-  await tap('#rlPanel [data-rl="add"]'); await page.waitForTimeout(300);
-  await tap('#rlPanel .rl-list [data-rl="add"]'); await page.waitForTimeout(300);
+  await tap('#rlPanel [data-rl-time="night"]');
+  await tap('#rlPanel [data-rl-fx="fresnel"]'); await page.waitForTimeout(300);
+  await page.evaluate(() => window.__rl.light({ gel: '#5aa0ff' }));
+  await tap('#rlPanel [data-rl-fx="led"]'); await page.waitForTimeout(300);
   ok((await st()).n === 2, 'expected two lights');
-  await tap('#rlPanel [data-rl-type="spot"]'); await page.waitForTimeout(200);
-  await tap('#rlPanel [data-rl="aim"]'); await page.waitForTimeout(200);
-  await page.evaluate(() => window.__rl.light({ k: 6500, gel: '#5aa0ff', power: 5 }));
   await tap('#rlPanel [data-rl-pick="0"]'); ok((await st()).sel === 0, 'picking light 1 failed');
-  await tap('#rlPanel [data-rl="onoff"]'); await tap('#rlPanel [data-rl="onoff"]');
   await tap('#rlPanel [data-rl="dup"]'); ok((await st()).n === 3, 'duplicate failed');
   await tap('#rlPanel [data-rl="del"]'); ok((await st()).n === 2, 'delete failed');
   await page.waitForTimeout(1500); await shot('lighting');
+  // plan view: drag light 2 sideways
+  await tap('#rlPanel [data-rl="plan"]'); await page.waitForTimeout(2500);
+  const box = await page.locator('#rlPlanUI .rlp-l[data-i="1"] i').boundingBox(); ok(box, 'no light icon in plan view');
+  const x0 = await page.evaluate(() => window.__rl.dbg().lights[1].x);
+  await page.mouse.move(box.x + 11, box.y + 11); await page.mouse.down(); await page.mouse.move(box.x - 120, box.y + 60, { steps: 4 }); await page.mouse.up();
+  await page.waitForTimeout(2500); await shot('lighting-plan');
+  ok(Math.abs((await page.evaluate(() => window.__rl.dbg().lights[1].x)) - x0) > 0.5, 'dragging in plan view did not move the light');
+  await page.keyboard.press('Escape'); await page.waitForTimeout(500);
+  ok(!(await page.isVisible('#rlPlanUI.show')), 'Esc did not leave plan view');
   await tap('#rlPanel [data-rl="reset"]'); ok((await st()).n === 0, 'reset failed');
   ok(errors.length === 0, 'page errors:\n' + errors.join('\n'));
   console.log('PASS lighting');

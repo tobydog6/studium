@@ -2159,3 +2159,28 @@ button.rl::after{content:"";position:absolute;left:0;bottom:0;height:3px;width:1
 #rlPanel .rl-n,#rlPanel .rl-s{margin:12px 0 0;font-size:12px;line-height:1.45;color:#a69f91}
 #rlPanel .rl-s{color:#e3ad57}
 .nav-top button.on{border-color:rgba(227,173,87,.6);color:#e3ad57}
+#rlPanel .rl-plan{width:100%;height:38px;margin-top:12px;border:0;border-radius:7px;background:#e3ad57;color:#17140d;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.12em;cursor:pointer}
+#rlPanel .rl-sub{margin-top:12px;font-family:'Geist Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.14em;color:#6f695d}
+#rlPanel .rl-fx{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:6px}
+#rlPanel .rl-fx button{min-height:30px;border-radius:6px;border:1px solid rgba(227,173,87,.35);background:rgba(227,173,87,.06);color:#e3ad57;font-family:'Geist Mono',ui-monospace,monospace;font-size:9.5px;letter-spacing:.08em;cursor:pointer}
+#rlPanel .rl-fx button:hover{background:rgba(227,173,87,.16)}
+#rlPanel .rl-row button{white-space:nowrap}
+#rlPlanUI{position:fixed;inset:0;z-index:950;display:none;cursor:default;user-select:none}
+#rlPlanUI.show{display:block}
+#rlPlanUI svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+#rlPlanUI svg .beam{fill:rgba(255,226,168,.13);stroke:rgba(255,226,168,.55);stroke-width:1}
+#rlPlanUI svg .beam.off{fill:none;stroke:rgba(240,232,214,.2);stroke-dasharray:4 4}
+#rlPlanUI svg line{stroke:#e3ad57;stroke-width:1.5;stroke-dasharray:3 3}
+#rlPlanUI svg line.view{stroke:rgba(244,241,234,.6)}
+#rlPlanUI .rlp-l,#rlPlanUI .rlp-h,#rlPlanUI .rlp-you{position:absolute;left:0;top:0}
+#rlPlanUI .rlp-l{display:flex;align-items:center;gap:6px;margin:-11px 0 0 -11px;cursor:grab;font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.1em;color:#f4f1ea;text-shadow:0 1px 3px #000}
+#rlPlanUI .rlp-l i{width:22px;height:22px;border-radius:50%;border:2px solid #17140d;box-shadow:0 0 0 1px rgba(240,232,214,.5),0 0 14px currentColor}
+#rlPlanUI .rlp-l.on i{box-shadow:0 0 0 2px #e3ad57,0 0 18px #e3ad57}
+#rlPlanUI .rlp-l.off{opacity:.5}
+#rlPlanUI .rlp-l span{padding:3px 7px;border-radius:5px;background:rgba(17,15,12,.8)}
+#rlPlanUI .rlp-h{width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#e3ad57;border:2px solid #17140d;cursor:crosshair}
+#rlPlanUI .rlp-you{width:0;height:0}
+#rlPlanUI .rlp-you i{position:absolute;left:-9px;top:-12px;border-left:9px solid transparent;border-right:9px solid transparent;border-bottom:22px solid #f4f1ea}
+#rlPlanUI .rlp-you span{position:absolute;left:-14px;top:14px;font-family:'Geist Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.14em;color:#f4f1ea;text-shadow:0 1px 3px #000}
+#rlPlanUI .rlp-tip{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);margin:0;padding:9px 14px;border-radius:8px;background:rgba(17,15,12,.88);color:#d8d2c6;font-size:12.5px}
+#rlPlanUI .rlp-tip kbd{font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;border:1px solid rgba(240,232,214,.2);border-radius:4px;padding:1px 5px}

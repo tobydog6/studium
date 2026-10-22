@@ -408,16 +408,20 @@
   // ---- the lens: Spark blurs every splat by its own distance from the focus plane (real depth of field) ----
   var dOK=true, afPending=false;
   function sparkLens(){ var sp=viewer&&viewer.spark; if(!sp) return; var on=viewfinderOn&&loaded&&gDof>0;
-    if(afPending&&on){ afPending=false; autoFocus(); }
+    if(afPending&&on){ var say=afPending==="say"; afPending=false; autoFocus(say); }
     if(!on){ sp.apertureAngle=0; return; } var sc=sceneScale(), S=focusMetres()*sc, fm=(focalMM||50)/1000*sc, N=APERTURES[apIdx]||8;
     sp.focalDistance=S; sp.apertureAngle=2*Math.atan(fm/N/2/S)*gDof; }   // the aperture's width, seen from the focus point
   // focus is a distance: the slider and keys move along a log scale, 0.3 m to 18 m (scaled to your own scans)
   function sceneScale(){ return WK.col?1:Math.max(0.02,Math.min(50,(sceneMaxDim||8)/8)); }
   function focusMetres(){ return 0.3*Math.pow(60,focusDist); }
   // autofocus: the nearest splat on the line through the middle of the frame, like a camera's centre AF point
-  function autoFocus(){ var P=viewer&&viewer.P; if(!P) return; var f=new THREE.Vector3(); camera.getWorldDirection(f); var o=camera.position, best=1e30, N=P.length/3, sc=sceneScale(), mt=0.2*sc;
-    for(var i=0;i<N;i++){ var vx=P[i*3]-o.x, vy=P[i*3+1]-o.y, vz=P[i*3+2]-o.z, t=vx*f.x+vy*f.y+vz*f.z; if(t<mt||t>=best) continue; var p2=vx*vx+vy*vy+vz*vz-t*t, lim=t*0.01+0.01*sc; if(p2<lim*lim) best=t; }
-    if(best<1e29){ var m=best/sc; setFocus(Math.log(Math.max(0.3,Math.min(18,m))/0.3)/Math.log(60)); } }
+  // the AF point covers a small cone (about 3 degrees wide) so handheld sway can't slip it between splats; it takes the
+  // nearest solid-ish thing in it, ignoring the odd stray splat (it wants a few hits close together)
+  function autoFocus(say){ var P=viewer&&viewer.P, A=viewer&&viewer.A; if(!P) return; var f=new THREE.Vector3(); camera.getWorldDirection(f); var o=camera.position, N=P.length/3, sc=sceneScale(), mt=0.25*sc, ts=[];
+    for(var i=0;i<N;i++){ if(A&&A[i]<0.12) continue; var vx=P[i*3]-o.x, vy=P[i*3+1]-o.y, vz=P[i*3+2]-o.z, t=vx*f.x+vy*f.y+vz*f.z; if(t<mt) continue; var p2=vx*vx+vy*vy+vz*vz-t*t, lim=t*0.026+0.01*sc; if(p2<lim*lim) ts.push(t); }
+    ts.sort(function(a,b){ return a-b; }); var k=Math.min(ts.length-1, 4);
+    if(ts.length<3){ setFocus(1); if(say) toast("Focused at infinity"); return; }   // only sky or far-off haze in the middle: like a real lens, focus far
+    var m=ts[k]/sc; setFocus(Math.log(Math.max(0.3,Math.min(18,m))/0.3)/Math.log(60)); if(say) toast("Focused at "+(m<10?m.toFixed(1):Math.round(m))+" m"); }
 
   // ---- render ----
   function renderFrame(dt){
@@ -425,7 +429,7 @@
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
     renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
-    if(viewer){ try{ skyFollow(); sparkLens(); renderer.render(scene,camera); chRender(dt); }catch(e){} }
+    if(viewer){ try{ skyFollow(); sparkLens(); renderer.render(scene,camera); chRender(dt); }catch(e){ if(!renderFrame.warned){ renderFrame.warned=1; console.error("render failed",e); } } }
     var useD=false;
     if(loaded&&dt>0) chTick(dt);
     renderer.setRenderTarget(null);
@@ -440,7 +444,7 @@
   }
   function animate(){ requestAnimationFrame(animate); var dt=Math.min(clock.getDelta(),0.1);
     if((typeof cbOpen!=="undefined" && cbOpen) || (typeof bg!=="undefined" && bg.open) || (typeof st!=="undefined" && st.open)) return;   // the camera back covers the scene: stop drawing it (big win on school PCs)
-    if(loaded) updateCamera(dt); renderFrame(dt); if(viewfinderOn) vfLevelTick(); }
+    if(loaded) updateCamera(dt); renderFrame(dt); dynTick(dt); if(viewfinderOn) vfLevelTick(); }
   animate();
 
   // ---- loading ----
@@ -506,22 +510,25 @@
     if(typeof rlForget==="function") rlForget();   // a new scan: the lighting starts over
     lastSource=source; lastFormat=format; lastUp=up||"yup"; highlightUp(lastUp);
     viewfinderOn=false; viewfinder.classList.remove("on");
-    hide(landing); hide(menu); hide(gallery); hide(prompt); showLoader("Loading scene…");
+    hide(landing); hide(menu); hide(gallery); hide(prompt); showLoader("Loading scene…"); setScale(dynMax());
     var q=upQuat(lastUp);
     if(viewer){ try{ viewer.dispose(); }catch(e){} viewer=null; } loaded=false;
     (isFile?source.arrayBuffer():fetch(source).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.arrayBuffer(); })).then(function(ab){
       scene=new THREE.Scene(); skyAttach(scene); showLoader("Building detail levels…");
       // one Spark renderer for the whole session (its workers stay up); only the scan is swapped
-      var spark=window.__sparkR||(window.__sparkR=new SPARK.SparkRenderer({renderer:renderer})); spark.lodSplatScale=(DETAIL[sceneDetail]||DETAIL.balanced).lod||1; scene.add(spark);
+      var spark=window.__sparkR||(window.__sparkR=new SPARK.SparkRenderer({renderer:renderer})); var DL=DETAIL[sceneDetail]||DETAIL.balanced; spark.lodSplatScale=DL.lod||1; spark.maxStdDev=DL.sd||Math.sqrt(8); scene.add(spark);   // splats' faint outer edges trimmed a little: fewer pixels to fill
       // Studium draws into its own buffer and grades in sRGB (like the old engine): Spark would otherwise convert to linear there
       if(!spark.__srgb){ spark.__srgb=true; var obr=spark.onBeforeRender; spark.onBeforeRender=function(){ obr.apply(spark,arguments); if(spark.uniforms&&spark.uniforms.encodeLinear) spark.uniforms.encodeLinear.value=false; }; }
       var mesh=new SPARK.SplatMesh({fileBytes:new Uint8Array(ab), fileType:format, lod:true}); mesh.quaternion.copy(q); scene.add(mesh);
       viewer={spark:spark, mesh:mesh, splatMesh:mesh, P:null, dispose:function(){ scene.remove(mesh); scene.remove(spark); try{ mesh.dispose(); }catch(e){} }};
-      // Spark says "initialized" before its level-of-detail build has the splats ready: wait for them
-      return mesh.initialized.then(function(){ return new Promise(function(res,rej){ var t0=performance.now(); (function poll(){ if(mesh.numSplats>0) return res(); if(performance.now()-t0>180000) return rej(new Error("the scan never finished loading")); setTimeout(poll,100); })(); }); }).then(function(){ mesh.updateMatrixWorld(true);
-        // every splat's centre in world space, once: framing, autofocus and lighting all read it
-        var src=mesh, n=mesh.numSplats, P=new Float32Array(n*3), A=new Float32Array(n), v=new THREE.Vector3();
-        src.forEachSplat(function(i,c,sc,qq,op){ v.copy(c).applyQuaternion(q); P[i*3]=v.x; P[i*3+1]=v.y; P[i*3+2]=v.z; A[i]=op; }); viewer.P=P; viewer.A=A; viewer.q=q.clone(); });
+      // Spark says "initialized" before its level-of-detail build has the splats ready: wait for them. Then, because
+      // the LoD splats live in a streaming pager that can't be read back, parse the same bytes once more without LoD to
+      // get every splat's centre (world space) and opacity: framing, autofocus and lighting read those.
+      return mesh.initialized.then(function(){ return new Promise(function(res,rej){ var t0=performance.now(); (function poll(){ if(mesh.numSplats>0) return res(); if(performance.now()-t0>180000) return rej(new Error("the scan never finished loading")); setTimeout(poll,100); })(); }); })
+        .then(function(){ var ps=new SPARK.PackedSplats({fileBytes:new Uint8Array(ab), fileType:format}); return ps.initialized; })
+        .then(function(ps){ mesh.updateMatrixWorld(true); var n=ps.numSplats, P=new Float32Array(n*3), A=new Float32Array(n), v=new THREE.Vector3();
+          ps.forEachSplat(function(i,c,sc,qq,op){ v.copy(c).applyQuaternion(q); P[i*3]=v.x; P[i*3+1]=v.y; P[i*3+2]=v.z; A[i]=op; });
+          try{ ps.dispose(); }catch(e){} viewer.P=P; viewer.A=A; viewer.q=q.clone(); });
     }).then(function(){
       frameScene(); chAttach(); loaded=true; hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
@@ -540,9 +547,20 @@
   // Light detail keeps the more solid half of the splats for slower school computers.
   // Scan detail (camera back › Handling): how much of the scan to draw, and at how many pixels. Splats cost most per
   // pixel drawn, so the lighter levels also render a little under the screen's full resolution.
-  var DETAIL={ light:{keep:0.3, dpr:1, lod:0.5, label:"LIGHT"}, balanced:{keep:0.55, dpr:1.5, lod:1, label:"BALANCED"}, full:{keep:1, dpr:2, lod:1.5, label:"FULL"}, test:{keep:0.1, dpr:1, lod:0.3, label:"TEST"} };
+  var DETAIL={ light:{keep:0.3, dpr:1, lod:0.45, sd:2.3, label:"LIGHT"}, balanced:{keep:0.55, dpr:1.5, lod:0.75, sd:2.55, label:"BALANCED"}, full:{keep:1, dpr:2, lod:1.3, sd:2.83, label:"FULL"}, test:{keep:0.1, dpr:1, lod:0.3, sd:2.3, label:"TEST"} };
   var sceneDetail=(function(){ var v=null; try{ v=localStorage.getItem("studium_detail"); }catch(e){} return DETAIL[v]?v:"balanced"; })();
-  function detailDpr(){ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, DETAIL[sceneDetail].dpr)); }
+  function detailDpr(){ setScale(dynMax()); }
+  // ---- auto resolution: when the frame rate dips, draw fewer pixels; when there's headroom, draw more. Photos are always full res ----
+  var dyn={scale:1, ema:16.7, t:0, hi:0};
+  function dynMax(){ return Math.min(window.devicePixelRatio||1, (DETAIL[sceneDetail]||DETAIL.balanced).dpr); }
+  function setScale(v){ dyn.scale=v; renderer.setPixelRatio(v); resize(); }
+  // resolution first (down to 60%); if that's not enough, trim Spark's splat budget a little too. Both come back with headroom.
+  function dynLod(){ var sp=viewer&&viewer.spark; return sp?sp.lodSplatScale:1; }
+  function dynLodBase(){ return (DETAIL[sceneDetail]||DETAIL.balanced).lod||1; }
+  function dynTick(dt){ if(!loaded||!(dt>0)) return; dyn.ema=dyn.ema*0.9+dt*100; dyn.t+=dt; var mx=dynMax(), sp=viewer&&viewer.spark; if(dyn.scale>mx+0.001){ setScale(mx); return; }
+    if(dyn.t<0.6) return; dyn.t=0; var fps=1000/dyn.ema;
+    if(fps<48){ dyn.hi=0; if(dyn.scale>0.6) setScale(Math.max(0.6,Math.round((dyn.scale-0.1)*100)/100)); else if(sp&&sp.lodSplatScale>dynLodBase()*0.5) sp.lodSplatScale=Math.max(dynLodBase()*0.5, sp.lodSplatScale*0.85); }
+    else if(fps>57){ if(++dyn.hi>=3){ dyn.hi=0; if(sp&&sp.lodSplatScale<dynLodBase()) sp.lodSplatScale=Math.min(dynLodBase(), sp.lodSplatScale/0.85); else if(dyn.scale<mx) setScale(Math.min(mx,Math.round((dyn.scale+0.1)*100)/100)); } } else dyn.hi=0; }
   // Keep the splats that show most: rank by opacity and keep the top share. Faint haze goes first and the small,
   // solid splats that carry texture stay, so the lighter levels thin out without going soft or muddy.
   function stmUnpack(buf, level){ var keepFrac=(DETAIL[level]||DETAIL.full).keep; var dv=new DataView(buf), n=dv.getUint32(4,true), f=new Float32Array(buf.slice(8,40)), b=new Uint8Array(buf,40), N=n;
@@ -722,10 +740,11 @@
   function shutter(){
     if(!loaded) return;
     if(!viewfinderOn){ raiseCamera(); return; }        // first press raises the camera
+    var keepS=dyn.scale, full=dynMax(); if(keepS<full) setScale(full);   // the photo is always taken at full resolution
     var keepE=fx.exposure; fx.exposure=expMult; CH.capturing=true; renderFrame(0); CH.capturing=false;   // challenge frames never end up in the photo   // the sensor always records the real exposure, even when an optical finder hid it
     lastShake=Math.min(0.06, shakeAmount()*Math.exp(gauss()*0.35));   // some slow shots come out sharper than others
-    var url; try{ url=captureAspect(curAspect(), lastShake); }catch(e){ fx.exposure=keepE; toast("Couldn't capture this shot."); return; }
-    fx.exposure=keepE;
+    var url; try{ url=captureAspect(curAspect(), lastShake); }catch(e){ fx.exposure=keepE; if(keepS<full) setScale(keepS); toast("Couldn't capture this shot."); return; }
+    fx.exposure=keepE; if(keepS<full) setScale(keepS);
     var brf=activeBrief>=0?BRIEFS[activeBrief]:null;
     photos.push({url:url,t:new Date(),f:APERTURES[apIdx],sh:SHUTTER_LABELS[shIdx],iso:ISOS[isoIdx],mm:focalMM,body:curBody().name,lens:lensId,brief:brf?brf.t:null,place:cbPlace,shake:+lastShake.toFixed(4)});
     chOnShot(photos[photos.length-1]);
@@ -1097,7 +1116,7 @@
     else if(e.code==="KeyG"){ if(viewfinderOn) cycleComp(); else toggleGrid(); }
     else if(e.code==="KeyX"){ e.preventDefault(); if(loaded) setVertical(!vertical); }
     else if(e.code==="Tab"){ e.preventDefault(); openStudio("select"); }
-    else if(e.code==="KeyF"&&viewfinderOn){ e.preventDefault(); afPending=true; }   // refocus on the middle of the frame
+    else if(e.code==="KeyF"&&viewfinderOn){ e.preventDefault(); afPending="say"; }   // refocus on the middle of the frame
     else if(e.code==="ArrowUp"){ e.preventDefault(); setFocus(focusDist+0.05); }
     else if(e.code==="ArrowDown"){ e.preventDefault(); setFocus(focusDist-0.05); }
     else if(e.code==="Escape"){ if(viewfinderOn) lowerCamera(); }
@@ -1384,8 +1403,8 @@
   if(/[?&]dev/.test(location.search)){ try{ window.__ed={openEditor:openEditor,eglInit:eglInit,photos:photos,defEd:defEd,editRender:editRender,selectBody:selectBody,BODIES:BODIES,openFolio:openFolio,openPhotobook:openPhotobook,openGalleryShow:openGalleryShow,
     foPack:foPack,foShuffle:foShuffle,foSeed:foSeed,importPhotoFiles:importPhotoFiles,pbExportPDF:pbExportPDF,pbBuildPDF:pbBuildPDF,pbInit:pbInit,updateCamArt:updateCamArt,switchCamTab:switchCamTab,camArtSVG:camArtSVG,gxRender:gxRender,gxBuildLayouts:gxBuildLayouts,gxBindDrag:gxBindDrag,loadSplat:loadSplat,showHub:showHub,openSplatViewer:openSplatViewer,openStudioHome:openStudioHome,openPunctum:openPunctum,photoTip:photoTip,saveSessionNow:saveSessionNow,loadSession:loadSession,clearSession:clearSession,showTutorial:showTutorial,cycleComp:cycleComp,drawComp:drawComp,raiseCamera:raiseCamera,shutter:shutter,get foItems(){return foItems;},get pbPages(){return pbPages;},get foBW(){return foBW;},get foBH(){return foBH;}}; }catch(e){} }
   if(/[?&]dev/.test(location.search)){ window.__ls={db:function(){ return lsDB; }, setClock:function(hm){ var m=/^(\d+):(\d+)$/.exec(hm), d=new Date(); d.setHours(+m[1],+m[2],0,0); lsClockOff=d.getTime()-Date.now(); lsTick(); }, tick:lsTick, who:lsWho, plan:lsPlan, cur:function(){ var p=lsPlan(); return p?lsCur(p):null; }, count:lsCount, moveOpen:lsMoveOpen, pill:function(){ return ls.pill; }, tc:tc, tcPlan:tcPlan, roster:function(){ return tcRoster(tcPlan()); }}; }
-  if(/[?&]dev/.test(location.search)) window.__dof={ ap:function(N){ var i=APERTURES.indexOf(N); if(i>=0){ apIdx=i; computeCam(); } }, focus:function(v){ setFocus(v); }, af:function(){ afPending=true; },
-    state:function(){ var sp=viewer&&viewer.spark; var mm=viewer&&viewer.mesh; return {np:viewer&&viewer.P?viewer.P.length/3:-1, ps:mm&&mm.packedSplats?mm.packedSplats.numSplats:-1, ms:mm?mm.numSplats:-1, lod:mm&&mm.lodSplats?mm.lodSplats.numSplats:-1, ok:dOK, ready:!!sp, metres:+focusMetres().toFixed(2), N:APERTURES[apIdx], angle:sp?+sp.apertureAngle.toFixed(5):0, focal:sp?+sp.focalDistance.toFixed(2):0}; } };
+  if(/[?&]dev/.test(location.search)) window.__dof={ aim:function(y,p){ yaw=y; pitch=p; }, pb:function(){ var P=viewer.P, n=P.length/3, mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9], md=[[],[],[]]; for(var i=0;i<n;i++) for(var k=0;k<3;k++){ var v=P[i*3+k]; if(v<mn[k]) mn[k]=v; if(v>mx[k]) mx[k]=v; if(i%50===0) md[k].push(v); } md=md.map(function(a){ a.sort(function(x,y){ return x-y; }); return +a[a.length>>1].toFixed(2); }); var f=new THREE.Vector3(); camera.getWorldDirection(f); return {n:n, mn:mn.map(function(v){ return +v.toFixed(1); }), mx:mx.map(function(v){ return +v.toFixed(1); }), med:md, cam:camera.position.toArray().map(function(v){ return +v.toFixed(2); }), dir:f.toArray().map(function(v){ return +v.toFixed(2); }), A0:viewer.A[0], A1:viewer.A[1000]}; }, ap:function(N){ var i=APERTURES.indexOf(N); if(i>=0){ apIdx=i; computeCam(); } }, focus:function(v){ setFocus(v); }, af:function(){ afPending=true; },
+    state:function(){ var sp=viewer&&viewer.spark; var mm=viewer&&viewer.mesh; return {af:afPending, np:viewer&&viewer.P?viewer.P.length/3:-1, ps:mm&&mm.packedSplats?mm.packedSplats.numSplats:-1, ms:mm?mm.numSplats:-1, lod:mm&&mm.lodSplats?mm.lodSplats.numSplats:-1, ok:dOK, ready:!!sp, metres:+focusMetres().toFixed(2), N:APERTURES[apIdx], angle:sp?+sp.apertureAngle.toFixed(5):0, focal:sp?+sp.focalDistance.toFixed(2):0}; } };
   if(/[?&]dev/.test(location.search)){ window.__cb={open:openBack, close:closeBack, tab:cbSetTab, state:function(){ return App.state; },
     cam:function(){ return {ap:APERTURES[apIdx], sh:SHUTTER_LABELS[shIdx], iso:ISOS[isoIdx], ev:+evStops.toFixed(2), mm:focalMM, body:curBody().id, lens:lensId}; }, bag:function(){ return {open:bg.open, stage:bg.stage, body:bg.body, lens:bg.lens, busy:bg.busy}; }, studio:function(){ var bd=function(B){ var d=B.doc_(); return {cur:d.cur, paper:d.paper, pages:d.pages.map(function(p){ return p.items.map(function(it){ return {t:it.t, i:it.pid?stById(it.pid):-1, x:Math.round(it.x), y:Math.round(it.y), w:Math.round(it.w), h:Math.round(B.hOf(it)), hidden:!!it.hidden, locked:!!it.locked, f:it.f||null, text:it.text||null, sec:it.sec||null, pid:it.pid||null, sz:it.sz||1, ch:it.ch!=null?Math.round(it.ch):null}; }); }), sel:B.selected()}; };
       return {open:st.open, room:st.room, cur:st.cur, ws:bd(wsB), fo:bd(foB), book:{size:bk.size, spread:bk.spread, focus:bk.focus, sel:bk.sel, pages:bk.pages.map(function(p){ return {tpl:p.tpl, imgs:p.imgs.map(stById)}; })}}; }, addPhoto:function(p){ p.t=new Date(); photos.push(p); refreshCount(); }, fill:function(){ return foB.fill_(); }, projects:function(){ return (st.projects||[]).map(function(p){ return {name:p.name, n:p.ids.length}; }); }, open_:function(){ return cbOpen; }, photos:photos, fov:function(){ return camera.fov; }, pose:function(o){ if(o){ if(o.x!=null) camPos.x=o.x; if(o.z!=null) camPos.z=o.z; if(o.yaw!=null) yaw=o.yaw; if(o.pitch!=null) pitch=o.pitch; if(o.eye!=null) WK.eye=o.eye; _vel.set(0,0,0); basis(); } return {x:camPos.x, y:camPos.y, z:camPos.z, yaw:yaw, pitch:pitch, eye:WK.eye}; }, dial:function(){ return vfDial; }, focus:function(){ return focusDist; } }; }

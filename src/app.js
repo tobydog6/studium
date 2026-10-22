@@ -35,7 +35,7 @@
 
   // ---- state ----
   var renderer,camera,scene=null,viewer=null,loaded=false,looking=false,viewfinderOn=false;
-  var camPos=new THREE.Vector3(), yaw=0, pitch=0, sceneMaxDim=8;
+  var camPos=new THREE.Vector3(), yaw=0, pitch=0, sceneMaxDim=8, _edgeT=0;
   var boxMin=new THREE.Vector3(-1e9,-1e9,-1e9), boxMax=new THREE.Vector3(1e9,1e9,1e9), boundsOn=true;
   var keys={}, sens=0.0009, invertY=false, moveScale=0.12;
   var photos=[], clock=new THREE.Clock();
@@ -393,7 +393,8 @@
       if(WK.col&&WK.mode==="walk") _vel.y=0;
       if(_vel.lengthSq()>1e-10){
         if(WK.col) wkMove(dt); else camPos.addScaledVector(_vel, dt);
-        if(boundsOn){ camPos.x=Math.min(Math.max(camPos.x,boxMin.x),boxMax.x); camPos.y=Math.min(Math.max(camPos.y,boxMin.y),boxMax.y); camPos.z=Math.min(Math.max(camPos.z,boxMin.z),boxMax.z); }
+        if(boundsOn){ var bx=camPos.x, bz=camPos.z; camPos.x=Math.min(Math.max(camPos.x,boxMin.x),boxMax.x); camPos.y=Math.min(Math.max(camPos.y,boxMin.y),boxMax.y); camPos.z=Math.min(Math.max(camPos.z,boxMin.z),boxMax.z);
+          if((bx!==camPos.x||bz!==camPos.z)&&Date.now()-_edgeT>1500){ _edgeT=Date.now(); if(typeof achEvent==="function") achEvent("bounds"); } }
       }
     }
     if(dt>0) wkSettle(dt);
@@ -625,7 +626,7 @@
     if(typeof bk!=="undefined") bk.pages=[]; if(typeof ga!=="undefined"){ ga.title=""; ga.list=null; ga.sizes={}; ga.pos={}; }
     refreshCount(); }
   function sessionData(){ return { v:1, savedAt:Date.now(), studentName:studentName, briefDone:briefDone,
-    photos:photos.map(function(p){ return {url:p.url,orig:p.orig||null,dev:p.dev||null,id:p.id||null,copy:!!p.copy,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,baked:p.baked||null,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order,challenge:p.challenge||null,lens:p.lens||null,shake:p.shake||0,research:!!p.research,credit:p.credit||null,light:p.light||null,ev:p.ev==null?null:p.ev}; }),
+    photos:photos.map(function(p){ return {url:p.url,orig:p.orig||null,dev:p.dev||null,id:p.id||null,copy:!!p.copy,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,baked:p.baked||null,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order,challenge:p.challenge||null,lens:p.lens||null,shake:p.shake||0,research:!!p.research,credit:p.credit||null,light:p.light||null,ev:p.ev==null?null:p.ev,cap:p.cap||null}; }),
     quests:(typeof Q!=="undefined"?Q:null),
     workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), projects:(typeof st!=="undefined"?st.projects:[]), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title,list:ga.list,label:ga.label}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
@@ -761,8 +762,8 @@
     var url; try{ url=captureAspect(curAspect(), lastShake); }catch(e){ fx.exposure=keepE; if(keepS<full) setScale(keepS); toast("Couldn't capture this shot."); return; }
     fx.exposure=keepE; if(keepS<full) setScale(keepS);
     var brf=activeBrief>=0?BRIEFS[activeBrief]:null;
-    photos.push({url:url,t:new Date(),f:APERTURES[apIdx],sh:SHUTTER_LABELS[shIdx],iso:ISOS[isoIdx],mm:focalMM,body:curBody().name,lens:lensId,brief:brf?brf.t:null,place:cbPlace,shake:+lastShake.toFixed(4), ev:+evStops.toFixed(2), light:qCaptureLight()});
-    chOnShot(photos[photos.length-1]);
+    photos.push({url:url,t:new Date(),f:APERTURES[apIdx],sh:SHUTTER_LABELS[shIdx],iso:ISOS[isoIdx],mm:focalMM,body:curBody().name,lens:lensId,brief:brf?brf.t:null,place:cbPlace,shake:+lastShake.toFixed(4), ev:+evStops.toFixed(2), light:qCaptureLight(), cap:achCapture()});
+    chOnShot(photos[photos.length-1]); achShot(photos[photos.length-1]);
     if(brf){ briefDone[brf.id]=(briefDone[brf.id]||0)+1; buildBriefList(); }
     refreshCount(); fireFlash(); shutterSound(); captureFX(url); vfRefresh();
     if(brf) toast("“"+brf.t+"” captured ✓");
@@ -983,6 +984,7 @@
 @@include guide.js@@
 @@include coach.js@@
 @@include questui.js@@
+@@include achieve.js@@
   function toggleGrid(){ grid.classList.toggle("hidden"); var s=$("mGrid"); if(s)s.classList.toggle("on",!grid.classList.contains("hidden")); }
 
   // ---- wire: landing ----

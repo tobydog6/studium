@@ -116,7 +116,11 @@
         +(!lock&&s!=="done"&&!tr?'<button class="gd-go q-track" data-q-track="'+x.id+'">TRACK THIS QUEST</button>':'')+'</div>':'')+'</div>'; }
   function qLogOpen(){ if(!qMode()) return; qPickClose(); var el=gdEl("qLog","gd-pop q-pop"), t=qTally(), cps=qCheckpoints();
     var tally=["context","craft","environment","drive"].map(function(p){ return '<span class="p-'+p+'"><b>'+PILLARS[p].n+'</b> '+t[p].done+'/'+t[p].of+'</span>'; }).join("");
-    var h='<div class="gd-card q-logcard"><div class="q-lh"><div><span class="k">QUEST LOG</span><b class="t">Your quests</b></div><button class="q-x" data-q="closelog" title="Close">✕</button></div><div class="q-tally">'+tally+'</div>';
+    var wall=QU.tab==="ach"&&typeof achWallHtml==="function";
+    var h='<div class="gd-card q-logcard'+(wall?' wide':'')+'"><div class="q-lh"><div><span class="k">QUEST LOG</span><b class="t">'+(wall?'Achievements':'Your quests')+'</b></div><button class="q-x" data-q="closelog" title="Close">✕</button></div>'
+      +(typeof achWallHtml==="function"?'<div class="q-tabs"><button data-q="tabq" class="'+(wall?'':'on')+'">QUESTS</button><button data-q="taba" class="'+(wall?'on':'')+'">ACHIEVEMENTS · '+achCountAll()+' / '+ACH.length+'</button></div>':'');
+    if(wall){ el.innerHTML=h+achWallHtml()+'</div>'; el.classList.add("show"); QU.log=true; qHud(); return; }
+    h+='<div class="q-tally">'+tally+'</div>';
     h+='<div class="q-sec"><span class="q-sh">FOUNDATIONS</span>'+qFoundations().map(qRow).join("")+'</div>';
     cps.forEach(function(c){ var M=qAll().filter(function(x){ return x.type==="main"&&x.checkpoint===c.id; }); if(!M.length) return;
       h+='<div class="q-sec'+(Q.boardOpen?'':' dim')+'"><span class="q-sh">CHECKPOINT '+c.id.slice(2)+' · '+qEsc(c.name.toUpperCase())+' · '+qDateNice(c.date).toUpperCase()+'</span>'+(Q.boardOpen?'':'<p class="q-lock">Finish the foundations to open your board.</p>')+M.map(qRow).join("")+'</div>'; });
@@ -133,6 +137,7 @@
     if(t.hasAttribute("data-q-open")){ var k=t.getAttribute("data-q-open"); QU.open[k]=!QU.open[k]; qLogOpen(); return; }
     if(t.hasAttribute("data-q-track")){ var id2=t.getAttribute("data-q-track"); qLogClose(); if(qTrack(id2)){ qFlash(8000); qGoQuest(id2); } return; }
     var a=t.getAttribute("data-q");
+    if(a==="tabq"||a==="taba"){ QU.tab=a==="taba"?"ach":"q"; qLogOpen(); return; }
     if(a==="skip"){ qPickClose(); return; } if(a==="log"){ qLogOpen(); return; } if(a==="closelog"){ qLogClose(); return; }
     if(a==="pick"){ qPickOpen(); return; } if(a==="how"){ qHow(); return; }
     if(a==="closedone"){ qDoneClose(); return; } if(a==="restart"){ qDemoRestart(); return; } if(a==="explore"){ qDoneClose(); qPickOpen(); return; }
@@ -171,7 +176,8 @@
   function qSummary(){ var t=qTally(), tl={}; Object.keys(t).forEach(function(p){ tl[p]=[t[p].done, t[p].of]; });
     var tr=Q.tracked&&qGet(Q.tracked), sp=tr?qProgress(Q.tracked):null;
     return {tracked:Q.tracked||null, title:tr?tr.title:null, step:sp?[sp.done, sp.of]:null, f:qFoundations().filter(function(f){ return qIsDone(f.id); }).length,
-      done:qAll().filter(function(x){ return qIsDone(x.id); }).map(function(x){ return x.id; }), tally:tl, by:Object.keys(Q.quests).filter(function(k){ return Q.quests[k].by==="teacher"; }) }; }
+      done:qAll().filter(function(x){ return qIsDone(x.id); }).map(function(x){ return x.id; }), tally:tl, by:Object.keys(Q.quests).filter(function(k){ return Q.quests[k].by==="teacher"; }),
+      ach:typeof ACH!=="undefined"?{n:achCountAll(), ids:ACH.filter(function(a){ return achLevel(a.id); }).map(function(a){ return a.id; }), show:achS().showcase.slice()}:null }; }
   function qTallyOf(done){ var t={}; ["context","craft","environment","drive"].forEach(function(p){ t[p]=[0,0]; });
     qAll().forEach(function(x){ if(x.type==="side") return; qPillars(x).forEach(function(p){ if(!t[p]) return; t[p][1]++; if(done.indexOf(x.id)>=0) t[p][0]++; }); }); return t; }
   function qIso(d){ return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }

@@ -165,6 +165,7 @@
     var P=R.filter(function(r){ return r.name===tc.qpick; })[0], q=P.rec;
     html+='<aside class="tl-side tq-side"><span class="eb">SELECTED</span><div class="who"><h2>'+cbEsc(P.real?"You (preview)":P.name)+'</h2><span class="sd '+P.st.s+'">'+Q_STANDING[P.st.s]+'</span></div>'
       +'<p class="desc">'+(P.st.cp?(P.st.why?cbEsc(P.st.why)+'. ':'')+P.st.n+' of '+P.st.of+' done for '+cbEsc(P.st.cp.name)+' ('+new Date(P.st.cp.date+"T00:00").toLocaleDateString("en-NZ",{day:"numeric",month:"short"})+').':'Everything is done.')+'</p>'
+      +(q.ach?'<span class="eb nt">ACHIEVEMENTS · '+q.ach.n+'</span><div class="tq-show">'+((q.ach.show||[]).length?q.ach.show.map(function(id){ var a=typeof ACH_BY!=="undefined"&&ACH_BY[id]; return '<span>'+cbEsc(a?a.name:id)+'</span>'; }).join(""):'<em>Nothing on their profile yet</em>')+'</div>':'')
       +'<span class="eb nt">TICK OFF</span><p class="tq-hint">For work done away from Studium, or that you have seen in class.</p><div class="tq-list">'
       +tcQOrder().map(function(id){ var x=qGet(id), dn=q.done.indexOf(id)>=0, op=tc.qopen===id;
         var steps=op&&!dn?'<div class="tq-steps">'+x.steps.map(function(s0,i){ var ok=P.real&&qSteps(id)[i].ok; return '<button data-tq-tick="'+id+':'+i+'" class="'+(ok?'ok':'')+'"'+(ok?' disabled':'')+'><i></i>'+cbEsc(s0.t)+'</button>'; }).join("")+'</div>':'';

@@ -31,6 +31,7 @@
     else if(!wkBlocked(nx,camPos.z,feet)){ camPos.x=nx; _vel.z=0; }
     else if(!wkBlocked(camPos.x,nz,feet)){ camPos.z=nz; _vel.x=0; }
     else { _vel.x=0; _vel.z=0; }
+    if(!stuck&&(camPos.x!==nx||camPos.z!==nz)&&Date.now()-(WK.bumpT||0)>900){ WK.bumpT=Date.now(); if(typeof achEvent==="function") achEvent("bump"); }   /* walked into something */
     if(WK.mode==="fly"){ camPos.y+=_vel.y*dt; var gmin=wkGround(camPos.x,camPos.z)+0.15; if(camPos.y<gmin){ camPos.y=gmin; _vel.y=0; } } }
   function wkSettle(dt){ if(!WK.col||WK.mode!=="walk") return; var tgt=wkGround(camPos.x,camPos.z)+WK.eye; camPos.y+=(tgt-camPos.y)*(1-Math.exp(-10*Math.min(dt,0.05))); }
   function wkEye(d, dt){ var e=Math.max(WK_EYE_MIN,Math.min(WK_EYE_MAX,WK.eye+d*dt*0.9)); if(e===WK.eye) return; WK.eye=e;

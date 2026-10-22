@@ -77,3 +77,14 @@ create table if not exists feedback (
 );
 alter table feedback enable row level security;
 create policy "anyone signed in can leave feedback" on feedback for insert with check (auth.role() = 'authenticated');
+
+-- achievement rarity: "% of your class has this". Returns only counts, never who.
+create or replace function ach_rarity(code text) returns table(id text, pct int) language sql security definer as $$
+  with c as (select quest from presence where class_code = code and quest ? 'ach'
+         and exists (select 1 from members m where m.class_code = code and m.user_id = auth.uid())),
+       n as (select greatest(count(*),1) as total from c)
+  select a.id, round(100.0 * count(*) / (select total from n))::int
+  from c, jsonb_array_elements_text(c.quest->'ach'->'ids') as a(id)
+  group by a.id;
+$$;
+grant execute on function ach_rarity(text) to authenticated;

@@ -2377,3 +2377,45 @@ button.rl::after{content:"";position:absolute;left:0;bottom:0;height:3px;width:1
 .q-rate button{width:30px;height:30px;border-radius:7px;border:1px solid var(--line);background:none;color:var(--text);font:600 12px var(--mono);cursor:pointer}
 .q-rate button.on,.q-rate button:hover{border-color:var(--accent);color:var(--accent)}
 .q-fbsend{align-self:flex-end}
+/* achievements: the unlock card, prints and the wall */
+.ach-card{position:fixed;left:50%;top:18px;transform:translate(-50%,-140%);z-index:60;transition:transform .45s cubic-bezier(.2,.9,.25,1.15);pointer-events:none}
+.ach-card.show{transform:translate(-50%,0);pointer-events:auto}
+.ach-mini{display:flex;align-items:center;gap:12px;padding:8px 18px 8px 8px;border-radius:12px;background:rgba(20,18,14,.94);border:1px solid rgba(227,173,87,.45);box-shadow:0 14px 40px rgba(0,0,0,.5);color:var(--text);cursor:pointer;font:inherit;text-align:left}
+.ach-mini .th{position:relative;width:46px;height:34px;border-radius:3px;overflow:hidden;background:#eee;border:3px solid #fff;box-sizing:content-box}
+.ach-mini .th img{width:100%;height:100%;object-fit:cover;display:block}
+.ach-mini .k{display:block;font:600 9.5px var(--mono);letter-spacing:.16em;color:var(--accent)}
+.ach-mini b{font:500 17px var(--serif)}
+.ach-card .dev{position:absolute;inset:0;background:#fff;animation:achDev 2.6s ease-out forwards;pointer-events:none}
+@keyframes achDev{0%{opacity:1}20%{opacity:.92}100%{opacity:0}}
+.ach-card.big{top:50%;transform:translate(-50%,-50%)}
+.ach-card.big:not(.show){transform:translate(-50%,-160%)}
+.ach-full{display:grid;grid-template-columns:340px 300px;gap:28px;align-items:center;padding:26px;border-radius:16px;background:#14120e;border:1px solid var(--line);box-shadow:0 30px 90px rgba(0,0,0,.6)}
+.ach-full .k{font:600 10px var(--mono);letter-spacing:.16em;color:var(--accent)}
+.ach-full .t{display:block;font:500 34px/1.05 var(--serif);margin:8px 0 10px}
+.ach-full p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.55}
+.ach-rare{display:block;margin-top:12px;font:500 10.5px var(--mono);letter-spacing:.1em;color:#8fc7a0}
+.ach-acts{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:20px}.ach-acts .gd-go{margin-left:auto}
+.ach-print{display:block;padding:7%;background:#f4f0e8;border-radius:2px;box-shadow:0 10px 28px rgba(0,0,0,.45);position:relative}
+.ach-print .pp{position:relative;display:block;aspect-ratio:3/2;background:#d9d4ca;overflow:hidden}
+.ach-print img{width:100%;height:100%;object-fit:cover;display:block}
+.ach-print .nophoto{position:absolute;inset:0;display:grid;place-items:center;font:500 18px var(--serif);color:#6d675b}
+.ach-print.bronze{box-shadow:0 0 0 4px #b07a4a,0 10px 28px rgba(0,0,0,.45)}.ach-print.silver{box-shadow:0 0 0 4px #c9ccd1,0 10px 28px rgba(0,0,0,.45)}.ach-print.gold{box-shadow:0 0 0 4px #e3ad57,0 10px 28px rgba(0,0,0,.45)}
+.ach-mini .th.bronze{border-color:#b07a4a}.ach-mini .th.silver{border-color:#c9ccd1}.ach-mini .th.gold{border-color:#e3ad57}
+.ach-print.blank{background:#2a2720;box-shadow:none}.ach-print.blank .pp{background:#35312a}
+.ach-tile.secret .ach-print .pp{background:linear-gradient(135deg,#3a372f,#2b2822)}
+.q-logcard.wide{width:min(1060px,94vw)}
+.q-tabs{display:flex;gap:4px;margin:14px 0 4px;padding:3px;border-radius:8px;background:rgba(240,232,214,.05);width:max-content}
+.q-tabs button{height:28px;padding:0 14px;border:0;border-radius:6px;background:none;color:var(--muted);font:600 10px var(--mono);letter-spacing:.14em;cursor:pointer}.q-tabs button.on{background:#2a241a;color:var(--accent)}
+.ach-wall{max-height:66vh;overflow:auto;padding-right:6px;margin-top:10px}
+.ach-wh{display:flex;align-items:baseline;gap:14px;margin-bottom:6px}.ach-wh b{font:500 26px var(--serif)}.ach-wh span{color:var(--faint);font-size:13px}
+.ach-cat{margin-top:18px}
+.ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;margin-top:10px}
+.ach-tile{display:flex;flex-direction:column;gap:6px;background:none;border:0;padding:0;color:var(--text);text-align:left;font:inherit;cursor:default}
+.ach-tile.got{cursor:pointer}.ach-tile.got:hover .ach-print{transform:translateY(-2px)}.ach-tile .ach-print{transition:transform .2s;padding:6%}
+.ach-tile b{font-size:13.5px;font-weight:600;margin-top:4px}.ach-tile:not(.got) b{color:var(--faint)}
+.ach-tile small{font-size:11.5px;line-height:1.35;color:var(--faint)}.ach-tile.got small{font:500 10px var(--mono);letter-spacing:.1em;color:var(--accent)}
+.ach-bar{position:relative;display:block;height:4px;border-radius:2px;background:#2a2720;margin-top:2px}.ach-bar i{display:block;height:100%;border-radius:2px;background:var(--accent)}
+.ach-bar em{position:absolute;right:0;top:6px;font:500 9.5px var(--mono);font-style:normal;color:var(--faint)}
+.q-achline{margin:12px 0 0;font-size:13.5px;color:var(--muted)}.q-achline b{color:var(--text)}
+.tq-show{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}.tq-show span{font:500 10.5px var(--mono);padding:4px 9px;border-radius:999px;background:rgba(227,173,87,.1);color:#e3ad57}.tq-show em{font-size:12.5px;color:#6d675b}
+.ach-acts .gd-skip{color:#d9d3c6}.ach-acts .gd-skip:hover{color:var(--accent)}

@@ -40,16 +40,20 @@
     rs.done[p.id+":punctum"]=1; qResearch("punctum", p.id); qResearch("details", null, mine.filter(function(im){ var n=r.notes[im.id]; return n&&String(n.note||"").trim(); }).length); rs.rounds=(rs.rounds||0)+1; rs.view="results"; rs.res={kind:"punctum", round:r, counts:null}; rsRender();
     if(!p.sample&&!rs.offline) rsGet("responses?select=image_id,struck&pack_id=eq."+p.id).then(function(rows){ var c={}; rows.forEach(function(x){ var o=c[x.image_id]||(c[x.image_id]={y:0,n:0}); o.n++; if(x.struck) o.y++; }); if(rs.res&&rs.res.round===r){ rs.res.counts=c; rsRender(); } }).catch(function(){}); }
   // ---- the Culling Game: two at a time; each newcomer finds its place in your top three by a few head-to-heads ----
-  function rsStartCull(p){ if(!p) return; rs.pack=p; rs.view="cull"; var q=rsShuffle(p.imgs.slice(0,12)); rs.cull={queue:q.slice(1), top:[q[0]], cand:null, lo:0, hi:0, picks:0, flip:false}; rsCullNext(); }
+  function rsStartCull(p){ if(!p) return; rs.pack=p; rs.view="cull"; var q=rsShuffle(p.imgs.slice(0,12)); rs.cull={queue:q.slice(1), top:[q[0]], cand:null, lo:0, hi:0, picks:0, flip:false, t0:Date.now()}; rsCullNext(); }
   function rsCullNext(){ var c=rs.cull; if(!c.cand){ if(!c.queue.length) return rsCullEnd(); c.cand=c.queue.shift(); c.lo=0; c.hi=Math.min(c.top.length,3); }
     if(c.lo>=c.hi){ if(c.lo<3) c.top.splice(c.lo,0,c.cand); c.top=c.top.slice(0,3); c.cand=null; return rsCullNext(); }
     c.mid=(c.lo+c.hi)>>1; c.flip=Math.random()<0.5; rsRender(); }
   function rsCullPick(newWins){ var c=rs.cull; c.picks++; if(newWins) c.hi=c.mid; else c.lo=c.mid+1; rsCullNext(); }
   function rsCullEnd(){ var c=rs.cull, p=rs.pack, who=rsWho(), cls=rsClass(), ids=c.top.map(function(x){ return x.id; });
     if(!p.sample){ rsPost("cullings", [{pack_id:p.id, student_name:who, ranked:ids, class_name:cls}]); rsPost("plays", [{student_name:who, class_name:cls, pack_id:p.id, pack_name:p.name, game:"culling", detail:{ranked:ids}}]); }
+    var cev={pack:p.id, s:Math.round((Date.now()-(c.t0||Date.now()))/1000), top:ids[0]}; if(typeof achEvent==="function") achEvent("cull", cev);
     rs.done[p.id+":cull"]=1; qResearch("cull", p.id); rs.culls=(rs.culls||0)+1; try{ localStorage.setItem("studium_culled","1"); }catch(e){} rs.view="results"; rs.res={kind:"cull", top:c.top, cls:null}; rsRender();
     if(!p.sample&&!rs.offline) rsGet("cullings?select=ranked&pack_id=eq."+p.id).then(function(rows){ var sc={}; rows.forEach(function(r){ (r.ranked||[]).forEach(function(id,k){ sc[id]=(sc[id]||0)+3-k; }); });
-      var best=Object.keys(sc).sort(function(a,b){ return sc[b]-sc[a]; }).slice(0,3); if(rs.res&&rs.res.top===c.top){ rs.res.cls={ids:best, n:rows.length}; rsRender(); } }).catch(function(){}); }
+      var best=Object.keys(sc).sort(function(a,b){ return sc[b]-sc[a]; }).slice(0,3); if(rs.res&&rs.res.top===c.top){ rs.res.cls={ids:best, n:rows.length}; rsRender(); }
+      /* the class's #1, and its least-liked, for Great Minds and Contrarian */
+      var all=p.imgs.slice(0,12).map(function(im){ return im.id; }), low=all.slice().sort(function(a,b){ return (sc[a]||0)-(sc[b]||0); })[0];
+      cev.same=!!best.length&&String(best[0])===String(ids[0]); cev.contra=rows.length>=5&&String(low)===String(ids[0]); if(typeof achEvent==="function") achEvent("recheck"); }).catch(function(){}); }
   // ---- into the workbook: an Artist model page with the photograph, an arrow to your detail, and your answers ----
   function rsToWorkbook(im){ var p=rs.pack, r=rs.round||{tap:{},notes:{}}, n=r.notes[im.id]||{}, tap=r.tap[im.id];
     var i=-1; photos.forEach(function(x,j){ if(x.url===im.url&&x.research) i=j; });

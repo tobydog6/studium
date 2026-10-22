@@ -24,6 +24,7 @@
     function pullPlan(code){ return rest("plans?class_code=eq."+encodeURIComponent(code)+"&date=eq."+lsToday()+"&select=body").then(function(r){ return r&&r[0]?r[0].body:null; }); }
     function presence(rec){ return rest("presence?on_conflict=class_code,student",{method:"POST", prefer:"resolution=merge-duplicates", body:rec}).catch(function(){}); }
     function roster(code){ return rest("presence?class_code=eq."+encodeURIComponent(code)+"&select=*"); }
+    function rarity(code){ return rest("rpc/ach_rarity",{method:"POST", body:{code:code}}); }
     function sendFeedback(rec){ return rest("feedback",{method:"POST", body:rec}).catch(function(){}); }
     function sendNote(code, student, text){ return rest("notes",{method:"POST", body:{class_code:code, student:student, body:text}}); }
     function pullNotes(code, student){ return rest("notes?class_code=eq."+encodeURIComponent(code)+"&student=eq."+encodeURIComponent(student)+"&order=created_at.asc&select=*"); }
@@ -43,5 +44,5 @@
       if(w.role==="teacher"&&dirty){ var p=lsDB.plans[w.code]; if(p&&p.sent) jobs.push(pushPlan(p)); dirty=false; }
       Promise.all(jobs).then(function(){ busy=false; },function(){ busy=false; }); }
     if(on()) setInterval(beat, 20000);
-    return {on:on, signIn:signIn, me:me, joinClass:joinClass, pushPlan:pushPlan, pullPlan:pullPlan, roster:roster, sendNote:sendNote, sendFeedback:sendFeedback, pullNotes:pullNotes, beat:beat, dirty:function(){ dirty=true; }};
+    return {on:on, signIn:signIn, me:me, joinClass:joinClass, pushPlan:pushPlan, pullPlan:pullPlan, roster:roster, sendNote:sendNote, sendFeedback:sendFeedback, rarity:rarity, pullNotes:pullNotes, beat:beat, dirty:function(){ dirty=true; }};
   })();

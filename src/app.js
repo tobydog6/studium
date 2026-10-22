@@ -895,6 +895,7 @@
 @@include nav.js@@
 @@include walk.js@@
 @@include sky.js@@
+@@include relight.js@@
 @@include challenge.js@@
 @@include sync.js@@
 @@include lesson.js@@

@@ -2424,3 +2424,8 @@ button.rl::after{content:"";position:absolute;left:0;bottom:0;height:3px;width:1
 body.q-on #navTask{display:none}
 body[data-state^="studio"] .q-hud{right:300px;top:14px}
 .q-hud .q-skipst{margin-top:10px}
+
+/* a closed achievement card is gone, not parked half off the top */
+.ach-card{transition:transform .45s cubic-bezier(.2,.9,.25,1.15),opacity .3s,visibility 0s linear .45s}
+.ach-card.show{transition:transform .45s cubic-bezier(.2,.9,.25,1.15),opacity .3s,visibility 0s}
+.ach-card:not(.show){opacity:0;visibility:hidden;pointer-events:none}

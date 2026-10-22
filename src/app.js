@@ -398,6 +398,7 @@
       }
     }
     if(dt>0) wkSettle(dt);
+    if(dt>0) ptCross();
     camera.up.set(0,1,0); camera.position.copy(camPos);
     camera.lookAt(camPos.x+_fwd.x, camPos.y+_fwd.y, camPos.z+_fwd.z);
     if(typeof RL!=="undefined"&&RL.plan) rlPlanCam();
@@ -430,7 +431,7 @@
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
     renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
-    if(viewer){ try{ skyFollow(); sparkLens(); renderer.render(scene,camera); chRender(dt); }catch(e){ if(!renderFrame.warned){ renderFrame.warned=1; console.error("render failed",e); } } }
+    if(viewer){ try{ skyFollow(); sparkLens(); ptRender(); renderer.setRenderTarget(sceneRT); renderer.render(scene,camera); chRender(dt); }catch(e){ if(!renderFrame.warned){ renderFrame.warned=1; console.error("render failed",e); } } }
     var useD=false;
     if(loaded&&dt>0) chTick(dt);
     renderer.setRenderTarget(null);
@@ -519,7 +520,7 @@
       // one Spark renderer for the whole session (its workers stay up); only the scan is swapped
       var spark=window.__sparkR||(window.__sparkR=new SPARK.SparkRenderer({renderer:renderer})); var DL=DETAIL[sceneDetail]||DETAIL.balanced; spark.lodSplatScale=DL.lod||1; spark.maxStdDev=DL.sd||Math.sqrt(8); scene.add(spark);   // splats' faint outer edges trimmed a little: fewer pixels to fill
       // Studium draws into its own buffer and grades in sRGB (like the old engine): Spark would otherwise convert to linear there
-      if(!spark.__srgb){ spark.__srgb=true; var obr=spark.onBeforeRender; spark.onBeforeRender=function(){ obr.apply(spark,arguments); if(spark.uniforms&&spark.uniforms.encodeLinear) spark.uniforms.encodeLinear.value=false; }; }
+      if(!spark.__srgb){ spark.__srgb=true; var obr=spark.onBeforeRender; spark.onBeforeRender=function(){ obr.apply(spark,arguments); if(spark.uniforms&&spark.uniforms.encodeLinear) spark.uniforms.encodeLinear.value=false; var ov=SPARK.SparkRenderer.sparkOverride; if(ov&&ov.uniforms&&ov.uniforms.encodeLinear) ov.uniforms.encodeLinear.value=false; }; }
       var mesh=new SPARK.SplatMesh({fileBytes:new Uint8Array(ab), fileType:format, lod:true}); mesh.quaternion.copy(q); scene.add(mesh);
       viewer={spark:spark, mesh:mesh, splatMesh:mesh, P:null, dispose:function(){ scene.remove(mesh); scene.remove(spark); try{ mesh.dispose(); }catch(e){} }};
       // Spark says "initialized" before its level-of-detail build has the splats ready: wait for them. Then, because
@@ -531,7 +532,7 @@
           ps.forEachSplat(function(i,c,sc,qq,op){ v.copy(c).applyQuaternion(q); P[i*3]=v.x; P[i*3+1]=v.y; P[i*3+2]=v.z; A[i]=op; });
           try{ ps.dispose(); }catch(e){} viewer.P=P; viewer.A=A; viewer.q=q.clone(); });
     }).then(function(){
-      frameScene(); chAttach(); loaded=true; hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
+      frameScene(); chAttach(); loaded=true; updateCamera(0); ptSetup(); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       toast("Click to look around · P raises the camera · Space for the menu");   // the guide's first popup covers the controls
     }).catch(function(err){
@@ -976,6 +977,7 @@
 @@include sky.js@@
 @@include relight.js@@
 @@include challenge.js@@
+@@include portal.js@@
 @@include sync.js@@
 @@include lesson.js@@
 @@include hub.js@@

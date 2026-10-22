@@ -87,9 +87,9 @@
        {t:"Hang 8 or more prints in the gallery", go:"gallery", check:function(){ return qPrints()>=8; }, now:function(){ return qCount(qPrints(),8); }},
        {t:"Give the show a title", go:"gallery", check:function(){ return typeof ga!=="undefined"&&!!String(ga.title||"").trim(); }}]}
   ]} };
-  // ---- the demo: about 30 minutes for someone who's never seen Studium. Three foundations, then any two of four. ----
+  // ---- the demo: about 30 minutes for someone who's never seen Studium. Three foundations, then all four board quests, in any order. ----
   function qFolioTop(){ var b=typeof st!=="undefined"&&st.foBoard; if(!b||!b.pages) return 0; var n=0; b.pages.forEach(function(pg){ (pg.items||[]).forEach(function(it){ if(it.t==="photo"&&it.sec==="0.0"&&!it.hidden) n++; }); }); return n; }
-  QUEST_SETS.demo={ name:"Demo", checkpoints:[], sampleCp:true, finish:2, quests:[
+  QUEST_SETS.demo={ name:"Demo", checkpoints:[], sampleCp:true, finish:4, quests:[
     {id:"d1", type:"foundation", order:1, pillar:"craft", mins:8, title:"Step inside", blurb:"Learn to move, shoot and set the camera, then take the three gold-frame shots.", go:"scene",
      steps:[{t:"Do the warm-up", tour:"basics", go:"scene", check:function(){ return qTour("basics"); }},
        {t:"Complete the 3 gold frames", go:"scene", check:function(){ return qChDone()>=3; }, now:function(){ return qCount(qChDone(),3); }}]},
@@ -180,7 +180,7 @@
     /* a teacher can tick a foundation off outright, so the board can also open here */
     if(!Q.boardOpen&&qFoundations().every(function(f){ return qIsDone(f.id); })){ Q.boardOpen=Date.now(); changed=true; qEmit("board",{}); }
     if(Q.tracked&&qIsDone(Q.tracked)){ Q.tracked=null; changed=true; }
-    /* the demo's board rule: any two board quests, in any order, and it's finished */
+    /* the demo's board rule: every board quest, in whatever order you choose, and it's finished */
     var fin=qSet().finish; if(fin&&!Q.finished&&qAll().filter(function(x){ return x.type==="main"&&qIsDone(x.id); }).length>=fin){ Q.finished=Date.now(); changed=true; qEmit("finish",{}); }
     if(changed) qSave(); return changed; }
 

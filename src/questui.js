@@ -89,7 +89,7 @@
     if(typeof looking!=="undefined"&&looking){ try{ document.exitPointerLock(); }catch(e){} }
     var el=gdEl("qDone","gd-pop q-pop"), h;
     if(m.kind==="board"&&qSet().finish){
-      h='<div class="gd-card q-donecard big"><span class="k">FOUNDATIONS DONE</span><b class="t">Your board is open</b><p>From here, you choose. Finish any two of these four, in any order. In class, each one counts toward a checkpoint your teacher sets.</p>'
+      h='<div class="gd-card q-donecard big"><span class="k">FOUNDATIONS DONE</span><b class="t">Your board is open</b><p>From here, you choose the order. Finish all four, one at a time. In class, each one counts toward a checkpoint your teacher sets.</p>'
         +'<div class="q-cps">'+qAll().filter(function(x){ return x.type==="main"; }).map(function(x){ return '<span><b>'+qEsc(x.title)+'</b>'+qPillarChip(x)+'</span>'; }).join("")+'</div>'
         +'<div class="gd-acts"><button class="gd-skip" data-q="closedone">Later</button><button class="gd-go" data-q="next">CHOOSE YOUR FIRST ›</button></div></div>'; }
     else if(m.kind==="finish"){ h=qFinishCard(); }
@@ -127,7 +127,7 @@
     cps.forEach(function(c){ var M=qAll().filter(function(x){ return x.type==="main"&&x.checkpoint===c.id; }); if(!M.length) return;
       h+='<div class="q-sec'+(Q.boardOpen?'':' dim')+'"><span class="q-sh">CHECKPOINT '+c.id.slice(2)+' · '+qEsc(c.name.toUpperCase())+' · '+qDateNice(c.date).toUpperCase()+'</span>'+(Q.boardOpen?'':'<p class="q-lock">Finish the foundations to open your board.</p>')+M.map(qRow).join("")+'</div>'; });
     if(!cps.length){ var B=qAll().filter(function(x){ return x.type==="main"; });
-      h+='<div class="q-sec'+(Q.boardOpen?'':' dim')+'"><span class="q-sh">YOUR BOARD'+(qSet().finish?' · FINISH ANY '+(qSet().finish===2?'TWO':qSet().finish):'')+'</span>'+(Q.boardOpen?'':'<p class="q-lock">Finish the foundations to open your board.</p>')+B.map(qRow).join("")+'</div>'; }
+      h+='<div class="q-sec'+(Q.boardOpen?'':' dim')+'"><span class="q-sh">YOUR BOARD'+(qSet().finish?' · FINISH ALL '+(qSet().finish===4?'FOUR':qSet().finish):'')+'</span>'+(Q.boardOpen?'':'<p class="q-lock">Finish the foundations to open your board.</p>')+B.map(qRow).join("")+'</div>'; }
     if(qDemo()) h+='<div class="q-demo"><span>DEMO · '+qTook()+'</span><button class="gd-skip" data-q="restart">Restart demo</button></div>';
     var S=qAll().filter(function(x){ return x.type==="side"; }); if(S.length) h+='<div class="q-sec"><span class="q-sh">SIDE QUESTS</span>'+S.map(qRow).join("")+'</div>';
     el.innerHTML=h+'</div>'; el.classList.add("show"); QU.log=true; qHud(); }

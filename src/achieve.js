@@ -231,7 +231,7 @@
     el.innerHTML=achFullHtml(ACHU.card.id, ACHU.card.lv, true); el.className="ach-card show big"; ACHU.fullT=Date.now(); }
   (function(){ var el=gdEl("achCard","ach-card"); el.addEventListener("mouseenter",function(){ ACHU.hover=true; }); el.addEventListener("mouseleave",function(){ ACHU.hover=false; ACHU.fullT=Date.now()-5000; }); })();
   window.addEventListener("keydown",function(e){ if(e.code==="Escape"&&ACHU.card){ e.preventDefault(); e.stopImmediatePropagation(); achNext(); } },true);
-  function achNext(){ ACHU.card=null; ACHU.full=false; ACHU.hover=false; var el=$("achCard"); if(el) el.classList.remove("show"); }
+  function achNext(){ ACHU.card=null; ACHU.full=false; ACHU.hover=false; var el=$("achCard"); if(el){ el.classList.remove("show"); setTimeout(function(){ if(!ACHU.card){ el.classList.remove("big"); el.innerHTML=""; } },500); } }
   // the wall's own view of one print
   function achShowOne(id){ var lv=achLevel(id); if(!lv) return; var el=gdEl("achCard","ach-card"); ACHU.card={id:id, lv:ACH_BY[id].tier?lv:0, wall:true}; ACHU.full=true; el.innerHTML=achFullHtml(id, ACHU.card.lv, false); el.className="ach-card show big"; }
 

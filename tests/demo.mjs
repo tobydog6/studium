@@ -63,7 +63,12 @@ try {
   ok(!(await ev(() => window.__q.raw().finished)), 'one board quest is not the end');
   ok(await ev(() => window.__q.track('d5')), 'track D5');
   await ev(() => { window.__q.research('cull', 'pack1'); window.__q.page('artist', 1); }); await done('d5');
-  ok(await ev(() => !!window.__q.raw().finished), 'two board quests finish the demo');
+  ok(!(await ev(() => window.__q.raw().finished)), 'two board quests are not the end');
+  ok(await ev(() => window.__q.track('d4')), 'track D4');
+  await ev(() => { window.__q.flag('rlOpened'); window.__cb.addPhoto({ url: 'g', light: { time: 'golden', lights: [] } }); window.__cb.addPhoto({ url: 'n', light: { time: 'night', lights: [{ fx: 'fresnel' }] } }); }); await done('d4');
+  ok(await ev(() => window.__q.track('d6')), 'track D6');
+  await ev(() => { window.__q.tour('workbook'); window.__q.page('rank', 3); }); await done('d6');
+  ok(await ev(() => !!window.__q.raw().finished), 'all four board quests finish the demo');
   // the finish card, after the completion moments
   for (let i = 0; i < 8; i++) {
     if (await page.$('#qDone.show .q-finish')) break;
@@ -72,10 +77,10 @@ try {
   }
   ok(await page.$('#qDone.show .q-finish'), 'finish card shows');
   const fin = await page.textContent('#qDone .q-finish');
-  ok(/DONE IN \d+ MIN/.test(fin) && fin.includes('The folio then') && fin.includes('Look at others'), 'finish card: time and chosen quests in order: ' + fin.slice(0, 200));
+  ok(/DONE IN \d+ MIN/.test(fin) && fin.includes('The folio then') && fin.includes('Look at others then'), 'finish card: time and chosen quests in order: ' + fin.slice(0, 200));
   await page.fill('[data-fb="best"]', 'Changing the light at night'); await page.click('[data-fb-rate="4"]');
   await page.$eval('[data-q="fbsend"]', (b) => { b.disabled = false; b.click(); });
-  const fb = await ev(() => window.__q.feedback()); ok(fb.length === 1 && fb[0].rate === 4 && fb[0].quests.join() === 'd5,d7'.split(',').sort().join() || fb[0].quests.length === 2, 'feedback stored: ' + JSON.stringify(fb));
+  const fb = await ev(() => window.__q.feedback()); ok(fb.length === 1 && fb[0].rate === 4 && fb[0].quests.length === 4, 'feedback stored: ' + JSON.stringify(fb));
   await page.screenshot({ path: join(OUT, 'demo-finish.png') });
   // keep exploring, then restart
   await page.$eval('#qDone [data-q="explore"]', (b) => { b.disabled = false; b.click(); }); await page.waitForTimeout(400);

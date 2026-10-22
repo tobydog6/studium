@@ -30,7 +30,7 @@ async function finish(id, script) {
   await waitU(() => window.__qu.state().done, 15000); console.log('done', id, await page.textContent('#qDone .t'));
 }
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev&full&quick');
+  await page.goto(pathToFileURL(FILE).href + '?dev&full&quick&noauto');
   await page.waitForSelector('[data-si="solo"]', { state: 'visible', timeout: 20000 }); await page.click('[data-si="solo"]');
   // the picker on arrival: just the first foundation
   await waitU(() => window.__qu && window.__qu.state().pick);
@@ -45,16 +45,15 @@ try {
   // F1 done: completion card
   await finish('f1', () => { window.__q.tour('basics'); window.__q.frames(3); });
   await page.waitForTimeout(800); await shot('q-complete');
-  await tap('#qDone [data-q="next"]'); await waitU(() => window.__qu.state().pick);
-  ok(await page.$('#qPick [data-q-pick="f2"]'), 'the picker should now offer F2');
-  await tap('#qPick [data-q-pick="f2"]'); await page.waitForTimeout(800);
+  ok(await page.$('#qDone [data-q-pick="f2"]'), 'the completion card offers F2 directly');
+  await tap('#qDone [data-q-pick="f2"]'); await page.waitForTimeout(800);
   await finish('f2', () => { const L = ['2470', '50', '85', '135'], F = [2.8, 5.6, 11], SH = ['1/60', '1/250', '1/1000'], I = [100, 800];
     for (let i = 0; i < 15; i++) window.__cb.addPhoto({ url: 'x', lens: L[i % 4], f: F[i % 3], sh: SH[i % 3], iso: I[i % 2], place: 'The Stump' }); });
-  await tap('#qDone [data-q="next"]'); await waitU(() => window.__qu.state().pick); await tap('#qPick [data-q-pick="f3"]'); await page.waitForTimeout(800);
+  await tap('#qDone [data-q-pick="f3"]'); await page.waitForTimeout(800);
   await finish('f3', () => { window.__q.tour('select'); window.__q.tour('edit'); window.__q.flag('synced'); for (let i = 0; i < 8; i++) window.__cb.addPhoto({ url: 'p', pick: true, place: 'The Stump' }); });
-  await tap('#qDone [data-q="next"]'); await waitU(() => window.__qu.state().pick); await tap('#qPick [data-q-pick="f4"]'); await page.waitForTimeout(800);
+  await tap('#qDone [data-q-pick="f4"]'); await page.waitForTimeout(800);
   await finish('f4', () => { window.__q.tour('research'); window.__q.research('cull', 'a'); window.__q.research('punctum', 'a'); window.__q.page('artist', 1); });
-  await tap('#qDone [data-q="next"]'); await waitU(() => window.__qu.state().pick); await tap('#qPick [data-q-pick="f5"]'); await page.waitForTimeout(800);
+  await tap('#qDone [data-q-pick="f5"]'); await page.waitForTimeout(800);
   // F5 opens the board: the bigger moment
   await finish('f5', () => { window.__q.tour('workbook'); window.__q.tour('library'); window.__q.page('rank', 3); });
   ok(/Your board is open/.test(await page.textContent('#qDone')), 'the board moment should show');

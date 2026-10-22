@@ -25,7 +25,7 @@ let U = null;
 const shot = async (o) => { if (U) o.url = U; await ev((p) => { window.__cb.addPhoto(p); window.__ach.shot(); }, o); };
 const cap = (o) => Object.assign({ pos: [0, 1.6, 0], yaw: 0, pitch: 0, low: false, focus: 0.5, vert: false, ms: Date.now(), body: 'dslr', eq: 50, S: 1, lights: [], sunAng: null, still: 0 }, o);
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev&full&quick');
+  await page.goto(pathToFileURL(FILE).href + '?dev&full&quick&noauto');
   await page.waitForSelector('[data-si="solo"]', { state: 'visible', timeout: 20000 }); await page.click('[data-si="solo"]');
   await page.waitForSelector('#tileSplat', { state: 'attached', timeout: 20000 }); await page.$eval('#tileSplat', (b) => b.click());
   await page.waitForSelector('.scenecard', { state: 'visible', timeout: 10000 }); await page.click('.scenecard');

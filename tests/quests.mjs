@@ -24,7 +24,7 @@ const qs = async (id) => (await Q()).quests.find((x) => x.id === id);
 const shot = (o) => ev((p) => window.__cb.addPhoto(p), o);
 const tick = async () => { await ev(() => window.__q.tick()); };
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev&full&quick');
+  await page.goto(pathToFileURL(FILE).href + '?dev&full&quick&noauto');
   await page.waitForSelector('[data-si="solo"]', { state: 'visible', timeout: 20000 }); await page.click('[data-si="solo"]');
   await page.waitForSelector('#tileSplat', { state: 'visible', timeout: 20000 }); await page.click('#tileSplat');
   await page.waitForSelector('.scenecard', { state: 'visible', timeout: 10000 }); await page.click('.scenecard');

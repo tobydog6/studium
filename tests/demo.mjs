@@ -30,7 +30,7 @@ const scene = () => page.waitForFunction(() => window.__cb && window.__cb.state(
 const done = async (id) => { await tick(); const q = await qs(id); ok(q.status === 'done', id + ' not done: ' + JSON.stringify(q)); };
 try {
   // a real student, with work saved on this computer
-  await page.goto(URL0 + '?dev&full&quick');
+  await page.goto(URL0 + '?dev&full&quick&noauto');
   await page.waitForSelector('[data-si="solo"]', { state: 'visible', timeout: 20000 }); await page.click('[data-si="solo"]');
   await page.waitForSelector('#tileSplat', { state: 'visible', timeout: 20000 }); await page.$eval('#tileSplat', (b) => b.click());
   await page.waitForSelector('.scenecard', { state: 'visible', timeout: 10000 }); await page.click('.scenecard'); await scene();
@@ -42,7 +42,7 @@ try {
   // the demo, from a ?demo link
   console.log('before goto', await ev(() => Object.keys(localStorage).join(',')));
   const t0 = Date.now();
-  await page.goto(URL0 + '?dev&full&quick&demo'); await scene(); await page.waitForTimeout(800);
+  await page.goto(URL0 + '?dev&full&quick&noauto&demo'); await scene(); await page.waitForTimeout(800);
   console.log('init', await ev(() => window.__initQ), 'now', await ev(() => Object.keys(localStorage).join(',')));
   let s = await S(); ok(s.set === 'demo' && s.tracked === 'd1', 'demo set, D1 tracked: ' + s.set + ' ' + s.tracked);
   ok(await ev(() => window.__q.photos()) === 0, 'the demo starts with no photos');
@@ -88,6 +88,7 @@ try {
   await Promise.all([page.waitForEvent('load', { timeout: 30000 }), ev(() => document.querySelector('[data-si="solo"]').click())]);
   await page.waitForFunction(() => window.__q && window.__q.photos() > 0, null, { timeout: 30000 });
   ok(await ev(() => window.__q.photos()) === 4, 'real photos back: ' + await ev(() => window.__q.photos()));
+  await page.waitForTimeout(1500);   // storage settles after the reload
   const back = await ev(() => localStorage.getItem('studium_quests_v1'));
   ok(JSON.parse(back).set === 'term1' && JSON.stringify(JSON.parse(back).quests) === JSON.stringify(JSON.parse(real).quests), 'real quests untouched');
   ok((await S()).set === 'term1', 'real set in memory');

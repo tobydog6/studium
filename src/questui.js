@@ -64,15 +64,15 @@
     var id=Q.tracked, x=id&&qGet(id), vf=typeof viewfinderOn!=="undefined"&&viewfinderOn, html;
     if(!x){ html='<button class="q-choose" data-q="pick">CHOOSE YOUR FOCUS ›</button>'; }
     else { var st0=qSteps(id), d=st0.filter(function(s){ return s.ok; }).length, nx=qNextStep(id), how=nx&&nx.tour&&!coTourDone(nx.tour);
-      var late=qDemo()&&x.mins&&qState(id)&&Date.now()-qState(id).started>x.mins*1.6*60000&&nx;
-      html='<div class="hd"><span class="k">'+(qDemo()?'<em class="q-tm">'+qTook()+'</em>':'')+(x.type==="foundation"?"FOUNDATION · ":"QUEST · ")+qEsc(x.title.toUpperCase())+'</span><span class="fr">'+d+' / '+st0.length+'</span><button data-q="how" title="Show me how">?</button><button class="q-logb" data-q="log" title="All your quests">LOG</button></div>'
-        +'<div class="q-sub">'+qPillarChip(x)+(x.type==="main"?'<span>'+qEsc(qCpLine(x))+'</span>':'')+'</div>'
+      var late=qDemo()&&nx;   /* in the demo any step can be skipped, so nobody gets stuck */
+      html='<div class="hd"><span class="k">'+(qDemo()?'<em class="q-tm">'+qTook()+'</em>':'')+qEsc(x.title.toUpperCase())+'</span><span class="fr">'+d+' / '+st0.length+'</span><button data-q="how" title="Show me how">?</button><button class="q-logb" data-q="log" title="All your quests">LOG</button></div>'
+        +'<div class="q-sub">'+(x.type==="foundation"?'<span>FOUNDATION '+x.order+' OF '+qFoundations().length+'</span>':'')+qPillarChip(x)+(x.type==="main"?'<span>'+qEsc(qCpLine(x))+'</span>':'')+'</div>'
         +st0.map(function(c){ return '<div class="ck'+(c.ok?' ok':'')+'"><i>'+(c.ok?'✓':'')+'</i><span>'+qEsc(c.t)+'</span>'+(c.now?'<em>'+qEsc(c.now)+'</em>':'')+'</div>'; }).join("")
         +(how?'<button class="q-how" data-q="how">Show me how: '+qEsc(Q_TOUR_NAMES[nx.tour]||nx.tour)+' ›</button>':'')
-        +(late?'<button class="q-skipst" data-q="skipstep">Stuck? Skip this step ›</button>':'')
+        +(late?'<button class="q-skipst" data-q="skipstep">Skip this step ›</button>':'')
         +'<div class="bar"><b style="width:'+(d/st0.length*100).toFixed(0)+'%"></b></div>'; }
     if(el._html!==html){ el.innerHTML=html; el._html=html; }
-    var mini=!x||(!QU.hover&&Date.now()>QU.flashUntil);
+    var mini=false;   /* the card stays open: the steps are the instructions */
     el.classList.toggle("min", mini&&!!x); el.classList.toggle("chip", vf); el.classList.add("show"); }
   (function(){ var el=gdEl("qHud","gd-track q-hud"); el.addEventListener("mouseenter",function(){ QU.hover=true; qHud(); }); el.addEventListener("mouseleave",function(){ QU.hover=false; setTimeout(qHud,1200); }); })();
   function qFlash(ms){ QU.flashUntil=Date.now()+(ms||6000); qHud(); }
@@ -100,7 +100,9 @@
     else { var x=qGet(m.id), F=qFoundations(), fd=F.filter(function(f){ return qIsDone(f.id); }).length;
       h='<div class="gd-card q-donecard"><span class="k">QUEST COMPLETE</span><b class="t">'+qEsc(x.title)+'</b><div class="q-pils">'+qPillarChip(x)+'</div>'
         +'<p>'+(x.page?'You made: '+qEsc(Q_PAGE_NAMES[x.page]||x.page)+'. ':'')+(x.type==="foundation"?'Foundation '+fd+' of '+F.length+' done.':qSet().finish?'That\'s '+qAll().filter(function(y){ return y.type==="main"&&qIsDone(y.id); }).length+' of '+qSet().finish+' for the demo.':'One more toward '+qEsc(qCpLine(x)||"your board")+'.')+'</p>'
-        +'<div class="gd-acts"><button class="gd-skip" data-q="closedone">Keep going here</button><button class="gd-go" data-q="next">WHAT\'S NEXT ›</button></div></div>'; }
+        +(function(){ var nf=x.type==="foundation"&&F.filter(function(f){ return !qIsDone(f.id); })[0];   /* the next foundation is one click away, no picker */
+            return nf?'<div class="gd-acts"><button class="gd-skip" data-q="closedone">Keep going here</button><button class="gd-go" data-q-pick="'+nf.id+'">NEXT: '+qEsc(nf.title.toUpperCase())+' ›</button></div></div>'
+              :'<div class="gd-acts"><button class="gd-skip" data-q="closedone">Keep going here</button><button class="gd-go" data-q="next">WHAT\'S NEXT ›</button></div></div>'; })(); }
     el.innerHTML=h; el.classList.add("show"); QU.done=true; qHud();
     Array.prototype.forEach.call(el.querySelectorAll("[data-q]"),function(b){ readLock(b, Math.min(READ_MS,1500)); }); }
   function qDoneClose(){ var el=$("qDone"); if(el) el.classList.remove("show"); QU.done=false; qHud(); }
@@ -133,7 +135,7 @@
 
   // ---- clicks ----
   document.addEventListener("click",function(e){ var t=e.target.closest&&e.target.closest("[data-q],[data-q-pick],[data-q-open],[data-q-track]"); if(!t) return; e.stopPropagation();
-    if(t.hasAttribute("data-q-pick")){ var id=t.getAttribute("data-q-pick"); qPickClose(); qLogClose(); if(qTrack(id)){ qFlash(8000); QU.seen[id]=qSteps(id).map(function(s){ return s.ok; }); qGoQuest(id); } return; }
+    if(t.hasAttribute("data-q-pick")){ var id=t.getAttribute("data-q-pick"); qPickClose(); qLogClose(); qDoneClose(); if(qTrack(id)){ qFlash(8000); QU.seen[id]=qSteps(id).map(function(s){ return s.ok; }); qGoQuest(id); } return; }
     if(t.hasAttribute("data-q-open")){ var k=t.getAttribute("data-q-open"); QU.open[k]=!QU.open[k]; qLogOpen(); return; }
     if(t.hasAttribute("data-q-track")){ var id2=t.getAttribute("data-q-track"); qLogClose(); if(qTrack(id2)){ qFlash(8000); qGoQuest(id2); } return; }
     var a=t.getAttribute("data-q");
@@ -159,11 +161,18 @@
     task.classList.remove("empty"); task.setAttribute("data-q", x?"log":"pick"); return true; }
 
   // ---- the loop ----
-  setInterval(function(){ if(!qMode()){ ["qHud","qPick","qLog","qDone"].forEach(function(k){ var e=$(k); if(e) e.classList.remove("show"); }); return; }
+  setInterval(function(){ if(!qMode()){ document.body.classList.remove("q-on"); ["qHud","qPick","qLog","qDone"].forEach(function(k){ var e=$(k); if(e) e.classList.remove("show"); }); return; }
     var hub=$("hub"), atHub=App.is("hub")&&hub&&!hub.classList.contains("hidden");
     if(atHub&&!QU.wasHub) QU.hubAsked=false; QU.wasHub=atHub;
     if(atHub&&!QU.pick&&!QU.log&&!QU.done&&!qPlanLive()&&!(typeof lsMoveOpen==="function"&&lsMoveOpen())&&(Q.lastFocusAsk!==qToday()||(!Q.tracked&&!QU.hubAsked))){ QU.hubAsked=true; qPickOpen(); }
-    qMoment(); qHud(); }, 700);
+    qMoment(); qAutoTour(); qHud(); document.body.classList.toggle("q-on", true); }, 700);
+  /* seamless: when the step you're on needs a tour you haven't done, it starts by itself (foundations, and the whole demo) */
+  QU.auto={};
+  var Q_NOAUTO=/[?&]noauto/.test(location.search);   /* scripted tests drive the tours themselves */
+  function qAutoTour(){ if(Q_NOAUTO) return; var id=Q.tracked, x=id&&qGet(id); if(!x||!(qDemo()||x.type==="foundation")) return;
+    if(QU.pick||QU.log||QU.done||qPlanLive()||(typeof CO!=="undefined"&&CO.on)||(typeof viewfinderOn!=="undefined"&&viewfinderOn)) return;
+    if(App.is("hub")||App.is("signin")||App.is("landing")||App.is("teacher")) return; if(typeof ACHU!=="undefined"&&ACHU.full) return;
+    var nx=qNextStep(id); if(!nx||!nx.tour||coTourDone(nx.tour)) return; var k=id+":"+nx.tour; if(QU.auto[k]) return; QU.auto[k]=1; qHow(); }
   if(/[?&]dev/.test(location.search)){ window.__qu={ state:function(){ var el=$("qHud"); return {mode:qMode(), pick:QU.pick, log:QU.log, done:QU.done, hud:!!(el&&el.classList.contains("show")), mini:!!(el&&el.classList.contains("min")), moments:QU.moments.length, suggest:(qSuggest()||{}).id||null, how:!!(el&&el.querySelector(".q-how"))}; },
     pick:qPickOpen, log:qLogOpen, how:qHow, closeAll:function(){ qPickClose(); qLogClose(); qDoneClose(); } }; }
 

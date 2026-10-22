@@ -20,7 +20,7 @@ const qs = async (id) => (await ev(() => window.__q.state())).quests.find((x) =>
 const run = async (id, f, a) => { ok(await ev((i) => window.__q.track(i), id), 'could not track ' + id + ': ' + JSON.stringify(await qs(id))); await ev(f, a); await ev(() => window.__q.tick());
   const q = await qs(id); ok(q.status === 'done', id + ' not done: ' + JSON.stringify(q)); console.log('done', id); };
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev&full&quick');
+  await page.goto(pathToFileURL(FILE).href + '?dev&full&quick&noauto');
   await page.waitForSelector('[data-si="solo"]', { state: 'visible', timeout: 20000 }); await page.click('[data-si="solo"]');
   await page.waitForSelector('#tileSplat', { state: 'attached', timeout: 20000 }); await page.$eval('#tileSplat', (b) => b.click());
   await page.waitForSelector('.scenecard', { state: 'visible', timeout: 10000 }); await page.click('.scenecard');

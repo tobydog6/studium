@@ -3,13 +3,11 @@
   // a free shoot across every lens, picking a top 8, editing them, a workbook page, the top of a folio panel, then
   // the book and gallery to explore on their own. A small checklist card keeps the current step in view, and each
   // step moves on by itself once its boxes are ticked. Off for students in a teacher's lesson plan (the plan leads).
-  // The DEMO (from the sign-in page) is the same loop cut down to about ten minutes for playtesters: two challenges,
-  // five photos, a top 3, a quick edit, one workbook page and the top of a folio panel.
   var GD_KEY="studium_guide_v1";
   var GD={step:-1, base:0, flags:{}, shown:-1, timer:0, open:false, demo:false, t0:0};
   function gdLoad(){ var raw=null; try{ raw=localStorage.getItem(GD_KEY); }catch(e){}
     if(raw==="off"){ GD.step=-1; GD.demo=false; GD_STEPS=GD_FULL; return; }
-    try{ var d=JSON.parse(raw||"null"); if(d&&typeof d.step==="number"){ GD.step=d.step; GD.base=d.base||0; GD.flags=d.flags||{}; GD.shown=d.shown; GD.demo=!!d.demo; GD.t0=d.t0||0; GD_STEPS=GD.demo?GD_DEMO:GD_FULL; if(!GD.demo) GD.step=-1; return; } }catch(e){}
+    try{ var d=JSON.parse(raw||"null"); if(d&&typeof d.step==="number"){ GD.step=d.step; GD.base=d.base||0; GD.flags=d.flags||{}; GD.shown=d.shown; GD.demo=!!d.demo; GD.t0=d.t0||0; GD_STEPS=GD_FULL; GD.step=-1; GD.demo=false; return; } }catch(e){}
     GD.step=-1; GD.shown=-1; }   // quests replace the full guided path; only the demo still runs here
   function gdSave(){ try{ localStorage.setItem(GD_KEY, GD.step<0?"off":JSON.stringify({step:GD.step, base:GD.base, flags:GD.flags, shown:GD.shown, demo:GD.demo, t0:GD.t0})); }catch(e){} }
   function gdActive(){ return GD.step>=0&&GD.step<GD_STEPS.length&&!(typeof lsPlan==="function"&&lsPlan()); }
@@ -103,52 +101,14 @@
         {k:"ev",tol:0.7,label:"Exposure within ⅔ of a stop: shutter or ISO on the camera back"}]}}];
   function gdDemoChallenges(all){ return GD_DEMO_CH.map(function(d){ var c=all.filter(function(x){ return x.id===d.id; })[0]; if(!c) return null; var o={}, k; for(k in c) o[k]=c[k]; for(k in d.over) o[k]=d.over[k]; return o; }).filter(Boolean); }
   function gdById(id){ return GD_FULL.filter(function(s){ return s.id===id; })[0]; }
-  var GD_DEMO=[
-    {id:"basics", where:"scene", title:"Welcome to the Stump",
-     body:"This is a ten-minute taste of Studium, in a real place scanned in 3D. Before the challenges, a two-minute warm-up: how to move, how to use the camera, and what's in your bag. Just follow the prompts at the bottom of the screen.",
-     btn:"LET'S GO", go:function(){ coStart("basics"); },
-     checks:function(){ var n=coProg("basics"); return [{t:"Warm up: moving, shooting, the bag and the settings", ok:n>=CO_STEPS.length, now:Math.min(n,CO_STEPS.length)+" / "+CO_STEPS.length}]; },
-     tick:function(){ gdTour("basics", true); }},
-    {id:"challenges", where:"scene", title:"The gold frames",
-     body:"Three gold frames hang around the clearing, each needing a different camera from your bag. Walk into a frame's glow and it draws you in, then set the camera the way its card asks and shoot.",
-     btn:"FIND THEM",
-     checks:function(){ var n=CH.list.length, d=CH.list.filter(function(c){ return CH.done[c.id]; }).length; return [{t:"Complete the three gold-frame challenges", ok:n>0&&d>=n, now:d+" / "+(n||3)}]; }},
-    {id:"shoot", where:"scene", title:"Five of your own",
-     body:"Now take 5 photos your way. Swap lenses at least once (B opens the camera bag), and try a wide aperture and a narrow one to see what changes.",
-     btn:"KEEP SHOOTING", onStart:function(){ GD.base=photos.length; },
-     checks:function(){ var n=gdNew().length, lc=Object.keys(gdLensCount()).length;
-       return [{t:"Take 5 photos", ok:n>=5, now:Math.min(n,5)+" / 5"}, {t:"Use 2 different lenses", ok:lc>=2, now:Math.min(lc,2)+" / 2"}, {t:"Use 2 different apertures", ok:gdDistinct("f")>=2, now:Math.min(gdDistinct("f"),2)+" / 2"}]; }},
-    {id:"select", where:"select", title:"Pick your best 5",
-     body:"The light table shows everything you shot. A quick tour shows you how to pick and reject, then choose your 5 strongest.",
-     btn:"OPEN SELECT", go:GD_FULL[3].go,
-     checks:function(){ var n=gdPicked().length; return [{t:"Learn to pick and reject", ok:coTourDone("select")}, {t:"Pick 5 frames", ok:n===5, now:n+" / 5"}]; },
-     tick:GD_FULL[3].tick},
-    {id:"edit", where:"edit", title:"Edit your five",
-     body:"First, one photo step by step: drag each slider to its gold mark and see what it does, then grade and crop it. Then the photo resets and it's yours to edit. Copy your look, paste it onto the next, and edit the rest.",
-     btn:"OPEN EDIT", go:GD_FULL[4].go,
-     checks:function(){ return [{t:"Edit your five photos with the tour", ok:coTourDone("edit")}]; },
-     tick:GD_FULL[4].tick},
-    {id:"workbook", where:"workbook", title:"One workbook page",
-     body:"The workbook is where you show your thinking. You'll rank your five picks from 5 up to your best, and write why each one sits where it does.",
-     btn:"OPEN THE WORKBOOK", go:GD_FULL[5].go, checks:GD_FULL[5].checks, tick:GD_FULL[5].tick},
-    {id:"folio", where:"folio", title:"The top of a folio panel",
-     body:"Folio boards are big panels filled edge to edge. You'll fill one third with five photos and try its arrangements.",
-     btn:"OPEN THE FOLIO", go:GD_FULL[6].go, checks:GD_FULL[6].checks, tick:GD_FULL[6].tick},
-    gdById("book"), gdById("gallery"), gdById("research"), gdById("yours"),
-    {id:"done", where:"any", title:"That's the demo",
-     body:"Shoot, select, edit, workbook, folio: a photography project from start to finish. Your folder's waiting if you'd like to keep going.",
-     btn:"FINISH", final:true, checks:function(){ return []; }}];
   var GD_STEPS=GD_FULL;
-  function gdIsDemo(){ return GD.demo&&GD.step>=0; }
-  // from the sign-in page: a fresh demo from the first step
-  function gdStartDemo(){ GD.demo=true; GD_STEPS=GD_DEMO; GD.step=0; GD.flags={}; GD.shown=-1; GD.base=photos.length; GD.t0=Date.now(); gdSave(); clearInterval(GD.timer); GD.timer=setInterval(gdTick, 700); }
-  function gdTook(){ if(!GD.t0) return ""; var s=Math.round((Date.now()-GD.t0)/1000); return Math.floor(s/60)+" min "+(s%60<10?"0":"")+(s%60)+" s"; }
+  function gdIsDemo(){ return qDemo(); }   /* the demo is a quest set now (quests.js) */
   // ---- popup + checklist card ----
   function gdEl(id, cls){ var e=$(id); if(!e){ e=document.createElement("div"); e.id=id; e.className=cls; document.body.appendChild(e); } return e; }
   function gdPop(){ var s=GD_STEPS[GD.step]; if(!s) return; var el=gdEl("gdPop","gd-pop");
     if(typeof looking!=="undefined"&&looking){ try{ document.exitPointerLock(); }catch(e){} } if(typeof viewfinderOn!=="undefined"&&viewfinderOn) lowerCamera();
     var checks=s.checks();
-    el.innerHTML='<div class="gd-card"><span class="k">'+(GD.demo?'DEMO · ':'')+(s.final?(GD.demo?'DONE IN '+gdTook().toUpperCase():'FIRST SESSION · DONE'):'STEP '+(GD.step+1)+' OF '+(GD_STEPS.length-1))+'</span><b class="t">'+cbEsc(s.title)+'</b><p>'+cbEsc(s.body)+'</p>'
+    el.innerHTML='<div class="gd-card"><span class="k">'+(GD.demo?'DEMO · ':'')+(s.final?'FIRST SESSION · DONE':'STEP '+(GD.step+1)+' OF '+(GD_STEPS.length-1))+'</span><b class="t">'+cbEsc(s.title)+'</b><p>'+cbEsc(s.body)+'</p>'
       +(s.controls?'<div class="gd-keys">'+s.controls.map(function(c){ return '<span><kbd>'+c[0]+'</kbd>'+c[1]+'</span>'; }).join("")+'</div>':'')
       +(checks.length?'<div class="gd-list">'+checks.map(function(c){ return '<span><i></i>'+cbEsc(c.t)+'</span>'; }).join("")+'</div>':'')
       +(s.final?'<div class="gd-two"><button data-gd="shootown">GO AND SHOOT YOUR OWN</button></div>':'')
@@ -157,7 +117,7 @@
     Array.prototype.forEach.call(el.querySelectorAll("[data-gd]"),function(b){ readLock(b); }); }
   // Read first: a popup's buttons wait a few seconds, with a gold bar filling across them, so it gets read rather than
   // clicked straight through. ?quick (for the tests) cuts it right down.
-  var READ_MS=/[?&]quick(&|=|$)/.test(location.search)?250:5000;
+  var READ_MS=/[?&]quick(&|=|$)/.test(location.search)?250:(qDemo()?2000:5000);
   function readLock(b,ms){ ms=ms==null?READ_MS:ms; if(!b||ms<=0) return; b.disabled=true; b.classList.add("rl"); b.style.setProperty("--rl",ms+"ms");
     setTimeout(function(){ b.disabled=false; b.classList.remove("rl"); },ms); }
   function gdClose(){ var el=$("gdPop"); if(el) el.classList.remove("show"); GD.open=false; gdCard(); }

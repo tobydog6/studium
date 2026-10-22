@@ -68,3 +68,12 @@ create policy "student reads notes"  on notes   for select using (exists (select
 alter table presence add column if not exists quest jsonb;
 -- A teacher ticking a quest off for a student is a note whose body is "§tick:<quest id>" or "§tick:<quest id>:<step>".
 -- The student's app applies it once and never shows it. Class checkpoint dates ride on the plan body as "cps".
+
+-- demo feedback from playtesters (the finish card's three optional questions)
+create table if not exists feedback (
+  id         bigint generated always as identity primary key,
+  body       jsonb not null,
+  created_at timestamptz default now()
+);
+alter table feedback enable row level security;
+create policy "anyone signed in can leave feedback" on feedback for insert with check (auth.role() = 'authenticated');

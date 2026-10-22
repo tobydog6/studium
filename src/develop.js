@@ -44,7 +44,7 @@
     devSel={}; devAnchor=i; devGo(i); }
   function devCopy(){ if(!edState) return; devClip=devSettings(edState); devStrip(); toast("Settings copied. Ctrl+V pastes them onto another frame."); }
   var devPasteN=0;
-  function devPaste(){ if(!edState||!devClip) return; devPasteN++; for(var k in devClip) edState[k]=devClip[k]; syncEditUI(); queueRender(); edPushHist(); setTimeout(drawHist,140); toast("Settings pasted"); }
+  function devPaste(){ if(!edState||!devClip) return; devPasteN++; for(var k in devClip) edState[k]=devClip[k]; syncEditUI(); queueRender(); edPushHist(); setTimeout(drawHist,140); toast("Settings pasted"); if(typeof qFlag==="function"&&!Q.flags.pasted) qFlag("pasted"); }
   function devSelectAll(){ devSel={}; devList().forEach(function(i){ devSel[i]=true; }); devStrip(); }
   // render other frames with this frame's settings, one at a time, then put the open frame back
   // put this frame's settings (not its crop) on the selected frames; they render in the background

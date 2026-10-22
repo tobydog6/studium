@@ -2363,3 +2363,17 @@ button.rl::after{content:"";position:absolute;left:0;bottom:0;height:3px;width:1
 .tq-steps button{display:flex;gap:9px;align-items:center;background:none;border:0;color:#a69f91;font:inherit;font-size:12.5px;text-align:left;padding:4px 0;cursor:pointer}
 .tq-steps button i{width:12px;height:12px;border-radius:3px;border:1px solid rgba(240,232,214,.25);flex:none}
 .tq-steps button:hover i{border-color:#e3ad57}.tq-steps button.ok{color:#6d675b;cursor:default}.tq-steps button.ok i{background:#8fc7a0;border-color:#8fc7a0}
+/* quests: demo */
+.q-hud .q-tm{font-style:normal;color:#8d8678;margin-right:8px}
+.q-skipst{display:block;margin:8px 0 0;background:none;border:0;padding:0;color:#e3ad57;font:500 12px var(--sans);cursor:pointer;opacity:.85}.q-skipst:hover{opacity:1;text-decoration:underline}
+.q-demo{display:flex;justify-content:space-between;align-items:center;margin-top:18px;padding-top:14px;border-top:1px solid var(--line);font:500 10px var(--mono);letter-spacing:.14em;color:var(--faint)}
+.q-finish p b{color:var(--text);font-weight:600}
+.q-made{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 4px}.q-made span{font:500 10.5px var(--mono);letter-spacing:.08em;padding:5px 10px;border-radius:999px;background:rgba(240,232,214,.06);color:var(--muted)}
+.q-fb{margin:16px 0 4px;padding:14px;border-radius:10px;background:rgba(240,232,214,.035);border:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.q-fb label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--muted)}
+.q-fb textarea{resize:none;background:#100f0c;border:1px solid var(--line);border-radius:7px;color:var(--text);font:14px var(--sans);padding:8px 10px}
+.q-fb textarea:focus{outline:none;border-color:var(--accent)}
+.q-rate{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}.q-rate span{margin-right:auto}
+.q-rate button{width:30px;height:30px;border-radius:7px;border:1px solid var(--line);background:none;color:var(--text);font:600 12px var(--mono);cursor:pointer}
+.q-rate button.on,.q-rate button:hover{border-color:var(--accent);color:var(--accent)}
+.q-fbsend{align-self:flex-end}

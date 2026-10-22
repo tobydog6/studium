@@ -9,7 +9,7 @@
   // Progress and completion live per tour in the quest state (Q.tourStep, Q.tours), so a reload carries on from the same prompt.
   var CO={tour:null, i:0, on:false, s:{}, keys:{}, look:0, walked:0, lx:null, lz:null, lyaw:null, done:false, raf:0, html:"", okT:0, t0:0, seen:-1};
   function coK(k){ return '<kbd data-co-k="'+k+'"'+(CO.keys[k]?' class="on"':'')+'>'+k+'</kbd>'; }
-  function coPickN(){ return GD.demo?5:8; }
+  function coPickN(){ return qDemo()?5:8; }
   function coPicks(){ return photos.filter(function(p){ return p.pick; }).length; }
   function coEdIdx(){ return typeof devOpenIdx==="function"?devOpenIdx():-1; }
   function coInEditor(){ return typeof editor!=="undefined"&&editor&&!editor.classList.contains("hidden")&&!!edState; }

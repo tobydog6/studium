@@ -617,15 +617,22 @@
   function idb(cb){ if(_db){ cb(_db); return; } try{ var r=indexedDB.open("splatstudio",1);
     r.onupgradeneeded=function(e){ try{ e.target.result.createObjectStore("state"); }catch(_){} };
     r.onsuccess=function(e){ _db=e.target.result; cb(_db); }; r.onerror=function(){ cb(null); }; }catch(e){ cb(null); } }
+  function sessKey(){ return typeof qDemo==="function"&&qDemo()?"session_demo":"session"; }   // the demo saves apart from real work
+  /* empty the workspace in memory only (nothing saved is deleted): photos, boards, book, gallery, folio */
+  function wipeWorkspace(){ clearTimeout(_saveT); photos.length=0; briefDone={}; if(typeof foItems!=="undefined") foItems=[]; if(typeof pbPages!=="undefined") pbPages=[];
+    if(typeof foClearBoard==="function") try{ foClearBoard(); }catch(e){}
+    if(typeof st!=="undefined"){ st.wsBoard=null; st.foBoard=null; st.projects=[]; st.wsPages=[]; if(typeof wsB!=="undefined") wsB.reset(null); if(typeof foB!=="undefined") foB.reset(null); }
+    if(typeof bk!=="undefined") bk.pages=[]; if(typeof ga!=="undefined"){ ga.title=""; ga.list=null; ga.sizes={}; ga.pos={}; }
+    refreshCount(); }
   function sessionData(){ return { v:1, savedAt:Date.now(), studentName:studentName, briefDone:briefDone,
     photos:photos.map(function(p){ return {url:p.url,orig:p.orig||null,dev:p.dev||null,id:p.id||null,copy:!!p.copy,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,baked:p.baked||null,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order,challenge:p.challenge||null,lens:p.lens||null,shake:p.shake||0,research:!!p.research,credit:p.credit||null,light:p.light||null,ev:p.ev==null?null:p.ev}; }),
     quests:(typeof Q!=="undefined"?Q:null),
     workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), projects:(typeof st!=="undefined"?st.projects:[]), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title,list:ga.list,label:ga.label}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
-  function saveSessionNow(){ if(!photos.length && !(typeof foItems!=="undefined"&&foItems&&foItems.length)) return; idb(function(db){ if(!db) return; try{ db.transaction("state","readwrite").objectStore("state").put(sessionData(),"session"); }catch(e){} }); }
+  function saveSessionNow(){ if(!photos.length && !(typeof foItems!=="undefined"&&foItems&&foItems.length)) return; idb(function(db){ if(!db) return; try{ db.transaction("state","readwrite").objectStore("state").put(sessionData(),sessKey()); }catch(e){} }); }
   function saveSession(){ clearTimeout(_saveT); _saveT=setTimeout(saveSessionNow, 700); }
-  function loadSession(cb){ idb(function(db){ if(!db){ cb&&cb(false); return; } try{ var rq=db.transaction("state","readonly").objectStore("state").get("session");
+  function loadSession(cb){ idb(function(db){ if(!db){ cb&&cb(false); return; } try{ var rq=db.transaction("state","readonly").objectStore("state").get(sessKey());
     rq.onsuccess=function(){ var d=rq.result; if(d&&d.photos&&d.photos.length){ applySession(d); cb&&cb(true,d.photos.length); } else cb&&cb(false); };
     rq.onerror=function(){ cb&&cb(false); }; }catch(e){ cb&&cb(false); } }); }
   function applySession(d){ try{
@@ -644,7 +651,7 @@
     if(d.pbPages&&d.pbPages.length&&typeof pbPages!=="undefined") pbPages=d.pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; });
     sessionRestored=true; refreshCount(); if(typeof devResume==="function") setTimeout(devResume,1200);
   }catch(e){} }
-  function clearSession(){ idb(function(db){ if(db){ try{ db.transaction("state","readwrite").objectStore("state").delete("session"); }catch(e){} } });
+  function clearSession(){ idb(function(db){ if(db){ try{ db.transaction("state","readwrite").objectStore("state").delete(sessKey()); }catch(e){} } });
     photos.length=0; if(typeof foItems!=="undefined") foItems=[]; if(typeof pbPages!=="undefined") pbPages=[];
     if(typeof foClearBoard==="function") try{ foClearBoard(); }catch(e){} refreshCount(); }
 
@@ -1403,10 +1410,10 @@
   initCameraUI();
   buildScenePicker();
   gdStart();
-  loadSession(function(ok,n){ if(ok){ if(typeof studioSync==="function") studioSync(); if(lsWho()) toast("Restored your last session · "+n+" photo"+(n>1?"s":"")); } if(App.is("hub")) hubRender(); });
+  var bootDemo=/[?&]demo(&|=|$)/.test(location.search)&&!(lsWho()&&lsWho().demo);
+  loadSession(function(ok,n){ if(bootDemo){ siShow(); siAct("demo"); return; }   // a ?demo link starts a fresh demo once saved work has loaded (it stays saved)
+    if(ok){ if(typeof studioSync==="function") studioSync(); if(lsWho()) toast("Restored your last session · "+n+" photo"+(n>1?"s":"")); } if(App.is("hub")) hubRender(); });
   if(!lsWho()) siShow(); else if(lsRole()==="teacher") openTeacher("plan"); else { if(lsWho().name) studentName=lsWho().name; hubRender(); }
-  // a ?demo link opens the sign-in page and starts the demo (or, with photos already here, asks first)
-  if(/[?&]demo(&|=|$)/.test(location.search)&&!(lsWho()&&lsWho().demo)){ siShow(); siAct("demo"); }
   window.addEventListener("beforeunload", saveSessionNow);
   document.addEventListener("visibilitychange", function(){ if(document.hidden) saveSessionNow(); });
   setInterval(function(){ if(photos.length||(typeof foItems!=="undefined"&&foItems&&foItems.length)) saveSessionNow(); }, 9000);

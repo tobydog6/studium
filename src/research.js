@@ -30,7 +30,7 @@
   function rsShuffle(a){ a=a.slice(); for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)), t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
 
   // ---- the Punctum round ----
-  function rsStartRound(p){ if(!p) return; rs.pack=p; rs.view="round"; rs.round={imgs:p.imgs.slice(0,GD.demo?5:12), k:0, struck:{}, tap:{}, notes:{}, step:"ask"}; rsRender(); }
+  function rsStartRound(p){ if(!p) return; rs.pack=p; rs.view="round"; rs.round={imgs:p.imgs.slice(0,qDemo()?5:12), k:0, struck:{}, tap:{}, notes:{}, step:"ask"}; rsRender(); }
   function rsRoundAnswer(yes){ var r=rs.round, im=r.imgs[r.k]; r.struck[im.id]=!!yes; if(yes){ r.step="tap"; rsRender(); } else rsRoundNext(); }
   function rsRoundNext(){ var r=rs.round; r.k++; r.step="ask"; if(r.k>=r.imgs.length) return rsRoundEnd(); rsRender(); }
   function rsRoundEnd(){ var r=rs.round, p=rs.pack, who=rsWho(), cls=rsClass(), mine=r.imgs.filter(function(im){ return r.struck[im.id]; });

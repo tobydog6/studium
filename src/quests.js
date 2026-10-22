@@ -5,13 +5,16 @@
   // that exists, a gold frame) read everything. A step that has ticked stays ticked, and a finished quest stays finished.
   var PILLARS={ context:{n:"Context", d:"history, photographers, taste"}, drive:{n:"Drive", d:"your own why"}, craft:{n:"Craft", d:"camera, lens, composition, editing"},
     environment:{n:"Environment", d:"light, time of day, place"}, all:{n:"All"} };
-  var Q_KEY="studium_quests_v1";
+  var Q_KEY="studium_quests_v1", Q_DEMO_KEY="studium_quests_demo_v1";
+  /* the playtest demo keeps its own quest state (and its own saved session), so it never touches a real student's work */
+  function qDemo(){ try{ var w=lsWho(); return !!(w&&w.demo); }catch(e){ return false; } }
+  function qKey(){ return qDemo()?Q_DEMO_KEY:Q_KEY; }
 
   // ---- what the checks read ----
   function qPhotosSince(q){ var t=q&&q.base?q.base.t:Infinity; return photos.filter(function(p){ return !p.research&&!p.uploaded&&+new Date(p.t)>=t; }); }
   function qDistinct(list,key){ var s={}; list.forEach(function(p){ if(p[key]!=null) s[p[key]]=1; }); return Object.keys(s).length; }
   function qPicks(){ return photos.filter(function(p){ return p.pick&&!p.research; }); }
-  function qPages(tpl){ var pgs=(typeof st!=="undefined"&&st.wsBoard&&st.wsBoard.pages)||[]; return pgs.filter(function(pg){ return pg.tpl===tpl; }); }
+  function qPages(tpl){ var pgs=(typeof st!=="undefined"&&st.wsBoard&&st.wsBoard.pages)||[]; return pgs.filter(function(pg){ return pg.tpl===tpl||(tpl==="artist"&&pg.tpl==="research"); }); }   /* Research's "send to workbook" makes artist model pages as "research" */
   function qPagePhotos(pg){ return (pg.items||[]).filter(function(it){ return it.t==="photo"; }).length; }
   function qTour(id){ return !!Q.tours[id]; }
   function qChDone(){ return (CH.list||[]).filter(function(c){ return CH.done[c.id]; }).length; }
@@ -84,6 +87,35 @@
        {t:"Hang 8 or more prints in the gallery", go:"gallery", check:function(){ return qPrints()>=8; }, now:function(){ return qCount(qPrints(),8); }},
        {t:"Give the show a title", go:"gallery", check:function(){ return typeof ga!=="undefined"&&!!String(ga.title||"").trim(); }}]}
   ]} };
+  // ---- the demo: about 30 minutes for someone who's never seen Studium. Three foundations, then any two of four. ----
+  function qFolioTop(){ var b=typeof st!=="undefined"&&st.foBoard; if(!b||!b.pages) return 0; var n=0; b.pages.forEach(function(pg){ (pg.items||[]).forEach(function(it){ if(it.t==="photo"&&it.sec==="0.0"&&!it.hidden) n++; }); }); return n; }
+  QUEST_SETS.demo={ name:"Demo", checkpoints:[], sampleCp:true, finish:2, quests:[
+    {id:"d1", type:"foundation", order:1, pillar:"craft", mins:8, title:"Step inside", blurb:"Learn to move, shoot and set the camera, then take the three gold-frame shots.", go:"scene",
+     steps:[{t:"Do the warm-up", tour:"basics", go:"scene", check:function(){ return qTour("basics"); }},
+       {t:"Complete the 3 gold frames", go:"scene", check:function(){ return qChDone()>=3; }, now:function(){ return qCount(qChDone(),3); }}]},
+    {id:"d2", type:"foundation", order:2, pillar:"craft", mins:4, title:"Shoot it your way", blurb:"Eight frames of your own, with two lenses and two apertures.", go:"scene",
+     steps:[{t:"Take 8 photos", check:function(q){ return qPhotosSince(q).length>=8; }, now:function(q){ return qCount(qPhotosSince(q).length,8); }},
+       {t:"Use 2 lenses", check:function(q){ return qDistinct(qPhotosSince(q),"lens")>=2; }, now:function(q){ return qCount(qDistinct(qPhotosSince(q),"lens"),2); }},
+       {t:"Use 2 apertures", check:function(q){ return qDistinct(qPhotosSince(q),"f")>=2; }, now:function(q){ return qCount(qDistinct(qPhotosSince(q),"f"),2); }}]},
+    {id:"d3", type:"foundation", order:3, pillar:"craft", mins:7, title:"Choose and edit", blurb:"Pick your strongest five, edit one, then copy that look onto another.", go:"select",
+     steps:[{t:"Learn to pick and reject", tour:"select", go:"select", check:function(){ return qTour("select"); }},
+       {t:"Pick 5 frames", go:"select", check:function(){ return qPicks().length>=5; }, now:function(){ return qCount(qPicks().length,5); }},
+       {t:"Edit one with the tour", tour:"edit", go:"edit", check:function(){ return qTour("edit"); }},
+       {t:"Copy the look onto one more", go:"edit", check:function(){ return !!(Q.flags.synced||Q.flags.pasted); }}]},
+    {id:"d4", type:"main", pillar:"environment", mins:5, title:"Bring the light", blurb:"Change the time of day, then light the place yourself.", go:"scene", page:null,
+     steps:[{t:"Open the lighting rig", tour:"lighting", go:"scene", check:function(){ return qTour("lighting")||!!Q.flags.rlOpened; }},
+       {t:"A frame at golden hour", go:"scene", check:function(q){ return qPhotosSince(q).some(function(p){ return qTime(p)==="golden"; }); }},
+       {t:"A night frame with one of your lights on", go:"scene", check:function(q){ return qPhotosSince(q).some(function(p){ return qTime(p)==="night"&&qLightsOn(p)>=1; }); }}]},
+    {id:"d5", type:"main", pillar:"context", mins:5, title:"Look at others", blurb:"Rank a photographer's work in the Culling Game, then make an artist model page.", go:"research", page:"artist",
+     steps:[{t:"Play a Culling Game", go:"research", check:function(){ return qPacks("cull").length>=1; }},
+       {t:"Make an Artist model page", go:"research", check:function(){ return qPages("artist").length>=1; }}]},
+    {id:"d6", type:"main", pillar:"drive", mins:5, title:"Show your thinking", blurb:"A workbook page that ranks three of your picks and says why.", go:"workshop", page:"rank",
+     steps:[{t:"Take the workbook tour", tour:"workbook", go:"workshop", check:function(){ return qTour("workbook"); }},
+       {t:"A Rank page with 3 picks", go:"workshop", check:function(){ return qPages("rank").some(function(pg){ return qPagePhotos(pg)>=3; }); }}]},
+    {id:"d7", type:"main", pillar:"all", mins:5, title:"The folio", blurb:"Fill the top third of your first A1 panel and try its arrangements.", go:"folio",
+     steps:[{t:"Take the folio tour", tour:"folio", go:"folio", check:function(){ return qTour("folio"); }},
+       {t:"Fill the top third of panel 1", go:"folio", check:function(){ return qFolioTop()>=3; }, now:function(){ return qCount(qFolioTop(),3)+" photos"; }}]}
+  ]};
   function qLensesUsed(q){ var L={}; qPhotosSince(q).forEach(function(p){ if(p.lens) L[p.lens]=1; }); return Q_LENSES.filter(function(k){ return L[k]; }).length; }
   function qBriefs(){ return BRIEFS.filter(function(b){ return (briefDone[b.id]||0)>=3; }).length; }
   function qTimes(q){ var c={day:0, golden:0, night:0}; qPhotosSince(q).forEach(function(p){ var t=qTime(p); if(c[t]!=null) c[t]++; }); return ["day","golden","night"].filter(function(t){ return c[t]>=3; }).length; }
@@ -99,10 +131,10 @@
   // ---- state ----
   function qFresh(set){ return {v:1, set:set||"term1", tracked:null, quests:{}, tours:{}, tourStep:{}, boardOpen:null, lastFocusAsk:null, flags:{}, rs:{cull:{}, punctum:{}, details:0}, first:Date.now(), cps:null}; }
   var Q=qLoad();
-  function qLoad(){ var raw=null; try{ raw=JSON.parse(localStorage.getItem(Q_KEY)||"null"); }catch(e){}
-    var s=qFresh("term1"); if(raw&&raw.v){ for(var k in raw) s[k]=raw[k]; ["quests","tours","tourStep","flags"].forEach(function(k){ if(!s[k]) s[k]={}; }); if(!s.rs) s.rs={cull:{}, punctum:{}, details:0}; }
-    else qFromGuide(s); return s; }
-  function qSave(){ try{ localStorage.setItem(Q_KEY, JSON.stringify(Q)); }catch(e){} if(typeof saveSession==="function") saveSession(); }
+  function qLoad(){ var raw=null, demo=qDemo(); try{ raw=JSON.parse(localStorage.getItem(qKey())||"null"); }catch(e){}
+    var s=qFresh(demo?"demo":"term1"); if(raw&&raw.v){ for(var k in raw) s[k]=raw[k]; ["quests","tours","tourStep","flags"].forEach(function(k){ if(!s[k]) s[k]={}; }); if(!s.rs) s.rs={cull:{}, punctum:{}, details:0}; }
+    else if(!demo) qFromGuide(s); return s; }
+  function qSave(){ try{ localStorage.setItem(qKey(), JSON.stringify(Q)); }catch(e){} if(typeof saveSession==="function") saveSession(); }
   function qSet(){ return QUEST_SETS[Q.set]||QUEST_SETS.term1; }
   function qAll(){ return qSet().quests; }
   function qGet(id){ return qAll().filter(function(x){ return x.id===id; })[0]||null; }
@@ -148,6 +180,8 @@
     /* a teacher can tick a foundation off outright, so the board can also open here */
     if(!Q.boardOpen&&qFoundations().every(function(f){ return qIsDone(f.id); })){ Q.boardOpen=Date.now(); changed=true; qEmit("board",{}); }
     if(Q.tracked&&qIsDone(Q.tracked)){ Q.tracked=null; changed=true; }
+    /* the demo's board rule: any two board quests, in any order, and it's finished */
+    var fin=qSet().finish; if(fin&&!Q.finished&&qAll().filter(function(x){ return x.type==="main"&&qIsDone(x.id); }).length>=fin){ Q.finished=Date.now(); changed=true; qEmit("finish",{}); }
     if(changed) qSave(); return changed; }
 
   // ---- hooks the rest of Studium calls ----
@@ -169,4 +203,6 @@
     frames:function(n){ (CH.list||[]).slice(0,n).forEach(function(c){ CH.done[c.id]=1; }); return qChDone(); },
     page:function(tpl,n){ var b=st.wsBoard||wsB.doc_(); if(!st.wsBoard) st.wsBoard=b; var items=[]; for(var i=0;i<(n||0);i++) items.push({id:"t"+i, t:"photo", pid:"x"+i, x:0, y:0, w:10}); b.pages.push({id:"pg"+Date.now()+Math.random(), bg:"white", items:items, tpl:tpl}); return b.pages.length; },
     tour:function(id){ Q.tours[id]=true; qSave(); },
+    folio:function(n){ var b=st.foBoard||(st.foBoard={pages:[]}); if(!b.pages.length) b.pages.push({items:[]}); for(var i=0;i<(n||1);i++) b.pages[0].items.push({id:"fo"+i+Date.now(), t:"photo", sec:"0.0"}); return qFolioTop(); },
+    photos:function(){ return photos.length; },
     last:function(){ var p=photos[photos.length-1]; return p?{light:p.light, ev:p.ev}:null; }, reset:function(){ Q=qFresh(Q.set); qSave(); }, raw:function(){ return Q; }, flag:qFlag, research:qResearch, fixMoodboards:qFixMoodboards };

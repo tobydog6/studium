@@ -426,6 +426,8 @@
     var m=ts[k]/sc; setFocus(Math.log(Math.max(0.3,Math.min(18,m))/0.3)/Math.log(60)); if(say) toast("Focused at "+(m<10?m.toFixed(1):Math.round(m))+" m"); }
 
   // ---- render ----
+  var fsTarget=null;   // where the finished frame goes: the screen, or a texture (the cube's backdrop)
+  function renderBackdrop(rt){ fsTarget=rt; try{ renderFrame(0); }finally{ fsTarget=null; } }
   function renderFrame(dt){
     if(typeof CU!=="undefined"&&CU.open&&viewer&&loaded){ if(cuRender()) return; }   // the cube of places takes the whole screen
     var tgtE=viewfinderOn?(curBody().optical?1:expMult):1, tgtF=viewfinderOn?1:0, tgtV=viewfinderOn?apVig:0.1, tgtG=viewfinderOn?isoGrain:0, tgtD=0;
@@ -435,7 +437,7 @@
     if(viewer){ try{ skyFollow(); sparkLens(); ptRender(); renderer.setRenderTarget(sceneRT); renderer.render(scene,camera); chRender(dt); }catch(e){ if(!renderFrame.warned){ renderFrame.warned=1; console.error("render failed",e); } } }
     var useD=false;
     if(loaded&&dt>0) chTick(dt);
-    renderer.setRenderTarget(null);
+    renderer.setRenderTarget(fsTarget);
     fsMat.uniforms.tDiffuse.value=sceneRT.texture;
     fsMat.uniforms.exposure.value=fx.exposure; fsMat.uniforms.filmic.value=fx.filmic;
     fsMat.uniforms.vignette.value=fx.vignette; fsMat.uniforms.grain.value=fx.grain; fsMat.uniforms.dof.value=fx.dof; fsMat.uniforms.focus.value=focusDist;

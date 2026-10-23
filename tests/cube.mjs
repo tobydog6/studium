@@ -34,10 +34,15 @@ try {
   await page.waitForTimeout(10000); await shot('cube-1');
   await ev(() => window.__cu.spin(0.02, 0.09)); await page.waitForTimeout(6000); await shot('cube-2');
   const f = await ev(() => window.__cu.front()); const target = cs.spots[f].p;
-  await ev((i) => window.__cu.dive(i), f);
+  await ev((i) => window.__cu.dive(i), f); await page.waitForTimeout(500); await shot('cube-3-dropping');
   await page.waitForFunction(() => !window.__cu.state().open, null, { timeout: 120000, polling: 300 });
+  ok((await ev(() => window.__pt.state())).on, 'the cube became the portal');
+  await page.waitForFunction(() => window.__pt.state().state === 'open', null, { timeout: 120000, polling: 300 });
+  await page.waitForTimeout(6000); await shot('cube-4-portal');
+  for (let i = 0; i < 14 && (await ev(() => window.__pt.state().state)) !== 'closing'; i++) { await ev(() => window.__pt.step(0.35));
+    await page.waitForFunction(() => { const d = window.__pt.dbg(); return !d.prev || d.prev.every((v, k) => Math.abs(v - d.cam[k]) < 1e-6); }, null, { timeout: 120000, polling: 200 }); }
   const p = await ev(() => window.__pt.pos()); const d = Math.hypot(p.x - target[0], p.z - target[2]);
-  console.log('arrived', p, 'from spot', d.toFixed(2)); ok(d < 0.5, 'arrived at the chosen place');
+  console.log('arrived', p, 'from spot', d.toFixed(2)); ok(d < 1.6, 'walked through to the chosen place');
   await page.waitForTimeout(4000); await shot('cube-3-arrived');
   ok(!errors.length, 'page errors: ' + errors.join(' | '));
   console.log('PASS cube');

@@ -77,15 +77,18 @@
   /* a good spot near the middle, looking at the subject (the cube's spots): you come out of the far end walking towards it */
   function ptSpot(s){ var S=cuSpots(6), cur=new THREE.Vector3(camPos.x,0,camPos.z), best=null, bd=-1;
     S.forEach(function(sp){ var d=Math.hypot(sp.o.position.x-cur.x, sp.o.position.z-cur.z); if(d>bd){ bd=d; best=sp; } });   // the one furthest from here, so it feels like going somewhere
-    var far=new THREE.Object3D(), fwd=new THREE.Vector3(0,0,-1).applyQuaternion(best.o.quaternion); fwd.y=0; fwd.normalize();
+    return ptFarAt(best, s); }
+  function ptFarAt(best, s){ var far=new THREE.Object3D(), fwd=new THREE.Vector3(0,0,-1).applyQuaternion(best.o.quaternion); fwd.y=0; fwd.normalize();
     far.position.copy(best.o.position).y-=0.3*s; far.rotation.y=Math.atan2(fwd.x,fwd.z); far.updateMatrixWorld(true); far.userData.name=best.name; return far; }   /* its front faces the subject: you step out along it */
 
   // ---- T: open in front of you; T again (or walking through) closes it ----
   function ptToggle(){ if(!loaded||!scene) return; if(PT.on&&PT.state!=="closing"){ ptClose(); return; } if(PT.on) return; ptOpen(); }
-  function ptOpen(){ var s=ptScale(); ptDispose(); PT.n++;
+  /* where the opening stands: a few metres ahead of you, a little below eye height */
+  function ptHere(){ var s=ptScale(), f=new THREE.Vector3(); camera.getWorldDirection(f); f.y=0; if(f.lengthSq()<1e-6) f.set(0,0,-1); f.normalize(); return {p:new THREE.Vector3(camPos.x+f.x*3.4*s, camPos.y-0.3*s, camPos.z+f.z*3.4*s), f:f}; }
+  function ptOpen(spot, head){ var s=ptScale(); ptDispose(); PT.n++;
     var f=new THREE.Vector3(); camera.getWorldDirection(f); f.y=0; if(f.lengthSq()<1e-6) f.set(0,0,-1); f.normalize();
     var o=ptMake(s), d=3.4*s; o.position.set(camPos.x+f.x*d, camPos.y-0.3*s, camPos.z+f.z*d); o.rotation.y=Math.atan2(-f.x,-f.z); o.updateMatrixWorld(true);
-    scene.add(o); PT.o=o; PT.far=ptSpot(s); PT.on=true; PT.state="opening"; PT.t0=performance.now(); PT.open=0; PT.prev=camPos.clone(); PT.cool=performance.now()+500; ptSound(true); }
+    scene.add(o); PT.o=o; PT.far=spot?ptFarAt(spot,s):ptSpot(s); PT.on=true; PT.state="opening"; PT.t0=performance.now()-(head||0)*1000; PT.open=0; PT.prev=camPos.clone(); PT.cool=performance.now()+500; if(!head) ptSound(true); }
   function ptClose(){ if(!PT.on) return; PT.state="closing"; PT.closeT=performance.now(); PT.closeFrom=PT.open; ptSound(false); }
   function ptDispose(){ if(PT.o){ if(PT.o.parent) PT.o.parent.remove(PT.o); PT.o.traverse(function(c){ if(c.geometry) c.geometry.dispose(); if(c.material) c.material.dispose(); }); } PT.o=null; PT.far=null; PT.on=false; PT.state=""; PT.live=false; }
 

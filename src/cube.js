@@ -47,10 +47,24 @@
       vertexShader:"attribute float seed; uniform float time; uniform float fade; varying float vA; void main(){ vA=fade*(0.25+0.75*seed)*(0.7+0.3*sin(time*1.5+seed*40.0)); vec4 mv=modelViewMatrix*vec4(position,1.0); gl_PointSize=1.0+seed*1.6; gl_Position=projectionMatrix*mv; }",
       fragmentShader:"varying float vA; void main(){ float d=length(gl_PointCoord-0.5); gl_FragColor=vec4(vec3(0.85,0.88,1.0)*smoothstep(0.5,0.0,d)*vA,1.0); }" })); }
 
+  // ---- the backdrop: the world as you left it, dimmed and softly blurred ----
+  function cuBgInit(){ CU.bgScene=new THREE.Scene(); CU.bgCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+    CU.bgMat=new THREE.ShaderMaterial({ depthTest:false, depthWrite:false, toneMapped:false, uniforms:{ t:{value:null}, k:{value:0}, px:{value:new THREE.Vector2(1,1)} },
+      vertexShader:"varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }",
+      fragmentShader:"uniform sampler2D t; uniform float k; uniform vec2 px; varying vec2 vUv;"
+        +" void main(){ vec3 c=vec3(0.0); float w=0.0; float r=k*7.0;"
+        +" for(int i=0;i<24;i++){ float a=float(i)*2.39996, rr=sqrt(float(i)/24.0)*r; vec2 o=vec2(cos(a),sin(a))*rr*px; float ww=1.0-float(i)/30.0; c+=texture2D(t,vUv+o).rgb*ww; w+=ww; }"
+        +" c/=w; vec2 q=vUv-0.5; float vig=1.0-dot(q,q)*0.9*k; c*=mix(1.0,0.58,k)*vig; gl_FragColor=vec4(c,1.0); }" });
+    CU.bgScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2), CU.bgMat)); }
+  function cuCapture(){ var W=renderer.domElement.width, H=renderer.domElement.height;
+    if(!CU.bg) CU.bg=new THREE.WebGLRenderTarget(W,H,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter}); else if(CU.bg.width!==W||CU.bg.height!==H) CU.bg.setSize(W,H);
+    renderBackdrop(CU.bg); CU.bgMat.uniforms.t.value=CU.bg.texture; CU.bgMat.uniforms.px.value.set(1/W,1/H); }
+
   // ---- open and close ----
   function cuToggle(){ if(!loaded) return; if(CU.open){ if(!CU.dive) cuClose(); return; } cuOpen(); }
   function cuOpen(){ if(CU.open) return; if(typeof PT!=="undefined"&&PT.on) ptDispose(); if(viewfinderOn) lowerCamera(); if(looking){ try{ document.exitPointerLock(); }catch(e){} }
-    if(!CU.scene){ CU.scene=new THREE.Scene(); CU.cam=new THREE.PerspectiveCamera(38,1,0.01,200); var b=cuBuild(); CU.grp=b.grp; CU.faces=b.faces; CU.scene.add(CU.grp); CU.stars=cuStars(); CU.scene.add(CU.stars); }
+    if(!CU.scene){ CU.scene=new THREE.Scene(); CU.cam=new THREE.PerspectiveCamera(38,1,0.01,200); var b=cuBuild(); CU.grp=b.grp; CU.faces=b.faces; CU.scene.add(CU.grp); cuBgInit(); }
+    cuCapture();
     CU.spots=cuSpots(6); CU.faces.forEach(function(f,i){ f.userData.spot=CU.spots[i]; });
     CU.q.setFromEuler(new THREE.Euler(-0.42,0.62,0)); CU.spin.set(0.0,0.35); CU.dist=4.2; CU.open=true; CU.phase="opening"; CU.t0=performance.now(); CU.k=0; CU.dive=null; CU.hover=-1;
     cuUI(true); document.body.classList.add("cube-open"); ptSoundSafe(true); App.note&&App.note("cube"); }
@@ -68,10 +82,14 @@
     CU.grp.quaternion.copy(CU.q); CU.grp.scale.setScalar(Math.max(0.001,e*(1+0.05*Math.sin(e*Math.PI))));
     CU.grp.rotation.y+=0; CU.cam.aspect=W/H; CU.cam.position.set(0,0,CU.dist); CU.cam.lookAt(0,0,0);
     // the dive: fly straight at the chosen face's middle
-    if(CU.dive){ var d=CU.dive, u=Math.min(1,(now-d.t0)/d.dur), s0=u*u*(3-2*u); CU.q.slerp(d.q,Math.min(1,0.08+u*0.25)); CU.grp.quaternion.copy(CU.q); CU.spin.set(0,0);
-      CU.cam.position.set(0,0,d.from+(CU_H+0.02-d.from)*s0); if(u>=1){ cuArrive(); return false; } }
+    if(CU.dive){ var d=CU.dive, u=Math.min(1,(now-d.t0)/d.dur), s0=u*u*(3-2*u), fall=u*u;
+      CU.q.slerp(d.q,Math.min(1,0.06+u*0.3)); CU.grp.quaternion.copy(CU.q); CU.spin.set(0,0);
+      // it drops into the world, shrinking to where the opening will stand, and the world comes back into focus around it
+      CU.grp.position.set(d.to.x*s0, d.to.y*fall+0.25*Math.sin(u*Math.PI)*(1-u), 0); CU.grp.scale.setScalar(1+(d.scale-1)*s0); CU.k=1-s0; CU.bgMat.uniforms.k.value=1-s0;
+      if(u>=1){ cuLand(); return false; } }
+    else CU.grp.position.set(0,0,0);
     CU.cam.updateProjectionMatrix(); CU.cam.updateMatrixWorld(true); CU.grp.updateMatrixWorld(true);
-    CU.stars.material.uniforms.time.value=now/1000; CU.stars.material.uniforms.fade.value=e;
+    CU.bgMat.uniforms.k.value=e;
     // which faces look at you: those get a pass, at most three
     var vis=[]; CU.faces.forEach(function(f){ var n=new THREE.Vector3(0,0,1).applyQuaternion(f.getWorldQuaternion(new THREE.Quaternion())), p=f.getWorldPosition(new THREE.Vector3()), v=CU.cam.position.clone().sub(p);
       f.material.uniforms.live.value=0; f.material.uniforms.hi.value=f.userData.i===CU.hover?1:0; if(n.dot(v)>0) vis.push({f:f, d:n.dot(v.normalize())}); });
@@ -88,14 +106,20 @@
       renderer.setRenderTarget(rt); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
       try{ B.render(scene,c2); }catch(err){ if(!cuRender.warned){ cuRender.warned=1; console.warn("cube pass",err); } }
       f.material.uniforms.tView.value=rt.texture; f.material.uniforms.live.value=1; });
-    renderer.setRenderTarget(null); renderer.setClearColor(0x05060a,1); renderer.clear(true,true,true); renderer.render(CU.scene,CU.cam);
+    renderer.setRenderTarget(null); renderer.setClearColor(0x05060a,1); renderer.clear(true,true,true);
+    var ac=renderer.autoClear; renderer.autoClear=false; renderer.render(CU.bgScene,CU.bgCam); renderer.clearDepth(); renderer.render(CU.scene,CU.cam); renderer.autoClear=ac;
     return true; }
   // landing: become the camera that was looking through the glass
   function cuArrive(){ var f=CU.dive.f, c2=f.userData.cam, fwd=new THREE.Vector3(0,0,-1).applyQuaternion(c2.quaternion), sp=f.userData.spot;
     camPos.copy(sp.o.position); yaw=Math.atan2(-fwd.x,-fwd.z); pitch=Math.asin(Math.max(-1,Math.min(1,fwd.y))); _vel.set(0,0,0); if(PT) PT.prev=null;
     CU.open=false; CU.phase=""; CU.dive=null; cuUI(false); document.body.classList.remove("cube-open"); toast(sp.name.split(" · ")[1]?"You're on the "+sp.name.split(" · from the ")[1]+" side":sp.name); }
+  /* choosing a side: the cube turns that side to you and drops to where the opening will stand, then tears open as the portal */
   function cuDiveInto(i){ var f=CU.faces[i]; if(!f||CU.dive) return; var n=new THREE.Vector3(0,0,1).applyQuaternion(f.quaternion), q=new THREE.Quaternion().setFromUnitVectors(n,new THREE.Vector3(0,0,1));
-    CU.dive={f:f, q:q, t0:performance.now(), dur:1300, from:CU.dist}; cuUI(false, true); if(typeof ptSound==="function") ptSound(true,true); }
+    var H=ptHere(), s=ptScale(), ndc=H.p.clone().project(camera), D=CU.dist, tv=Math.tan(CU.cam.fov*Math.PI/360), tm=Math.tan(camera.fov*Math.PI/360), aspect=CU.cam.aspect||1;
+    var dist=H.p.distanceTo(camera.position), ang=(PT_R*s/dist)/tm, sc=Math.max(0.05,ang*tv*D/CU_H*0.92);
+    CU.dive={f:f, q:q, t0:performance.now(), dur:1100, to:new THREE.Vector2(ndc.x*tv*aspect*D, ndc.y*tv*D), scale:sc}; cuUI(false, true); }
+  function cuLand(){ var sp=CU.dive.f.userData.spot; CU.open=false; CU.phase=""; CU.dive=null; CU.grp.position.set(0,0,0); cuUI(false); document.body.classList.remove("cube-open");
+    ptOpen(sp, 0.95); if(typeof ptSound==="function") ptSound(true); }
 
   // ---- input: drag to turn, click a side to go, wheel to come closer ----
   function cuUI(on, keepHidden){ var el=CU.ui; if(!el){ el=CU.ui=document.createElement("div"); el.id="cubeUI"; el.className="cu-ui";

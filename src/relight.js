@@ -95,6 +95,10 @@
   // push the current lights to the GPU, then ask Spark to re-run the modifier
   function rlApply(){ if(!RL.ready||!RL.gpu) return; var G0=RL.gpu, U=G0.U, t0=performance.now();
     var E=Math.pow(2,RL.exp), A=rlRGB(RL.ambK), D=RL.plan?Math.max(RL.dusk,0.4):RL.dusk;
+    /* scans with spherical harmonics add their view-dependent colour after the modifier, which would wash the lighting
+       out: while the rig is on, draw them with base colour only */
+    if(G0.mesh.maxSh>0){ G0.mesh.__sh=G0.mesh.maxSh; G0.mesh.maxSh=0; G0.mesh.updateGenerator();
+      setTimeout(function(){ G0.mesh.updateGenerator(); G0.mesh.updateVersion(); },300); }   /* Spark only takes the change on a second rebuild */
     U.on.value=1; U.amb.value.set(D*A[0]*E, D*A[1]*E, D*A[2]*E); U.cam.value.set(camPos.x,camPos.y,camPos.z); U.is2.value=1/(RL.S*RL.S);
     var SUN=RL.sunPow>0&&RL.sunEl>0; U.sunOn.value=SUN?1:0;
     if(SUN){ var sd=rlSunDir(), sc=rlRGB(RL.sunK); U.sunDir.value.set(sd[0],sd[1],sd[2]); U.sunCol.value.set(sc[0]*RL.sunPow*E, sc[1]*RL.sunPow*E, sc[2]*RL.sunPow*E); }
@@ -108,7 +112,7 @@
     G0.mesh.updateVersion();
     if(typeof SKY!=="undefined"&&SKY.mesh) SKY.mesh.material.uniforms.dim.value=Math.max(0.05,Math.min(1,D*E));   // the sky goes down with the daylight
     RL.ms=Math.round(performance.now()-t0); rlMarkers(); rlPlanUI(); rlPanel(); }
-  function rlRestore(){ if(!RL.gpu) return; RL.gpu.U.on.value=0; RL.gpu.mesh.updateVersion();
+  function rlRestore(){ if(!RL.gpu) return; RL.gpu.U.on.value=0; var M=RL.gpu.mesh; if(M.__sh!=null){ M.maxSh=M.__sh; M.__sh=null; M.updateGenerator(); } M.updateVersion();
     if(typeof SKY!=="undefined"&&SKY.mesh) SKY.mesh.material.uniforms.dim.value=1; }
   function rlSunDir(){ var a=RL.sunAz*Math.PI/180, e=RL.sunEl*Math.PI/180; return [Math.cos(e)*Math.sin(a), Math.sin(e), Math.cos(e)*Math.cos(a)]; }
 

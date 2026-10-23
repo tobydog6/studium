@@ -14,4 +14,6 @@ challenges:[
   {id:"stump-tele",title:"Telephoto detail",brief:"Stand back with the 135 on the crop body and pick out the new growth on top of the stump. At this length you need a fast shutter to keep it sharp.",az:-120,dist:3.0,h:1.0,look:[0,0.4,0],mm:216,
    need:[{k:"body",id:"ml",label:"APS-C mirrorless (camera bag, B)"},{k:"lens",mm:135,label:"135 mm f/2 (camera bag, B)"},{k:"sh",max:1/250,label:"1/250 or faster, to hold a long lens steady"},{k:"f",min:5.6,label:"f/5.6 or smaller"},{k:"ev",tol:1,label:"Exposure within a stop"}]}]},
 {id:"fly",name:"The Fly",desc:"A cluster fly, scanned up close and blown up to the size of a room. Float round it in a quiet studio.",up:"ydown",ext:"stm",thumb:"asset:assets/scenes/fly-card.webp",data:"asset-b64:assets/scenes/fly.stm",
- studio:true, subject:[0,0], challenges:[]}];
+ studio:true, subject:[0,0], challenges:[]},
+{id:"carpark",name:"The Car Park",desc:"A car park scanned at full detail, about four million splats. Bring your own lights and watch the shadows fall.",up:"zup",scale:5,ext:"sog",thumb:"asset:assets/scenes/carpark-card.webp",data:"asset-b64:assets/scenes/carpark.sog",collide:"asset-b64:assets/scenes/carpark-collide.bin",
+ subject:[-1.74,3.39], spawn:[2.5,7.5,0.35,-0.12], challenges:[]}];

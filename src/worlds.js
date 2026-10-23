@@ -43,4 +43,9 @@
     if(typeof SKY==="undefined"||!SKY.mesh) return; var url=w.studio?wxStudioSky.url||(wxStudioSky.url=wxStudioSky()):(w.sc&&w.sc.sky)||null;
     if(!url&&w===WX.home) url=SKY.url; if(!url) return; var t=wxTex(url); if(SKY.mesh.material.uniforms.map.value!==t) SKY.mesh.material.uniforms.map.value=t; SKY.mesh.position.copy(p); }
 
-  if(/[?&]dev/.test(location.search)) window.__wx={ state:function(){ return {here:WX.here&&WX.here.id, worlds:WX.worlds.map(function(w){ return {id:w.id, ready:w.ready, c:w.c.toArray().map(function(v){ return +v.toFixed(2); })}; }), mode:WK.mode, bounds:boundsOn, place:cbPlace}; } };
+  if(/[?&]dev/.test(location.search)) window.__wx={ stats:function(){ var P=viewer&&viewer.P; if(!P) return null; var n=P.length/3, st=Math.max(1,Math.floor(n/200000)), ax=[[],[],[]]; for(var i=0;i<n;i+=st){ ax[0].push(P[i*3]); ax[1].push(P[i*3+1]); ax[2].push(P[i*3+2]); }
+      return ax.map(function(a){ a.sort(function(x,y){ return x-y; }); return [0.02,0.1,0.5,0.9,0.98].map(function(q){ return +a[Math.floor(q*(a.length-1))].toFixed(2); }); }); },
+    mesh:function(){ var m=viewer&&viewer.mesh; return m&&{wm:!!m.worldModifier, wms:m.worldModifiers?m.worldModifiers.length:0, maxSh:m.maxSh, ext:!!m.extSplats, paged:!!m.paged, packed:!!m.packedSplats, lod:!!m.enableLod, n:m.numSplats}; },
+    sh:function(n){ var m=viewer.mesh; m.maxSh=n; m.updateGenerator(); },
+    place:function(x,y,z,yw,pt){ camPos.set(x,y,z); yaw=yw||0; pitch=pt||0; if(typeof PT!=="undefined") PT.prev=null; },
+    state:function(){ return {here:WX.here&&WX.here.id, worlds:WX.worlds.map(function(w){ return {id:w.id, ready:w.ready, c:w.c.toArray().map(function(v){ return +v.toFixed(2); })}; }), mode:WK.mode, bounds:boundsOn, place:cbPlace}; } };

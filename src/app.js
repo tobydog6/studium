@@ -11,7 +11,7 @@
 
   if(!THREE||!SPARK){ landingNote.innerHTML="<b style='color:#ff6b6b'>The 3D engine did not load.</b> Please re-download this file and open it directly in Google Chrome."; return; }
 
-  var FMT={ply:"ply", splat:"splat", ksplat:"ksplat", spz:"spz"};
+  var FMT={ply:"ply", splat:"splat", ksplat:"ksplat", spz:"spz", sog:"pcsogszip"};
   var UPY=new THREE.Vector3(0,1,0);
 
   // ---- camera-sim tables ----
@@ -510,7 +510,7 @@
   function loadSplat(source, up, keepCol){ if(!keepCol){ WK.col=null; skySet(null); CH.spec=null; }
     var isFile=(source instanceof File), format;
     if(isFile){ var ext=source.name.split(".").pop().toLowerCase(); format=FMT[ext];
-      if(format===undefined){ toast("Unsupported file. Use a .ply, .splat, .ksplat or .spz."); return; }
+      if(format===undefined){ toast("Unsupported file. Use a .ply, .splat, .ksplat, .spz or .sog."); return; }
     } else { var e2=source.split("?")[0].split(".").pop().toLowerCase(); format=FMT[e2]||"splat"; }
     if(typeof rlForget==="function") rlForget();   // a new scan: the lighting starts over
     lastSource=source; lastFormat=format; lastUp=up||"yup"; highlightUp(lastUp);
@@ -524,7 +524,7 @@
       var spark=window.__sparkR||(window.__sparkR=new SPARK.SparkRenderer({renderer:renderer})); var DL=DETAIL[sceneDetail]||DETAIL.balanced; spark.lodSplatScale=DL.lod||1; spark.maxStdDev=DL.sd||Math.sqrt(8); scene.add(spark);   // splats' faint outer edges trimmed a little: fewer pixels to fill
       // Studium draws into its own buffer and grades in sRGB (like the old engine): Spark would otherwise convert to linear there
       if(!spark.__srgb){ spark.__srgb=true; var obr=spark.onBeforeRender; spark.onBeforeRender=function(){ obr.apply(spark,arguments); if(spark.uniforms&&spark.uniforms.encodeLinear) spark.uniforms.encodeLinear.value=false; var ov=SPARK.SparkRenderer.sparkOverride; if(ov&&ov.uniforms&&ov.uniforms.encodeLinear) ov.uniforms.encodeLinear.value=false; }; }
-      var mesh=new SPARK.SplatMesh({fileBytes:new Uint8Array(ab), fileType:format, lod:true}); mesh.quaternion.copy(q); scene.add(mesh);
+      var mesh=new SPARK.SplatMesh({fileBytes:new Uint8Array(ab), fileType:format, lod:true}); mesh.quaternion.copy(q); var SC=(keepCol&&CH.spec&&CH.spec.scale)||1; mesh.scale.setScalar(SC); scene.add(mesh);   // some scans come in at a fraction of real size
       viewer={spark:spark, mesh:mesh, splatMesh:mesh, P:null, dispose:function(){ scene.remove(mesh); scene.remove(spark); try{ mesh.dispose(); }catch(e){} }};
       // Spark says "initialized" before its level-of-detail build has the splats ready: wait for them. Then, because
       // the LoD splats live in a streaming pager that can't be read back, parse the same bytes once more without LoD to
@@ -532,10 +532,11 @@
       return mesh.initialized.then(function(){ return new Promise(function(res,rej){ var t0=performance.now(); (function poll(){ if(mesh.numSplats>0) return res(); if(performance.now()-t0>180000) return rej(new Error("the scan never finished loading")); setTimeout(poll,100); })(); }); })
         .then(function(){ var ps=new SPARK.PackedSplats({fileBytes:new Uint8Array(ab), fileType:format}); return ps.initialized; })
         .then(function(ps){ mesh.updateMatrixWorld(true); var n=ps.numSplats, P=new Float32Array(n*3), A=new Float32Array(n), v=new THREE.Vector3();
-          ps.forEachSplat(function(i,c,sc,qq,op){ v.copy(c).applyQuaternion(q); P[i*3]=v.x; P[i*3+1]=v.y; P[i*3+2]=v.z; A[i]=op; });
+          ps.forEachSplat(function(i,c,sc,qq,op){ v.copy(c).applyQuaternion(q).multiplyScalar(SC); P[i*3]=v.x; P[i*3+1]=v.y; P[i*3+2]=v.z; A[i]=op; });
           try{ ps.dispose(); }catch(e){} viewer.P=P; viewer.A=A; viewer.q=q.clone(); });
     }).then(function(){
-      frameScene(); chAttach(); loaded=true; updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
+      frameScene(); if(keepCol&&CH.spec&&CH.spec.spawn){ var sp=CH.spec.spawn; camPos.set(sp[0], WK.col?wkGround(sp[0],sp[1])+WK.eye:camPos.y, sp[1]); yaw=sp[2]||0; pitch=sp[3]||-0.1; }   // a scene can say where to stand first
+      chAttach(); loaded=true; updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       toast("Click to look around · P raises the camera · Space for the menu");   // the guide's first popup covers the controls
     }).catch(function(err){
@@ -1008,7 +1009,7 @@
   ["dragleave","drop"].forEach(function(ev){ dropzone.addEventListener(ev,function(e){e.preventDefault();dropzone.classList.remove("hot");}); });
   dropzone.addEventListener("drop",function(e){ e.stopPropagation(); var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) ownScan(f); });
   window.addEventListener("dragover",function(e){e.preventDefault();});
-  window.addEventListener("drop",function(e){ e.preventDefault(); if(menuOpen())return; var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f&&/\.(ply|splat|ksplat)$/i.test(f.name)) ownScan(f); });
+  window.addEventListener("drop",function(e){ e.preventDefault(); if(menuOpen())return; var f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f&&/\.(ply|splat|ksplat|spz|sog)$/i.test(f.name)) ownScan(f); });
   Array.prototype.forEach.call(document.querySelectorAll("[data-sample]"),function(b){ b.onclick=function(){ loadSplat(b.getAttribute("data-sample"), b.getAttribute("data-up")||"ydown"); }; });
 
   // ---- wire: menu controls ----

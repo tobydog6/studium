@@ -21,6 +21,12 @@
       var deg=(c.an*180/Math.PI+360)%360, side=["north","north-east","east","south-east","south","south-west","west","north-west"][Math.round(deg/45)%8];
       return {o:o, name:(window.SPLAT_SCENES&&SPLAT_SCENES[0]&&SPLAT_SCENES[0].name||"The scan")+" · from the "+side}; }); }
 
+  /* the faces: good spots round each world that's loaded (the one you're in first), six in all */
+  function cuAllSpots(){ var W=(typeof WX!=="undefined"?WX.worlds:[]).filter(function(w){ return w.ready; }), others=W.filter(function(w){ return w!==WX.home; });
+    if(!others.length) return cuSpots(6);
+    var home=cuSpots(3), rest=[]; others.forEach(function(w){ rest=rest.concat(wxSpots(w, Math.ceil(3/others.length))); });
+    var out=[]; for(var i=0;i<6;i++){ var a=i%2?rest:home, k=i>>1; out.push(a[k%a.length]||home[k%home.length]); } return out; }
+
   // ---- the cube itself ----
   function cuFaceMat(){ return new THREE.ShaderMaterial({ toneMapped:false, side:THREE.FrontSide,
     uniforms:{ tView:{value:null}, res:{value:new THREE.Vector2(1,1)}, live:{value:0}, hi:{value:0}, time:{value:0} },
@@ -65,7 +71,7 @@
   function cuOpen(){ if(CU.open) return; if(typeof PT!=="undefined"&&PT.on) ptDispose(); if(viewfinderOn) lowerCamera(); if(looking){ try{ document.exitPointerLock(); }catch(e){} }
     if(!CU.scene){ CU.scene=new THREE.Scene(); CU.cam=new THREE.PerspectiveCamera(38,1,0.01,200); var b=cuBuild(); CU.grp=b.grp; CU.faces=b.faces; CU.scene.add(CU.grp); cuBgInit(); }
     cuCapture();
-    CU.spots=cuSpots(6); CU.faces.forEach(function(f,i){ f.userData.spot=CU.spots[i]; });
+    CU.spots=cuAllSpots(); CU.faces.forEach(function(f,i){ f.userData.spot=CU.spots[i]; });
     CU.q.setFromEuler(new THREE.Euler(-0.42,0.62,0)); CU.spin.set(0.0,0.35); CU.dist=4.2; CU.open=true; CU.phase="opening"; CU.t0=performance.now(); CU.k=0; CU.dive=null; CU.hover=-1;
     cuUI(true); document.body.classList.add("cube-open"); ptSoundSafe(true); App.note&&App.note("cube"); }
   function cuClose(){ if(!CU.open) return; CU.phase="closing"; CU.t0=performance.now(); cuUI(false); ptSoundSafe(false); }
@@ -104,7 +110,7 @@
       c2.fov=CU.cam.fov; c2.aspect=CU.cam.aspect; c2.far=camera.far; var dir=new THREE.Vector3(); c2.updateMatrixWorld(true); c2.getWorldDirection(dir);
       c2.near=Math.max(0.02, sp.o.position.clone().sub(c2.position).dot(dir)*0.97); c2.updateProjectionMatrix(); c2.updateMatrixWorld(true);
       renderer.setRenderTarget(rt); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
-      try{ B.render(scene,c2); }catch(err){ if(!cuRender.warned){ cuRender.warned=1; console.warn("cube pass",err); } }
+      wxSkyFor(c2.position); try{ B.render(scene,c2); }catch(err){ if(!cuRender.warned){ cuRender.warned=1; console.warn("cube pass",err); } }
       f.material.uniforms.tView.value=rt.texture; f.material.uniforms.live.value=1; });
     renderer.setRenderTarget(null); renderer.setClearColor(0x05060a,1); renderer.clear(true,true,true);
     var ac=renderer.autoClear; renderer.autoClear=false; renderer.render(CU.bgScene,CU.bgCam); renderer.clearDepth(); renderer.render(CU.scene,CU.cam); renderer.autoClear=ac;

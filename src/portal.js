@@ -114,7 +114,7 @@
     var dir=new THREE.Vector3(); c2.getWorldDirection(dir); var dep=PT.far.position.clone().sub(c2.position).dot(dir); c2.near=Math.max(camera.near,dep-PT_R*s*1.4);
     c2.updateProjectionMatrix(); c2.updateMatrixWorld(true);
     var keep=renderer.getRenderTarget(); PT.o.visible=false; renderer.setRenderTarget(PT.rt); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
-    try{ B.render(scene,c2); }catch(e){ if(!ptRender.warned){ ptRender.warned=1; console.warn("portal pass",e); } }
+    wxSkyFor(c2.position); try{ B.render(scene,c2); }catch(e){ if(!ptRender.warned){ ptRender.warned=1; console.warn("portal pass",e); } }
     PT.o.visible=true; renderer.setRenderTarget(keep); u.disk.material.uniforms.tPortal.value=PT.rt.texture; }
 
   // ---- walking through: you're there, and the opening closes behind you ----

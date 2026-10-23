@@ -398,7 +398,7 @@
       }
     }
     if(dt>0) wkSettle(dt);
-    if(dt>0) ptCross();
+    if(dt>0){ ptCross(); wxTick(); }
     camera.up.set(0,1,0); camera.position.copy(camPos);
     camera.lookAt(camPos.x+_fwd.x, camPos.y+_fwd.y, camPos.z+_fwd.z);
     if(typeof RL!=="undefined"&&RL.plan) rlPlanCam();
@@ -434,7 +434,7 @@
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
     renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
-    if(viewer){ try{ skyFollow(); sparkLens(); ptRender(); renderer.setRenderTarget(sceneRT); renderer.render(scene,camera); chRender(dt); }catch(e){ if(!renderFrame.warned){ renderFrame.warned=1; console.error("render failed",e); } } }
+    if(viewer){ try{ skyFollow(); wxSkyFor(camera.position); sparkLens(); ptRender(); wxSkyFor(camera.position); renderer.setRenderTarget(sceneRT); renderer.render(scene,camera); chRender(dt); }catch(e){ if(!renderFrame.warned){ renderFrame.warned=1; console.error("render failed",e); } } }
     var useD=false;
     if(loaded&&dt>0) chTick(dt);
     renderer.setRenderTarget(fsTarget);
@@ -535,7 +535,7 @@
           ps.forEachSplat(function(i,c,sc,qq,op){ v.copy(c).applyQuaternion(q); P[i*3]=v.x; P[i*3+1]=v.y; P[i*3+2]=v.z; A[i]=op; });
           try{ ps.dispose(); }catch(e){} viewer.P=P; viewer.A=A; viewer.q=q.clone(); });
     }).then(function(){
-      frameScene(); chAttach(); loaded=true; updateCamera(0); ptDispose(); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
+      frameScene(); chAttach(); loaded=true; updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       toast("Click to look around · P raises the camera · Space for the menu");   // the guide's first popup covers the controls
     }).catch(function(err){
@@ -592,7 +592,7 @@
       if(sc.ext!=="stm") return {buf:ab, ext:sc.ext||"splat"};
       var ds=new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate")));
       return ds.arrayBuffer().then(function(raw){ detailDpr(); return {buf:stmUnpack(raw, sceneDetail), ext:"splat"}; }); })
-    .then(function(r){ skySet(sc.sky||null); CH.spec=sc; return wkLoad(sc.collide).then(function(){ return r; }); })
+    .then(function(r){ skySet(sc.sky||(sc.studio?wxStudioSky():null)); CH.spec=sc; return wkLoad(sc.collide).then(function(){ return r; }); })
     .then(function(r){ var f=new File([r.buf],(sc.id||"scene")+"."+r.ext,{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown", true); })
     .catch(function(e){ console.warn(e); hideLoader(); toast("Couldn't open that scene."); }); }
   function buildScenePicker(){ var host=$("sceneRow"); if(!host) return; var list=(window.SPLAT_SCENES||[]);
@@ -982,6 +982,7 @@
 @@include challenge.js@@
 @@include portal.js@@
 @@include cube.js@@
+@@include worlds.js@@
 @@include sync.js@@
 @@include lesson.js@@
 @@include hub.js@@

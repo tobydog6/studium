@@ -27,13 +27,15 @@ try {
   await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 });
   await ev(() => window.__qu.closeAll()); await page.waitForTimeout(3000);
   ok(!(await ev(() => window.__cu.state())).open, 'no cube until T');
+  await page.waitForFunction(() => window.__wx.state().worlds.some((w) => w.id === 'fly' && w.ready), null, { timeout: 300000, polling: 500 });
+  console.log('worlds', JSON.stringify((await ev(() => window.__wx.state())).worlds));
   await page.keyboard.press('KeyT'); await page.waitForTimeout(500);
   ok((await ev(() => window.__cu.state())).open, 'T opens the cube');
   const cs = await ev(() => window.__cu.state()); console.log(JSON.stringify(cs.spots));
-  ok(cs.spots.length === 6, 'six places');
+  ok(cs.spots.length === 6, 'six places'); ok(cs.spots.some((x) => /Fly/.test(x.name)) && cs.spots.some((x) => /Stump/.test(x.name)), 'faces from both worlds');
   await page.waitForTimeout(10000); await shot('cube-1');
   await ev(() => window.__cu.spin(0.02, 0.09)); await page.waitForTimeout(6000); await shot('cube-2');
-  const f = await ev(() => window.__cu.front()); const target = cs.spots[f].p;
+  const f = cs.spots.findIndex((x) => /Fly/.test(x.name)); const target = cs.spots[f].p;   // go to the fly
   await ev((i) => window.__cu.dive(i), f); await page.waitForTimeout(500); await shot('cube-3-dropping');
   await page.waitForFunction(() => !window.__cu.state().open, null, { timeout: 120000, polling: 300 });
   ok((await ev(() => window.__pt.state())).on, 'the cube became the portal');
@@ -43,7 +45,8 @@ try {
     await page.waitForFunction(() => { const d = window.__pt.dbg(); return !d.prev || d.prev.every((v, k) => Math.abs(v - d.cam[k]) < 1e-6); }, null, { timeout: 120000, polling: 200 }); }
   const p = await ev(() => window.__pt.pos()); const d = Math.hypot(p.x - target[0], p.z - target[2]);
   console.log('arrived', p, 'from spot', d.toFixed(2)); ok(d < 1.6, 'walked through to the chosen place');
-  await page.waitForTimeout(4000); await shot('cube-3-arrived');
+  const wx = await ev(() => window.__wx.state()); console.log(JSON.stringify(wx)); ok(wx.here === 'fly' && wx.mode === 'fly' && wx.place === 'The Fly', 'now in the fly world, floating');
+  await page.waitForTimeout(30000); await shot('cube-3-arrived');
   ok(!errors.length, 'page errors: ' + errors.join(' | '));
   console.log('PASS cube');
 } catch (e) { console.error('FAIL', e.message); console.error(errors.join('\n')); process.exitCode = 1; await shot('cube-fail'); }

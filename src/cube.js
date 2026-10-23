@@ -19,7 +19,7 @@
     return out.map(function(c,i){ var eye=(WK.col?wkGround(c.x,c.z)+WK.eye*s:camPos.y), o=new THREE.Object3D(); o.position.set(c.x,eye,c.z);
       var M=new THREE.Matrix4().lookAt(o.position, new THREE.Vector3(cx,gy+0.7*s,cz), UPY); o.quaternion.setFromRotationMatrix(M); o.updateMatrixWorld(true);
       var deg=(c.an*180/Math.PI+360)%360, side=["north","north-east","east","south-east","south","south-west","west","north-west"][Math.round(deg/45)%8];
-      return {o:o, name:(window.SPLAT_SCENES&&SPLAT_SCENES[0]&&SPLAT_SCENES[0].name||"The scan")+" · from the "+side}; }); }
+      return {o:o, name:((CH.spec&&CH.spec.name)||"The scan")+" · from the "+side}; }); }
 
   /* the faces: good spots round each world that's loaded (the one you're in first), six in all */
   function cuAllSpots(){ var W=(typeof WX!=="undefined"?WX.worlds:[]).filter(function(w){ return w.ready; }), others=W.filter(function(w){ return w!==WX.home; });
@@ -74,6 +74,8 @@
     CU.spots=cuAllSpots(); CU.faces.forEach(function(f,i){ f.userData.spot=CU.spots[i]; });
     CU.q.setFromEuler(new THREE.Euler(-0.42,0.62,0)); CU.spin.set(0.0,0.35); CU.dist=4.2; CU.open=true; CU.phase="opening"; CU.t0=performance.now(); CU.k=0; CU.dive=null; CU.hover=-1;
     cuUI(true); document.body.classList.add("cube-open"); ptSoundSafe(true); App.note&&App.note("cube"); }
+  /* if anything goes wrong, put everything back: no cube, all the controls showing */
+  function cuReset(){ CU.open=false; CU.phase=""; CU.dive=null; if(CU.grp) CU.grp.position.set(0,0,0); cuUI(false); document.body.classList.remove("cube-open"); }
   function cuClose(){ if(!CU.open) return; CU.phase="closing"; CU.t0=performance.now(); cuUI(false); ptSoundSafe(false); }
   function ptSoundSafe(up){ if(typeof ptSound==="function") ptSound(up); }
 

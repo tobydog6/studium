@@ -2437,3 +2437,4 @@ body[data-state^="studio"] .q-hud{right:300px;top:14px}
 .cu-hint{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);font:500 10.5px var(--mono);letter-spacing:.16em;color:#8d8678;pointer-events:none;white-space:nowrap}
 .cu-hint b{color:#e3ad57;font-weight:600}
 body.cube-open #hud,body.cube-open .q-hud,body.cube-open #viewfinder,body.cube-open #toast,body.cube-open .ach-card{visibility:hidden}
+.scenecard.here{outline:2px solid #e3ad57;outline-offset:2px}.scenecard.here .go{color:#e3ad57}

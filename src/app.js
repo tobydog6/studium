@@ -429,7 +429,7 @@
   var fsTarget=null;   // where the finished frame goes: the screen, or a texture (the cube's backdrop)
   function renderBackdrop(rt){ fsTarget=rt; try{ renderFrame(0); }finally{ fsTarget=null; } }
   function renderFrame(dt){
-    if(typeof CU!=="undefined"&&CU.open&&viewer&&loaded){ if(cuRender()) return; }   // the cube of places takes the whole screen
+    if(typeof CU!=="undefined"&&CU.open&&viewer&&loaded){ try{ if(cuRender()) return; }catch(e){ console.warn("cube",e); cuReset(); } }   // the cube of places takes the whole screen
     var tgtE=viewfinderOn?(curBody().optical?1:expMult):1, tgtF=viewfinderOn?1:0, tgtV=viewfinderOn?apVig:0.1, tgtG=viewfinderOn?isoGrain:0, tgtD=0;
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
@@ -535,7 +535,7 @@
           ps.forEachSplat(function(i,c,sc,qq,op){ v.copy(c).applyQuaternion(q).multiplyScalar(SC); P[i*3]=v.x; P[i*3+1]=v.y; P[i*3+2]=v.z; A[i]=op; });
           try{ ps.dispose(); }catch(e){} viewer.P=P; viewer.A=A; viewer.q=q.clone(); });
     }).then(function(){
-      frameScene(); if(keepCol&&CH.spec&&CH.spec.spawn){ var sp=CH.spec.spawn; camPos.set(sp[0], WK.col?wkGround(sp[0],sp[1])+WK.eye:camPos.y, sp[1]); yaw=sp[2]||0; pitch=sp[3]||-0.1; }   // a scene can say where to stand first
+      frameScene(); if(typeof wxArrival==="function"&&wxArrival()){} else if(keepCol&&CH.spec&&CH.spec.spawn){ var sp=CH.spec.spawn; camPos.set(sp[0], WK.col?wkGround(sp[0],sp[1])+WK.eye:camPos.y, sp[1]); yaw=sp[2]||0; pitch=sp[3]||-0.1; }   // a scene can say where to stand first
       chAttach(); loaded=true; updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       toast("Click to look around · P raises the camera · Space for the menu");   // the guide's first popup covers the controls
@@ -600,8 +600,9 @@
     if(!list.length){ host.style.display="none"; var h=$("sceneHead"),o=$("orSep"); if(h)h.style.display="none"; if(o)o.style.display="none"; return; }
     host.innerHTML=""; list.forEach(function(sc){ var c=document.createElement("button"); c.className="scenecard";
       var shot=photos.filter(function(p){ return (p.place||"")===sc.name; }).length;
-      c.innerHTML="<div class='sc-thumb'>"+(sc.thumb?"<img src='"+sc.thumb+"' alt=''>":"")+"</div><div class='sc-meta'><div class='sc-name'>"+esc(sc.name||"Scene")+"</div><div class='sc-desc'>"+esc(sc.desc||"")+"</div><div class='sc-foot'><span>"+(shot?shot+" FRAME"+(shot===1?"":"S")+" SHOT HERE":"NOT SHOT YET")+"</span><span class='go'>WALK IN <kbd>↵</kbd></span></div></div>";
-      c.onclick=function(){ loadBundled(sc); }; host.appendChild(c); });
+      c.innerHTML="<div class='sc-thumb'>"+(sc.thumb?"<img src='"+sc.thumb+"' alt=''>":"")+"</div><div class='sc-meta'><div class='sc-name'>"+esc(sc.name||"Scene")+"</div><div class='sc-desc'>"+esc(sc.desc||"")+"</div><div class='sc-foot'><span>"+(shot?shot+" FRAME"+(shot===1?"":"S")+" SHOT HERE":"NOT SHOT YET")+"</span><span class='go'>"+(sc.id===curSceneId()?"CARRY ON":"WALK IN")+" <kbd>↵</kbd></span></div></div>";
+      if(sc.id===curSceneId()) c.classList.add("here");
+      c.onclick=function(){ if(sc.id===curSceneId()){ hubHide("landing"); hubShow("hud"); App.go("scene"); if(typeof updatePrompt==="function") updatePrompt(); return; } loadBundled(sc); }; host.appendChild(c); });
     var nx=document.createElement("div"); nx.className="scenecard next"; nx.innerHTML="<div class='sc-thumb'><span>NEXT LOCATION</span></div><div class='sc-meta'><div class='sc-name'>More places</div><div class='sc-desc'>Your folio panel wants three series. New scans arrive here; your teacher can add their own.</div></div>"; host.appendChild(nx); }
   // ---- suite hub navigation ----
   var suiteFrom="scene", punctumLoaded=false;
@@ -611,7 +612,9 @@
     viewfinderOn=false; var vf=$("viewfinder"); if(vf) vf.classList.remove("on");
     if(typeof cbOpen!=="undefined"&&cbOpen) closeBack(false);
     ["landing","studio","punctum","menu","gallery","editor","folio","photobook","galleryshow","hud","prompt","signin","teacher"].forEach(hubHide); hubShow("hub"); if(!App.go("hub")&&typeof hubRender==="function") hubRender(); }
-  function openSplatViewer(){ suiteFrom="scene"; hubHide("hub"); App.go(loaded?"scene":"landing"); if(loaded){ hubShow("hud"); if(typeof updatePrompt==="function") updatePrompt(); } else { buildScenePicker(); hubShow("landing"); } }
+  /* the camera on the home screen always opens the place picker; the place you're already in just carries on */
+  function openSplatViewer(){ suiteFrom="scene"; hubHide("hub"); App.go("landing"); buildScenePicker(); hubShow("landing"); }
+  function curSceneId(){ return loaded&&!ownLoaded&&CH.spec?CH.spec.id:null; }
   function openStudioHome(){ hubHide("hub"); hubShow("studio"); studioSync(); App.go("studio"); }
   function openPunctum(){ hubHide("hub"); hubShow("punctum"); App.go("punctum");
     if(!punctumLoaded){ var fr=$("punctumFrame"); if(fr && window.PUNCTUM_B64){ try{ var bin=atob(window.PUNCTUM_B64), by=new Uint8Array(bin.length), i; for(i=0;i<bin.length;i++) by[i]=bin.charCodeAt(i); fr.srcdoc=new TextDecoder("utf-8").decode(by); punctumLoaded=true; }catch(e){ toast("Couldn't open Punctum."); } } } }
@@ -1128,7 +1131,7 @@
     if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")) return;
     if(lsKey(e)) return;                                          // the move-on card holds the keys while it's up
     if(App.is("teacher")||App.is("signin")) return;
-    if(App.is("landing")&&!landing.classList.contains("hidden")){ if(e.code==="Escape"){ e.preventDefault(); showHub(); } else if(e.code==="Enter"){ var sc0=(window.SPLAT_SCENES||[])[0]; if(sc0){ e.preventDefault(); loadBundled(sc0); } } return; }
+    if(App.is("landing")&&!landing.classList.contains("hidden")){ if(e.code==="Escape"){ e.preventDefault(); showHub(); } else if(e.code==="Enter"){ var cur=curSceneId(), sc0=(window.SPLAT_SCENES||[]).filter(function(x){ return x.id===cur; })[0]||(window.SPLAT_SCENES||[])[0]; if(cur){ e.preventDefault(); hubHide("landing"); hubShow("hud"); App.go("scene"); return; } if(sc0){ e.preventDefault(); loadBundled(sc0); } } return; }
     if(cbOpen){ cbKey(e); return; }
     if(bg.open){ bagKey(e); return; }
     if(st.open && stKey(e)) return;

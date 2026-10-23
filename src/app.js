@@ -427,6 +427,7 @@
 
   // ---- render ----
   function renderFrame(dt){
+    if(typeof CU!=="undefined"&&CU.open&&viewer&&loaded){ if(cuRender()) return; }   // the cube of places takes the whole screen
     var tgtE=viewfinderOn?(curBody().optical?1:expMult):1, tgtF=viewfinderOn?1:0, tgtV=viewfinderOn?apVig:0.1, tgtG=viewfinderOn?isoGrain:0, tgtD=0;
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
@@ -978,6 +979,7 @@
 @@include relight.js@@
 @@include challenge.js@@
 @@include portal.js@@
+@@include cube.js@@
 @@include sync.js@@
 @@include lesson.js@@
 @@include hub.js@@
@@ -1137,7 +1139,7 @@
     else if(e.code==="KeyG"){ if(viewfinderOn) cycleComp(); else toggleGrid(); }
     else if(e.code==="KeyX"){ e.preventDefault(); if(loaded) setVertical(!vertical); }
     else if(e.code==="Tab"){ e.preventDefault(); openStudio("select"); }
-    else if(e.code==="KeyT"&&loaded){ e.preventDefault(); ptToggle(); }   // open a portal in front of you (T again closes it)
+    else if(e.code==="KeyT"&&loaded){ e.preventDefault(); if(e.shiftKey) ptToggle(); else cuToggle(); }   // T: the cube of places; Shift+T: a portal right here
     else if(e.code==="KeyF"&&viewfinderOn){ e.preventDefault(); afPending="say"; }   // refocus on the middle of the frame
     else if(e.code==="ArrowUp"){ e.preventDefault(); setFocus(focusDist+0.05); }
     else if(e.code==="ArrowDown"){ e.preventDefault(); setFocus(focusDist-0.05); }

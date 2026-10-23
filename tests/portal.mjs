@@ -27,7 +27,7 @@ try {
   await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 });
   await ev(() => window.__qu.closeAll()); await page.waitForTimeout(3000);
   ok(!(await ev(() => window.__pt.state())).on, 'no portal until you ask');
-  await page.keyboard.press('KeyT'); await page.waitForTimeout(700);
+  await page.keyboard.press('Shift+KeyT'); await page.waitForTimeout(700);
   ok((await ev(() => window.__pt.state())).state === 'opening', 'T opens a portal');
   await shot('portal-0-opening');
   await page.waitForFunction(() => window.__pt.state().state === 'open', null, { timeout: 120000, polling: 300 });
@@ -42,7 +42,7 @@ try {
   await ev(() => window.__pt.turn(Math.PI)); await page.waitForTimeout(400); await shot('portal-2-closing-behind');
   await page.waitForFunction(() => !window.__pt.state().on, null, { timeout: 120000, polling: 300 });
   // T then T: open and close without going through
-  await page.keyboard.press('KeyT'); await page.waitForTimeout(300); await page.keyboard.press('KeyT');
+  await page.keyboard.press('Shift+KeyT'); await page.waitForTimeout(300); await page.keyboard.press('Shift+KeyT');
   await page.waitForFunction(() => !window.__pt.state().on, null, { timeout: 120000, polling: 300 });
   ok(!errors.length, 'page errors: ' + errors.join(' | '));
   console.log('PASS portal');

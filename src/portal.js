@@ -74,13 +74,11 @@
     o.add(disk); o.add(glow); o.add(sp); o.userData={disk:disk, glow:glow, sp:sp}; return o; }
 
   // ---- where it leads: another good spot in the scan, a few metres off, looking back towards the subject ----
-  function ptSpot(s){ var sj=CH.spec&&CH.spec.subject, cx=sj?sj[0]:camPos.x, cz=sj?sj[1]:camPos.z, best=null, bd=-1;
-    for(var k=0;k<48;k++){ var an=((k*0.618+PT.n*0.37)%1)*Math.PI*2, d=(3.5+(k%4)*1.1)*s, x=cx+Math.sin(an)*d, z=cz+Math.cos(an)*d;
-      if(WK.col){ var g=wkGround(x,z); if(wkBlocked(x,z,g)||wkBlocked(x+0.5*s,z,g)||wkBlocked(x-0.5*s,z,g)||wkBlocked(x,z+0.5*s,g)||wkBlocked(x,z-0.5*s,g)) continue; }
-      var far=Math.hypot(x-camPos.x,z-camPos.z); if(far<4*s) continue; if(far>bd){ bd=far; best={x:x,z:z}; } if(bd>7*s) break; }
-    if(!best){ var f=new THREE.Vector3(); camera.getWorldDirection(f); best={x:cx-f.x*5*s, z:cz-f.z*5*s}; }
-    var y=(WK.col?wkGround(best.x,best.z)+WK.eye*s:camPos.y)-0.3*s, face=Math.atan2(best.x-cx,best.z-cz);   // its front looks away from the subject, so you step out facing it
-    var far=new THREE.Object3D(); far.position.set(best.x,y,best.z); far.rotation.y=face; far.updateMatrixWorld(true); return far; }
+  /* a good spot near the middle, looking at the subject (the cube's spots): you come out of the far end walking towards it */
+  function ptSpot(s){ var S=cuSpots(6), cur=new THREE.Vector3(camPos.x,0,camPos.z), best=null, bd=-1;
+    S.forEach(function(sp){ var d=Math.hypot(sp.o.position.x-cur.x, sp.o.position.z-cur.z); if(d>bd){ bd=d; best=sp; } });   // the one furthest from here, so it feels like going somewhere
+    var far=new THREE.Object3D(), fwd=new THREE.Vector3(0,0,-1).applyQuaternion(best.o.quaternion); fwd.y=0; fwd.normalize();
+    far.position.copy(best.o.position).y-=0.3*s; far.rotation.y=Math.atan2(fwd.x,fwd.z); far.updateMatrixWorld(true); far.userData.name=best.name; return far; }   /* its front faces the subject: you step out along it */
 
   // ---- T: open in front of you; T again (or walking through) closes it ----
   function ptToggle(){ if(!loaded||!scene) return; if(PT.on&&PT.state!=="closing"){ ptClose(); return; } if(PT.on) return; ptOpen(); }

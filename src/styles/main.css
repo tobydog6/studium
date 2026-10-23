@@ -2429,3 +2429,11 @@ body[data-state^="studio"] .q-hud{right:300px;top:14px}
 .ach-card{transition:transform .45s cubic-bezier(.2,.9,.25,1.15),opacity .3s,visibility 0s linear .45s}
 .ach-card.show{transition:transform .45s cubic-bezier(.2,.9,.25,1.15),opacity .3s,visibility 0s}
 .ach-card:not(.show){opacity:0;visibility:hidden;pointer-events:none}
+/* the cube of places */
+.cu-ui{position:fixed;inset:0;z-index:2500;display:none;cursor:grab;touch-action:none}
+.cu-ui.show{display:block}
+.cu-ui:active{cursor:grabbing}
+.cu-name{position:absolute;left:50%;bottom:92px;transform:translateX(-50%);font:400 26px var(--serif);color:#f4f1ea;text-shadow:0 2px 20px rgba(0,0,0,.8);pointer-events:none;white-space:nowrap}
+.cu-hint{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);font:500 10.5px var(--mono);letter-spacing:.16em;color:#8d8678;pointer-events:none;white-space:nowrap}
+.cu-hint b{color:#e3ad57;font-weight:600}
+body.cube-open #hud,body.cube-open .q-hud,body.cube-open #viewfinder,body.cube-open #toast,body.cube-open .ach-card{visibility:hidden}

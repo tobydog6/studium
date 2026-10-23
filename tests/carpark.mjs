@@ -30,6 +30,12 @@ try {
   ok(w.col && Math.abs(w.x - 2.5) < 0.6 && Math.abs(w.z - 7.5) < 0.6, 'started at the scene\'s spot, with a walk map');
   ok(Math.abs(w.y - (w.ground + w.eye)) < 0.3, 'standing on the ground');
   await shot('carpark-1');
+  // up close: the man on the bench, from about a metre away
+  await ev(() => window.__rl.open()); await page.waitForFunction(() => window.__rl.state().ready, null, { timeout: 600000, polling: 1000 });
+  const hit = await ev(() => window.__rl.pick()); console.log('pick', JSON.stringify(hit));
+  await ev(() => window.__rl.close());
+  if (hit) { await ev((h) => { const p = window.__wk.pos(); const dx = p.x - h.x, dz = p.z - h.z, d = Math.hypot(dx, dz); window.__wx.place(h.x + dx / d * 1.1, h.y + 0.15, h.z + dz / d * 1.1, Math.atan2(dx, dz), -0.12); }, hit);
+    await page.waitForTimeout(20000); await shot('carpark-face'); }
   // night, one light near the red car
   await ev(() => window.__rl.open()); await page.waitForFunction(() => window.__rl.state().ready, null, { timeout: 600000, polling: 1000 });
   await page.$eval('[data-rl-time="night"]', (b) => b.click());

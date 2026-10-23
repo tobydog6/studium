@@ -521,10 +521,10 @@
     (isFile?source.arrayBuffer():fetch(source).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.arrayBuffer(); })).then(function(ab){
       scene=new THREE.Scene(); skyAttach(scene); showLoader("Building detail levels…");
       // one Spark renderer for the whole session (its workers stay up); only the scan is swapped
-      var spark=window.__sparkR||(window.__sparkR=new SPARK.SparkRenderer({renderer:renderer})); var DL=DETAIL[sceneDetail]||DETAIL.balanced; spark.lodSplatScale=DL.lod||1; spark.maxStdDev=DL.sd||Math.sqrt(8); scene.add(spark);   // splats' faint outer edges trimmed a little: fewer pixels to fill
+      var spark=window.__sparkR||(window.__sparkR=new SPARK.SparkRenderer({renderer:renderer})); var DL=DETAIL[sceneDetail]||DETAIL.balanced; spark.lodSplatScale=dynLodBase(); spark.lodRenderScale=(CH.spec&&CH.spec.fullRes)?0.5:1;   /* fullRes scans: budget for every splat, and pick the finest ones down to half a pixel, so close up it's the original data */ spark.maxStdDev=DL.sd||Math.sqrt(8); scene.add(spark);   // splats' faint outer edges trimmed a little: fewer pixels to fill
       // Studium draws into its own buffer and grades in sRGB (like the old engine): Spark would otherwise convert to linear there
       if(!spark.__srgb){ spark.__srgb=true; var obr=spark.onBeforeRender; spark.onBeforeRender=function(){ obr.apply(spark,arguments); if(spark.uniforms&&spark.uniforms.encodeLinear) spark.uniforms.encodeLinear.value=false; var ov=SPARK.SparkRenderer.sparkOverride; if(ov&&ov.uniforms&&ov.uniforms.encodeLinear) ov.uniforms.encodeLinear.value=false; }; }
-      var mesh=new SPARK.SplatMesh({fileBytes:new Uint8Array(ab), fileType:format, lod:!(keepCol&&CH.spec&&CH.spec.fullRes)});   // fullRes scans draw every splat, untouched, like SuperSplat mesh.quaternion.copy(q); var SC=(keepCol&&CH.spec&&CH.spec.scale)||1; mesh.scale.setScalar(SC); scene.add(mesh);   // some scans come in at a fraction of real size
+      var mesh=new SPARK.SplatMesh({fileBytes:new Uint8Array(ab), fileType:format, lod:true}); mesh.quaternion.copy(q); var SC=(keepCol&&CH.spec&&CH.spec.scale)||1; mesh.scale.setScalar(SC); scene.add(mesh);   // some scans come in at a fraction of real size
       viewer={spark:spark, mesh:mesh, splatMesh:mesh, P:null, dispose:function(){ scene.remove(mesh); scene.remove(spark); try{ mesh.dispose(); }catch(e){} }};
       // Spark says "initialized" before its level-of-detail build has the splats ready: wait for them. Then, because
       // the LoD splats live in a streaming pager that can't be read back, parse the same bytes once more without LoD to
@@ -562,7 +562,7 @@
   function setScale(v){ dyn.scale=v; renderer.setPixelRatio(v); resize(); }
   // resolution first (down to 60%); if that's not enough, trim Spark's splat budget a little too. Both come back with headroom.
   function dynLod(){ var sp=viewer&&viewer.spark; return sp?sp.lodSplatScale:1; }
-  function dynLodBase(){ return (DETAIL[sceneDetail]||DETAIL.balanced).lod||1; }
+  function dynLodBase(){ var b=(DETAIL[sceneDetail]||DETAIL.balanced).lod||1; return CH.spec&&CH.spec.fullRes?Math.max(b,2.2):b; }
   function dynTick(dt){ if(!loaded||!(dt>0)) return; dyn.ema=dyn.ema*0.9+dt*100; dyn.t+=dt; var mx=dynMax(), sp=viewer&&viewer.spark; if(dyn.scale>mx+0.001){ setScale(mx); return; }
     if(dyn.t<0.6) return; dyn.t=0; var fps=1000/dyn.ema;
     /* when it's slow, thin the distant splats first (barely visible), and only then drop resolution, never below 0.85:

@@ -24,7 +24,7 @@
       w.c=sc.studio?off.clone().add(new THREE.Vector3(0,1.6,0)):off.clone().add(new THREE.Vector3(sj[0], g+0.7, sj[1])); WX.worlds.push(w);
       assetBytes(sc.preview||sc.data).then(function(ab){ return new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer(); })
         .then(function(raw){ if(scene!==keepScene) return; var buf=stmUnpack(raw, sc.preview?"full":(sc.studio?sceneDetail:"light")), m=new SPARK.SplatMesh({fileBytes:new Uint8Array(buf), fileType:"splat"});
-          m.quaternion.copy(upQuat(sc.up||"ydown")); m.scale.setScalar(sc.scale||1); m.position.copy(wxMeshPos(w)); scene.add(m); w.mesh=m; return m.initialized; })
+          m.quaternion.copy(upQuat(sc.up||"ydown")); m.scale.setScalar(sc.scale||1); m.position.copy(wxMeshPos(w)); m.visible=!!WX.show; scene.add(m); w.mesh=m; return m.initialized; })
         .then(function(){ w.ready=!!w.mesh; })
         .catch(function(e){ console.warn("world", sc.id, e); }); }); }
 
@@ -41,6 +41,11 @@
       o.position.set(C.x+Math.sin(an2)*Math.cos(el)*d, C.y+Math.sin(el)*d, C.z+Math.cos(an2)*Math.cos(el)*d);
       var M2=new THREE.Matrix4().lookAt(o.position, C, UPY); o.quaternion.setFromRotationMatrix(M2); o.updateMatrixWorld(true); out.push({o:o, name:w.name+" · "+v[2], world:w.id}); }
     return out; }
+
+  /* the other places are only drawn while you could see them (the cube is up, or a portal is open): the rest of the
+     time they'd cost frame rate, and so sharpness, for nothing */
+  function wxShowOthers(on){ WX.show=!!on; WX.worlds.forEach(function(w){ if(w!==WX.home&&w.mesh) w.mesh.visible=!!on; }); }
+  setInterval(function(){ if(!WX.home) return; var want=(typeof CU!=="undefined"&&CU.open)||(typeof PT!=="undefined"&&PT.on)||WX.here!==WX.home; if(want!==!!WX.show) wxShowOthers(want); }, 200);
 
   /* which world is this point in */
   function wxAt(p){ var best=WX.home, bd=Infinity; WX.worlds.forEach(function(w){ var d=Math.hypot(p.x-w.c.x,p.z-w.c.z); if(d<bd){ bd=d; best=w; } }); return best; }

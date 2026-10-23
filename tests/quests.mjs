@@ -26,8 +26,8 @@ const tick = async () => { await ev(() => window.__q.tick()); };
 try {
   await page.goto(pathToFileURL(FILE).href + '?dev&full&quick&noauto');
   await page.waitForSelector('[data-si="solo"]', { state: 'visible', timeout: 20000 }); await page.click('[data-si="solo"]');
-  await page.waitForSelector('#tileSplat', { state: 'visible', timeout: 20000 }); await page.click('#tileSplat');
-  await page.waitForSelector('.scenecard', { state: 'visible', timeout: 10000 }); await page.click('.scenecard');
+  await page.waitForSelector('#tileSplat', { state: 'visible', timeout: 20000 }); await page.$eval('#tileSplat', (b) => b.click());
+  await page.waitForSelector('.scenecard', { state: 'visible', timeout: 10000 }); await page.$$eval('.scenecard', (cs) => cs.find((x) => /Stump/.test(x.textContent)).click());
   await page.waitForFunction(() => window.__cb && window.__cb.state() === 'scene', null, { timeout: 300000 });
   let s = await Q();
   ok(s.quests.find((x) => x.id === 'f2').status === 'locked', 'F2 should be locked before F1');
@@ -64,7 +64,7 @@ try {
   await shot({ url: 'n', light: { time: 'night', lights: [{ fx: 'fresnel' }, { fx: 'led' }] } }); await ev(() => window.__q.page('experiment'));
   await tick(); ok((await qs('m3')).status === 'done', 'M3 not done: ' + JSON.stringify(await qs('m3')));
   // M7 stays locked with one scene; the moodboard id and real capture fields
-  ok((await qs('m7')).lock === 'Needs more locations', 'M7 should need more locations');
+  ok((await qs('m7')).lock === '', 'M7 is open now there are three places');
   ok((await ev(() => window.__q.state().checkpoints)).length === 3, 'three checkpoints');
   await page.keyboard.press('KeyP'); await page.waitForTimeout(1500); await page.keyboard.press('Enter'); await page.waitForTimeout(2500);
   const cap = await ev(() => window.__q.last()); ok(cap && cap.light && cap.light.time === 'day' && typeof cap.ev === 'number', 'the shutter should record light and exposure: ' + JSON.stringify(cap));

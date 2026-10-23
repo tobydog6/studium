@@ -553,7 +553,7 @@
   // Light detail keeps the more solid half of the splats for slower school computers.
   // Scan detail (camera back › Handling): how much of the scan to draw, and at how many pixels. Splats cost most per
   // pixel drawn, so the lighter levels also render a little under the screen's full resolution.
-  var DETAIL={ light:{keep:0.3, dpr:1, lod:0.45, sd:2.3, label:"LIGHT"}, balanced:{keep:0.55, dpr:1.5, lod:0.75, sd:2.55, label:"BALANCED"}, full:{keep:1, dpr:2, lod:1.3, sd:2.83, label:"FULL"}, test:{keep:0.1, dpr:1, lod:0.3, sd:2.3, label:"TEST"} };
+  var DETAIL={ light:{keep:0.3, dpr:1, lod:0.45, sd:2.3, label:"LIGHT"}, balanced:{keep:0.55, dpr:1.5, lod:1.0, sd:2.83, label:"BALANCED"}, full:{keep:1, dpr:2, lod:1.6, sd:2.83, label:"FULL"}, test:{keep:0.1, dpr:1, lod:0.3, sd:2.3, label:"TEST"} };
   var sceneDetail=(function(){ var v=null; try{ v=localStorage.getItem("studium_detail"); }catch(e){} return DETAIL[v]?v:"balanced"; })();
   function detailDpr(){ setScale(dynMax()); }
   // ---- auto resolution: when the frame rate dips, draw fewer pixels; when there's headroom, draw more. Photos are always full res ----
@@ -565,8 +565,10 @@
   function dynLodBase(){ return (DETAIL[sceneDetail]||DETAIL.balanced).lod||1; }
   function dynTick(dt){ if(!loaded||!(dt>0)) return; dyn.ema=dyn.ema*0.9+dt*100; dyn.t+=dt; var mx=dynMax(), sp=viewer&&viewer.spark; if(dyn.scale>mx+0.001){ setScale(mx); return; }
     if(dyn.t<0.6) return; dyn.t=0; var fps=1000/dyn.ema;
-    if(fps<48){ dyn.hi=0; if(dyn.scale>0.6) setScale(Math.max(0.6,Math.round((dyn.scale-0.1)*100)/100)); else if(sp&&sp.lodSplatScale>dynLodBase()*0.5) sp.lodSplatScale=Math.max(dynLodBase()*0.5, sp.lodSplatScale*0.85); }
-    else if(fps>57){ if(++dyn.hi>=3){ dyn.hi=0; if(sp&&sp.lodSplatScale<dynLodBase()) sp.lodSplatScale=Math.min(dynLodBase(), sp.lodSplatScale/0.85); else if(dyn.scale<mx) setScale(Math.min(mx,Math.round((dyn.scale+0.1)*100)/100)); } } else dyn.hi=0; }
+    /* when it's slow, thin the distant splats first (barely visible), and only then drop resolution, never below 0.85:
+       a blurry picture looks far worse than a little less far-off detail */
+    if(fps<40){ dyn.hi=0; if(sp&&sp.lodSplatScale>dynLodBase()*0.6) sp.lodSplatScale=Math.max(dynLodBase()*0.6, sp.lodSplatScale*0.85); else if(dyn.scale>0.85) setScale(Math.max(0.85,Math.round((dyn.scale-0.1)*100)/100)); }
+    else if(fps>55){ if(++dyn.hi>=3){ dyn.hi=0; if(dyn.scale<mx) setScale(Math.min(mx,Math.round((dyn.scale+0.1)*100)/100)); else if(sp&&sp.lodSplatScale<dynLodBase()) sp.lodSplatScale=Math.min(dynLodBase(), sp.lodSplatScale/0.85); } } else dyn.hi=0; }
   // Keep the splats that show most: rank by opacity and keep the top share. Faint haze goes first and the small,
   // solid splats that carry texture stay, so the lighter levels thin out without going soft or muddy.
   function stmUnpack(buf, level){ var keepFrac=(DETAIL[level]||DETAIL.full).keep; var dv=new DataView(buf), n=dv.getUint32(4,true), f=new Float32Array(buf.slice(8,40)), b=new Uint8Array(buf,40), N=n;

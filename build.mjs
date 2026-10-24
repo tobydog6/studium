@@ -66,3 +66,12 @@ mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, html);
 const sha = createHash('sha256').update(html).digest('hex').slice(0, 12);
 console.log(`Built ${OUT}  ${(Buffer.byteLength(html) / 1e6).toFixed(2)} MB  sha256:${sha}`);
+
+// the phone AR test page (src/ar.html + ar.js), built alongside: dist/ar.html, or dist/web/ar.html
+if (argOut < 0) {
+  const ar = readFileSync(join(ROOT, 'src', 'ar.html'), 'utf8').replace(/^@@include (\S+)@@$/gm, (_, p) => p === 'engine' ? engine : resolveAssets(readSrc(p)));
+  if (/@@include|\basset(-b64)?:[A-Za-z]/.test(ar.replace(engine, ''))) throw new Error('AR page: unresolved include or asset token');
+  for (const m of ar.matchAll(/<script>([\s\S]*?)<\/script>/g)) { try { new vm.Script(m[1]); } catch (e) { throw new Error('AR script does not parse: ' + e.message); } }
+  const AR = WEB ? join(WEBDIR, 'ar.html') : join(ROOT, 'dist', 'ar.html');
+  writeFileSync(AR, ar); console.log(`Built ${AR}  ${(Buffer.byteLength(ar) / 1e6).toFixed(2)} MB`);
+}

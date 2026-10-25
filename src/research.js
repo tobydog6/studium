@@ -128,10 +128,28 @@
     return top+'<span class="rs-count">CULLING · '+c.picks+' PICKS</span></div><div class="rs-cull"><p class="rs-q">Which is the stronger photograph? Go with your gut.</p><div class="rs-ab">'
       +'<button class="rs-card" data-rs-act="pick" data-rs-win="'+(L===a?1:0)+'"><img src="'+rsEsc(L.url)+'" alt="" draggable="false"><span>A</span></button>'
       +'<button class="rs-card" data-rs-act="pick" data-rs-win="'+(R===a?1:0)+'"><img src="'+rsEsc(R.url)+'" alt="" draggable="false"><span>B</span></button></div></div>'; }
-  function rsAllHTML(top){ var p=rs.pack, ranked=(rs.res&&rs.res.kind==="cull"&&rs.pack===p)?rs.res.top.map(function(x){ return x.id; }):[];
-    return top+'<span class="rs-count">'+p.imgs.length+' PHOTOGRAPHS</span></div><div class="rs-allw"><p class="rs-q">Every photograph in the pack. Take any of them into your workbook as an Artist model page.</p><div class="rs-mgrid rs-masonry">'
-      +p.imgs.map(function(im){ var k=ranked.indexOf(im.id); return '<div class="rs-mt rs-at"><img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'+(k>=0?'<b>'+(k+1)+'</b>':'')+'<button class="rs-wb" data-rs-act="wbany" data-rs-img="'+rsEsc(im.id)+'">INTO WORKBOOK ›</button></div>'; }).join("")
-      +'</div></div>'; }
+  /* every photograph in the pack: choose six that show this photographer's way of seeing, and they become an artist model page */
+  function rsAmNeed(){ return Math.min(6, (rs.pack&&rs.pack.imgs||[]).length); }
+  function rsAllHTML(top){ var p=rs.pack, ranked=(rs.res&&rs.res.kind==="cull"&&rs.pack===p)?rs.res.top.map(function(x){ return x.id; }):[], am=rs.am||(rs.am=[]), need=rsAmNeed();
+    return top+'<span class="rs-count">CHOSEN · '+am.length+' / '+need+'</span></div><div class="rs-allw"><p class="rs-q">Choose '+need+' photographs that show how this photographer sees. They\'ll go on an artist model page in your workbook, with room for what you notice.</p><div class="rs-mgrid rs-masonry">'
+      +p.imgs.map(function(im){ var k=am.indexOf(im.id), r=ranked.indexOf(im.id); return '<button class="rs-mt rs-at'+(k>=0?' on':'')+'" data-rs-act="ampick" data-rs-img="'+rsEsc(im.id)+'"><img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'+(k>=0?'<b>'+(k+1)+'</b>':'')+(r>=0?'<span>YOUR #'+(r+1)+'</span>':'')+'</button>'; }).join("")
+      +'</div><div class="rs-mbar"><button class="rs-go" data-rs-act="amake"'+(am.length<need?' disabled':'')+'>MAKE MY ARTIST MODEL PAGE ›</button><button class="rs-go2" data-rs-act="amclear">CLEAR</button></div></div>'; }
+  function rsAmToggle(id){ var am=rs.am||(rs.am=[]), i=am.indexOf(id), need=rsAmNeed(); if(i>=0) am.splice(i,1); else if(am.length<need) am.push(id); else toast("That's "+need+": take one off first"); rsRender(); }
+  function rsAmMake(){ var p=rs.pack, ids=(rs.am||[]).slice(); if(!p||ids.length<rsAmNeed()) return; var ims=ids.map(function(id){ return p.imgs.filter(function(x){ return String(x.id)===String(id); })[0]; }).filter(Boolean);
+    var pids=ims.map(function(im){ var i=-1; photos.forEach(function(x,j){ if(x.url===im.url&&x.research) i=j; }); if(i<0){ photos.push({url:im.url, t:new Date(), place:"Research", research:true, credit:p.name}); i=photos.length-1; } return stId(i); });
+    if(typeof refreshCount==="function") refreshCount();
+    Promise.all(ims.map(function(im){ return new Promise(function(res){ var pr=new Image(); pr.onload=function(){ res(pr.naturalWidth/Math.max(1,pr.naturalHeight)); }; pr.onerror=function(){ res(1.5); }; pr.src=im.url; }); }))
+      .then(function(A){ var box={x:15,y:34,w:262,h:228}, g=3, items=[{t:"text", role:"title", x:15, y:10, w:390, h:18, text:"Artist model: "+p.name}], n=A.length, best=null;
+        for(var k=1;k<=n;k++){ var rows=[], per=n/k, at=0; for(var j=0;j<k;j++){ var end=Math.round((j+1)*per); rows.push(A.slice(at,end).map(function(a,q){ return at+q; })); at=end; }
+          var hs=rows.map(function(r){ var sa=0; r.forEach(function(i){ sa+=A[i]; }); return (box.w-g*(r.length-1))/sa; }), H=hs.reduce(function(x,y){ return x+y; },0)+g*(k-1);
+          var f=Math.min(1,box.h/H), score=Math.abs(1-H*f/box.h)+(1-f)*0.3; if(!best||score<best.s) best={s:score, rows:rows, hs:hs, f:f, H:H*f}; }
+        var y=box.y+(box.h-best.H)/2;
+        best.rows.forEach(function(r,j){ var h=best.hs[j]*best.f, rw=0; r.forEach(function(i){ rw+=A[i]*h; }); rw+=g*(r.length-1); var x=box.x+(box.w-rw)/2;
+          r.forEach(function(i){ items.push({t:"photo", pid:pids[i], x:x, y:y, w:A[i]*h}); x+=A[i]*h+g; }); y+=h+g; });
+        items.push({t:"text", role:"caption", x:15, y:268, w:262, h:14, text:"Photographs: "+p.name});
+        items.push({t:"text", role:"text", x:288, y:34, w:117, h:110, text:"", ph:"What do these photographs have in common? Light, colour, framing, subject..."});
+        items.push({t:"text", role:"text", x:288, y:152, w:117, h:110, text:"", ph:"How will you use this way of seeing in your own shoot?"});
+        wsEnsure(); wsB.applyTemplate({id:"artist", name:"Artist model", build:function(){ return {bg:"white", items:items}; }}); rs.sent=(rs.sent||0)+1; rs.am=[]; stRoom("workshop"); }); }
   function rsResults(top){ var res=rs.res, p=rs.pack, h=top+'</div><div class="rs-res">';
     if(res.kind==="punctum"){ var rr=res.round, mine=rr.imgs.filter(function(im){ return rr.struck[im.id]; });
       h+='<div class="rs-rh"><span class="eb">YOUR PUNCTUMS</span><h3>'+(mine.length?mine.length+' of '+rr.imgs.length+' pricked you':'Nothing pricked you this time')+'</h3><p class="rs-q">'+(res.counts?'The numbers show how many in your class were caught by each one. ':'')+(mine.length?'Take one into your workbook to write it up.':'Try the Culling Game, or another pack.')+'</p></div><div class="rs-grid">'
@@ -155,8 +173,8 @@
       var t=e.target.closest("[data-rs-act]"); if(!t) return; var a=t.getAttribute("data-rs-act"), id=t.getAttribute("data-rs-id");
       if(a==="shelf"){ rs.view="shelf"; rs.pack=null; return rsRender(); }
       if(a==="mood"){ rs.view="mood"; rs.pack=null; rs.moodOrder=null; box.scrollTop=0; return rsRender(); }
-      if(a==="all"){ var pk=rsPack(id)||rs.pack; if(!pk) return; rs.pack=pk; rs.view="all"; box.scrollTop=0; return rsRender(); }
-      if(a==="wbany"){ var im2=(rs.pack&&rs.pack.imgs||[]).filter(function(x){ return String(x.id)===t.getAttribute("data-rs-img"); })[0]; if(im2){ rs.round=null; rsToWorkbook(im2); } return; } if(a==="mpick") return rsMoodToggle(t.getAttribute("data-rs-url"));
+      if(a==="all"){ var pk=rsPack(id)||rs.pack; if(!pk) return; if(rs.pack!==pk) rs.am=[]; rs.pack=pk; rs.view="all"; box.scrollTop=0; return rsRender(); }
+      if(a==="ampick") return rsAmToggle(t.getAttribute("data-rs-img")); if(a==="amclear"){ rs.am=[]; return rsRender(); } if(a==="amake") return rsAmMake(); if(a==="mpick") return rsMoodToggle(t.getAttribute("data-rs-url"));
       if(a==="mclear"){ rs.mood=[]; return rsRender(); } if(a==="moodmake") return rsMoodMake();
       if(a==="round") return rsStartRound(rsPack(id)||rs.pack); if(a==="cull") return rsStartCull(rsPack(id)||rs.pack);
       if(a==="yes") return rsRoundAnswer(true); if(a==="no") return rsRoundAnswer(false); if(a==="next") return rsRoundNext();

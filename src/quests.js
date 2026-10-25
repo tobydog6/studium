@@ -87,14 +87,13 @@
   ]} };
   // ---- the demo: about 30 minutes for someone who's never seen Studium. Three foundations, then all four board quests, in any order. ----
   function qFolioTop(){ var b=typeof st!=="undefined"&&st.foBoard; if(!b||!b.pages) return 0; var n=0; b.pages.forEach(function(pg){ (pg.items||[]).forEach(function(it){ if(it.t==="photo"&&it.sec==="0.0"&&!it.hidden) n++; }); }); return n; }
-  QUEST_SETS.demo={ name:"Demo", checkpoints:[], sampleCp:true, finish:4, quests:[
+  QUEST_SETS.demo={ name:"Demo", checkpoints:[], sampleCp:true, finish:6, quests:[
     {id:"d1", type:"foundation", order:1, pillar:"craft", mins:8, title:"Step inside", blurb:"Learn to move, shoot and set the camera, then take the three gold-frame shots.", go:"scene",
      steps:[{t:"Do the warm-up", tour:"basics", go:"scene", check:function(){ return qTour("basics"); }},
        {t:"Complete the 3 gold frames", go:"scene", check:function(){ return qChDone()>=3; }, now:function(){ return qCount(qChDone(),3); }}]},
-    {id:"d2", type:"foundation", order:2, pillar:"craft", mins:4, title:"Shoot it your way", blurb:"Eight frames of your own, with two lenses and two apertures.", go:"scene",
-     steps:[{t:"Take 8 photos", check:function(q){ return qPhotosSince(q).length>=8; }, now:function(q){ return qCount(qPhotosSince(q).length,8); }},
-       {t:"Use 2 lenses", check:function(q){ return qDistinct(qPhotosSince(q),"lens")>=2; }, now:function(q){ return qCount(qDistinct(qPhotosSince(q),"lens"),2); }},
-       {t:"Use 2 apertures", check:function(q){ return qDistinct(qPhotosSince(q),"f")>=2; }, now:function(q){ return qCount(qDistinct(qPhotosSince(q),"f"),2); }}]},
+    {id:"d2", type:"foundation", order:2, pillar:"craft", mins:4, title:"Shoot it your way", blurb:"Swap to another camera from the bag, then take at least five frames of your own.", go:"scene",
+     steps:[{t:"Try another camera", check:function(q){ return qOtherBody(q); }},
+       {t:"Take 5 photos", check:function(q){ return qPhotosSince(q).length>=5; }, now:function(q){ return qCount(qPhotosSince(q).length,5); }}]},
     {id:"d3", type:"foundation", order:3, pillar:"craft", mins:7, title:"Choose and edit", blurb:"Pick your strongest five, edit one, then copy that look onto another.", go:"select",
      steps:[{t:"Learn to pick and reject", tour:"select", go:"select", check:function(){ return qTour("select"); }},
        {t:"Pick 5 frames", go:"select", check:function(){ return qPicks().length>=5; }, now:function(){ return qCount(qPicks().length,5); }},
@@ -104,16 +103,24 @@
      steps:[{t:"Open the lighting rig", tour:"lighting", go:"scene", check:function(){ return qTour("lighting")||!!Q.flags.rlOpened; }},
        {t:"A frame at golden hour", go:"scene", check:function(q){ return qPhotosSince(q).some(function(p){ return qTime(p)==="golden"; }); }},
        {t:"A night frame with one of your lights on", go:"scene", check:function(q){ return qPhotosSince(q).some(function(p){ return qTime(p)==="night"&&qLightsOn(p)>=1; }); }}]},
-    {id:"d5", type:"main", pillar:"context", mins:5, title:"Look at others", blurb:"Rank a photographer's work in the Culling Game, then make an artist model page.", go:"research", page:"artist",
+    {id:"d5", type:"main", pillar:"context", mins:5, title:"Look at others", blurb:"Rank a photographer's work in the Culling Game, then choose six of their photographs for an artist model page.", go:"research", page:"artist",
      steps:[{t:"Play a Culling Game", go:"research", check:function(){ return qPacks("cull").length>=1; }},
-       {t:"Make an Artist model page", go:"research", check:function(){ return qPages("artist").length>=1; }}]},
-    {id:"d6", type:"main", pillar:"drive", mins:5, title:"Show your thinking", blurb:"A workbook page that ranks three of your picks and says why.", go:"workshop", page:"rank",
-     steps:[{t:"Take the workbook tour", tour:"workbook", go:"workshop", check:function(){ return qTour("workbook"); }},
-       {t:"A Rank page with 3 picks", go:"workshop", check:function(){ return qPages("rank").some(function(pg){ return qPagePhotos(pg)>=3; }); }}]},
+       {t:"Make an Artist model page", tour:"artist", go:"research", check:function(){ return qPages("artist").length>=1; }}]},
+    {id:"d6", type:"main", pillar:"drive", mins:4, title:"Show your thinking", blurb:"Put two of your photos side by side and say, in one sentence, what makes them different.", go:"workshop", page:"compare",
+     steps:[{t:"Start a Compare page", tour:"workbook", go:"workshop", check:function(){ return qPages("compare").length>=1; }},
+       {t:"Write a sentence about the difference", go:"workshop", check:function(){ return !!Q.flags.compared; }}]},
     {id:"d7", type:"main", pillar:"all", mins:5, title:"The folio", blurb:"Fill the top third of your first A1 panel and try its arrangements.", go:"folio",
      steps:[{t:"Take the folio tour", tour:"folio", go:"folio", check:function(){ return qTour("folio"); }},
-       {t:"Fill the top third of panel 1", go:"folio", check:function(){ return qFolioTop()>=3; }, now:function(){ return qCount(qFolioTop(),3)+" photos"; }}]}
+       {t:"Fill the top third of panel 1", go:"folio", check:function(){ return qFolioTop()>=3; }, now:function(){ return qCount(qFolioTop(),3)+" photos"; }}]},
+    {id:"d8", type:"main", pillar:"all", mins:4, title:"Hang a show", blurb:"Choose prints for the gallery wall, lay them out, and give the show a title.", go:"gallery",
+     steps:[{t:"Take the gallery tour", tour:"gallery", go:"gallery", check:function(){ return qTour("gallery"); }},
+       {t:"Hang 3 prints on the wall", go:"gallery", check:function(){ return qPrints()>=3; }, now:function(){ return qCount(qPrints(),3); }}]},
+    {id:"d9", type:"main", pillar:"drive", mins:2, title:"Your own project", blurb:"Make a folder of your own in the Library. That's where the rest of your term begins.", go:"select", last:true,
+     locked:function(){ var o=qAll().filter(function(x){ return x.type==="main"&&x.id!=="d9"&&!qIsDone(x.id); }); return o.length?"Finish the other quests first":""; },
+     steps:[{t:"Make your own folder", tour:"library", go:"select", check:function(){ return ((typeof st!=="undefined"&&st.projects)||[]).length>=1; }}]}
   ]};
+  /* any frame on a camera other than the one you start with */
+  function qOtherBody(q){ var b0=(typeof BODIES!=="undefined"&&BODIES[0])?BODIES[0].name:null, seen={}; photos.forEach(function(p){ if(p.body&&!p.research&&!p.uploaded) seen[p.body]=1; }); return Object.keys(seen).length>=2||qPhotosSince(q).some(function(p){ return p.body&&p.body!==b0; }); }
   function qLensesUsed(q){ var L={}; qPhotosSince(q).forEach(function(p){ if(p.lens) L[p.lens]=1; }); return Q_LENSES.filter(function(k){ return L[k]; }).length; }
   function qBriefs(){ return BRIEFS.filter(function(b){ return (briefDone[b.id]||0)>=3; }).length; }
   function qTimes(q){ var c={day:0, golden:0, night:0}; qPhotosSince(q).forEach(function(p){ var t=qTime(p); if(c[t]!=null) c[t]++; }); return ["day","golden","night"].filter(function(t){ return c[t]>=3; }).length; }

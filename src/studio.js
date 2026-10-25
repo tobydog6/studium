@@ -317,3 +317,21 @@
     // the legacy builders' own Back buttons return to the studio's Select room
     ["eCancel"].forEach(function(id){ var b=$(id); if(!b) return; b.addEventListener("click",function(ev){ if(!st.open) return; ev.stopImmediatePropagation(); stRoom("select"); },true); });
     var gx=$("gxBack"); if(gx) gx.addEventListener("click",function(ev){ if(!st.open) return; ev.stopImmediatePropagation(); $("galleryshow").classList.add("hidden"); document.body.classList.remove("st-legacy"); stRoom("gallery"); },true); })();
+
+  // ---- Compare pages: a little Done button beside the sentence box, live once there are eight words ----
+  (function wsDoneWire(){ var btn=null, MIN=8;
+    function words(s){ return String(s||"").trim().split(/\s+/).filter(Boolean).length; }
+    function tick(){ var show=false, k=-1, it=null;
+      if(st.open&&st.room==="workshop"&&typeof wsB!=="undefined"){ var pg=wsB.page(); if(pg&&pg.tpl==="compare") pg.items.forEach(function(x,j){ if(k<0&&x.t==="text"&&x.sentence){ k=j; it=x; } }); }
+      var el=k>=0?document.querySelector('#st-workshop .bd-sheet [data-bd="'+k+'"]'):null, r=el?el.getBoundingClientRect():null;
+      if(r&&r.width>4&&r.bottom>0&&r.top<innerHeight){ show=true;
+        if(!btn){ btn=document.createElement("button"); btn.id="wsDone"; btn.className="ws-done"; document.body.appendChild(btn);
+          btn.addEventListener("click",function(e){ e.stopPropagation(); var pg=wsB.page(), t=pg.items.filter(function(x){ return x.t==="text"&&x.sentence; })[0]; if(!t||words(t.text)<MIN) return;
+            pg.done=true; if(typeof qFlag==="function") qFlag("compared"); try{ if(typeof wsB.save==="function") wsB.save(); }catch(er){} btn.classList.add("ok"); toast("Done. That's your comparison in the workbook."); if(typeof qTick==="function") qTick(); }); }
+        var n=words(it.text), done=!!wsB.page().done, ok=n>=MIN;
+        btn.disabled=!ok||done; btn.classList.toggle("ok",done);
+        btn.innerHTML=done?'✓ DONE':ok?'DONE ›':'DONE <small>'+n+' / '+MIN+' WORDS</small>';
+        var x=Math.min(innerWidth-btn.offsetWidth-12, r.right+12), y=r.bottom-btn.offsetHeight; if(x<r.right+4){ x=r.right-btn.offsetWidth; y=r.bottom+10; }
+        btn.style.left=x+"px"; btn.style.top=Math.max(8,y)+"px"; }
+      if(btn) btn.classList.toggle("show",show); }
+    setInterval(tick, 200); })();

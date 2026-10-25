@@ -2219,7 +2219,7 @@ button.rl::after{content:"";position:absolute;left:0;bottom:0;height:3px;width:1
 .rs-masonry > *{break-inside:avoid;margin:0 0 14px;width:100%}
 .rs-mt{position:relative;display:block;padding:0;border:2px solid transparent;border-radius:10px;background:#14120e;overflow:hidden;cursor:pointer}
 .rs-mt img{width:100%;height:auto;display:block;transition:opacity .2s}
-.rs-at{cursor:default}
+.rs-at{cursor:pointer}
 .rs-at .rs-wb{position:absolute;right:8px;bottom:8px;opacity:0;transition:opacity .2s;background:rgba(17,15,12,.86);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 .rs-at:hover .rs-wb,.rs-at:focus-within .rs-wb{opacity:1}
 @media (hover:none){.rs-at .rs-wb{opacity:1}}
@@ -2456,3 +2456,32 @@ body[data-state^="studio"] .q-hud{right:300px;top:14px}
 .cu-hint b{color:#e3ad57;font-weight:600}
 body.cube-open #hud,body.cube-open .q-hud,body.cube-open #viewfinder,body.cube-open #toast,body.cube-open .ach-card{visibility:hidden}
 .scenecard.here{outline:2px solid #e3ad57;outline-offset:2px}.scenecard.here .go{color:#e3ad57}
+/* the quest picker: one big full-width button per quest, everything left-aligned */
+.q-pickcard{width:min(860px,94vw);text-align:left}
+.q-pickcard .k,.q-pickcard .t,.q-pickcard p{text-align:left}
+.q-list{display:flex;flex-direction:column;gap:12px;margin-top:22px}
+.q-big{display:flex;align-items:center;gap:22px;width:100%;min-height:112px;padding:20px 24px;border-radius:14px;border:1px solid rgba(240,232,214,.14);background:#1a1712;color:#f4f1ea;text-align:left;cursor:pointer;font:inherit;transition:border-color .15s,background-color .15s,transform .15s}
+.q-big:hover{border-color:#e3ad57;background:#211c14;transform:translateY(-1px)}
+.q-big:focus-visible{outline:2px solid #e3ad57;outline-offset:3px}
+.q-big.sug{border-color:rgba(227,173,87,.7);background:linear-gradient(90deg,rgba(227,173,87,.12),#1a1712 60%)}
+.q-big.lock{opacity:.45;cursor:default}.q-big.lock:hover{transform:none;border-color:rgba(240,232,214,.14);background:#1a1712}
+.q-bl{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.q-bk{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.q-bk em{font-style:normal;font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.18em;color:#e3ad57}
+.q-big b{font-family:'Fraunces',Georgia,serif;font-weight:400;font-size:30px;line-height:1.1}
+.q-bp{font-size:15px;line-height:1.5;color:#b3ab9c}
+.q-br{flex:none;display:flex;align-items:center;gap:18px}
+.q-bn{display:flex;flex-direction:column;align-items:flex-end;font-family:'Fraunces',Georgia,serif;font-size:28px;line-height:1}
+.q-bn small{margin-top:4px;font-family:'Geist Mono',ui-monospace,monospace;font-size:9px;letter-spacing:.16em;color:#8d8678}
+.q-bm{font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.12em;color:#8d8678}
+.q-br i{font-style:normal;font-size:30px;color:#e3ad57}
+.q-pickcard .gd-acts{margin-top:22px}
+.q-finish .q-go{font-size:20px;line-height:1.5;color:#f4f1ea;margin-top:16px}
+@media (max-width:640px){.q-big{flex-direction:column;align-items:flex-start}.q-br{align-self:stretch;justify-content:space-between}}
+/* the gallery wall's eye line stays (prints still snap to it) but isn't drawn */
+.ga-eye{visibility:hidden}
+.ws-done{position:fixed;z-index:900;display:none;align-items:center;gap:8px;height:42px;padding:0 18px;border-radius:21px;border:0;background:#e3ad57;color:#17140d;font:600 12px 'Geist Mono',ui-monospace,monospace;letter-spacing:.14em;cursor:pointer;box-shadow:0 10px 30px -10px rgba(0,0,0,.7)}
+.ws-done.show{display:inline-flex}
+.ws-done:disabled{background:#3a342a;color:#a69f91;cursor:default}
+.ws-done small{font-size:10px;letter-spacing:.08em;opacity:.8}
+.ws-done.ok{background:#8fc7a0;color:#10200f}

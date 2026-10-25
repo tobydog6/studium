@@ -138,6 +138,7 @@
     function bb(it){ if(it.t==="line") return {x:Math.min(it.x,it.x2), y:Math.min(it.y,it.y2), w:Math.abs(it.x2-it.x), h:Math.abs(it.y2-it.y)}; return {x:it.x, y:it.y, w:it.w, h:hOf(it)}; }
     // folio sections: each A1 panel in thirds, top to bottom. Click ⤢ (or double-click empty space) to work on one up close.
     var SEC_NAMES=["TOP","MIDDLE","BOTTOM"];
+    var BD_RATIOS=[1, 4/5, 5/4, 2/3, 3/2, 16/9, 9/16];
     var FO_SPLITS={thirds:[1,1,1], top:[2,1], bottom:[1,2], halves:[1,1], whole:[1]}, FO_SPLIT_NAMES={thirds:"THIRDS", top:"BIG TOP", bottom:"BIG BOTTOM", halves:"HALVES", whole:"WHOLE PANEL"};
     var SEC_BORDER=6, SEC_GAP=4;   // white border round each panel, and the gutter between frames and sections, in mm
     function secs(){ if(!o.sections) return []; var d=doc(), out=[]; page().splits=page().splits||{};
@@ -154,7 +155,11 @@
       S.forEach(function(q){ keys[q.key]=q; });
       pg.items.forEach(function(it){ if(it.t!=="photo") return; if(!it.sec||!keys[it.sec]){ var b=bb(it), i=secAt(b.x+b.w/2, b.y+b.h/2); it.sec=(S[i>=0?i:0]||{}).key; } });
       S.forEach(function(q){ var ks=secItems(q.key); if(!ks.length) return; var r=bdFill(q, ks.map(function(k){ return asp(pg.items[k]); }), ks.map(function(k){ return BD_SZW[szOf(pg.items[k])]; }), SEC_GAP, secStyle(q.key));
-        ks.forEach(function(k,j){ var it=pg.items[k], rr=r.r[j]; if(!rr) return; delete it.box; it.x=rr.x; it.y=rr.y; it.w=rr.w; it.ch=rr.h; }); B.fill[q.key]=1; }); }
+        ks.forEach(function(k,j){ var it=pg.items[k], rr=r.r[j]; if(!rr) return; delete it.box;
+          /* frames only ever come in standard print ratios: the packed cell's shape snaps to the nearest one, centred in its space */
+          var a=rr.w/Math.max(rr.h,1e-6), T=BD_RATIOS.reduce(function(b,c){ return Math.abs(Math.log(c/a))<Math.abs(Math.log(b/a))?c:b; }, BD_RATIOS[0]), w=rr.w, h=rr.h, x=rr.x, y=rr.y;
+          if(a>T){ w=h*T; x+=(rr.w-w)/2; } else { h=w/T; y+=(rr.h-h)/2; }
+          it.x=x; it.y=y; it.w=w; it.ch=h; }); B.fill[q.key]=1; }); }
     function bestOrderSec(key){ var pg=page(), q=secs()[secIdx(key)], ks=secItems(key); if(!q||ks.length<2) return; var A=ks.map(function(k){ return asp(pg.items[k]); }), ord=bdFillOrder(q, A, ks.map(function(k){ return BD_SZW[szOf(pg.items[k])]; }), SEC_GAP, secStyle(key));
       var moved=ord.map(function(j){ return pg.items[ks[j]]; }); ks.forEach(function(k,j){ pg.items[k]=moved[j]; }); }
     var SEC_STYLES=["auto","rows","cols","hero"];
@@ -377,7 +382,7 @@
     function addText(role){ role=role||"text"; var pg=page(), R=TEXT_ROLE[role], n=pg.items.length;
       pg.items.push({id:bdUid(), t:"text", role:role, x:o.margin+(n%4)*6, y:o.margin+(n%4)*6, w:o.W*(role==="title"?0.6:0.36), h:o.H*R.h, text:"", size:R.size, font:R.font, ph:R.ph});
       B.sel=[pg.items.length-1]; B.edit=pg.items.length-1; commit(); }
-    function addLine(head){ var pg=page(); pg.items.push({id:bdUid(), t:"line", x:o.W*0.38, y:o.H*0.56, x2:o.W*0.56, y2:o.H*0.42, head:head, wt:0.7}); B.sel=[pg.items.length-1]; commit(); }
+    function addLine(head){ var pg=page(); pg.items.push({id:bdUid(), t:"line", x:o.W*0.38, y:o.H*0.56, x2:o.W*0.56, y2:o.H*0.42, head:head, wt:head==="none"?0.7:1.4}); B.sel=[pg.items.length-1]; commit(); }
     function addBox(){ var pg=page(); pg.items.unshift({id:bdUid(), t:"shape", x:o.W*0.3, y:o.H*0.3, w:o.W*0.4, h:o.H*0.4, fill:bdDark(bgOf(pg))?BD_BGS.white[1]:BD_BGS.charcoal[1]}); B.sel=[0]; commit(); toast("Box added behind everything. Use it as a panel to group work on."); }
     function addSlot(){ var pg=page(); pg.items.push({id:bdUid(), t:"slot", x:o.W*0.35, y:o.H*0.3, w:o.W*0.3, h:o.H*0.4, label:"Photo"}); B.sel=[pg.items.length-1]; commit(); }
     function applyLayout(t){ B.lastTpl=t; var pg=page(), ph=pg.items.filter(function(it){ return it.t==="photo"&&idxOf(it)>=0; }), ids, fresh=false;
@@ -579,7 +584,7 @@
   // so students know what to write about. Photo spaces fill with picks not yet used in the workbook.
   function wsT(x,y,w,h,role,ph,o){ var t={t:"text", role:role, x:x, y:y, w:w, h:h, ph:ph}; for(var k in (o||{})) t[k]=o[k]; return t; }
   function wsS(x,y,w,h,label,keep){ return {t:"slot", x:x, y:y, w:w, h:h, label:label||"Photo", keep:!!keep}; }
-  function wsA(x,y,x2,y2,head){ return {t:"line", x:x, y:y, x2:x2, y2:y2, head:head||"end", wt:0.6}; }
+  function wsA(x,y,x2,y2,head){ return {t:"line", x:x, y:y, x2:x2, y2:y2, head:head||"end", wt:1.2}; }
   var WS_TEMPLATES=[
     {id:"rank", name:"Rank", tip:"Your five picks ranked from 5 up to your best, and why each sits where it does", build:function(){ var it=[wsT(15,10,390,18,"title","Ranking my five: from 5 up to my best")];
       for(var k=0;k<5;k++){ var y=38+k*49.6, n=5-k;
@@ -587,12 +592,11 @@
         it.push(wsS(42,y,70,46.6,n===1?"Your best":"#"+n,true));
         it.push(wsT(120,y,285,46.6,"text",n===1?"Why is this your best? What does it do that the others don't?":n===5?"Why is this last of the five? What holds it back?":"Why does it sit at #"+n+"? What's stronger or weaker than the ones around it?",{rank:n})); }
       return {bg:"white", items:it}; }},
-    {id:"compare", name:"Compare", tip:"Two photos side by side: point at the difference, and say which works", build:function(){ return {bg:"white", items:[
+    {id:"compare", name:"Compare", tip:"Two photos side by side, a big arrow between them, and one sentence on the difference", build:function(){ return {bg:"white", items:[
       wsT(15,12,390,18,"title","Compare: what changed between these two?"),
-      wsS(15,40,190,127,"Photo A",true), wsS(215,40,190,127,"Photo B",true),
-      wsT(15,171,190,22,"caption","Caption: point an arrow at one part of A and say what it does"), wsT(215,171,190,22,"caption","Caption: what's different in B?"),
-      wsT(15,200,190,82,"text","What's the difference?\n(light, angle, lens, focus, timing)"),
-      wsT(215,200,190,82,"text","Which is stronger, and why?\n\nWhat will you take into your next shoot?")]}; }},
+      wsS(15,40,170,150,"Photo A",true), wsS(235,40,170,150,"Photo B",true),
+      {t:"line", x:191, y:115, x2:229, y2:115, head:"end", wt:2.4},
+      wsT(15,206,390,70,"text","In one sentence: what's the difference between A and B, and which works better?",{sentence:true, size:16})]}; }},
     {id:"annotate", name:"Annotate", tip:"One photo, with notes and arrows pointing into it", build:function(){ return {bg:"white", items:[
       wsT(15,12,390,18,"title","Title: what is this photo about?"),
       wsS(15,40,252,168,"Your strongest frame"),

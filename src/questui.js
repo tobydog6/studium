@@ -3,9 +3,9 @@
   // when one's done. Tools are taught just in time: when the next step needs a tour you haven't done, the card offers it.
   var QU={pick:false, log:false, done:false, moments:[], open:{}, hubAsked:false, seen:{}, wasHub:false, hudHtml:"", hover:false, flashUntil:0, page:null};
   var Q_PAGE_NAMES={artist:"Artist model page", rank:"Rank page", annotate:"Annotate page", contact:"Contact sheet page", experiment:"Experiment page",
-    mood:"Mood & ideas page", next:"What's next page", edit:"Before & after page", moodboard:"Moodboard"};
+    mood:"Mood & ideas page", next:"What's next page", edit:"Before & after page", moodboard:"Moodboard", compare:"Compare page"};
   var Q_TOUR_NAMES={basics:"the warm-up", select:"picking and rejecting", edit:"editing", workbook:"the workbook", folio:"the folio", book:"the book",
-    gallery:"the gallery", research:"Research", library:"project folders", lighting:"the lighting rig"};
+    gallery:"the gallery", research:"Research", library:"project folders", lighting:"the lighting rig", artist:"the artist model page"};
   function qMode(){ var w=typeof lsWho==="function"?lsWho():null; return !!w&&w.role!=="teacher"&&Q.set===(w.demo?"demo":"term1"); }
   function qToday(){ var d=new Date(); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
   function qPlanLive(){ var pl=typeof lsPlan==="function"&&lsPlan(); if(!pl) return false; var c=lsCur(pl); return c.i>=0&&c.i<pl.phases.length; }
@@ -41,18 +41,20 @@
     qGoDest(s.go); var T=CO_TOURS[tour], t1=Date.now(); (function wait(){ if(T&&T.where()){ coStart(tour); return; } if(Date.now()-t1<20000) setTimeout(wait,300); })(); }
 
   // ---- the focus picker ----
-  function qCard(x, tag){ var p=qProgress(x.id), started=!!qState(x.id), cp=x.type==="main"?qCpLine(x):"";
-    return '<button class="q-card'+(tag?' sug':'')+'" data-q-pick="'+x.id+'">'+(tag?'<span class="q-tag">'+tag+'</span>':'')
-      +'<span class="q-pils">'+qPillarChip(x)+'</span><b>'+qEsc(x.title)+'</b><p>'+qEsc(x.blurb)+'</p>'
-      +'<span class="q-meta"><span>'+(started?p.done+' / '+p.of+' steps':p.of+' steps')+'</span>'+(cp?'<span>'+qEsc(cp)+'</span>':'')+(x.page?'<span>Makes: '+qEsc(Q_PAGE_NAMES[x.page]||x.page)+'</span>':'')+'</span></button>'; }
-  function qPickOpen(){ if(!qMode()) return; var el=gdEl("qPick","gd-pop q-pop"), F=qFoundations().filter(function(f){ return !qIsDone(f.id); }), cards=[], h;
+  /* one quest, one big full-width button: title and what it asks on the left, how far along and how long on the right */
+  function qCard(x, tag, lock){ var p=qProgress(x.id), started=!!qState(x.id), mins=x.mins?x.mins+" MIN":"";
+    return '<button class="q-big'+(tag==="SUGGESTED"||tag==="NEXT"||tag==="TRACKING"?' sug':'')+(lock?' lock':'')+'"'+(lock?' disabled':' data-q-pick="'+x.id+'"')+'>'
+      +'<span class="q-bl"><span class="q-bk">'+(tag?'<em>'+qEsc(tag)+'</em>':'')+qPillarChip(x)+'</span><b>'+qEsc(x.title)+'</b><span class="q-bp">'+qEsc(lock||x.blurb)+'</span></span>'
+      +'<span class="q-br"><span class="q-bn">'+(started?p.done+' / '+p.of:p.of)+'<small>'+(started?'STEPS DONE':p.of===1?'STEP':'STEPS')+'</small></span>'+(mins?'<span class="q-bm">'+mins+'</span>':'')+'<i>›</i></span></button>'; }
+  function qPickOpen(){ if(!qMode()) return; var el=gdEl("qPick","gd-pop q-pop"), F=qFoundations().filter(function(f){ return !qIsDone(f.id); }), h;
     if(typeof looking!=="undefined"&&looking){ try{ document.exitPointerLock(); }catch(e){} }
     if(F.length){ var f=F[0], n=qFoundations().length-F.length+1;
-      h='<div class="gd-card q-pickcard"><span class="k">WHAT\'S YOUR FOCUS TODAY?</span><b class="t">Foundation '+n+' of '+qFoundations().length+'</b><p>Foundations come first, in order. This unlocks your board.</p><div class="q-cards one">'+qCard(f, Q.tracked===f.id?"TRACKING":"NEXT")+'</div>'; }
-    else { var sug=qSuggest(); if(sug) cards.push(qCard(sug, "SUGGESTED"));
-      qAll().filter(function(x){ return qState(x.id)&&!qIsDone(x.id)&&!qLockReason(x)&&(!sug||x.id!==sug.id); }).slice(0,sug?3:4).forEach(function(x){ cards.push(qCard(x, Q.tracked===x.id?"TRACKING":"IN PROGRESS")); });
-      if(!cards.length){ qAll().filter(function(x){ return !qIsDone(x.id)&&!qLockReason(x); }).slice(0,4).forEach(function(x){ cards.push(qCard(x)); }); }
-      h='<div class="gd-card q-pickcard"><span class="k">WHAT\'S YOUR FOCUS TODAY?</span><b class="t">Choose a quest</b><p>'+(cards.length?'Pick one to track. You can switch any time, and your progress on every quest is kept.':'Everything on your board is done. Nice work.')+'</p><div class="q-cards">'+cards.join("")+'</div>'; }
+      h='<div class="gd-card q-pickcard"><span class="k">FOUNDATION '+n+' OF '+qFoundations().length+'</span><b class="t">What\'s next</b><p>Foundations come first, in order. They open your board.</p><div class="q-list">'+qCard(f, Q.tracked===f.id?"TRACKING":"NEXT")+'</div>'; }
+    else { var sug=qSuggest(), open=qAll().filter(function(x){ return x.type==="main"&&!qIsDone(x.id)&&!qLockReason(x); }), locked=qAll().filter(function(x){ return x.type==="main"&&!qIsDone(x.id)&&qLockReason(x)&&Q.boardOpen; });
+      open.sort(function(a,b){ var r=function(x){ return x.id===Q.tracked?0:sug&&x.id===sug.id?1:qState(x.id)?2:3; }; return r(a)-r(b); });
+      var cards=open.map(function(x){ return qCard(x, x.id===Q.tracked?"TRACKING":sug&&x.id===sug.id?"SUGGESTED":qState(x.id)?"IN PROGRESS":""); }).concat(locked.map(function(x){ return qCard(x, "", qLockReason(x)); }));
+      var left=qAll().filter(function(x){ return x.type==="main"&&!qIsDone(x.id); }).length;
+      h='<div class="gd-card q-pickcard"><span class="k">YOUR BOARD · '+left+' TO GO</span><b class="t">Choose a quest</b><p>'+(cards.length?'Any order you like. You can switch whenever you want, and your progress is kept.':'Everything on your board is done. Nice work.')+'</p><div class="q-list">'+cards.join("")+'</div>'; }
     h+='<div class="gd-acts"><button class="gd-skip" data-q="skip">Not now</button><button class="gd-skip q-all" data-q="log">See all quests ›</button></div></div>';
     el.innerHTML=h; el.classList.add("show"); QU.pick=true; Q.lastFocusAsk=qToday(); qSave(); qHud(); }
   function qPickClose(){ var el=$("qPick"); if(el) el.classList.remove("show"); QU.pick=false; qHud(); }
@@ -89,7 +91,7 @@
     if(typeof looking!=="undefined"&&looking){ try{ document.exitPointerLock(); }catch(e){} }
     var el=gdEl("qDone","gd-pop q-pop"), h;
     if(m.kind==="board"&&qSet().finish){
-      h='<div class="gd-card q-donecard big"><span class="k">FOUNDATIONS DONE</span><b class="t">Your board is open</b><p>From here, you choose the order. Finish all four, one at a time. In class, each one counts toward a checkpoint your teacher sets.</p>'
+      h='<div class="gd-card q-donecard big"><span class="k">FOUNDATIONS DONE</span><b class="t">Your board is open</b><p>From here, you choose the order, one at a time. Your own project comes last. In class, each one counts toward a checkpoint your teacher sets.</p>'
         +'<div class="q-cps">'+qAll().filter(function(x){ return x.type==="main"; }).map(function(x){ return '<span><b>'+qEsc(x.title)+'</b>'+qPillarChip(x)+'</span>'; }).join("")+'</div>'
         +'<div class="gd-acts"><button class="gd-skip" data-q="closedone">Later</button><button class="gd-go" data-q="next">CHOOSE YOUR FIRST ›</button></div></div>'; }
     else if(m.kind==="finish"){ h=qFinishCard(); }
@@ -228,7 +230,7 @@
       ch=qAll().filter(function(x){ return x.type==="main"&&qIsDone(x.id); }).sort(function(a,b){ return qState(a.id).done-qState(b.id).done; });
     var made=[fr+" frame"+(fr===1?"":"s"), pk+" pick"+(pk===1?"":"s"), pg+" workbook page"+(pg===1?"":"s")]; if(qFolioTop()) made.push("a third of a folio panel");
     var ach=typeof achFinishLine==="function"?achFinishLine():"";
-    return '<div class="gd-card q-donecard big q-finish"><span class="k">DEMO · DONE IN '+qEsc(qTook().toUpperCase())+'</span><b class="t">That\'s Studium</b>'
+    return '<div class="gd-card q-donecard big q-finish"><span class="k">DEMO · DONE IN '+qEsc(qTook().toUpperCase())+'</span><b class="t">Now go and shoot more</b><p class="q-go">Your folder is ready. Head back out, take more photos, and load them into it. Everything you learnt today works on them.</p>'
       +'<p>You shot a real place, chose and edited your best, then picked your own way in: '+ch.map(function(x){ return '<b>'+qEsc(x.title)+'</b>'; }).join(" then ")+'. In class, the board keeps going all term.</p>'
       +'<div class="q-made">'+made.map(function(m){ return '<span>'+qEsc(m)+'</span>'; }).join("")+'</div>'+ach
       +'<div class="q-fb"><span class="k">THREE QUICK QUESTIONS · OPTIONAL</span>'

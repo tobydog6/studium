@@ -83,17 +83,29 @@
   var fsScene=new THREE.Scene();
   var fsCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
   var fsMat=new THREE.ShaderMaterial({
-    uniforms:{ tDiffuse:{value:sceneRT.texture}, clar:{value:0.12}, exposure:{value:1}, filmic:{value:0}, vignette:{value:0.1}, grain:{value:0}, dof:{value:0}, focus:{value:0.5}, seed:{value:0},
+    uniforms:{ tDiffuse:{value:sceneRT.texture}, clar:{value:0.12}, up:{value:0}, exposure:{value:1}, filmic:{value:0}, vignette:{value:0.1}, grain:{value:0}, dof:{value:0}, focus:{value:0.5}, seed:{value:0},
       gCon:{value:1}, gSat:{value:1}, gWarm:{value:0}, gBloom:{value:1}, gDof:{value:1}, gGrain:{value:1}, resolution:{value:new THREE.Vector2(_sz.x,_sz.y)},
       tDepth:{value:null}, useDepth:{value:0}, focusD:{value:2}, cocK:{value:0}, maxR:{value:22} },
     vertexShader:"varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }",
     fragmentShader:[
       "precision highp float;",
       "varying vec2 vUv;",
-      "uniform sampler2D tDiffuse; uniform float clar; uniform float exposure,filmic,vignette,grain,dof,focus,seed,gCon,gSat,gWarm,gBloom,gDof,gGrain; uniform vec2 resolution;",
+      "uniform sampler2D tDiffuse; uniform float clar; uniform float up; uniform float exposure,filmic,vignette,grain,dof,focus,seed,gCon,gSat,gWarm,gBloom,gDof,gGrain; uniform vec2 resolution;",
       "uniform sampler2D tDepth; uniform float useDepth,focusD,cocK,maxR;",
       "float depthAt(vec2 uv){ vec4 d=texture2D(tDepth,uv); return d.a>0.03?d.r/d.a:1.0e5; }",
       "float cocAt(vec2 uv){ return min(maxR, cocK*abs(1.0-focusD/depthAt(uv))); }",   // thin lens: blur grows with distance from the focus plane
+      /* upscaling (like FSR 1): the scene is drawn smaller, then brought up with a sharp Catmull-Rom filter (5 taps)
+         and contrast-adaptive sharpening, which lifts soft detail without ringing on hard splat edges */
+      "vec3 upS(vec2 uv){ vec2 sp=uv*resolution; vec2 tp=floor(sp-0.5)+0.5; vec2 f=sp-tp;",
+      "  vec2 w0=f*(-0.5+f*(1.0-0.5*f)), w1=1.0+f*f*(-2.5+1.5*f), w2=f*(0.5+f*(2.0-1.5*f)), w3=f*f*(-0.5+0.5*f), w12=w1+w2;",
+      "  vec2 t12=(tp+w2/w12)/resolution, t0=(tp-1.0)/resolution, t3=(tp+2.0)/resolution;",
+      "  vec3 r=texture2D(tDiffuse,vec2(t12.x,t0.y)).rgb*(w12.x*w0.y)+texture2D(tDiffuse,vec2(t0.x,t12.y)).rgb*(w0.x*w12.y)+texture2D(tDiffuse,t12).rgb*(w12.x*w12.y)",
+      "    +texture2D(tDiffuse,vec2(t3.x,t12.y)).rgb*(w3.x*w12.y)+texture2D(tDiffuse,vec2(t12.x,t3.y)).rgb*(w12.x*w3.y);",
+      "  r/=(w12.x*w0.y+w0.x*w12.y+w12.x*w12.y+w3.x*w12.y+w12.x*w3.y); vec2 px=1.0/resolution;",
+      "  vec3 a=texture2D(tDiffuse,uv-vec2(0.0,px.y)).rgb, b=texture2D(tDiffuse,uv-vec2(px.x,0.0)).rgb, d=texture2D(tDiffuse,uv+vec2(px.x,0.0)).rgb, e=texture2D(tDiffuse,uv+vec2(0.0,px.y)).rgb;",
+      "  vec3 mn=min(min(min(a,b),min(d,e)),r), mx=max(max(max(a,b),max(d,e)),r);",
+      "  vec3 w=-sqrt(clamp(min(mn,1.0-mx)/max(mx,vec3(1e-4)),0.0,1.0))*0.17;",
+      "  return max((r+(a+b+d+e)*w)/(1.0+4.0*w),0.0); }",
       "float hash(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+34.345); return fract(p.x*p.y); }",
       "void main(){",
       "  vec2 dc=vUv-vec2(0.5); float r=length(dc); vec2 tx=1.0/resolution;",
@@ -109,7 +121,7 @@
       "        w*=1.0+max(sm.r+sm.g+sm.b-1.2,0.0)*2.5; s+=sm*w; wsum+=w; }",
       "      vec3 c0=vec3(texture2D(tDiffuse,vUv+dc*ca).r, texture2D(tDiffuse,vUv).g, texture2D(tDiffuse,vUv-dc*ca).b);",
       "      c=wsum>0.01?s/wsum:c0; }",
-      "    else { c=vec3(texture2D(tDiffuse,vUv+dc*ca).r, texture2D(tDiffuse,vUv).g, texture2D(tDiffuse,vUv-dc*ca).b); } }",
+      "    else { c=up>0.5?upS(vUv):vec3(texture2D(tDiffuse,vUv+dc*ca).r, texture2D(tDiffuse,vUv).g, texture2D(tDiffuse,vUv-dc*ca).b); } }",
       "  else if(dofB>0.002){ float rad=dofB*13.0; vec3 s=vec3(0.0); float wsum=0.0;",
       "    for(int i=0;i<16;i++){ float a=float(i)*2.3999632; float rr=sqrt((float(i)+0.5)/16.0)*rad;",
       "      vec2 off=vec2(cos(a),sin(a))*rr*tx;",
@@ -117,6 +129,7 @@
       "      float w=1.0+max(sm.r+sm.g+sm.b-1.2,0.0)*2.5;",   // brighter out-of-focus points bloom into bokeh
       "      s+=sm*w; wsum+=w; }",
       "    c=s/wsum; }",
+      "  else if(up>0.5){ c=upS(vUv); }",
       "  else { c=vec3(texture2D(tDiffuse,vUv+dc*ca).r, texture2D(tDiffuse,vUv).g, texture2D(tDiffuse,vUv-dc*ca).b); }",
       "  c*=exposure;",
       "  if(filmic>0.01){ vec3 bl=vec3(0.0);",                // soft highlight bloom (lens/sensor glow)
@@ -145,7 +158,8 @@
   function resize(){
     camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth,window.innerHeight);
-    renderer.getDrawingBufferSize(_sz); sceneRT.setSize(_sz.x,_sz.y); fsMat.uniforms.resolution.value.set(_sz.x,_sz.y);
+    renderer.getDrawingBufferSize(_sz); var rs=(typeof dyn!=="undefined"&&typeof dynMax==="function")?Math.max(0.3,Math.min(1,dyn.scale/dynMax())):1, sw=Math.max(2,Math.round(_sz.x*rs)), sh=Math.max(2,Math.round(_sz.y*rs));
+    sceneRT.setSize(sw,sh); fsMat.uniforms.resolution.value.set(sw,sh); fsMat.uniforms.up.value=rs<0.999?1:0;   /* the scene draws at rs of the screen; the last pass upscales it */
   }
   window.addEventListener("resize",resize);
 
@@ -444,7 +458,7 @@
     if(loaded&&dt>0) chTick(dt);
     renderer.setRenderTarget(fsTarget);
     fsMat.uniforms.tDiffuse.value=sceneRT.texture;
-    fsMat.uniforms.exposure.value=fx.exposure; fsMat.uniforms.filmic.value=fx.filmic; fsMat.uniforms.clar.value=(CH.spec&&CH.spec.clarity!=null)?CH.spec.clarity:0.12;
+    fsMat.uniforms.exposure.value=fx.exposure; fsMat.uniforms.filmic.value=fx.filmic; fsMat.uniforms.clar.value=(typeof CH!=="undefined"&&CH&&CH.spec&&CH.spec.clarity!=null)?CH.spec.clarity:0.12;
     fsMat.uniforms.vignette.value=fx.vignette; fsMat.uniforms.grain.value=fx.grain; fsMat.uniforms.dof.value=fx.dof; fsMat.uniforms.focus.value=focusDist;
     fsMat.uniforms.useDepth.value=0;
     fsMat.uniforms.gCon.value=gCon; fsMat.uniforms.gSat.value=gSat; fsMat.uniforms.gWarm.value=gWarm+camWarm;
@@ -520,7 +534,7 @@
     if(typeof rlForget==="function") rlForget();   // a new scan: the lighting starts over
     lastSource=source; lastFormat=format; lastUp=up||"yup"; highlightUp(lastUp);
     viewfinderOn=false; viewfinder.classList.remove("on");
-    hide(landing); hide(menu); hide(gallery); hide(prompt); showLoader("Loading scene…"); setScale(dynMax());
+    hide(landing); hide(menu); hide(gallery); hide(prompt); showLoader("Loading scene…"); setScale(dynTop());
     var q=upQuat(lastUp);
     if(viewer){ try{ viewer.dispose(); }catch(e){} viewer=null; } loaded=false;
     (isFile?source.arrayBuffer():fetch(source).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.arrayBuffer(); })).then(function(ab){
@@ -570,19 +584,23 @@
   // pixel drawn, so the lighter levels also render a little under the screen's full resolution.
   var DETAIL={ light:{keep:0.3, dpr:1, lod:0.45, sd:2.3, label:"LIGHT"}, balanced:{keep:0.55, dpr:1.5, lod:1.0, sd:2.83, label:"BALANCED"}, full:{keep:1, dpr:2, lod:1.6, sd:2.83, label:"FULL"}, test:{keep:0.1, dpr:1, lod:0.3, sd:2.3, label:"TEST"} };
   var sceneDetail=(function(){ var v=null; try{ v=localStorage.getItem("studium_detail"); }catch(e){} return DETAIL[v]?v:"balanced"; })();
-  function detailDpr(){ setScale(dynMax()); }
+  function detailDpr(){ setScale(dynTop()); }
   // ---- auto resolution: when the frame rate dips, draw fewer pixels; when there's headroom, draw more. Photos are always full res ----
   var dyn={scale:1, ema:16.7, t:0, hi:0};
   function dynMax(){ return Math.min(window.devicePixelRatio||1, (DETAIL[sceneDetail]||DETAIL.balanced).dpr); }
-  function setScale(v){ dyn.scale=v; renderer.setPixelRatio(v); resize(); }
+  function setScale(v){ dyn.scale=v; renderer.setPixelRatio(dynMax()); resize(); }
+  /* upscaling: how much of the screen's resolution the scene itself is drawn at (the rest is the upscaler's job) */
+  var upOn=(function(){ try{ return localStorage.getItem("studium_upscale")!=="off"; }catch(e){ return true; } })();
+  function upFrac(){ return upOn?({light:0.6, balanced:0.72, full:0.85, test:0.6}[sceneDetail]||0.72):1; }
+  function dynTop(){ return dynMax()*upFrac(); }
   // resolution first (down to 60%); if that's not enough, trim Spark's splat budget a little too. Both come back with headroom.
   function dynLod(){ var sp=viewer&&viewer.spark; return sp?sp.lodSplatScale:1; }
   function dynLodBase(){ var b=(DETAIL[sceneDetail]||DETAIL.balanced).lod||1; return CH.spec&&CH.spec.fullRes?Math.max(b,1.3):b; }
-  function dynTick(dt){ if(!loaded||!(dt>0)) return; dyn.ema=dyn.ema*0.9+dt*100; dyn.t+=dt; var mx=dynMax(), sp=viewer&&viewer.spark; if(dyn.scale>mx+0.001){ setScale(mx); return; }
+  function dynTick(dt){ if(!loaded||!(dt>0)) return; dyn.ema=dyn.ema*0.9+dt*100; dyn.t+=dt; var mx=dynTop(), sp=viewer&&viewer.spark; if(dyn.scale>mx+0.001){ setScale(mx); return; }
     if(dyn.t<0.6) return; dyn.t=0; var fps=1000/dyn.ema;
     /* when it's slow, thin the distant splats first (barely visible), and only then drop resolution, never below 0.85:
        a blurry picture looks far worse than a little less far-off detail */
-    if(fps<40){ dyn.hi=0; if(sp&&sp.lodSplatScale>dynLodBase()*0.35) sp.lodSplatScale=Math.max(dynLodBase()*0.35, sp.lodSplatScale*(fps<25?0.7:0.85)); else if(dyn.scale>0.85) setScale(Math.max(0.85,Math.round((dyn.scale-0.1)*100)/100)); }
+    if(fps<40){ dyn.hi=0; if(sp&&sp.lodSplatScale>dynLodBase()*0.35) sp.lodSplatScale=Math.max(dynLodBase()*0.35, sp.lodSplatScale*(fps<25?0.7:0.85)); else if(dyn.scale>dynMax()*0.5+0.001) setScale(Math.max(dynMax()*0.5,Math.round((dyn.scale-0.08)*100)/100)); }
     else if(fps>55){ if(++dyn.hi>=3){ dyn.hi=0; if(dyn.scale<mx) setScale(Math.min(mx,Math.round((dyn.scale+0.1)*100)/100)); else if(sp&&sp.lodSplatScale<dynLodBase()) sp.lodSplatScale=Math.min(dynLodBase(), sp.lodSplatScale/0.85); } } else dyn.hi=0; }
   // Keep the splats that show most: rank by opacity and keep the top share. Faint haze goes first and the small,
   // solid splats that carry texture stay, so the lighter levels thin out without going soft or muddy.

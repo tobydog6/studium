@@ -275,6 +275,7 @@
           if(hdr) for(c=0;c<3;c++){ var xh=Math.max(C[c],0); C[c]=(xh*(2.51*xh+0.03))/(xh*(2.43*xh+0.59)+0.14)*1.06; }   // Studium's HDR look: a filmic shoulder
           px[q]=C[0]; px[q+1]=C[1]; px[q+2]=C[2]; } }
       if(T("noiseLuminance")>0||T("noiseColor")>0||T("sharpenAmount")>0) detail(px,w,h,p,ps);
+      if(T("filmBlend")>0&&FILM[p.filmLook]) filmLook(px,N,FILM[p.filmLook],T("filmBlend")/100,T("skinBias")/100,T("fade")/100);
       if(T("glow")>0){ var gl=new F32(N); for(i=0;i<N;i++){ q=i*3; gl[i]=Math.max(Math.max(px[q],px[q+1],px[q+2])-0.6,0); }   // Studium's Glow: a soft bloom from the brights
         var gb=gauss(gl,w,h,Math.max(long*0.008,1)), ka=T("glow")/100*1.3; for(i=0;i<N;i++){ var gv=gb[i]*ka; q=i*3; px[q]+=gv; px[q+1]+=gv; px[q+2]+=gv; } }
       if(T("halation")>0){   // Studium's Halation: film's red bleed round the brights (light scattering back through the emulsion). Threshold, spread, warmth of the tint.
@@ -287,6 +288,27 @@
         for(var y3=0;y3<h;y3++) for(var x3=0;x3<w;x3++){ var fx=x3*pscale/cell, fy=y3*pscale/cell, n=vnoise(fx,fy,sd)*(1-rough)+vnoise(fx*2.3,fy*2.3,sd+7)*rough; q=(y3*w+x3)*3;
           var lgr=clamp(luma(px[q],px[q+1],px[q+2]),0,1), gn=(n-0.5)*2*ga*(0.4+2.4*lgr*(1-lgr)); px[q]+=gn; px[q+1]+=gn; px[q+2]+=gn; } }
       for(i=0;i<N*3;i++) px[i]=clamp(px[i],0,1); }
+    // ---- Studium's film looks: a stack of sliders, not a LUT. Each look is a toe, an S curve, subtractive saturation
+    // (strong colours get denser, not brighter), richness (more colour in the mids and shadows than the highlights) and a
+    // split tone; Blend mixes the whole look in; Skin bias protects (+) or exposes (−) skin tones to it, and warms or cools them.
+    var FILM={ cinematic:{toe:0.02,s:0.35,sub:0.22,rich:0.12,sh:[-0.03,0.0,0.05],hi:[0.05,0.02,-0.03],warm:0.01},
+      faded:{toe:0.07,s:-0.15,sub:0.3,rich:0.0,sh:[0.0,0.02,0.04],hi:[0.05,0.035,0.0],warm:0.02},
+      chrome:{toe:0.0,s:0.55,sub:0.1,rich:0.25,sh:[-0.02,0.0,0.06],hi:[0.0,0.0,0.0],warm:0.0},
+      warm:{toe:0.03,s:0.2,sub:0.18,rich:0.15,sh:[0.02,0.01,-0.02],hi:[0.06,0.03,-0.02],warm:0.035},
+      noir:{toe:0.01,s:0.6,sub:1.0,rich:0.0,sh:[0,0,0],hi:[0,0,0],warm:0.0,mono:1,red:1} };
+    function filmLook(px,N,L,blend,skin,fade){ var toe=L.toe+fade*0.12, sc=L.s, sub=L.sub, rich=L.rich, sh=L.sh, hi=L.hi;
+      for(var i=0;i<N;i++){ var q=i*3, r0=px[q], g0=px[q+1], b0=px[q+2], r=r0, g=g0, b=b0, c, C=[r,g,b];
+        var lm0=clamp(luma(r0,g0,b0),0,1), mx=Math.max(r0,g0,b0), mn=Math.min(r0,g0,b0), st=mx>1e-5?(mx-mn)/mx:0;
+        if(L.mono){ var lw=L.red?clamp(0.5*r0+0.4*g0+0.1*b0,0,1):lm0; C=[lw,lw,lw]; }
+        for(c=0;c<3;c++){ var x=clamp(C[c],0,1), s3=x*x*(3-2*x), y=x+(s3-x)*sc; C[c]=toe+(1-toe)*y; }   // toe and S curve
+        var lm=clamp(luma(C[0],C[1],C[2]),0,1), den=Math.max(C[0],C[1],C[2])-lm;
+        for(c=0;c<3;c++){ C[c]=lm+(C[c]-lm)*(1-sub*0.45)-sub*0.35*den;   // subtractive saturation: colour comes off as density
+          C[c]=lm+(C[c]-lm)*(1+rich*(1-lm)*1.2); }                       // richness: more colour where it's darker
+        var wsh=(1-lm)*(1-lm), whi=lm*lm; for(c=0;c<3;c++) C[c]+=sh[c]*wsh+hi[c]*whi+L.warm*(c===0?1:c===1?0.35:-0.6)*0.5;   // split tone and warmth
+        // skin: hue 10..45°, some colour, mid tones. Positive bias keeps the look off skin and warms it; negative lets it through and cools it.
+        var hue=0; if(mx-mn>1e-5){ if(mx===r0) hue=((g0-b0)/(mx-mn)+6)%6; else if(mx===g0) hue=(b0-r0)/(mx-mn)+2; else hue=(r0-g0)/(mx-mn)+4; hue*=60; }
+        var sm=(hue>=8&&hue<=48&&st>0.1&&lm0>0.15&&lm0<0.92)?smoothstep(0.1,0.3,st)*(1-Math.abs(hue-28)/22):0, kb=blend*(1-Math.max(skin,0)*sm);
+        for(c=0;c<3;c++){ var v=[r0,g0,b0][c]+(C[c]-[r0,g0,b0][c])*kb; v+=sm*skin*0.04*(c===0?1:c===1?0.25:-0.5); px[q+c]=v; } } }
     return {develop:develop, setTables:function(t){ WB=t; }};
   }
 
@@ -297,6 +319,7 @@
       temperature:(E.temp+pr.warm)*cm, tint:E.tint*cm, vibrance:(E.vibrance+pr.vib)*cm, saturation:(E.saturation+pr.sat)*cm,
       texture:E.texture*fm, clarity:E.clarity*fm, dehaze:E.dehaze*fm, vignetteAmount:E.vignette*fm, glow:(E.glow||0)*fm,
       grainAmount:E.grain*fm, grainSize:E.grainSize, grainRoughness:E.grainRough, mono:E.mono?1:0, hdr:E.hdr?1:0, seed:7,
+      filmLook:E.film||"none", filmBlend:(E.film&&E.film!=="none"&&(E.secFilm==null||E.secFilm)?(E.filmBlend==null?100:E.filmBlend):0), skinBias:E.skinBias||0, fade:E.fade||0,
       halation:(E.halation||0)*fm, halationSpread:E.halSpread==null?40:E.halSpread, halationThreshold:E.halThresh==null?70:E.halThresh, halationHue:E.halHue==null?30:E.halHue,
       hslHue:crBands(E,"hH",E.secMix), hslSat:crBands(E,"hS",E.secMix), hslLum:crBands(E,"hL",E.secMix),
       gradeShadows:crWheel(E,"gSh",E.secGrade), gradeMidtones:crWheel(E,"gMi",E.secGrade), gradeHighlights:crWheel(E,"gHi",E.secGrade), gradeGlobal:crWheel(E,"gGl",E.secGrade),

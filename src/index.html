@@ -462,6 +462,15 @@
             </div>
           </div>
         </section>
+        <section class="lr-sec" data-sec="film">
+          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Film</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
+          <div class="lr-body">
+            <div class="lr-row wb"><span class="lr-n">Look</span><select id="eFilm" class="lr-sel sm"><option value="none">None</option><option value="cinematic">Cinematic</option><option value="faded">Faded print</option><option value="chrome">Chrome</option><option value="warm">Warm stock</option><option value="noir">Noir</option></select></div>
+            <div class="lr-row"><span class="lr-n">Blend</span><input type="range" id="pFilmBlend" min="0" max="100" value="100"><span class="lr-v" id="vFilmBlend">100</span></div>
+            <div class="lr-row"><span class="lr-n">Skin bias</span><input type="range" class="trk-skin" id="pSkinBias" min="-100" max="100" value="0"><span class="lr-v" id="vSkinBias">0</span></div>
+            <div class="lr-row"><span class="lr-n">Fade</span><input type="range" id="pFade" min="0" max="100" value="0"><span class="lr-v" id="vFade">0</span></div>
+          </div>
+        </section>
         <section class="lr-sec" data-sec="curve">
           <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Tone Curve</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
           <div class="lr-body" id="lrCurve"></div>

@@ -231,3 +231,5 @@ body.st-zoom #st-select .st-loupe .lp{position:fixed;left:40px;right:40px;top:84
 .cv-read b{font-weight:500;color:#f4f1ea;font-variant-numeric:tabular-nums;margin-left:4px}
 .cv-read .cv-hint{flex-basis:100%;font-size:11px;color:#5f594e}
 .cv-preset .lr-sel{flex:1}
+#editor .lr-row input.trk-skin[type=range]::-webkit-slider-runnable-track{background:linear-gradient(90deg,#6f8fb8,#8f8f8f 50%,#e0a070)}
+#editor .lr-sec[data-sec="film"] .lr-body::before{content:"A look is a stack of these sliders, not a LUT";display:block;margin:6px 0 4px 108px;font-size:11.5px;color:#7c7568}

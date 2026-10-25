@@ -70,7 +70,7 @@
 
   // ---- a reset arrow on every section header: back to the defaults for just that section ----
   var ED_SECKEYS={light:["exposure","contrast","highlights","shadows","whites","blacks"], color:["temp","tint","vibrance","saturation","wb"], effects:["texture","clarity","dehaze","vignette","grain","grainSize","grainRough","glow","halation","halSpread","halThresh","halHue"],
-    curve:["cvM","cvR","cvG","cvB","cvHi","cvLi","cvDa","cvSh"], mixer:[], grading:["gBlend","gBal"]};
+    film:["film","filmBlend","skinBias","fade"], curve:["cvM","cvR","cvG","cvB","cvHi","cvLi","cvDa","cvSh"], mixer:[], grading:["gBlend","gBal"]};
   (function(){ for(var i=0;i<8;i++){ ED_SECKEYS.mixer.push("hH"+i,"hS"+i,"hL"+i); } ["gSh","gMi","gHi","gGl"].forEach(function(w){ ED_SECKEYS.grading.push(w+"H",w+"S",w+"L"); }); })();
   function edSectionReset(name){ if(!edState) return; (ED_SECKEYS[name]||[]).forEach(function(k){ edState[k]=Array.isArray(EDEF[k])?JSON.parse(JSON.stringify(EDEF[k])):EDEF[k]; });
     if(name==="mixer"&&typeof edpMixer==="function") edpMixer(); if(name==="grading"&&typeof edpGrade==="function") edpGrade(); syncEditUI(); queueRender(); edPushHist(); }

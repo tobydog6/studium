@@ -271,3 +271,25 @@ body.st-zoom #st-select .st-loupe .lp{position:fixed;left:40px;right:40px;top:84
 #editor .lr-row.has-more .lr-v{margin-right:16px}
 #editor .lr-fold{display:none}
 #editor .lr-fold.open{display:block}
+
+/* ---- heal (the bandaid): toolbar state and the overlay over the photo ---- */
+#editor .heal-only{display:none}
+#editor.healing .heal-only{display:inline-flex}
+#editor.healing .lr-ct[data-a],#editor.healing .crop-go,#editor.healing #eRotL,#editor.healing #eRotR,#editor.healing .lr-ct-sep{display:none}
+#editor .heal-go.on{color:#e3ad57;border-color:rgba(227,173,87,.5)}
+#editor .lr-healbar{align-items:center;gap:10px;margin-left:4px}
+#editor .lr-healn{font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.12em;color:#8d8678}
+#editor #healSize{-webkit-appearance:none;appearance:none;width:120px;height:14px;margin:0;background:none;cursor:pointer}
+#editor #healSize::-webkit-slider-runnable-track{height:2px;border-radius:1px;background:#3a352c}
+#editor #healSize::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;margin-top:-4px;border-radius:50%;background:#13110d;border:1.5px solid #f4f1ea}
+#editor #healSize::-moz-range-track{height:2px;border-radius:1px;background:#3a352c}
+#editor #healSize::-moz-range-thumb{width:7px;height:7px;border-radius:50%;background:#13110d;border:1.5px solid #f4f1ea}
+#healOverlay{position:absolute;pointer-events:none;z-index:5}
+#healOverlay.hidden{display:none}
+#editor.healing #editCanvas{cursor:none}
+#editor.healing #editHint{display:block}
+
+/* ---- draggable histogram regions ---- */
+#editor .hd-wrap{position:relative}
+#lrHistBand{position:absolute;display:none;pointer-events:none;background:rgba(244,241,234,.07);border-left:1px solid rgba(244,241,234,.12);border-right:1px solid rgba(244,241,234,.12);border-radius:2px}
+#lrHistLbl{position:absolute;display:none;pointer-events:none;left:10px;font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#f4f1ea;text-shadow:0 1px 2px #000;white-space:pre}

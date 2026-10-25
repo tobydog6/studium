@@ -332,13 +332,15 @@
 
   // ---- page side: Studium's sliders → Camera Raw settings, and the workers that run them ----
   var CR_PROF={ color:{sat:0,con:0,warm:0,vib:0}, mono:{sat:0,con:0,warm:0,vib:0}, vivid:{sat:12,con:10,warm:0,vib:15}, flat:{sat:-20,con:-25,warm:0,vib:0}, portrait:{sat:-5,con:-5,warm:10,vib:0} };
-  function crParams(E){ var lm=E.secLight?1:0, cm=E.secColor?1:0, fm=E.secEffects?1:0, pr=CR_PROF[E.profile]||CR_PROF.color;
+  function crParams(E){ var lm=E.secLight?1:0, cm=E.secColor?1:0, fm=E.secEffects?1:0, dm=(E.secDetail==null||E.secDetail)?1:0, pr=CR_PROF[E.profile]||CR_PROF.color;
     return { exposure:E.exposure/50*lm, contrast:(E.contrast+pr.con)*lm, highlights:E.highlights*lm, shadows:E.shadows*lm, whites:E.whites*lm, blacks:E.blacks*lm,
       temperature:(E.temp+pr.warm)*cm, tint:E.tint*cm, vibrance:(E.vibrance+pr.vib)*cm, saturation:(E.saturation+pr.sat)*cm,
       texture:E.texture*fm, clarity:E.clarity*fm, dehaze:E.dehaze*fm, vignetteAmount:E.vignette*fm, glow:(E.glow||0)*fm,
       grainAmount:E.grain*fm, grainSize:E.grainSize, grainRoughness:E.grainRough, mono:E.mono?1:0, hdr:E.hdr?1:0, seed:7,
       gmapOpacity:(E.secGmap==null||E.secGmap)?(E.gmOpacity||0):0, gmapMode:E.gmMode||"softlight", gmapStops:crStops(E.gmStops),
       filmLook:E.film||"none", filmBlend:(E.film&&E.film!=="none"&&(E.secFilm==null||E.secFilm)?(E.filmBlend==null?100:E.filmBlend):0), skinBias:E.skinBias||0, fade:E.fade||0,
+      sharpenAmount:(E.sharpen||0)*dm, sharpenRadius:(E.shRadius==null?10:E.shRadius)/10, sharpenDetail:E.shDetail==null?25:E.shDetail, sharpenMasking:E.shMask||0,
+      noiseLuminance:(E.nrLum||0)*dm, noiseLuminanceDetail:E.nrLumDetail==null?50:E.nrLumDetail, noiseColor:(E.nrCol||0)*dm, noiseColorDetail:E.nrColDetail==null?50:E.nrColDetail,
       halation:(E.halation||0)*fm, halationSpread:E.halSpread==null?30:E.halSpread, halationThreshold:E.halThresh==null?80:E.halThresh, halationHue:E.halHue==null?30:E.halHue,
       hslHue:crBands(E,"hH",E.secMix), hslSat:crBands(E,"hS",E.secMix), hslLum:crBands(E,"hL",E.secMix),
       gradeShadows:crWheel(E,"gSh",E.secGrade), gradeMidtones:crWheel(E,"gMi",E.secGrade), gradeHighlights:crWheel(E,"gHi",E.secGrade), gradeGlobal:crWheel(E,"gGl",E.secGrade),
@@ -389,11 +391,11 @@
     var ow=Math.max(2,Math.round(cr.w*V.hi)), oh=Math.max(2,Math.round(cr.h*V.hi)), dw=Math.max(2,Math.round(cr.w*sc)), dh=Math.max(2,Math.round(cr.h*sc));
     if(mode==="hires"&&dw<=Math.round(cr.w*V.fin)*1.1) return;   // the full preview is already sharp enough
     var cv=$("editCanvas"); if(cv){ cv.style.width=V.cw.toFixed(1)+"px"; cv.style.height=V.ch.toFixed(1)+"px"; }
-    var key=[edState.i,edState.rot,Math.round(cr.x),Math.round(cr.y),Math.round(cr.w),Math.round(cr.h),dw,dh,edSrc&&edSrc.src.length,edSrc&&edSrc.src.slice(-40)].join("|");
+    var key=[edState.i,edState.rot,Math.round(cr.x),Math.round(cr.y),Math.round(cr.w),Math.round(cr.h),dw,dh,edSrc&&edSrc.src.length,edSrc&&edSrc.src.slice(-40),(typeof healHash==="function")?healHash(edState):""].join("|");
     crv.pend={mode:mode,key:key,cr:cr,ow:ow,oh:oh,dw:dw,dh:dh,p:crParams(edState),orig:edShowOrig}; crPump(); }
   function crZoomed(){ clearTimeout(crv.zt); crv.zt=setTimeout(function(){ if(!crv.pend) crRequest("hires"); },260); }
   function crPump(){ if(crv.busy||!crv.pend) return; var r=crv.pend; crv.pend=null;
-    if(r.orig){ var v0=$("editCanvas"); if(v0.width!==r.ow||v0.height!==r.oh){ v0.width=r.ow; v0.height=r.oh; } var x0=v0.getContext("2d"); x0.imageSmoothingQuality="high"; x0.drawImage(edRC,r.cr.x,r.cr.y,r.cr.w,r.cr.h,0,0,r.ow,r.oh);
+    if(r.orig){ var v0=$("editCanvas"); if(v0.width!==r.ow||v0.height!==r.oh){ v0.width=r.ow; v0.height=r.oh; } var x0=v0.getContext("2d"); x0.imageSmoothingQuality="high"; x0.drawImage((typeof edRC0!=="undefined"&&edRC0)||edRC,r.cr.x,r.cr.y,r.cr.w,r.cr.h,0,0,r.ow,r.oh);
       try{ var id0=x0.getImageData(0,0,r.ow,r.oh); crv.last={w:r.ow,h:r.oh,data:id0.data}; }catch(e){} crv.shown="orig"; scheduleHist(); return; }
     if(crv.sent.indexOf(r.key)<0){ var im=crSrcFor(r.cr,r.dw,r.dh); crPrev.send({t:"src",key:r.key,w:r.dw,h:r.dh,data:im.data},null,0,[im.data.buffer]); crv.sent.unshift(r.key); crv.sent.length=Math.min(crv.sent.length,3); }
     crv.busy=true; var t0=performance.now(), ps=r.dw/r.cr.w;
@@ -408,7 +410,7 @@
     crv.last={w:res.w,h:res.h,data:res.data}; crv.shown=r.mode; scheduleHist(); }
   // ---- full-resolution renders (leaving a frame, Sync, Make a copy) ----
   function crRotCrop(img,E){ var iw=img.naturalWidth, ih=img.naturalHeight, rot=E.rot||0, rw=(rot%180===0)?iw:ih, rh=(rot%180===0)?ih:iw;
-    var c=document.createElement("canvas"); c.width=rw; c.height=rh; var x=c.getContext("2d"); x.translate(rw/2,rh/2); x.rotate(rot*Math.PI/180); x.drawImage(img,-iw/2,-ih/2);
+    var c=document.createElement("canvas"); c.width=rw; c.height=rh; var x=c.getContext("2d"); x.translate(rw/2,rh/2); x.rotate(rot*Math.PI/180); x.drawImage((typeof healSource==="function")?healSource(img,E):img,-iw/2,-ih/2);
     var cr=cropRectFor(E,rw,rh), ow=Math.max(2,Math.round(cr.w)), oh=Math.max(2,Math.round(cr.h)), o=document.createElement("canvas"); o.width=ow; o.height=oh;
     var ox=o.getContext("2d"); ox.drawImage(c,cr.x,cr.y,cr.w,cr.h,0,0,ow,oh); return o; }
   function crBake(img,E,cb){ if(!crBakePool) crBakePool=crPool(Math.max(1,Math.min(3,((navigator.hardwareConcurrency||2)-2)||1)));

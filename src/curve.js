@@ -69,7 +69,7 @@
     el.addEventListener("pointerleave",function(){ if(!cvDrag) cvReadout(null,null); }); })();
 
   // ---- a reset arrow on every section header: back to the defaults for just that section ----
-  var ED_SECKEYS={light:["exposure","contrast","highlights","shadows","whites","blacks"], color:["temp","tint","vibrance","saturation","wb"], effects:["texture","clarity","dehaze","vignette","grain","grainSize","grainRough","glow","halation","halSpread","halThresh","halHue"],
+  var ED_SECKEYS={light:["exposure","contrast","highlights","shadows","whites","blacks"], color:["temp","tint","vibrance","saturation","wb"], effects:["texture","clarity","dehaze","vignette","grain","grainSize","grainRough","glow","halation","halSpread","halThresh","halHue"], detail:["sharpen","shRadius","shDetail","shMask","nrLum","nrLumDetail","nrCol","nrColDetail"],
     film:["film","filmBlend","skinBias","fade"], gmap:["gmStops","gmMode","gmOpacity"], curve:["cvM","cvR","cvG","cvB","cvHi","cvLi","cvDa","cvSh"], mixer:[], grading:["gBlend","gBal"]};
   (function(){ for(var i=0;i<8;i++){ ED_SECKEYS.mixer.push("hH"+i,"hS"+i,"hL"+i); } ["gSh","gMi","gHi","gGl"].forEach(function(w){ ED_SECKEYS.grading.push(w+"H",w+"S",w+"L"); }); })();
   function edSectionReset(name){ if(!edState) return; (ED_SECKEYS[name]||[]).forEach(function(k){ edState[k]=Array.isArray(EDEF[k])?JSON.parse(JSON.stringify(EDEF[k])):EDEF[k]; });
@@ -79,7 +79,7 @@
       b.addEventListener("click",function(ev){ ev.stopPropagation(); edSectionReset(sec.getAttribute("data-sec")); }); hd.insertBefore(b, eye||null); }); })();
 
   // ---- Grain and Halation keep their finer settings behind a chevron on the row ----
-  (function wireMore(){ [["pGrain","grainSub"],["pHalation","halSub"]].forEach(function(pair){ var inp=$(pair[0]), sub=$(pair[1]); if(!inp||!sub) return; var row=inp.closest(".lr-row"); if(!row||row.querySelector(".lr-more")) return;
+  (function wireMore(){ [["pGrain","grainSub"],["pHalation","halSub"],["pSharpen","shSub"],["pNrLum","nrLumSub"],["pNrCol","nrColSub"]].forEach(function(pair){ var inp=$(pair[0]), sub=$(pair[1]); if(!inp||!sub) return; var row=inp.closest(".lr-row"); if(!row||row.querySelector(".lr-more")) return;
       var b=document.createElement("button"); b.className="lr-more"; b.type="button"; b.title="More settings"; b.setAttribute("aria-label","More settings"); b.innerHTML='<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2.5 3.5 5 6.5l2.5-3"/></svg>';
       row.appendChild(b); row.classList.add("has-more"); sub.classList.add("lr-fold");
       b.addEventListener("click",function(ev){ ev.stopPropagation(); sub.classList.toggle("open"); b.classList.toggle("open", sub.classList.contains("open")); });

@@ -376,6 +376,8 @@
           <button class="lr-back" id="eCancel">‹ Back to Select</button>
           <div class="lr-croptools">
             <button class="lr-ct crop-go" id="eCrop" title="Crop (C)">CROP <kbd>C</kbd></button>
+            <button class="lr-ct heal-go" id="eHeal" title="Heal spots (B)">HEAL <kbd>B</kbd></button>
+            <span class="heal-only lr-healbar"><span class="lr-healn">Size</span><input type="range" id="healSize" min="4" max="80" value="18"><button class="lr-ct" id="eHealClear" title="Remove every spot on this frame">Clear all</button><button class="lr-ct apply" id="eHealDone" title="Enter">✓ Done</button></span>
             <button class="lr-ct" data-a="free">Free</button>
             <button class="lr-ct" data-a="orig">Original</button>
             <button class="lr-ct" data-a="1">1:1</button>
@@ -398,7 +400,7 @@
             <button class="lr-save" id="eSave">Done</button>
           </div>
         </div>
-        <div id="editStage"><canvas id="editCanvas"></canvas><div id="editHint">drag to reposition · scroll to zoom</div>
+        <div id="editStage"><canvas id="editCanvas"></canvas><canvas id="healOverlay" class="hidden"></canvas><div id="editHint">drag to reposition · scroll to zoom</div>
           <div id="cropUI" class="hidden"><div class="crop-box"><i class="g v1"></i><i class="g v2"></i><i class="g h1"></i><i class="g h2"></i>
             <b data-crop-h="nw"></b><b data-crop-h="n"></b><b data-crop-h="ne"></b><b data-crop-h="e"></b><b data-crop-h="se"></b><b data-crop-h="s"></b><b data-crop-h="sw"></b><b data-crop-h="w"></b>
             <span class="crop-size"></span></div><div class="crop-hint">Drag a corner or edge to crop · drag inside to move · <kbd>Enter</kbd> applies · <kbd>Esc</kbd> cancels</div></div>
@@ -459,6 +461,25 @@
               <div class="lr-row"><span class="lr-n">Spread</span><input type="range" id="pHalSpread" min="0" max="100" value="30"><span class="lr-v" id="vHalSpread">30</span></div>
               <div class="lr-row"><span class="lr-n">Threshold</span><input type="range" id="pHalThresh" min="0" max="100" value="80"><span class="lr-v" id="vHalThresh">80</span></div>
               <div class="lr-row"><span class="lr-n">Warmth</span><input type="range" class="trk-hal" id="pHalHue" min="0" max="100" value="30"><span class="lr-v" id="vHalHue">30</span></div>
+            </div>
+          </div>
+        </section>
+        <section class="lr-sec" data-sec="detail">
+          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Detail</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
+          <div class="lr-body">
+            <div class="lr-row"><span class="lr-n">Sharpening</span><input type="range" id="pSharpen" min="0" max="150" value="0"><span class="lr-v" id="vSharpen">0</span></div>
+            <div class="lr-sub" id="shSub">
+              <div class="lr-row"><span class="lr-n">Radius</span><input type="range" id="pShRadius" min="5" max="30" value="10"><span class="lr-v" id="vShRadius">1.0</span></div>
+              <div class="lr-row"><span class="lr-n">Detail</span><input type="range" id="pShDetail" min="0" max="100" value="25"><span class="lr-v" id="vShDetail">25</span></div>
+              <div class="lr-row"><span class="lr-n">Masking</span><input type="range" id="pShMask" min="0" max="100" value="0"><span class="lr-v" id="vShMask">0</span></div>
+            </div>
+            <div class="lr-row"><span class="lr-n">Noise</span><input type="range" id="pNrLum" min="0" max="100" value="0"><span class="lr-v" id="vNrLum">0</span></div>
+            <div class="lr-sub" id="nrLumSub">
+              <div class="lr-row"><span class="lr-n">Detail</span><input type="range" id="pNrLumDetail" min="0" max="100" value="50"><span class="lr-v" id="vNrLumDetail">50</span></div>
+            </div>
+            <div class="lr-row"><span class="lr-n">Colour noise</span><input type="range" id="pNrCol" min="0" max="100" value="0"><span class="lr-v" id="vNrCol">0</span></div>
+            <div class="lr-sub" id="nrColSub">
+              <div class="lr-row"><span class="lr-n">Detail</span><input type="range" id="pNrColDetail" min="0" max="100" value="50"><span class="lr-v" id="vNrColDetail">50</span></div>
             </div>
           </div>
         </section>

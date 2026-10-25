@@ -233,3 +233,21 @@ body.st-zoom #st-select .st-loupe .lp{position:fixed;left:40px;right:40px;top:84
 .cv-preset .lr-sel{flex:1}
 #editor .lr-row input.trk-skin[type=range]::-webkit-slider-runnable-track{background:linear-gradient(90deg,#6f8fb8,#8f8f8f 50%,#e0a070)}
 #editor .lr-sec[data-sec="film"] .lr-body::before{content:"A look is a stack of these sliders, not a LUT";display:block;margin:6px 0 4px 108px;font-size:11.5px;color:#7c7568}
+/* gradient map */
+.gm-presets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:8px 0 10px}
+.gm-presets button{display:flex;flex-direction:column;gap:5px;padding:5px;border:1px solid transparent;border-radius:6px;background:#0c0a08;cursor:pointer;text-align:left}
+.gm-presets button i{display:block;height:14px;border-radius:3px}
+.gm-presets button span{font-family:'Geist',ui-sans-serif,system-ui,sans-serif;font-size:11px;color:#a69f91}
+.gm-presets button:hover{border-color:rgba(240,232,214,.14)}
+.gm-presets button.on{border-color:#e3ad57}.gm-presets button.on span{color:#f4f1ea}
+.gm-bar{position:relative;height:38px;margin:4px 6px 6px;touch-action:none}
+.gm-ramp{position:absolute;left:0;right:0;top:0;height:22px;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.6)}
+.gm-stop{position:absolute;top:24px;width:14px;height:14px;margin-left:-7px;padding:0;border-radius:50%;border:1.5px solid #f4f1ea;background:var(--c,#000);box-shadow:0 0 0 1px rgba(0,0,0,.6);cursor:ew-resize}
+.gm-stop.sel{box-shadow:0 0 0 1px rgba(0,0,0,.6),0 0 0 3px rgba(227,173,87,.55)}
+.gm-pick{gap:10px}
+.gm-swatch{position:relative;width:26px;height:26px;border-radius:6px;background:var(--c,#000);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 0 0 1px rgba(240,232,214,.12);cursor:pointer;overflow:hidden}
+.gm-swatch input{position:absolute;inset:-6px;width:40px;height:40px;opacity:0;cursor:pointer}
+.gm-hex{flex:1;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.06em;color:#8d8678}
+.gm-del{height:24px;padding:0 10px;border-radius:5px;border:1px solid rgba(240,232,214,.12);background:none;color:#a69f91;font-family:'Geist',ui-sans-serif,system-ui,sans-serif;font-size:11.5px;cursor:pointer}
+.gm-del:hover{border-color:#e4552e;color:#e4552e}
+#editor .lr-sec[data-sec="gmap"] .lr-note{margin-left:6px}

@@ -879,6 +879,8 @@
   var edRafPending=false, edHistTimer=0, edHover=false;
   var EDEF={ exposure:0,contrast:0,highlights:0,shadows:0,whites:0,blacks:0, temp:0,tint:0,vibrance:0,saturation:0,
     texture:0,clarity:0,dehaze:0,vignette:0,grain:0,grainSize:25,grainRough:50,glow:0, halation:0,halSpread:40,halThresh:70,halHue:30, film:"none",filmBlend:100,skinBias:0,fade:0, secFilm:1,
+    // Gradient Map: luminance in, a colour ramp out, blended over. Stops are [position 0..1, hex]; opacity 0 = off
+    gmStops:[[0,"#1c2b4a"],[0.5,"#8a6a56"],[1,"#f1c27a"]], gmMode:"softlight", gmOpacity:0, secGmap:1,
     mono:0,hdr:0,profile:"color",wb:"asshot", aspect:"free",zoom:1,rot:0,cx:0.5,cy:0.5, secLight:1,secColor:1,secEffects:1,secMix:1,secGrade:1,
     // Color Mixer: hue / saturation / luminance for eight bands (red, orange, yellow, green, aqua, blue, purple, magenta)
     hH0:0,hH1:0,hH2:0,hH3:0,hH4:0,hH5:0,hH6:0,hH7:0, hS0:0,hS1:0,hS2:0,hS3:0,hS4:0,hS5:0,hS6:0,hS7:0, hL0:0,hL1:0,hL2:0,hL3:0,hL4:0,hL5:0,hL6:0,hL7:0,
@@ -886,7 +888,7 @@
     gShH:0,gShS:0,gShL:0, gMiH:0,gMiS:0,gMiL:0, gHiH:0,gHiS:0,gHiL:0, gGlH:0,gGlS:0,gGlL:0, gBlend:50, gBal:0,
     // Tone Curve: a point curve for RGB and each channel (0..255 pairs), and the four parametric regions
     cvM:[[0,0],[255,255]], cvR:[[0,0],[255,255]], cvG:[[0,0],[255,255]], cvB:[[0,0],[255,255]], cvHi:0,cvLi:0,cvDa:0,cvSh:0, secCurve:1 };
-  var ED_SECKEY={light:"secLight",color:"secColor",effects:"secEffects",film:"secFilm",curve:"secCurve",mixer:"secMix",grading:"secGrade"};
+  var ED_SECKEY={light:"secLight",color:"secColor",effects:"secEffects",film:"secFilm",gmap:"secGmap",curve:"secCurve",mixer:"secMix",grading:"secGrade"};
   function defEd(i){ var o={},k; for(k in EDEF) o[k]=Array.isArray(EDEF[k])?JSON.parse(JSON.stringify(EDEF[k])):EDEF[k]; o.i=i; return o; }
   // Processing is Camera Raw–style, in crdev.js (a port of PhotoCraft's pipeline), off the main thread.
   function eglInit(){}
@@ -967,7 +969,7 @@
     if(typeof cropUI==="function") cropUI();
     var bb=$("eBefore"); if(bb) bb.classList.toggle("on", !!edShowOrig);
     Array.prototype.forEach.call(document.querySelectorAll("#editor .lr-sec"),function(sec){ var n=sec.getAttribute("data-sec"), ey=sec.querySelector(".lr-eye"); if(ey) ey.classList.toggle("off",!E[ED_SECKEY[n]]); });
-    if(typeof edpSync==="function") edpSync(); if(typeof cvSync==="function") cvSync();
+    if(typeof edpSync==="function") edpSync(); if(typeof cvSync==="function") cvSync(); if(typeof gmSync==="function") gmSync();
   }
   function openEditor(i){
     if(looking) document.exitPointerLock(); if(typeof edCrop!=="undefined"&&edCrop) cropEnd(true);   // finish a crop on the frame you were on
@@ -1022,6 +1024,7 @@
 @@include crdev.js@@
 @@include edpanels.js@@
 @@include curve.js@@
+@@include gmap.js@@
 @@include develop.js@@
 @@include crop.js@@
 @@include library.js@@

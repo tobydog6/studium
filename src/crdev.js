@@ -276,6 +276,7 @@
           px[q]=C[0]; px[q+1]=C[1]; px[q+2]=C[2]; } }
       if(T("noiseLuminance")>0||T("noiseColor")>0||T("sharpenAmount")>0) detail(px,w,h,p,ps);
       if(T("filmBlend")>0&&FILM[p.filmLook]) filmLook(px,N,FILM[p.filmLook],T("filmBlend")/100,T("skinBias")/100,T("fade")/100);
+      if(T("gmapOpacity")>0&&p.gmapStops&&p.gmapStops.length>=2) gradientMap(px,N,p.gmapStops,p.gmapMode||"softlight",T("gmapOpacity")/100);
       if(T("glow")>0){ var gl=new F32(N); for(i=0;i<N;i++){ q=i*3; gl[i]=Math.max(Math.max(px[q],px[q+1],px[q+2])-0.6,0); }   // Studium's Glow: a soft bloom from the brights
         var gb=gauss(gl,w,h,Math.max(long*0.008,1)), ka=T("glow")/100*1.3; for(i=0;i<N;i++){ var gv=gb[i]*ka; q=i*3; px[q]+=gv; px[q+1]+=gv; px[q+2]+=gv; } }
       if(T("halation")>0){   // Studium's Halation: film's red bleed round the brights (light scattering back through the emulsion). Threshold, spread, warmth of the tint.
@@ -309,6 +310,15 @@
         var hue=0; if(mx-mn>1e-5){ if(mx===r0) hue=((g0-b0)/(mx-mn)+6)%6; else if(mx===g0) hue=(b0-r0)/(mx-mn)+2; else hue=(r0-g0)/(mx-mn)+4; hue*=60; }
         var sm=(hue>=8&&hue<=48&&st>0.1&&lm0>0.15&&lm0<0.92)?smoothstep(0.1,0.3,st)*(1-Math.abs(hue-28)/22):0, kb=blend*(1-Math.max(skin,0)*sm);
         for(c=0;c<3;c++){ var v=[r0,g0,b0][c]+(C[c]-[r0,g0,b0][c])*kb; v+=sm*skin*0.04*(c===0?1:c===1?0.25:-0.5); px[q+c]=v; } } }
+    // ---- Gradient Map, as in Photoshop: the luminance picks a colour off the ramp, then that colour is blended over ----
+    function gradientMap(px,N,stops,mode,op){ var S=stops.slice().sort(function(a,b){ return a[0]-b[0]; }), L=new F32(256*3), i, c;
+      for(i=0;i<256;i++){ var x=i/255, j=0; while(j<S.length-2&&x>S[j+1][0]) j++; var a=S[j], b=S[j+1], t=clamp((x-a[0])/Math.max(b[0]-a[0],1e-6),0,1); for(c=0;c<3;c++) L[i*3+c]=a[1+c]+(b[1+c]-a[1+c])*t; }
+      function soft(bs,cl){ return cl<=0.5?bs-(1-2*cl)*bs*(1-bs):bs+(2*cl-1)*((bs<=0.25?((16*bs-12)*bs+4)*bs:Math.sqrt(bs))-bs); }
+      function over(bs,cl){ return bs<=0.5?2*bs*cl:1-2*(1-bs)*(1-cl); }
+      for(i=0;i<N;i++){ var q=i*3, r=clamp(px[q],0,1), g=clamp(px[q+1],0,1), bb=clamp(px[q+2],0,1), lm=clamp(luma(r,g,bb),0,1), k=Math.round(lm*255)*3, B=[r,g,bb], out=[0,0,0];
+        if(mode==="color"){ var lc=luma(L[k],L[k+1],L[k+2]), kk=lc>1e-4?lm/lc:0; for(c=0;c<3;c++) out[c]=clamp(L[k+c]*kk,0,1); }
+        else for(c=0;c<3;c++){ var cl=L[k+c], bs=B[c]; out[c]=mode==="normal"?cl:mode==="multiply"?bs*cl:mode==="screen"?1-(1-bs)*(1-cl):mode==="overlay"?over(bs,cl):soft(bs,cl); }
+        for(c=0;c<3;c++) px[q+c]=B[c]+(out[c]-B[c])*op; } }
     return {develop:develop, setTables:function(t){ WB=t; }};
   }
 
@@ -319,6 +329,7 @@
       temperature:(E.temp+pr.warm)*cm, tint:E.tint*cm, vibrance:(E.vibrance+pr.vib)*cm, saturation:(E.saturation+pr.sat)*cm,
       texture:E.texture*fm, clarity:E.clarity*fm, dehaze:E.dehaze*fm, vignetteAmount:E.vignette*fm, glow:(E.glow||0)*fm,
       grainAmount:E.grain*fm, grainSize:E.grainSize, grainRoughness:E.grainRough, mono:E.mono?1:0, hdr:E.hdr?1:0, seed:7,
+      gmapOpacity:(E.secGmap==null||E.secGmap)?(E.gmOpacity||0):0, gmapMode:E.gmMode||"softlight", gmapStops:crStops(E.gmStops),
       filmLook:E.film||"none", filmBlend:(E.film&&E.film!=="none"&&(E.secFilm==null||E.secFilm)?(E.filmBlend==null?100:E.filmBlend):0), skinBias:E.skinBias||0, fade:E.fade||0,
       halation:(E.halation||0)*fm, halationSpread:E.halSpread==null?40:E.halSpread, halationThreshold:E.halThresh==null?70:E.halThresh, halationHue:E.halHue==null?30:E.halHue,
       hslHue:crBands(E,"hH",E.secMix), hslSat:crBands(E,"hS",E.secMix), hslLum:crBands(E,"hL",E.secMix),
@@ -327,6 +338,7 @@
       pointCurve:crCurve(E.cvM,E.secCurve), pointCurveRed:crCurve(E.cvR,E.secCurve), pointCurveGreen:crCurve(E.cvG,E.secCurve), pointCurveBlue:crCurve(E.cvB,E.secCurve),
       curveHighlights:crOn(E.cvHi,E.secCurve), curveLights:crOn(E.cvLi,E.secCurve), curveDarks:crOn(E.cvDa,E.secCurve), curveShadows:crOn(E.cvSh,E.secCurve) }; }
   function crOn(v,on){ return (on==null||on)?(v||0):0; }
+  function crStops(st){ if(!st||st.length<2) return null; return st.map(function(s){ var h=String(s[1]||"#000000").replace("#",""); if(h.length===3) h=h.replace(/./g,function(ch){ return ch+ch; }); var n=parseInt(h,16)||0; return [+s[0]||0,((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255]; }); }
   function crCurve(c,on){ return (on==null||on)&&c&&c.length>=2?c:null; }
   function crBands(E,k,on){ var a=[]; for(var i=0;i<8;i++) a.push((E[k+i]||0)*(on==null||on?1:0)); return a; }
   function crWheel(E,k,on){ var m=(on==null||on)?1:0; return {hue:E[k+"H"]||0, sat:(E[k+"S"]||0)*m, lum:(E[k+"L"]||0)*m}; }

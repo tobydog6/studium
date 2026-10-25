@@ -441,6 +441,18 @@
             <div class="lr-row"><span class="lr-n">Saturation</span><input type="range" class="trk-sat" id="pSaturation" min="-100" max="100" value="0"><span class="lr-v" id="vSaturation">0</span></div>
           </div>
         </section>
+        <section class="lr-sec" data-sec="curve">
+          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Tone Curve</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
+          <div class="lr-body" id="lrCurve"></div>
+        </section>
+        <section class="lr-sec" data-sec="mixer">
+          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Color Mixer</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
+          <div class="lr-body" id="lrMixer"></div>
+        </section>
+        <section class="lr-sec" data-sec="grading">
+          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Color Grading</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
+          <div class="lr-body" id="lrGrade"></div>
+        </section>
         <section class="lr-sec" data-sec="effects">
           <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Effects</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
           <div class="lr-body">
@@ -462,7 +474,7 @@
             </div>
           </div>
         </section>
-        <section class="lr-sec" data-sec="film">
+        <section class="lr-sec collapsed" data-sec="film">
           <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Film</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
           <div class="lr-body">
             <div class="lr-row wb"><span class="lr-n">Look</span><select id="eFilm" class="lr-sel sm"><option value="none">None</option><option value="cinematic">Cinematic</option><option value="faded">Faded print</option><option value="chrome">Chrome</option><option value="warm">Warm stock</option><option value="noir">Noir</option></select></div>
@@ -471,17 +483,9 @@
             <div class="lr-row"><span class="lr-n">Fade</span><input type="range" id="pFade" min="0" max="100" value="0"><span class="lr-v" id="vFade">0</span></div>
           </div>
         </section>
-        <section class="lr-sec" data-sec="curve">
-          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Tone Curve</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
-          <div class="lr-body" id="lrCurve"></div>
-        </section>
-        <section class="lr-sec" data-sec="mixer">
-          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Color Mixer</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
-          <div class="lr-body" id="lrMixer"></div>
-        </section>
-        <section class="lr-sec" data-sec="grading">
-          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Color Grading</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
-          <div class="lr-body" id="lrGrade"></div>
+        <section class="lr-sec collapsed" data-sec="gmap">
+          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Gradient Map</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
+          <div class="lr-body" id="lrGmap"></div>
         </section>
       </aside>
     </div>

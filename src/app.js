@@ -878,7 +878,7 @@
   var edShowOrig=false, edVZoom=1, edVX=0, edVY=0, edHist=[], edHistI=-1, edRestoring=false;
   var edRafPending=false, edHistTimer=0, edHover=false;
   var EDEF={ exposure:0,contrast:0,highlights:0,shadows:0,whites:0,blacks:0, temp:0,tint:0,vibrance:0,saturation:0,
-    texture:0,clarity:0,dehaze:0,vignette:0,grain:0,grainSize:25,grainRough:50,glow:0, halation:0,halSpread:40,halThresh:70,halHue:30, film:"none",filmBlend:100,skinBias:0,fade:0, secFilm:1,
+    texture:0,clarity:0,dehaze:0,vignette:0,grain:0,grainSize:25,grainRough:50,glow:0, halation:0,halSpread:30,halThresh:80,halHue:30, film:"none",filmBlend:100,skinBias:0,fade:0, secFilm:1,
     // Gradient Map: luminance in, a colour ramp out, blended over. Stops are [position 0..1, hex]; opacity 0 = off
     gmStops:[[0,"#1c2b4a"],[0.5,"#8a6a56"],[1,"#f1c27a"]], gmMode:"softlight", gmOpacity:0, secGmap:1,
     mono:0,hdr:0,profile:"color",wb:"asshot", aspect:"free",zoom:1,rot:0,cx:0.5,cy:0.5, secLight:1,secColor:1,secEffects:1,secMix:1,secGrade:1,

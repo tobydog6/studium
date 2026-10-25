@@ -287,9 +287,9 @@
       if(T("halation")>0){   // Studium's Halation: film's red bleed round the brights (light scattering back through the emulsion into the red layer).
         // Threshold picks what counts as bright (soft knee), Spread sets the radius; the glow is a tight core plus a wide tail, like
         // the real thing, screened on in the tint so it shows on the dark side of an edge and never clips the highlight itself.
-        var th=0.15+(p.halationThreshold==null?70:p.halationThreshold)/100*0.8, knee=Math.min(th+0.2,1), hl=new F32(N);
+        var th=0.15+(p.halationThreshold==null?80:p.halationThreshold)/100*0.8, knee=Math.min(th+0.2,1), hl=new F32(N);
         for(i=0;i<N;i++){ q=i*3; var hm=Math.max(px[q]*0.5+px[q+1]*0.4+px[q+2]*0.1, px[q]*0.9); hl[i]=smoothstep(th,knee,hm)*Math.min(hm,1.5); }
-        var hsg=Math.max(long*(0.002+(p.halationSpread==null?40:p.halationSpread)/100*0.022),1), hb1=gauss(hl,w,h,hsg), hb2=gauss(hl,w,h,hsg*3.2);
+        var hsg=Math.max(long*(0.002+Math.pow((p.halationSpread==null?30:p.halationSpread)/100,1.6)*0.022),1)   /* curved: more of the slider in the tight end, where it looks like film */, hb1=gauss(hl,w,h,hsg), hb2=gauss(hl,w,h,hsg*3.2);
         var hk=T("halation")/100*2.4, hu=(p.halationHue==null?30:p.halationHue)/100, tg=0.16+hu*0.5, tb=0.02+hu*0.12;
         for(i=0;i<N;i++){ var hv=Math.min((hb1[i]*0.7+hb2[i]*0.5)*hk,1); if(hv<=0.0005) continue; q=i*3; px[q]+=hv*(1-Math.min(px[q],1)); px[q+1]+=tg*hv*(1-Math.min(px[q+1],1)); px[q+2]+=tb*hv*(1-Math.min(px[q+2],1)); } }
       if(T("vignetteAmount")) vignette(px,w,h,p);
@@ -339,7 +339,7 @@
       grainAmount:E.grain*fm, grainSize:E.grainSize, grainRoughness:E.grainRough, mono:E.mono?1:0, hdr:E.hdr?1:0, seed:7,
       gmapOpacity:(E.secGmap==null||E.secGmap)?(E.gmOpacity||0):0, gmapMode:E.gmMode||"softlight", gmapStops:crStops(E.gmStops),
       filmLook:E.film||"none", filmBlend:(E.film&&E.film!=="none"&&(E.secFilm==null||E.secFilm)?(E.filmBlend==null?100:E.filmBlend):0), skinBias:E.skinBias||0, fade:E.fade||0,
-      halation:(E.halation||0)*fm, halationSpread:E.halSpread==null?40:E.halSpread, halationThreshold:E.halThresh==null?70:E.halThresh, halationHue:E.halHue==null?30:E.halHue,
+      halation:(E.halation||0)*fm, halationSpread:E.halSpread==null?30:E.halSpread, halationThreshold:E.halThresh==null?80:E.halThresh, halationHue:E.halHue==null?30:E.halHue,
       hslHue:crBands(E,"hH",E.secMix), hslSat:crBands(E,"hS",E.secMix), hslLum:crBands(E,"hL",E.secMix),
       gradeShadows:crWheel(E,"gSh",E.secGrade), gradeMidtones:crWheel(E,"gMi",E.secGrade), gradeHighlights:crWheel(E,"gHi",E.secGrade), gradeGlobal:crWheel(E,"gGl",E.secGrade),
       gradeBlending:E.gBlend==null?50:E.gBlend, gradeBalance:(E.gBal||0),

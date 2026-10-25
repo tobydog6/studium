@@ -134,7 +134,7 @@
         start:function(){ CO.s.af=afLocks; }, done:function(){ return afLocks>CO.s.af; }, need:"vf"},
       {ch:"SHOOT", line:function(){ return '<kbd>CLICK</kbd> to take a photo'; }, sub:"Anything you like. It goes into your studio.",
         start:function(){ CO.s.n=photos.length; }, done:function(){ return photos.length>CO.s.n; }, need:"vf"},
-      {ch:"BAG", line:function(){ return coK("SPACE")+' opens your kit: choose <b>Camera bag</b>'; }, sub:"Or press "+coK("2")+" once the kit is open. Different cameras and lenses for different pictures.",
+      {ch:"BAG", line:function(){ return coK("SPACE")+' opens your kit: choose <b>Bag</b>'; }, sub:"Or press "+coK("2")+" once the kit is open. Different cameras and lenses for different pictures.",
         done:function(){ return bg.open; }},
       {ch:"BAG", line:function(){ return 'Click the <b>APS-C mirrorless</b>'; }, sub:"Its smaller sensor crops every lens 1.6× tighter.",
         target:'#bag [data-bg-body="ml"]', done:function(){ return bg.body==="ml"; }, need:"bag"},
@@ -147,7 +147,7 @@
         target:'#bag [data-bg="done"]', done:function(){ return bg.stage==="choose"&&lensId===bg.lens; }, need:"lens"},
       {ch:"BAG", line:function(){ return coK("SPACE")+' closes the bag'; }, sub:"",
         done:function(){ return !bg.open; }},
-      {ch:"SETTINGS", line:function(){ return viewfinderOn?coK("SPACE")+' opens the back of the camera':coK("SPACE")+' opens your kit: choose <b>Camera back</b>'; }, sub:"All your settings, and the photos you've taken.",
+      {ch:"SETTINGS", line:function(){ return coK("SPACE")+' opens your kit: choose <b>Settings</b>'; }, sub:"The back of the camera: shutter, aperture and ISO.",
         done:function(){ return cbOpen; }},
       {ch:"SETTINGS", media:"shutter", info:true, need:"back", line:function(){ return 'The <b>shutter speed</b> is how long the camera looks'; },
         sub:"Fast, like 1/1000, freezes everything but lets in less light. Slow, like 1/15, lets in lots of light, but any wobble in your hands smears the photo. The longer the lens, the faster you need."},
@@ -352,8 +352,8 @@
     // a nudge when the step needs something open first
     var pre="";
     if(s.need==="vf"&&!viewfinderOn&&!bg.open&&!cbOpen) pre='Raise the camera first: '+coK("P");
-    else if((s.need==="bag"||s.need==="lens")&&!bg.open) pre='Open the bag again: '+coK("SPACE")+', then <b>Camera bag</b>';
-    else if(s.need==="back"&&!cbOpen) pre='Open the camera back again: '+coK("SPACE")+(viewfinderOn?'':', then <b>Camera back</b>');
+    else if((s.need==="bag"||s.need==="lens")&&!bg.open) pre='Open the bag again: '+coK("SPACE")+', then <b>Bag</b>';
+    else if(s.need==="back"&&!cbOpen) pre='Open the settings again: '+coK("SPACE")+', then <b>Settings</b>';
     else if(s.need==="crop"&&!cropActive()) pre='Open the crop again: click <b>Crop</b> or press '+coK("C");
     var b=s.bar?Math.max(0,Math.min(1,s.bar())):null;
     var html='<div class="co-top">'+chs.map(function(c){ var on=c.ch===s.ch, past=CO.i>c.first&&!on; return '<span class="co-ch'+(on?' on':'')+(past?' past':'')+'">'+c.ch+'</span>'; }).join('<i></i>')

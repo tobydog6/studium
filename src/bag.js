@@ -144,7 +144,7 @@
     slide(E.info,-700); slide(E.right,560);
     var B=BAG_BODIES.filter(function(b){ return b.id===s.body; })[0]||BAG_BODIES[0], crop=s.body==="ml"?1.6:s.body==="67"?0.49:1;
     var equiv=function(l){ if(crop===1) return ""; return "FRAMES LIKE "+l.label.split("–").map(function(n){ return Math.round(parseInt(n,10)*crop); }).join("–")+" MM"; };
-    E.head.querySelector(".eb").textContent=inLens?"CHANGE LENS":(want?"CAMERA BAG · GOLD FRAME":"CAMERA BAG");
+    E.head.querySelector(".eb").textContent=inLens?"CHANGE LENS":(want?"BAG · GOLD FRAME":"BAG");
     var wantWords=""; if(want){ var wb=want.body?BAG_BODIES.filter(function(b){ return b.id===want.body; })[0]:null, wl=want.lens?LENS_KITS[(want.body||s.body)==="67"?"67":"35"].filter(function(l){ return l.id===want.lens; })[0]:null;
       wantWords=(wantBodyOk&&wantLensOk)?"That's the kit the frame wants. Done takes you back to it.":"The frame wants "+(wb?"the "+wb.card:"this body")+(wl?" with the "+wl.long.replace(/ f\/.*$/,"")+(want.zoomTo?" at "+want.zoomTo+" mm":""):"")+"."; }
     var wantSys=(want&&want.body?want.body:s.body)==="67"?"67":"35", wantLbl=want&&want.lens?(LENS_KITS[wantSys].filter(function(l){ return l.id===want.lens; }).map(function(l){ return l.label; })[0]||""):"", sysOff=!!(want&&want.lens&&wantSys!==bgSys());
@@ -167,7 +167,7 @@
     lb.classList.toggle("want", !!(want&&want.lens&&!wantLensOk&&!sysOff)); lb.querySelector(".ch").firstChild.textContent=(want&&want.lens&&!wantLensOk&&!sysOff&&wantLbl)?"CHANGE TO "+wantLbl+" ":"CHANGE ";
     E.tray.classList.toggle("on",inLens); E.actions.classList.toggle("on",inLens);
     E.actions.querySelector(".gold").textContent=lockedNew?"LOCK IN "+cur.label+(cur.label.length>3?"":" MM")+(want&&want.lens===s.lens?" · BACK TO THE FRAME":""):"DONE";
-    var hints=inLens?[["← →","Choose lens"],["Space","Put it on"],["Enter","Lock in"],["Esc","Cancel"]]:[["← →","Body"],["L","Change lens"],["B","Close bag"]];
+    var hints=inLens?[["← →","Choose lens"],["Space","Put it on"],["Enter","Lock in"],["Esc","Cancel"]]:[["← →","Body"],["L","Change lens"],["B","Close the bag"]];
     E.hints.innerHTML=hints.map(function(h){ return '<span><kbd>'+h[0]+'</kbd>'+h[1]+'</span>'; }).join(""); }
 
   // ---- input ----

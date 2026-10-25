@@ -151,7 +151,7 @@
   function chWhere(n){ if(!n) return null;
     if(n.k==="body"||n.k==="lens") return {at:"bag", key:"B", word:"BAG"};
     if(n.k==="mm"){ var l=typeof curLens==="function"?curLens():null; return l&&l.zoom?{at:"zoom", key:"SCROLL", word:"ZOOM"}:{at:"bag", key:"B", word:"BAG"}; }
-    if(n.k==="f"||n.k==="sh"||n.k==="iso"||n.k==="ev") return {at:"back", key:"SPACE", word:"BACK"};
+    if(n.k==="f"||n.k==="sh"||n.k==="iso"||n.k==="ev") return {at:"back", key:"SPACE", word:"SETTINGS"};
     if(n.k==="vert") return {at:"scene", key:"X", word:"TURN"};
     return null; }
   // the frame's wants, for the bag and the back: body id, lens (by focal length), zoom range, and the settings
@@ -174,7 +174,7 @@
     el.querySelector(".ck").innerHTML=checks.map(function(x,j){ var w=x.where, chip=(!x.ok&&w)?'<kbd class="w'+(j===next?' nxt':'')+'"'+(w.at==="bag"||w.at==="back"?' data-ch-open="'+w.at+'"':'')+'>'+w.key+' · '+w.word+'</kbd>':'';
       var label=w?x.label.replace(/\s*[:(].*$/,""):x.label;   // the chip says where, so the label keeps just the what
       return '<div class="'+(x.ok?'ok':'')+(j===next?' next':'')+'"><i>'+(x.ok?'✓':'')+'</i><span>'+cbEsc(label)+'</span><em>'+x.now+'</em>'+chip+'</div>'; }).join("");
-    var go=el.querySelector(".go"); go.textContent=all?(viewfinderOn?"EVERYTHING’S SET. TAKE THE SHOT ↵":"EVERYTHING’S SET. RAISE THE CAMERA (P) AND SHOOT"):(next>=0?"NEXT: "+checks[next].where.word.replace("BACK","CAMERA BACK").replace("BAG","CAMERA BAG")+" · "+checks[next].where.key:"TICK THEM ALL, THEN SHOOT"); go.classList.toggle("on", all); el.classList.toggle("ready", all);
+    var go=el.querySelector(".go"); go.textContent=all?(viewfinderOn?"EVERYTHING’S SET. TAKE THE SHOT ↵":"EVERYTHING’S SET. RAISE THE CAMERA (P) AND SHOOT"):(next>=0?"NEXT: "+checks[next].where.word.replace("BACK","SETTINGS")+" · "+checks[next].where.key:"TICK THEM ALL, THEN SHOOT"); go.classList.toggle("on", all); el.classList.toggle("ready", all);
     chCardPlace(el); }
   // with the camera raised the card tucks inside the frame, small, so the picture stays the picture
   function chCardPlace(el){ var vf=!!viewfinderOn&&typeof vfRect==="function"; el.classList.toggle("vf", vf);

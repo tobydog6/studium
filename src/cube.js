@@ -25,7 +25,7 @@
   /* the gold frames' eye points as viewpoints: each is a real photographer's position (low and close, back with the long lens, over the top), named for its shot */
   function cuFrameSpots(n){ var pads=(typeof CH!=="undefined"&&CH.pads)||[], out=[];
     pads.slice(0,n).forEach(function(P){ var o=new THREE.Object3D(); o.position.copy(P.E); var M=new THREE.Matrix4().lookAt(o.position, P.T, UPY); o.quaternion.setFromRotationMatrix(M); o.updateMatrixWorld(true);
-      out.push({o:o, name:((CH.spec&&CH.spec.name)||"The scan")+" · "+(P.c.title||"a frame"), frame:P.c.id}); });
+      out.push({o:o, name:((CH.spec&&CH.spec.name)||"The scan")+" · "+(P.c.title||"a frame"), frame:P.c.id, mm:P.c.mm||50, hfov:2*Math.atan(18/Math.max(P.c.mm||50,8))*180/Math.PI}); });   /* each face sees through that shot's lens, so a wide and a tele read differently */
     return out; }
   function cuAllSpots(){ var W=(typeof WX!=="undefined"?WX.worlds:[]).filter(function(w){ return w.ready; }), others=W.filter(function(w){ return w!==WX.home; });
     if(!others.length){ var fs=cuFrameSpots(6); if(!fs.length) return cuSpots(6); var fill=cuSpots(6), seen={}, mix=fs.slice(), j=0;   /* this scan's viewpoints: the frames first, then good spots round the subject */
@@ -35,12 +35,20 @@
     var home=cuSpots(3), rest=[]; others.forEach(function(w){ rest=rest.concat(wxSpots(w, Math.ceil(3/others.length))); });
     var out=[]; for(var i=0;i<6;i++){ var a=i%2?rest:home, k=i>>1; out.push(a[k%a.length]||home[k%home.length]); } return out; }
 
+  // the caption on a face: what the shot is, and its lens, small along the bottom edge
+  function cuLabelTex(sp){ var c=document.createElement("canvas"); c.width=512; c.height=512; var g=c.getContext("2d"); g.clearRect(0,0,512,512); if(!sp) return new THREE.CanvasTexture(c);
+    var name=(sp.name||"").split(" · ")[1]||sp.name||"", lens=sp.mm?sp.mm+" MM":"";
+    var grd=g.createLinearGradient(0,330,0,512); grd.addColorStop(0,"rgba(8,7,5,0)"); grd.addColorStop(1,"rgba(8,7,5,0.82)"); g.fillStyle=grd; g.fillRect(0,330,512,182);
+    g.textBaseline="alphabetic"; g.fillStyle="#e3ad57"; g.font="500 17px 'Geist Mono', ui-monospace, monospace"; g.fillText((sp.frame?"GOLD FRAME":"VIEWPOINT")+(lens?"  ·  "+lens:""),34,432);
+    g.fillStyle="#f4f1ea"; g.font="300 40px 'Fraunces', Georgia, serif"; var w=g.measureText(name).width; if(w>444){ g.font="300 "+Math.floor(40*444/w)+"px 'Fraunces', Georgia, serif"; } g.fillText(name,34,478);
+    var t=new THREE.CanvasTexture(c); t.flipY=true; t.minFilter=THREE.LinearFilter; return t; }
   // ---- the cube itself ----
   function cuFaceMat(){ return new THREE.ShaderMaterial({ toneMapped:false, side:THREE.FrontSide,
-    uniforms:{ tView:{value:null}, res:{value:new THREE.Vector2(1,1)}, live:{value:0}, hi:{value:0}, time:{value:0} },
+    uniforms:{ tView:{value:null}, tLabel:{value:null}, lab:{value:0}, res:{value:new THREE.Vector2(1,1)}, live:{value:0}, hi:{value:0}, time:{value:0} },
     vertexShader:"varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ vUv=uv; vec4 w=modelMatrix*vec4(position,1.0); vN=normalize(mat3(modelMatrix)*normal); vV=normalize(cameraPosition-w.xyz); gl_Position=projectionMatrix*viewMatrix*w; }",
-    fragmentShader:"uniform sampler2D tView; uniform vec2 res; uniform float live; uniform float hi; uniform float time; varying vec2 vUv; varying vec3 vN; varying vec3 vV;"
+    fragmentShader:"uniform sampler2D tView; uniform sampler2D tLabel; uniform float lab; uniform vec2 res; uniform float live; uniform float hi; uniform float time; varying vec2 vUv; varying vec3 vN; varying vec3 vV;"
       +" void main(){ vec3 c=texture2D(tView,gl_FragCoord.xy/res).rgb; c=mix(vec3(0.06,0.06,0.08),c,live);"
+      +" vec4 lb=texture2D(tLabel,vUv); c=mix(c,lb.rgb,lb.a*lab);"   // the shot's name, etched along the bottom of the glass
       +" float fr=pow(1.0-max(dot(vN,vV),0.0),3.0); c+=vec3(0.75,0.8,1.0)*fr*0.35;"   // a sheen of glass
       +" vec2 e=min(vUv,1.0-vUv); float edge=min(e.x,e.y); c+=vec3(1.0,0.95,0.85)*smoothstep(0.035,0.0,edge)*0.6; c+=vec3(1.0,0.9,0.7)*hi*0.10;"
       +" gl_FragColor=vec4(c,1.0); }" }); }
@@ -79,7 +87,7 @@
   function cuOpen(){ if(CU.open) return; if(typeof PT!=="undefined"&&PT.on) ptDispose(); if(viewfinderOn) lowerCamera(); if(looking){ try{ document.exitPointerLock(); }catch(e){} }
     if(!CU.scene){ CU.scene=new THREE.Scene(); CU.cam=new THREE.PerspectiveCamera(38,1,0.01,200); var b=cuBuild(); CU.grp=b.grp; CU.faces=b.faces; CU.scene.add(CU.grp); cuBgInit(); }
     cuCapture();
-    CU.spots=cuAllSpots(); CU.faces.forEach(function(f,i){ f.userData.spot=CU.spots[i]; });
+    CU.spots=cuAllSpots(); CU.faces.forEach(function(f,i){ f.userData.spot=CU.spots[i]; var u=f.material.uniforms; if(u.tLabel){ if(u.tLabel.value) u.tLabel.value.dispose(); u.tLabel.value=cuLabelTex(CU.spots[i]); u.lab.value=1; } });
     CU.q.setFromEuler(new THREE.Euler(-0.42,0.62,0)); CU.spin.set(0.0,0.35); CU.dist=4.2; CU.open=true; CU.phase="opening"; CU.t0=performance.now(); CU.k=0; CU.dive=null; CU.hover=-1;
     cuUI(true); document.body.classList.add("cube-open"); ptSoundSafe(true); App.note&&App.note("cube"); }
   /* if anything goes wrong, put everything back: no cube, all the controls showing */
@@ -117,7 +125,9 @@
       var c2=f.userData.cam||(f.userData.cam=new THREE.PerspectiveCamera()); var L=new THREE.Matrix4().copy(f.matrixWorld).invert().multiply(CU.cam.matrixWorld), lp=new THREE.Vector3(), lq=new THREE.Quaternion(), ls=new THREE.Vector3(); L.decompose(lp,lq,ls);
       // through the glass: your place in front of this face, scaled up, set down at its spot
       c2.position.copy(lp.multiplyScalar(CU_K*s)).applyQuaternion(sp.o.quaternion).add(sp.o.position); c2.quaternion.copy(sp.o.quaternion).multiply(lq);
-      c2.fov=CU.cam.fov; c2.aspect=CU.cam.aspect; c2.far=camera.far; var dir=new THREE.Vector3(); c2.updateMatrixWorld(true); c2.getWorldDirection(dir);
+      c2.fov=sp.hfov?2*Math.atan(Math.tan(sp.hfov*Math.PI/360)/CU.cam.aspect)*180/Math.PI:CU.cam.fov; c2.aspect=CU.cam.aspect; c2.far=camera.far;
+      if(CU.dive&&CU.dive.f===f){ var du=Math.min(1,(now-CU.dive.t0)/CU.dive.dur), ds=du*du*(3-2*du); c2.position.lerp(sp.o.position,ds); c2.quaternion.slerp(sp.o.quaternion,ds); c2.fov+=(camera.fov-c2.fov)*ds; f.material.uniforms.lab.value=1-ds; }   /* by the end it IS where you land, looking how you'll look */
+      var dir=new THREE.Vector3(); c2.updateMatrixWorld(true); c2.getWorldDirection(dir);
       c2.near=Math.max(0.02, sp.o.position.clone().sub(c2.position).dot(dir)*0.97); c2.updateProjectionMatrix(); c2.updateMatrixWorld(true);
       renderer.setRenderTarget(rt); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
       wxSkyFor(c2.position); try{ B.render(scene,c2); }catch(err){ if(!cuRender.warned){ cuRender.warned=1; console.warn("cube pass",err); } }

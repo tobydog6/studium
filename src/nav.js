@@ -46,7 +46,7 @@
   // ================= KIT MENU (Space in the scene) =================
   // One key for everything you carry: the camera back, the bag and the lights. Space again closes it. B and L stay as shortcuts.
   var KIT={open:false, sel:0};
-  var KIT_ITEMS=[["back","Camera back","SHUTTER · APERTURE · ISO","1"],["bag","Camera bag","BODIES · LENSES","2"],["lights","Lighting","TIME OF DAY · LIGHTS · PLAN","3"],["studio","Studio","PICK · EDIT · MAKE · SHOW","4"]];
+  var KIT_ITEMS=[["back","Settings","SHUTTER · APERTURE · ISO","1"],["bag","Bag","BODIES · LENSES","2"],["lights","Lighting","TIME OF DAY · LIGHTS · PLAN","3"],["studio","Studio","PICK · EDIT · MAKE · SHOW","4"]];
   /* the studio card: your latest frames as a loose stack of prints (blank paper before you've shot) */
   function kitStudioArt(){ var L=photos.filter(function(p){ return !p.research; }).slice(-3).reverse(), h="";
     for(var i=0;i<3;i++){ var p=L[i]; h+=p?'<img class="ka-p ka-p'+(i+1)+'" src="'+p.url+'" alt="" draggable="false">':'<i class="ka-p ka-p'+(i+1)+'"></i>'; } return h; }

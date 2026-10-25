@@ -595,7 +595,7 @@
       if(sc.ext!=="stm") return {buf:ab, ext:sc.ext||"splat"};
       var ds=new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate")));
       return ds.arrayBuffer().then(function(raw){ detailDpr(); return {buf:stmUnpack(raw, sceneDetail), ext:"splat"}; }); })
-    .then(function(r){ skySet(sc.sky||(sc.studio?wxStudioSky():null)); CH.spec=sc; return wkLoad(sc.collide).then(function(){ return r; }); })
+    .then(function(r){ skySet(sc.sky||null); CH.spec=sc; return wkLoad(sc.collide).then(function(){ return r; }); })
     .then(function(r){ var f=new File([r.buf],(sc.id||"scene")+"."+r.ext,{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown", true); })
     .catch(function(e){ console.warn(e); hideLoader(); toast("Couldn't open that scene."); }); }
   function buildScenePicker(){ var host=$("sceneRow"); if(!host) return; var list=(window.SPLAT_SCENES||[]);

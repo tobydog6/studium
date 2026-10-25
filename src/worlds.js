@@ -2,45 +2,36 @@
   // When a scan is open, the other bundled scans load quietly in the background into the same 3D space, each set far off
   // where the others can't see it (past the camera's reach). The cube's faces and the portals look into them like any
   // other spot, and walking through a portal simply puts you there. Each world keeps its own way of moving (walking on
-  // the Stump's ground, floating round the Fly), its own sky, and its own place name on the photos you take there.
+  // the ground where a scan has one, floating where it doesn't), its own sky, and its own place name on the photos you take there.
   var WX={worlds:[], here:null, loading:false, home:null, sky:{}};
   var WX_GAP=600;   // how far apart worlds sit, in scene units (beyond the camera's far plane)
 
-  function wxStudioSky(){ var c=document.createElement("canvas"); c.width=8; c.height=256; var g=c.getContext("2d"), gr=g.createLinearGradient(0,0,0,256);
-    gr.addColorStop(0,"#a9b2b8"); gr.addColorStop(0.5,"#8c969c"); gr.addColorStop(1,"#5c6469"); g.fillStyle=gr; g.fillRect(0,0,8,256); return c.toDataURL(); }
   function wxTex(url){ if(WX.sky[url]) return WX.sky[url]; var t=new THREE.TextureLoader().load(url); t.generateMipmaps=false; t.minFilter=THREE.LinearFilter; t.magFilter=THREE.LinearFilter; t.wrapS=THREE.RepeatWrapping; return (WX.sky[url]=t); }
 
   /* the world you're standing in when the scan opens; the others load after it */
-  function wxHome(sc){ var s=ptScale(), sj=sc&&sc.subject, home={id:sc&&sc.id||"scan", name:sc&&sc.name||"The scan", off:new THREE.Vector3(0,0,0), walk:!!WK.col, studio:!!(sc&&sc.studio), sc:sc,
+  function wxHome(sc){ var s=ptScale(), sj=sc&&sc.subject, home={id:sc&&sc.id||"scan", name:sc&&sc.name||"The scan", off:new THREE.Vector3(0,0,0), walk:!!WK.col, sc:sc,
       c:new THREE.Vector3(sj?sj[0]:camPos.x, (WK.col?wkGround(sj?sj[0]:camPos.x,sj?sj[1]:camPos.z):camPos.y-1.6*s)+0.7*s, sj?sj[1]:camPos.z), mesh:viewer&&viewer.mesh, ready:true};
-    if(sc&&sc.studio){ home.c.set(0,0,0); }
     WX.home=home; WX.here=home; WX.worlds=[home]; WX.loading=false; WX.saved={mode:WK.mode, bounds:boundsOn}; }
   /* the other scans load as light previews (the most solid splats only, no level-of-detail tree), far enough apart
      that they never see each other; big scans ship their own preview */
-  function wxMeshPos(w){ return w.off.clone().add(new THREE.Vector3(0, w.studio?1.6:0, 0)); }
+  function wxMeshPos(w){ return w.off.clone(); }
   function wxLoadOthers(){ if(WX.loading||!WX.home||!scene) return; var me=WX.home.id, list=(window.SPLAT_SCENES||[]).filter(function(s){ return s.id!==me&&(s.preview||s.ext==="stm"); }); if(!list.length) return; WX.loading=true;
     var keepScene=scene;
-    list.forEach(function(sc,i){ var off=new THREE.Vector3(WX_GAP*(i+1),0,0), g=sc.ground||0, sj=sc.subject||[0,0], w={id:sc.id, name:sc.name, off:off, walk:!!sc.collide, studio:!!sc.studio, sc:sc, ready:false};
-      w.c=sc.studio?off.clone().add(new THREE.Vector3(0,1.6,0)):off.clone().add(new THREE.Vector3(sj[0], g+0.7, sj[1])); WX.worlds.push(w);
+    list.forEach(function(sc,i){ var off=new THREE.Vector3(WX_GAP*(i+1),0,0), g=sc.ground||0, sj=sc.subject||[0,0], w={id:sc.id, name:sc.name, off:off, walk:!!sc.collide, sc:sc, ready:false};
+      w.c=off.clone().add(new THREE.Vector3(sj[0], g+0.7, sj[1])); WX.worlds.push(w);
       assetBytes(sc.preview||sc.data).then(function(ab){ return new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer(); })
-        .then(function(raw){ if(scene!==keepScene) return; var buf=stmUnpack(raw, sc.preview?"full":(sc.studio?sceneDetail:"light")), m=new SPARK.SplatMesh({fileBytes:new Uint8Array(buf), fileType:"splat"});
+        .then(function(raw){ if(scene!==keepScene) return; var buf=stmUnpack(raw, sc.preview?"full":"light"), m=new SPARK.SplatMesh({fileBytes:new Uint8Array(buf), fileType:"splat"});
           m.quaternion.copy(upQuat(sc.up||"ydown")); m.scale.setScalar(sc.scale||1); m.position.copy(wxMeshPos(w)); m.visible=!!WX.show; scene.add(m); w.mesh=m; return m.initialized; })
         .then(function(){ w.ready=!!w.mesh; })
         .catch(function(e){ console.warn("world", sc.id, e); }); }); }
 
-  /* good spots in another world: the scene's own if it lists them, a ring round the subject at eye level if you walk
-     there, and round the middle (with one from above) if you float */
-  function wxSpots(w, n){ var s=ptScale(), out=[], C=w.c, sc=w.sc||{}, g=sc.ground||0;
-    if(!w.studio){ var L=(sc.spots||[]).slice(0,n), compass=["north","north-east","east","south-east","south","south-west","west","north-west"];
+  /* good spots in another world: the scene's own if it lists them, then a ring round the subject at eye level */
+  function wxSpots(w, n){ var C=w.c, sc=w.sc||{}, g=sc.ground||0;
+    var L=(sc.spots||[]).slice(0,n), compass=["north","north-east","east","south-east","south","south-west","west","north-west"];
       for(var r=L.length;r<n;r++){ var an=r/n*Math.PI*2+0.6; L.push([C.x-w.off.x+Math.sin(an)*3.5, C.z-w.off.z+Math.cos(an)*3.5, 0, "from the "+compass[Math.round(((an*180/Math.PI)%360)/45)%8]]); }
       return L.map(function(p,i){ var o=new THREE.Object3D(); o.position.set(w.off.x+p[0], w.off.y+g+1.6, w.off.z+p[1]);
         var M=new THREE.Matrix4().lookAt(o.position, C, UPY); o.quaternion.setFromRotationMatrix(M); o.updateMatrixWorld(true);
         return {o:o, name:w.name+" · "+(p[3]||"a good spot"), world:w.id}; }); }
-    var views=[[0.6,0,"close up"],[2.2,0,"side on"],[3.6,0,"from behind"],[-1.2,0.55,"from above"],[1.4,-0.25,"from below"],[4.9,0.2,"three-quarter"]];
-    for(var i=0;i<n;i++){ var v=views[i%views.length], d=4.4*s, an2=v[0], el=v[1], o=new THREE.Object3D();
-      o.position.set(C.x+Math.sin(an2)*Math.cos(el)*d, C.y+Math.sin(el)*d, C.z+Math.cos(an2)*Math.cos(el)*d);
-      var M2=new THREE.Matrix4().lookAt(o.position, C, UPY); o.quaternion.setFromRotationMatrix(M2); o.updateMatrixWorld(true); out.push({o:o, name:w.name+" · "+v[2], world:w.id}); }
-    return out; }
 
   /* the other places are only drawn while you could see them (the cube is up, or a portal is open): the rest of the
      time they'd cost frame rate, and so sharpness, for nothing */
@@ -63,7 +54,7 @@
     camPos.set(a.x, WK.col?wkGround(a.x,a.z)+WK.eye:a.y, a.z); yaw=a.yaw; pitch=a.pitch; return true; }
   /* the sky for wherever a camera stands (main view, or a portal or cube pass) */
   function wxSkyFor(p){ if(!WX.home) return; var w=wxAt(p);
-    if(typeof SKY==="undefined"||!SKY.mesh) return; var url=w.studio?wxStudioSky.url||(wxStudioSky.url=wxStudioSky()):(w.sc&&w.sc.sky)||null;
+    if(typeof SKY==="undefined"||!SKY.mesh) return; var url=(w.sc&&w.sc.sky)||null;
     if(!url&&w===WX.home) url=SKY.url; if(!url) return; var t=wxTex(url); if(SKY.mesh.material.uniforms.map.value!==t) SKY.mesh.material.uniforms.map.value=t; SKY.mesh.position.copy(p); }
 
   if(/[?&]dev/.test(location.search)) window.__wx={ stats:function(){ var P=viewer&&viewer.P; if(!P) return null; var n=P.length/3, st=Math.max(1,Math.floor(n/200000)), ax=[[],[],[]]; for(var i=0;i<n;i+=st){ ax[0].push(P[i*3]); ax[1].push(P[i*3+1]); ax[2].push(P[i*3+2]); }

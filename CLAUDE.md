@@ -16,7 +16,7 @@ A browser photography studio for NZ Years 11–13, built on Gaussian splats. Own
 - Quests and achievements: `src/quests.js`, `src/questui.js`, `src/achieve.js`. Brief: `docs/` (quest system brief).
 
 ## Scene tools (Python)
-- `tools/build_scene.py` (the Stump), `tools/build_fly.py`, `tools/sog_decode.py`, `tools/build_collide.py` (walk maps), `tools/build_preview.py` (light previews of big scans).
+- `tools/build_scene.py` (the Stump), `tools/sog_decode.py`, `tools/build_collide.py` (walk maps), `tools/build_preview.py` (light previews of big scans).
 
 ## Working with Sam
 - Be efficient. Don't run long test suites; build and hand Sam the file to try on his real GPU.

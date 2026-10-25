@@ -3,8 +3,7 @@
 // scan drawn over it, saved through the share sheet so they land in Photos.
 (function(){
   var $=function(id){ return document.getElementById(id); };
-  var SCANS=[{id:"fly", name:"The Fly", data:"asset-b64:assets/scenes/fly.stm", up:"ydown", size:0.12},
-             {id:"carpark", name:"The Car Park", data:"asset-b64:assets/scenes/carpark-preview.stm", up:"zup", scale:5, size:0.06}];
+  var SCANS=[{id:"carpark", name:"The Car Park", data:"asset-b64:assets/scenes/carpark-preview.stm", up:"zup", scale:5, size:0.06}];
   var pick=0, renderer, scene, camera, spark, mesh, holder, video=$("cam"), shots=[], gyro={a:0,b:90,g:0,o:0,on:false}, base=0;
 
   SCANS.forEach(function(s,i){ var b=document.createElement("button"); b.textContent=s.name; if(i===0) b.className="on";

@@ -31,10 +31,10 @@
     ["hub","studio","gallery","landing","prompt"].forEach(hubHide);
     st.open=true; if(st.cur<0||st.cur>photos.length-1) st.cur=photos.length-1;
     el.classList.remove("hidden"); stRoom(room||st.room||"select"); updatePrompt(); }
-  function closeStudio(){ if(!st.open) return; stHideLegacy(); st.open=false; $("studioX").classList.add("hidden");
+  function closeStudio(){ if(!st.open) return; if(st.zoom) stZoom(false); stHideLegacy(); st.open=false; $("studioX").classList.add("hidden");
     if(loaded){ hubShow("hud"); App.go("scene"); updatePrompt(); } else showHub(); }
   function stHideLegacy(){ var ed=$("editor"); if(ed&&!ed.classList.contains("hidden")&&typeof devCommit==="function") devCommit(); Object.keys(ST_LEGACY).forEach(function(k){ var e=$(ST_LEGACY[k]); if(e) e.classList.add("hidden"); }); document.body.classList.remove("st-legacy"); }
-  function stRoom(r){ if(r!=="edit"&&typeof devScope!=="undefined") devScope=null; st.room=r; App.go("studio."+r); stHideLegacy();
+  function stRoom(r){ if(r!=="edit"&&typeof devScope!=="undefined") devScope=null; if(st.zoom) stZoom(false); st.room=r; App.go("studio."+r); stHideLegacy();
     ["research","select","workshop","folio","book","gallery"].forEach(function(k){ var c=$("st-"+k); if(c) c.classList.toggle("hidden", k!==r); });
     var empty=!photos.length;
     if(ST_LEGACY[r]){ document.body.classList.add("st-legacy");
@@ -46,7 +46,7 @@
   function stRenderBar(){ var bar=$("stBar"); if(!bar) return; var places={}; photos.forEach(function(p){ places[stPlaceOf(p)]=1; });
     bar.querySelector(".st-tabs").innerHTML=ST_ROOMS.map(function(r,i){ return '<button class="st-tab'+(r[0]===st.room?' on':'')+'" data-st-room="'+r[0]+'"><span class="n">0'+(i+1)+'</span>'+r[1]+'</button>'; }).join("");
     bar.querySelector(".st-sub").textContent=Object.keys(places).join(", ")+(photos.length?", "+photos.length+" frame"+(photos.length===1?"":"s"):"No frames yet");
-    var hints={ select:[["← →","Move"],["P","Pick"],["X","Reject"],["1–5","Rate"],["V","Compare"],["Enter","Edit this frame"],["Q E","Rooms"]],
+    var hints={ select:[["← →","Move"],["P","Pick"],["X","Reject"],["1–5","Rate"],["V","Compare"],["Z","Full screen"],["Enter","Edit this frame"],["Q E","Rooms"]],
       edit:[["\\","Before / after"],["⌘Z","Undo"],["Q E","Rooms"],["Esc","Back to Select"]],
       workshop:[["Drag","Frames onto the page"],["Click","Write in a text box"],["Del","Remove"],["⌘D","Duplicate"],["⌘Z","Undo"],["Q E","Rooms"]],
       folio:[["Drag","Frames or folders into a section"],["⤢","Zoom into a section"],["Drag across","Select several"],["Del","Remove"],["⌘Z","Undo"],["Q E","Rooms"]],
@@ -87,8 +87,8 @@
     for(var j=0;j<target;j++){ var pi=picks[j]; slots+='<span class="slot'+(pi!=null?' on':'')+'">'+(pi!=null?'<img src="'+photos[pi].url+'" alt="">':'')+'</span>'; }
     /* compare: the frame you marked with V on the left, the one under the cursor on the right (Lightroom's select and candidate) */
     var ref=st.cmp>=0&&st.cmp<photos.length&&st.cmp!==st.cur?photos[st.cmp]:null, lp;
-    if(ref) lp='<div class="lp cmp"><div class="half"><img src="'+ref.url+'" alt="Frame '+(st.cmp+1)+'"><span class="tag">SELECT · FRAME '+cbPad(st.cmp+1)+'</span><span class="ex">'+stExif(ref)+'</span></div><div class="half cand"><img src="'+p.url+'" alt="Frame '+(st.cur+1)+'"><span class="tag">CANDIDATE · FRAME '+cbPad(st.cur+1)+'</span><span class="ex">'+stExif(p)+'</span></div></div>';
-    else lp='<div class="lp"><img src="'+p.url+'" alt="Frame '+(st.cur+1)+'"></div>';
+    if(ref) lp='<div class="lp cmp" data-st-zoom><div class="half"><img src="'+ref.url+'" alt="Frame '+(st.cmp+1)+'"><span class="tag">SELECT · FRAME '+cbPad(st.cmp+1)+'</span><span class="ex">'+stExif(ref)+'</span></div><div class="half cand"><img src="'+p.url+'" alt="Frame '+(st.cur+1)+'"><span class="tag">CANDIDATE · FRAME '+cbPad(st.cur+1)+'</span><span class="ex">'+stExif(p)+'</span></div></div>';
+    else lp='<div class="lp" data-st-zoom><img src="'+p.url+'" alt="Frame '+(st.cur+1)+'"></div>';
     side.innerHTML=lp
       +'<div class="row1"><span class="fn">Frame '+cbPad(st.cur+1)+(ref?' <i>against '+cbPad(st.cmp+1)+'</i>':'')+'</span><span class="ml">'+stExif(p)+'</span></div>'
       +'<div class="row2"><button class="st-btn'+(p.pick?' on':'')+'" data-st-act="pick">Pick <span>P</span></button><button class="st-btn'+(p.reject?' on':'')+'" data-st-act="reject">Reject <span>X</span></button><button class="st-btn cmpb'+(ref||st.cmp===st.cur?' on':'')+'" data-st-act="compare" title="'+(ref?'Make this frame the select':st.cmp===st.cur?'Stop comparing':'Hold this frame, then arrow to another to compare')+'">'+(ref?'Swap':'Compare')+' <span>V</span></button><button class="st-btn" data-st-act="edit">Edit <span>↵</span></button><div class="stars">'+stars+'</div></div>'
@@ -100,7 +100,8 @@
   function stTogglePick(){ var p=photos[st.cur]; if(!p) return; p.pick=!p.pick; if(p.pick) p.reject=false; saveSession(); stRenderSelect(); }
   function stToggleReject(){ var p=photos[st.cur]; if(!p) return; p.reject=!p.reject; if(p.reject) p.pick=false; saveSession(); stRenderSelect(); }
   function stRate(s){ var p=photos[st.cur]; if(!p) return; p.rating=(p.rating===s?0:s); saveSession(); stRenderSelect(); }
-  function stCompare(){ if(!photos.length) return; if(st.cmp===st.cur) st.cmp=-1; else st.cmp=st.cur; stRenderSelect(); }   /* V: hold this frame; V again on it lets go; V on another makes that the select */
+  function stCompare(){ if(!photos.length) return; if(st.cmp===st.cur) st.cmp=-1; else st.cmp=st.cur; stRenderSelect(); }
+  function stZoom(on){ st.zoom=on==null?!st.zoom:!!on; document.body.classList.toggle("st-zoom", !!(st.zoom&&photos.length)); }   /* Z: the frame fills the screen */   /* V: hold this frame; V again on it lets go; V on another makes that the select */
   function stMove(d){ if(!photos.length) return; var L=libItems(LIB.key); if(st.hideRej){ var L2=L.filter(function(i){ return !photos[i].reject; }); if(L2.length) L=L2; } if(!L.length) return; var j=L.indexOf(st.cur); st.cur=L[Math.max(0,Math.min(L.length-1,(j<0?0:j)+d))]; stRenderSelect(); }
 
   // ---- 03 WORKBOOK and 04 FOLIO are free layout boards (board.js) ----
@@ -289,10 +290,10 @@
     if(typing) return true;
     if(c==="KeyQ"&&!e.ctrlKey&&!e.metaKey){ stCycle(-1); return true; } if(c==="KeyE"&&!e.ctrlKey&&!e.metaKey){ stCycle(1); return true; }
     var bd=stBoard(); if(bd&&c!=="KeyQ"&&c!=="KeyE"&&bd.key(e)) return true;
-    if(c==="Escape"){ e.preventDefault(); if(st.room==="select"&&st.cmp>=0){ st.cmp=-1; stRenderSelect(); } else if(st.room==="select") closeStudio(); else stRoom("select"); return true; }
+    if(c==="Escape"){ e.preventDefault(); if(st.room==="select"&&st.zoom) stZoom(false); else if(st.room==="select"&&st.cmp>=0){ st.cmp=-1; stRenderSelect(); } else if(st.room==="select") closeStudio(); else stRoom("select"); return true; }
     if(ST_LEGACY[st.room]) return false;   // the editor and builders keep their own keys
     if(st.room==="select"){ if(c==="ArrowRight") stMove(1); else if(c==="ArrowLeft") stMove(-1); else if(c==="ArrowDown") stMove(st.cols); else if(c==="ArrowUp") stMove(-st.cols);
-      else if(c==="KeyP") stTogglePick(); else if(c==="KeyX") stToggleReject(); else if(c==="KeyV") stCompare(); else if(/^Digit[0-5]$/.test(c)){ var s=+c.slice(5); if(s===0){ var p=photos[st.cur]; if(p){ p.rating=0; saveSession(); stRenderSelect(); } } else stRate(s); }
+      else if(c==="KeyP") stTogglePick(); else if(c==="KeyX") stToggleReject(); else if(c==="KeyV") stCompare(); else if(c==="KeyZ") stZoom(); else if(/^Digit[0-5]$/.test(c)){ var s=+c.slice(5); if(s===0){ var p=photos[st.cur]; if(p){ p.rating=0; saveSession(); stRenderSelect(); } } else stRate(s); }
       else if(c==="Enter"&&photos.length) stRoom("edit"); else return true; e.preventDefault(); return true; }
     if(st.room==="book"){ var sn=bkSpreads().length;
       if(c==="ArrowRight"){ bk.spread=Math.min(sn-1,bk.spread+1); bk.sel=null; bkRender(); } else if(c==="ArrowLeft"){ bk.spread=Math.max(0,bk.spread-1); bk.sel=null; bkRender(); }
@@ -301,7 +302,8 @@
     if(st.room==="gallery"){ if(c==="KeyF") gaCycleFrame(); else if(c==="ArrowRight"){ ga.gap=Math.min(500,ga.gap+50); gaRender(); } else if(c==="ArrowLeft"){ ga.gap=Math.max(100,ga.gap-50); gaRender(); }
       else if(c==="KeyW"&&photos.length){ openGalleryShow(); document.body.classList.add("st-legacy"); } return true; }
     return true; }
-  function stClick(e){ var t=e.target.closest("[data-bk-slot],[data-bk-pic],[data-bk-spread],[data-bk-size],[data-bk-tpl],[data-bk-act],[data-bk-page],[data-ga-print],[data-ga-frame],[data-ga-act],[data-ga-label],[data-ga-lsize],[data-st-room],[data-st-frame],[data-st-rate],[data-st-act],[data-st-close],[data-st-size],[data-st-hiderej]"); if(!t) return;
+  function stClick(e){ var t=e.target.closest("[data-bk-slot],[data-bk-pic],[data-bk-spread],[data-bk-size],[data-bk-tpl],[data-bk-act],[data-bk-page],[data-ga-print],[data-ga-frame],[data-ga-act],[data-ga-label],[data-ga-lsize],[data-st-room],[data-st-frame],[data-st-rate],[data-st-act],[data-st-close],[data-st-size],[data-st-hiderej],[data-st-zoom]"); if(!t) return;
+    if(t.hasAttribute("data-st-zoom")) return stZoom();
     if(t.hasAttribute("data-st-size")){ st.thumb=t.getAttribute("data-st-size"); return stRenderSelect(); }
     if(t.hasAttribute("data-st-hiderej")){ st.hideRej=!st.hideRej; return stRenderSelect(); }
     if(t.hasAttribute("data-st-close")) return closeStudio();

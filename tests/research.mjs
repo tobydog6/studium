@@ -22,7 +22,7 @@ const shot = (n) => page.screenshot({ path: join(OUT, n + '.png'), timeout: 2400
 const tap = (sel) => page.$eval(sel, (b) => b.click());
 const rs = () => page.evaluate(() => window.__rs.state());
 try {
-  await page.goto(pathToFileURL(FILE).href + '?dev&full&quick');
+  await page.goto(pathToFileURL(FILE).href + '?dev&full&quick&noauto');
   await page.waitForSelector('[data-si="solo"]', { state: 'visible', timeout: 20000 }); await page.click('[data-si="solo"]');
   await page.waitForSelector('#tileSplat', { state: 'visible', timeout: 20000 });
   await page.evaluate(() => { const b = document.createElement('button'); b.setAttribute('data-nav', 'critique'); document.body.appendChild(b); b.click(); b.remove(); });
@@ -32,8 +32,11 @@ try {
   await tap('#st-research .rs-start [data-rs-act="cull"]');
   while ((await rs()).view === 'cull') { await tap('#st-research [data-rs-act="pick"]'); await page.waitForTimeout(80); }
   ok((await rs()).culls === 1, 'culling game did not finish');
+  await tap('#st-research [data-rs-act="all"]'); await page.waitForSelector('#st-research .rs-at');
+  ok((await page.$$eval('#st-research .rs-at', (a) => a.length)) >= 6, 'see all the photos should show the whole pack'); await page.waitForTimeout(800); await shot('research-all');
   await tap('#st-research [data-rs-act="shelf"]'); await page.waitForTimeout(200);
   ok(!(await page.$('#st-research .rs-shelf.rs-glow')), 'glow should stop after the first Culling Game');
+  ok(!(await page.$('#st-research [data-rs-act="round"]')), 'no Punctum round for now'); ok(await page.$('#st-research .rs-wall'), 'the moodboard wall leads the room'); await shot('research-shelf');
   await tap('#st-research [data-rs-act="mood"]'); await page.waitForSelector('#st-research .rs-mt');
   const n = await page.$$eval('#st-research .rs-mt', (a) => a.length); ok(n >= 6, 'moodboard should show every pack photo');
   for (let i = 0; i < 5; i++) await page.$eval(`#st-research .rs-mt:nth-child(${i + 1})`, (b) => b.click());

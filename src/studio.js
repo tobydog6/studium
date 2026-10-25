@@ -50,7 +50,7 @@
       edit:[["\\","Before / after"],["⌘Z","Undo"],["Q E","Rooms"],["Esc","Back to Select"]],
       workshop:[["Drag","Frames onto the page"],["Click","Write in a text box"],["Del","Remove"],["⌘D","Duplicate"],["⌘Z","Undo"],["Q E","Rooms"]],
       folio:[["Drag","Frames or folders into a section"],["⤢","Zoom into a section"],["Drag across","Select several"],["Del","Remove"],["⌘Z","Undo"],["Q E","Rooms"]],
-      research:[["Click","Choose a pack"],["Tap","The detail that pricks you"],["Q E","Rooms"]], book:[["← →","Spread"],["Drag","Place a frame"],["Click two","Swap"],["T","Template"],["B","Full bleed"],["Q E","Rooms"]], gallery:[["Click a print","Size"],["← →","Spacing"],["F","Frame"],["W","Walk the show"],["Q E","Rooms"]] }[st.room];
+      research:[["Click","Pick photographs for your moodboard"],["Q E","Rooms"]], book:[["← →","Spread"],["Drag","Place a frame"],["Click two","Swap"],["T","Template"],["B","Full bleed"],["Q E","Rooms"]], gallery:[["Click a print","Size"],["← →","Spacing"],["F","Frame"],["W","Walk the show"],["Q E","Rooms"]] }[st.room];
     $("stHints").innerHTML=hints.map(function(h){ return '<span><kbd>'+h[0]+'</kbd>'+h[1]+'</span>'; }).join(""); }
 
   // ---- 01 SELECT: the light table ----

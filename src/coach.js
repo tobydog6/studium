@@ -248,7 +248,7 @@
       {ch:"TITLE", line:function(){ return '<b>Drag prints</b> along the wall to hang your show'; }, sub:"Spacing and sequence tell the story.",
         target:'#st-gallery .ga-hang', info:true}]},
     research:{where:function(){ return coRoom("research"); }, steps:[
-      {ch:"LOOK", line:function(){ return '<b>Research</b>: look closely at other photographers'; }, sub:"Each pack is one photographer or idea. Start with one Culling Game: it's quick.",
+      {ch:"LOOK", line:function(){ return '<b>Research</b>: look closely at other photographers'; }, sub:"The moodboard wall is every photograph at once. Each pack below is one photographer or idea. Start with one Culling Game: it's quick.",
         target:'#st-research .rs-shelf', info:true},
       {ch:"CULL", line:function(){ return 'Play the <b>Culling Game</b> on any pack'; }, sub:"",
         target:'#st-research [data-rs-act="cull"]', done:function(){ return rs.view==="cull"; }},

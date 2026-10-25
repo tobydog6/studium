@@ -148,8 +148,6 @@
      once:function(){ return achS().ev.culls.some(function(c){ return c.same; })?{p:achAny()}:null; }},
     {id:"contrarian", cat:"looking", name:"Contrarian", sync:true, how:"Your #1 is the photograph the class ranked lowest (5 or more plays).", learn:"Taste is personal. Saying why you love what nobody else chose is a real skill.",
      once:function(){ return achS().ev.culls.some(function(c){ return c.contra; })?{p:achAny()}:null; }},
-    {id:"punctum", cat:"looking", name:"Punctum", how:"Details named in Punctum rounds.", tiers:[3,10,30], learn:"Roland Barthes called it the punctum: the small detail in a photograph that pricks you.",
-     tier:function(){ var n=Q.rs.details||0; return achLv(n,[3,10,30],function(){ return achAny(); }); }},
     {id:"every-pack", cat:"looking", name:"Every Pack", how:"Play every research pack there is.", learn:"The more photographs you've looked at, the more you have to draw on.",
      once:function(){ var P=(typeof rs!=="undefined"&&rs.packs||[]).filter(function(p){ return !p.sample; }); if(P.length<2) return null;
        var played=function(id){ return (Q.rs.cull&&Q.rs.cull[id])||(Q.rs.punctum&&Q.rs.punctum[id]); }; return P.every(function(p){ return played(p.id); })?{p:achAny()}:null; }},

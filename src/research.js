@@ -1,4 +1,6 @@
   // ================= RESEARCH: Punctum, rebuilt inside the studio =================
+  // For now students see the moodboard wall and the Culling Game (then every photo in the pack); the Punctum round's
+  // code stays here, switched off, until it comes back.
   // Artist packs from Punctum's Supabase (the same tables, so the old Punctum and this one share their data), played
   // two ways. The Punctum round: one photograph at a time, does anything in it prick you? If so, tap the detail and
   // answer three prompts. The Culling Game: two at a time, keep one, until you have your top three. Afterwards, what
@@ -75,9 +77,11 @@
   function rsAll(){ var seen={}, out=[]; (rs.packs||[]).forEach(function(p){ p.imgs.forEach(function(im){ if(seen[im.url]) return; seen[im.url]=1; out.push({id:im.id, url:im.url, pack:p.name}); }); }); return out; }
   var RS_MOOD_MAX=16;
   function rsMoodToggle(url){ var m=rs.mood||(rs.mood=[]), i=m.indexOf(url); if(i>=0) m.splice(i,1); else if(m.length<RS_MOOD_MAX) m.push(url); else toast("That's "+RS_MOOD_MAX+": take one off first"); rsRender(); }
-  function rsMoodHTML(top){ var m=rs.mood||[], all=rsAll();
+  /* every photograph from every pack, shuffled once per visit so the wall feels new and nothing gets favoured by position */
+  function rsMoodOrder(){ var all=rsAll(); if(!rs.moodOrder||rs.moodOrder.length!==all.length) rs.moodOrder=rsShuffle(all); return rs.moodOrder; }
+  function rsMoodHTML(top){ var m=rs.mood||[], all=rsMoodOrder();
     return top+'<span class="rs-count">MOODBOARD · '+m.length+' / '+RS_MOOD_MAX+'</span></div><div class="rs-moodw"><p class="rs-q">Pick the photographs you want to bring to your own shoot. They\'ll be laid out on one A3 page in your workbook.</p>'
-      +'<div class="rs-mgrid">'+all.map(function(im){ var k=m.indexOf(im.url); return '<button class="rs-mt'+(k>=0?' on':'')+'" data-rs-act="mpick" data-rs-url="'+rsEsc(im.url)+'"><img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'+(k>=0?'<b>'+(k+1)+'</b>':'')+'<span>'+rsEsc(im.pack)+'</span></button>'; }).join("")+'</div>'
+      +'<div class="rs-mgrid rs-masonry">'+all.map(function(im){ var k=m.indexOf(im.url); return '<button class="rs-mt'+(k>=0?' on':'')+'" data-rs-act="mpick" data-rs-url="'+rsEsc(im.url)+'"><img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'+(k>=0?'<b>'+(k+1)+'</b>':'')+'<span>'+rsEsc(im.pack)+'</span></button>'; }).join("")+'</div>'
       +'<div class="rs-mbar"><button class="rs-go" data-rs-act="moodmake"'+(m.length<2?' disabled':'')+'>MAKE MY A3 MOODBOARD ›</button><button class="rs-go2" data-rs-act="mclear">CLEAR</button></div></div>'; }
   function rsMoodMake(){ var m=(rs.mood||[]).slice(), all=rsAll(), by={}; all.forEach(function(im){ by[im.url]=im; }); if(m.length<2) return;
     var pids=[], packs=[];
@@ -100,14 +104,18 @@
   // ---- drawing ----
   function rsEsc(s){ return cbEsc(String(s==null?"":s)); }
   function rsDot(t){ return t?'<i class="rs-dot" style="left:'+(t.x*100).toFixed(2)+'%;top:'+(t.y*100).toFixed(2)+'%"></i>':''; }
-  function rsShelf(){ var h='<div class="rs-head"><span class="eb">RESEARCH</span><h2>Look closely at other photographers</h2><p>Each pack is one photographer or idea. Play the Punctum round to find what pricks you, or the Culling Game to choose a top three. Then take it into your workbook.</p><button class="rs-mood" data-rs-act="mood">MOODBOARD · EVERY PACK, ONE A3 PAGE</button></div>';
-    if(rs.loading&&!rs.packs) return h+'<div class="rs-none">Loading packs…</div>';
+  function rsWall(){ var all=rsAll(); if(!all.length) return ""; if(!rs.wall||rs.wall.n!==all.length) rs.wall={n:all.length, imgs:rsShuffle(all).slice(0,24)};
+    return '<section class="rs-hero"><div class="rs-hero-t"><span class="eb">MOODBOARD</span><h2>Every photograph, one wall</h2><p>All the photographs from every pack in one place. Pick the ones you love and they become an A3 moodboard in your workbook.</p><button class="rs-go" data-rs-act="mood">MAKE YOUR MOODBOARD ›</button></div>'
+      +'<button class="rs-wall" data-rs-act="mood" aria-label="Open the moodboard"><span class="rs-masonry">'+rs.wall.imgs.map(function(im){ return '<img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'; }).join("")+'</span></button></section>'; }
+  function rsShelf(){ var h='';
+    if(rs.loading&&!rs.packs) return '<div class="rs-head"><span class="eb">RESEARCH</span><h2>Look closely at other photographers</h2></div><div class="rs-none">Loading packs…</div>';
+    h+=rsWall()+'<div class="rs-head"><span class="eb">PACKS</span><h2>Look closely at other photographers</h2><p>Each pack is one photographer or idea. Play the Culling Game to choose your top three, then see every photograph in the pack.</p></div>';
     var glow=rsFirstCull(), pick=glow?(rs.packs||[])[Math.floor(Math.random()*(rs.packs||[]).length)]:null;
     if(glow&&pick) h+='<div class="rs-start"><span class="eb">START HERE</span><b>Play one Culling Game</b><span>Two photographs at a time: pick the stronger one. Two minutes, and you will have a top three.</span><button class="rs-go" data-rs-act="cull" data-rs-id="'+rsEsc(pick.id)+'">PLAY ›</button></div>';
     return h+'<div class="rs-shelf'+(glow?' rs-glow':'')+'">'+(rs.packs||[]).map(function(p){ var ln=rsLinks(p.links), d1=rs.done[p.id+":punctum"], d2=rs.done[p.id+":cull"];
       return '<div class="rs-pack" data-rs-pack="'+rsEsc(p.id)+'"><div class="rs-cover">'+p.imgs.slice(0,3).map(function(im){ return '<img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'; }).join("")+'</div>'
         +'<div class="rs-meta"><b>'+rsEsc(p.name)+'</b><span>'+p.imgs.length+' photographs'+(ln.length?' · '+ln.map(function(l){ return '<a href="'+rsEsc(l.url)+'" target="_blank" rel="noopener">'+rsEsc(l.label)+'</a>'; }).join(' · '):'')+'</span></div>'
-        +'<div class="rs-acts"><button class="rs-go" data-rs-act="round" data-rs-id="'+rsEsc(p.id)+'">'+(d1?'✓ ':'')+'PUNCTUM ROUND</button><button class="rs-go2" data-rs-act="cull" data-rs-id="'+rsEsc(p.id)+'">'+(d2?'✓ ':'')+'CULLING GAME</button></div></div>'; }).join("")+'</div>'
+        +'<div class="rs-acts"><button class="'+(d2?'rs-go2':'rs-go')+'" data-rs-act="cull" data-rs-id="'+rsEsc(p.id)+'">'+(d2?'✓ PLAY AGAIN':'CULLING GAME')+'</button>'+(d2?'<button class="rs-go" data-rs-act="all" data-rs-id="'+rsEsc(p.id)+'">SEE ALL THE PHOTOS ›</button>':'')+'</div></div>'; }).join("")+'</div>'
       +(rs.offline?'<p class="rs-off">Couldn\'t reach your class packs right now, so here\'s what this computer has saved, and a sample pack.</p>':''); }
   function rsRound(top){ var r=rs.round, im=r.imgs[r.k], tp=r.tap[im.id], n=r.notes[im.id]||{}, h=top+'<span class="rs-count">'+(r.k+1)+' / '+r.imgs.length+'</span></div><div class="rs-play"><div class="rs-stage'+(r.step==="tap"&&!tp?' tapping':'')+'"><div class="rs-imgw"><img class="rs-img" src="'+rsEsc(im.url)+'" alt="" draggable="false">'+rsDot(tp)+'</div></div><aside class="rs-side">';
     if(r.step==="ask") h+='<span class="eb">PUNCTUM</span><h3>Does anything in this photograph prick you?</h3><p class="rs-q">Barthes called it the punctum: the small detail that reaches out and catches you, not the subject everyone sees.</p>'
@@ -120,6 +128,10 @@
     return top+'<span class="rs-count">CULLING · '+c.picks+' PICKS</span></div><div class="rs-cull"><p class="rs-q">Which is the stronger photograph? Go with your gut.</p><div class="rs-ab">'
       +'<button class="rs-card" data-rs-act="pick" data-rs-win="'+(L===a?1:0)+'"><img src="'+rsEsc(L.url)+'" alt="" draggable="false"><span>A</span></button>'
       +'<button class="rs-card" data-rs-act="pick" data-rs-win="'+(R===a?1:0)+'"><img src="'+rsEsc(R.url)+'" alt="" draggable="false"><span>B</span></button></div></div>'; }
+  function rsAllHTML(top){ var p=rs.pack, ranked=(rs.res&&rs.res.kind==="cull"&&rs.pack===p)?rs.res.top.map(function(x){ return x.id; }):[];
+    return top+'<span class="rs-count">'+p.imgs.length+' PHOTOGRAPHS</span></div><div class="rs-allw"><p class="rs-q">Every photograph in the pack. Take any of them into your workbook as an Artist model page.</p><div class="rs-mgrid rs-masonry">'
+      +p.imgs.map(function(im){ var k=ranked.indexOf(im.id); return '<div class="rs-mt rs-at"><img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'+(k>=0?'<b>'+(k+1)+'</b>':'')+'<button class="rs-wb" data-rs-act="wbany" data-rs-img="'+rsEsc(im.id)+'">INTO WORKBOOK ›</button></div>'; }).join("")
+      +'</div></div>'; }
   function rsResults(top){ var res=rs.res, p=rs.pack, h=top+'</div><div class="rs-res">';
     if(res.kind==="punctum"){ var rr=res.round, mine=rr.imgs.filter(function(im){ return rr.struck[im.id]; });
       h+='<div class="rs-rh"><span class="eb">YOUR PUNCTUMS</span><h3>'+(mine.length?mine.length+' of '+rr.imgs.length+' pricked you':'Nothing pricked you this time')+'</h3><p class="rs-q">'+(res.counts?'The numbers show how many in your class were caught by each one. ':'')+(mine.length?'Take one into your workbook to write it up.':'Try the Culling Game, or another pack.')+'</p></div><div class="rs-grid">'
@@ -129,12 +141,12 @@
     else { var ct=res.cls, row=function(im,k){ return im?'<div class="rs-ri"><b>'+(k+1)+'</b><img src="'+rsEsc(im.url)+'" alt=""></div>':''; };
       h+='<div class="rs-rh"><span class="eb">YOUR TOP THREE</span><h3>Your ranking'+(ct&&ct.n>1?', next to your class':'')+'</h3><p class="rs-q">Where you and your class disagree is worth writing about.</p></div><div class="rs-rank"><div><span class="eb">YOU</span>'+res.top.map(row).join("")+'</div>'
         +(ct&&ct.n>1?'<div><span class="eb">CLASS · '+ct.n+' PLAYED</span>'+ct.ids.map(function(id,k){ return row(p.imgs.filter(function(x){ return String(x.id)===String(id); })[0],k); }).join("")+'</div>':'')+'</div>'; }
-    return h+'<div class="rs-yn"><button class="rs-go2" data-rs-act="'+(res.kind==="punctum"?"cull":"round")+'" data-rs-id="'+rsEsc(p.id)+'">'+(res.kind==="punctum"?"NOW THE CULLING GAME":"NOW THE PUNCTUM ROUND")+'</button><button class="rs-go2" data-rs-act="shelf">ALL PACKS</button></div></div>'; }
+    return h+'<div class="rs-yn"><button class="rs-go2" data-rs-act="'+(res.kind==="punctum"?"cull":"all")+'" data-rs-id="'+rsEsc(p.id)+'">'+(res.kind==="punctum"?"NOW THE CULLING GAME":"SEE ALL THE PHOTOS ›")+'</button><button class="rs-go2" data-rs-act="shelf">ALL PACKS</button></div></div>'; }
   function rsRender(){ var box=$("st-research"); if(!box||!st.open||st.room!=="research") return;
     if(rs.view==="mood"&&!rs.pack) rs.pack={name:"Every pack", imgs:[]};
     if(rs.view==="shelf"||!rs.pack){ if(!rs.packs&&!rs.loading) return rsLoad(); box.innerHTML=rsShelf(); return; }
     var top='<div class="rs-bar"><button class="rs-back" data-rs-act="shelf">‹ All packs</button><span class="rs-pn">'+rsEsc(rs.pack.name)+'</span>';
-    box.innerHTML=rs.view==="round"?rsRound(top):rs.view==="cull"?rsCullHTML(top):rs.view==="mood"?rsMoodHTML(top):rsResults(top);
+    box.innerHTML=rs.view==="round"?rsRound(top):rs.view==="cull"?rsCullHTML(top):rs.view==="mood"?rsMoodHTML(top):rs.view==="all"?rsAllHTML(top):rsResults(top);
     if(rs.view==="round") rsWireNotes(box); }
   function rsWireNotes(box){ Array.prototype.forEach.call(box.querySelectorAll("[data-rs-note]"),function(t){ t.addEventListener("input",function(){ var r=rs.round, im=r.imgs[r.k]; (r.notes[im.id]||(r.notes[im.id]={}))[t.getAttribute("data-rs-note")]=t.value; }); t.addEventListener("keydown",function(e){ e.stopPropagation(); }); }); }
   (function rsWire(){ var box=$("st-research"); if(!box) return;
@@ -142,7 +154,9 @@
       if(rs.view==="round"&&r&&r.step==="tap"&&!r.tap[r.imgs[r.k].id]){ var w=e.target.closest(".rs-imgw"); if(w){ var b=w.getBoundingClientRect(); r.tap[r.imgs[r.k].id]={x:Math.max(0,Math.min(1,(e.clientX-b.left)/b.width)), y:Math.max(0,Math.min(1,(e.clientY-b.top)/b.height))}; rs.taps=(rs.taps||0)+1; rsRender(); var t0=box.querySelector("[data-rs-note]"); if(t0) t0.focus(); return; } }
       var t=e.target.closest("[data-rs-act]"); if(!t) return; var a=t.getAttribute("data-rs-act"), id=t.getAttribute("data-rs-id");
       if(a==="shelf"){ rs.view="shelf"; rs.pack=null; return rsRender(); }
-      if(a==="mood"){ rs.view="mood"; rs.pack=null; return rsRender(); } if(a==="mpick") return rsMoodToggle(t.getAttribute("data-rs-url"));
+      if(a==="mood"){ rs.view="mood"; rs.pack=null; rs.moodOrder=null; box.scrollTop=0; return rsRender(); }
+      if(a==="all"){ var pk=rsPack(id)||rs.pack; if(!pk) return; rs.pack=pk; rs.view="all"; box.scrollTop=0; return rsRender(); }
+      if(a==="wbany"){ var im2=(rs.pack&&rs.pack.imgs||[]).filter(function(x){ return String(x.id)===t.getAttribute("data-rs-img"); })[0]; if(im2){ rs.round=null; rsToWorkbook(im2); } return; } if(a==="mpick") return rsMoodToggle(t.getAttribute("data-rs-url"));
       if(a==="mclear"){ rs.mood=[]; return rsRender(); } if(a==="moodmake") return rsMoodMake();
       if(a==="round") return rsStartRound(rsPack(id)||rs.pack); if(a==="cull") return rsStartCull(rsPack(id)||rs.pack);
       if(a==="yes") return rsRoundAnswer(true); if(a==="no") return rsRoundAnswer(false); if(a==="next") return rsRoundNext();

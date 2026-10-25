@@ -75,6 +75,17 @@
   document.addEventListener("keydown",function(e){ if(CH_MOVE[e.code]) CH.nudge=true; });
   document.addEventListener("mousemove",function(e){ if(looking&&Math.abs(e.movementX)+Math.abs(e.movementY)>3) CH.nudge=true; });
   // while this is true, the walk keys and mouse look do nothing (app.js asks)
+  /* the frames' introduction: a slow glide once round the subject so you see where they all hang, then it settles
+     into the shallow depth of field one and its card says what you're after. Any move key skips straight there */
+  function chIntroStart(){ if(!CH.pads.length) return; if(viewfinderOn&&typeof toggleViewfinder==="function") toggleViewfinder();   /* lower the camera so the frames can be seen */
+    var S=CH.spec.subject||[0,0], a0=Math.atan2(camPos.x-S[0], camPos.z-S[1]), r=Math.max(3.4, Math.min(5, Math.hypot(camPos.x-S[0], camPos.z-S[1])));
+    var walk=!!(WK.col&&WK.mode==="walk"); CH.intro={t:0, dur:7, a0:a0, r:r, S:S, y0:walk?WK.eye:camPos.y, walk:walk, gy:wkGround(S[0],S[1])}; CH.pull=-1; CH.locked=false; }
+  function chIntroTick(dt){ var I=CH.intro; I.t+=dt; var held=CH_MOVE&&Object.keys(CH_MOVE).some(function(k){ return keys[k]; });
+    var u=Math.min(1,I.t/I.dur), s=u*u*(3-2*u), a=I.a0+s*Math.PI*1.75, x=I.S[0]+Math.sin(a)*I.r, z=I.S[1]+Math.cos(a)*I.r, eye=1.75+0.35*Math.sin(u*Math.PI);
+    _vel.set(0,0,0); camPos.x=x; camPos.z=z; if(I.walk) WK.eye=eye; else camPos.y=I.gy+eye;
+    var ty=I.gy+0.45, cy=(I.walk?wkGround(x,z):I.gy)+eye; yaw=Math.atan2(x-I.S[0], z-I.S[1]); pitch=Math.atan2(ty-cy, I.r);
+    if(u>=1||held){ CH.intro=null; var k=-1; CH.pads.forEach(function(P,i){ if(k<0&&/dof/.test(P.c.id)&&!CH.done[P.c.id]) k=i; }); if(k<0) CH.pads.forEach(function(P,i){ if(k<0&&!CH.done[P.c.id]) k=i; });
+      if(k>=0){ CH.cool=-1; chGrab(k); } } }
   function chHold(){ return CH.pull>=0&&(!CH.locked||performance.now()-CH.lockT<CH_GRACE); }
   function chLetGo(){ if(CH.pull>=0) CH.cool=CH.pull; CH.pull=-1; CH.locked=false; }
   function chWrap(a){ while(a>Math.PI) a-=2*Math.PI; while(a<-Math.PI) a+=2*Math.PI; return a; }
@@ -110,7 +121,9 @@
   function chTick(dt){ if(!CH.pads.length||!loaded) return;
     var off=chOff(); if(off){ CH.wasOff=true; if(CH.active>=0){ CH.active=-1; chCard(null); } chMarkers(); return; }
     if(CH.wasOff){ CH.wasOff=false; CH.pads.forEach(function(P){ P.vis=0; });   // the warm-up's done: the frames fade in
-      var f=$("chFlash"); if(f){ f.innerHTML='<span>UNLOCKED</span><b>The gold frames are out</b>'; f.classList.remove("show"); void f.offsetWidth; f.classList.add("show"); } }
+      var f=$("chFlash"); if(f){ f.innerHTML='<span>UNLOCKED</span><b>The gold frames are out</b>'; f.classList.remove("show"); void f.offsetWidth; f.classList.add("show"); }
+      chIntroStart(); }
+    if(CH.intro){ chIntroTick(dt||1/30); chMarkers(); return; }
     chTractor(dt||1/30);
     var f=CH.pull>=0?CH.pull:CH.focus;
     if(f<0) CH.pads.forEach(function(P,i){ if(f<0&&!CH.done[P.c.id]&&Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z)<0.3) f=i; });   // walked straight in without the pull
@@ -138,7 +151,8 @@
     if(!P){ el.classList.remove("show"); CH.cardFor=-1; return; }
     var i=CH.pads.indexOf(P), checks=chChecks(P), all=checks.every(function(x){ return x.ok; }), done=CH.done[P.c.id];
     if(!update||CH.cardFor!==i){ CH.cardFor=i;
-      el.innerHTML='<span class="k">CHALLENGE '+(i+1)+' OF '+CH.pads.length+(done?' · DONE ✓':'')+'</span><b class="t">'+cbEsc(P.c.title)+'</b><p>'+cbEsc(P.c.brief)+'</p><div class="ck"></div><span class="go"></span>'; el.classList.add("show"); }
+      var ref=/dof/.test(P.c.id)&&typeof CO_AP!=="undefined"&&CO_AP.ok?CO_AP.im[0].src:"";
+      el.innerHTML=(ref?'<div class="ref"><img src="'+ref+'" alt=""><span>WHAT YOU\'RE AFTER</span></div>':'')+'<span class="k">CHALLENGE '+(i+1)+' OF '+CH.pads.length+(done?' · DONE ✓':'')+'</span><b class="t">'+cbEsc(P.c.title)+'</b><p>'+cbEsc(P.c.brief)+'</p><div class="ck"></div><span class="go"></span>'; el.classList.add("show"); }
     el.querySelector(".ck").innerHTML=checks.map(function(x){ return '<div class="'+(x.ok?'ok':'')+'"><i>'+(x.ok?'✓':'')+'</i><span>'+cbEsc(x.label)+'</span><em>'+x.now+'</em></div>'; }).join("");
     var go=el.querySelector(".go"); go.textContent=all?(viewfinderOn?"EVERYTHING’S SET. TAKE THE SHOT ↵":"EVERYTHING’S SET. RAISE THE CAMERA (P) AND SHOOT"):"TICK THEM ALL, THEN SHOOT"; go.classList.toggle("on", all); el.classList.toggle("ready", all); }
   function chFlash(P){ var f=$("chFlash"); if(!f) return; f.innerHTML='<span>CHALLENGE</span><b>'+cbEsc(P.c.title)+'</b>'; f.classList.remove("show"); void f.offsetWidth; f.classList.add("show"); }

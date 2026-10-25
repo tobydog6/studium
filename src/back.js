@@ -91,15 +91,19 @@
   // Every stop is printed along its track, so you can see the whole range and where you are in it. Click a stop, or
   // grab the knob (or anywhere on the track) and drag. Arrow keys still step.
   function cbShootRows(){ return [
-    {key:"sh", cap:"Shutter", unit:"seconds", vals:SHUTTER_LABELS, idx:shIdx},
-    {key:"ap", cap:"Aperture", unit:"f-stop", vals:APERTURES.map(function(a){ return String(a); }), idx:apIdx},
-    {key:"iso",cap:"ISO", unit:"sensor", vals:ISOS.map(String), idx:isoIdx}]; }
+    {key:"sh", cap:"Shutter", unit:"seconds", vals:SHUTTER_LABELS, idx:shIdx, lo:"Freezes motion · darker", hi:"Brighter · hands shake", dir:1},
+    {key:"ap", cap:"Aperture", unit:"f-stop", vals:APERTURES.map(function(a){ return String(a); }), idx:apIdx, lo:"Brighter · soft background", hi:"Darker · sharp all through", dir:-1},
+    {key:"iso",cap:"ISO", unit:"sensor", vals:ISOS.map(String), idx:isoIdx, lo:"Clean · needs light", hi:"Brighter · grainy", dir:1}]; }
+  var CB_ICON={sh:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="13" r="8"/><path d="M12 13V8.5M12 13l3 2M9.5 2.5h5"/></svg>',
+    ap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 3l3.6 7.2M21 12l-7.8 1.2M16.5 19.8L11 14.3M6 18.6l2.7-7.4M3.3 9.3l7.9 1.1M9 3.5l1.5 7.9"/></svg>',
+    iso:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" stroke-width="2.4" stroke-linecap="round"/></svg>'};
   function cbFmt(r,v){ return r.key==="ap"?"f/"+v:v; }
   function cbShoot(){ var rows=cbShootRows(), html="";
     rows.forEach(function(r,ri){ var n=r.vals.length, stops="", pc=function(i){ return (n>1?i/(n-1)*100:50).toFixed(3)+"%"; };
       r.vals.forEach(function(v,i){ stops+='<button class="cb-stop'+(i===r.idx?' cur':'')+'" style="left:'+pc(i)+'" data-cb-set="'+r.key+':'+i+'"><i></i><span>'+cbEsc(v)+'</span></button>'; });
-      html+='<div class="cb-scale'+(ri===cbRow?' sel':'')+'" data-cb-row="'+ri+'"><div class="cb-cap"><span class="c">'+r.cap+'</span><span class="now">'+cbEsc(cbFmt(r,r.vals[r.idx]))+'</span></div>'
-        +'<div class="cb-track" data-cb-track="'+r.key+'"><div class="cb-line"><b style="width:'+pc(r.idx)+'"></b></div>'+stops+'<span class="cb-knob" style="left:'+pc(r.idx)+'"></span></div></div>'; });
+      html+='<div class="cb-scale cb-'+r.key+(ri===cbRow?' sel':'')+'" data-cb-row="'+ri+'"><div class="cb-cap"><span class="ic">'+CB_ICON[r.key]+'</span><span class="c">'+r.cap+'</span><span class="now">'+cbEsc(cbFmt(r,r.vals[r.idx]))+'</span></div>'
+        +'<div class="cb-track" data-cb-track="'+r.key+'"><div class="cb-line'+(r.dir<0?' rev':'')+'"><b style="width:'+pc(r.idx)+'"></b></div>'+stops+'<span class="cb-knob" style="left:'+pc(r.idx)+'"><i></i></span>'
+        +'<div class="cb-ends"><span>‹ '+cbEsc(r.lo)+'</span><span>'+cbEsc(r.hi)+' ›</span></div></div></div>'; });
     var m=cbMeterWords(), a=Math.max(-3,Math.min(3,evStops))/3*55*Math.PI/180;
     var nx=(66+48*Math.sin(a)).toFixed(1), ny=(66-48*Math.cos(a)).toFixed(1), b=curBody();
     html+='<div class="cb-meter"><svg width="132" height="72" viewBox="0 0 132 72" role="img" aria-label="Light meter: '+cbEsc(m.head)+'">'

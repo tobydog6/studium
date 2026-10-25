@@ -29,6 +29,7 @@
   ];
   var vertical=false;   // camera turned on its side (X)
   var bodyIdx=0, lensIdx=2, camGrain=0, camWarm=0, focusDist=0.5;
+  var meterBias=0;   /* the warm-up's practice scenes: the meter reads as if the light were this many stops brighter */
   var expMult=1, evStops=0, isoGrain=0, apVig=0.16, dofStrength=0;
   var audioCtx=null, soundOn=true;
   var gBloom=1, gDof=1, gWarm=0, gCon=1, gSat=1, gGrain=1;   // user "look" grade
@@ -176,7 +177,7 @@
   function computeCam(){
     var N=APERTURES[apIdx], t=SHUTTERS[shIdx], iso=ISOS[isoIdx];
     var base=(1/125)*400/(2.8*2.8), cur=t*iso/(N*N);
-    expMult=cur/base; evStops=Math.log(expMult)/Math.LN2;
+    expMult=cur/base; evStops=Math.log(expMult)/Math.LN2+meterBias;
     var body=BODIES[bodyIdx]||BODIES[0]; camGrain=body.grain||0; camWarm=body.warm||0;
     isoGrain=Math.min(Math.max((iso-100)/6300,0),1)*0.11 + camGrain;
     var wide=Math.min(Math.max((5.6-N)/(5.6-1.4),0),1); apVig=0.16+wide*0.22;
@@ -441,8 +442,18 @@
   function autoFocus(say){ var P=viewer&&viewer.P, A=viewer&&viewer.A; if(!P) return; var f=new THREE.Vector3(); camera.getWorldDirection(f); var o=camera.position, N=P.length/3, sc=sceneScale(), mt=0.25*sc, ts=[];
     for(var i=0;i<N;i++){ if(A&&A[i]<0.12) continue; var vx=P[i*3]-o.x, vy=P[i*3+1]-o.y, vz=P[i*3+2]-o.z, t=vx*f.x+vy*f.y+vz*f.z; if(t<mt) continue; var p2=vx*vx+vy*vy+vz*vz-t*t, lim=t*0.026+0.01*sc; if(p2<lim*lim) ts.push(t); }
     ts.sort(function(a,b){ return a-b; }); var k=Math.min(ts.length-1, 4);
-    if(ts.length<3){ setFocus(1); if(say) toast("Focused at infinity"); return; }   // only sky or far-off haze in the middle: like a real lens, focus far
-    var m=ts[k]/sc; setFocus(Math.log(Math.max(0.3,Math.min(18,m))/0.3)/Math.log(60)); if(say) toast("Focused at "+(m<10?m.toFixed(1):Math.round(m))+" m"); }
+    if(ts.length<3){ afHunt(1, say?"Focused at infinity":""); return; }   // only sky or far-off haze in the middle: like a real lens, focus far
+    var m=ts[k]/sc; afHunt(Math.log(Math.max(0.3,Math.min(18,m))/0.3)/Math.log(60), say?"Focused at "+(m<10?m.toFixed(1):Math.round(m))+" m":""); }
+  /* like a real lens: the square thinks (the focus rocks past the subject and back), then turns green when it locks */
+  var afLocks=0, afAnim=null;
+  function afHunt(target, msg){ var el=$("vfAF"), from=focusDist, t0=performance.now(), dur=520, over=(target-from)*0.35+(target>from?0.06:-0.06);
+    if(afAnim) cancelAnimationFrame(afAnim); if(el){ el.classList.remove("ok"); el.classList.add("hunt"); }
+    (function step(){ var u=Math.min(1,(performance.now()-t0)/dur), v;
+      if(u<0.55) v=from+(target+over-from)*(u/0.55); else if(u<0.8) v=target+over-(over*1.6)*((u-0.55)/0.25); else v=target-over*0.6*(1-(u-0.8)/0.2);
+      setFocus(v); if(u<1){ afAnim=requestAnimationFrame(step); return; }
+      afAnim=null; setFocus(target); afLocks++; if(el){ el.classList.remove("hunt"); el.classList.add("ok"); clearTimeout(el._t); if(!afHeld) el._t=setTimeout(function(){ el.classList.remove("ok"); },900); }
+      if(msg) toast(msg); })(); }
+  var afHeld=false;
 
   // ---- render ----
   var fsTarget=null;   // where the finished frame goes: the screen, or a texture (the cube's backdrop)
@@ -560,7 +571,7 @@
           ps.forEachSplat(function(i,c,sc,qq,op){ v.copy(c).applyQuaternion(q).multiplyScalar(SC); P[i*3]=v.x; P[i*3+1]=v.y; P[i*3+2]=v.z; A[i]=op; });
           try{ ps.dispose(); }catch(e){} viewer.P=P; viewer.A=A; viewer.q=q.clone(); });
     }).then(function(){
-      frameScene(); if(typeof wxArrival==="function"&&wxArrival()){} else if(keepCol&&CH.spec&&CH.spec.spawn){ var sp=CH.spec.spawn; camPos.set(sp[0], WK.col?wkGround(sp[0],sp[1])+WK.eye:camPos.y, sp[1]); yaw=sp[2]||0; pitch=sp[3]||-0.1; }   // a scene can say where to stand first
+      frameScene(); if(typeof wxArrival==="function"&&wxArrival()){} else if(keepCol&&CH.spec&&CH.spec.spawn){ var sp=CH.spec.spawn; if(sp[4]&&WK.mode==="walk") WK.eye=sp[4]; camPos.set(sp[0], WK.col?wkGround(sp[0],sp[1])+WK.eye:camPos.y, sp[1]); yaw=sp[2]||0; pitch=sp[3]||-0.1; }   // a scene can say where to stand first
       chAttach(); loaded=true; updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       toast("Click to look around · P raises the camera · Space for the menu");   // the guide's first popup covers the controls
@@ -1182,12 +1193,12 @@
     else if(e.code==="KeyX"){ e.preventDefault(); if(loaded) setVertical(!vertical); }
     else if(e.code==="Tab"){ e.preventDefault(); openStudio("select"); }
     else if(e.code==="KeyT"&&loaded){ e.preventDefault(); cuToggle(); }   // T: the cube of places (choose a side and you go straight there)
-    else if(e.code==="KeyF"&&viewfinderOn){ e.preventDefault(); afPending="say"; }   // refocus on the middle of the frame
+    else if(e.code==="KeyF"&&viewfinderOn){ e.preventDefault(); if(!e.repeat){ afHeld=true; afPending="say"; } }   // half-press: focus on the middle of the frame and hold it
     else if(e.code==="ArrowUp"){ e.preventDefault(); setFocus(focusDist+0.05); }
     else if(e.code==="ArrowDown"){ e.preventDefault(); setFocus(focusDist-0.05); }
     else if(e.code==="Escape"){ if(viewfinderOn) lowerCamera(); }
   });
-  window.addEventListener("keyup",function(e){ keys[e.code]=false; });
+  window.addEventListener("keyup",function(e){ keys[e.code]=false; if(e.code==="KeyF"&&afHeld){ afHeld=false; var el=$("vfAF"); if(el&&!afAnim){ clearTimeout(el._t); el._t=setTimeout(function(){ el.classList.remove("ok"); },500); } } });
   window.addEventListener("blur",function(){ keys={}; });
 
   landingNote.innerHTML="Scans open on this computer. Nothing is uploaded.";
@@ -1468,6 +1479,7 @@
   if(/[?&]dev/.test(location.search)){ try{ window.__ed={openEditor:openEditor,eglInit:eglInit,photos:photos,defEd:defEd,editRender:editRender,selectBody:selectBody,BODIES:BODIES,openFolio:openFolio,openPhotobook:openPhotobook,openGalleryShow:openGalleryShow,
     foPack:foPack,foShuffle:foShuffle,foSeed:foSeed,importPhotoFiles:importPhotoFiles,pbExportPDF:pbExportPDF,pbBuildPDF:pbBuildPDF,pbInit:pbInit,updateCamArt:updateCamArt,switchCamTab:switchCamTab,camArtSVG:camArtSVG,gxRender:gxRender,gxBuildLayouts:gxBuildLayouts,gxBindDrag:gxBindDrag,loadSplat:loadSplat,showHub:showHub,openSplatViewer:openSplatViewer,openStudioHome:openStudioHome,openPunctum:openPunctum,photoTip:photoTip,saveSessionNow:saveSessionNow,loadSession:loadSession,clearSession:clearSession,showTutorial:showTutorial,cycleComp:cycleComp,drawComp:drawComp,raiseCamera:raiseCamera,shutter:shutter,get foItems(){return foItems;},get pbPages(){return pbPages;},get foBW(){return foBW;},get foBH(){return foBH;}}; }catch(e){} }
   if(/[?&]dev/.test(location.search)){ window.__ls={db:function(){ return lsDB; }, setClock:function(hm){ var m=/^(\d+):(\d+)$/.exec(hm), d=new Date(); d.setHours(+m[1],+m[2],0,0); lsClockOff=d.getTime()-Date.now(); lsTick(); }, tick:lsTick, who:lsWho, plan:lsPlan, cur:function(){ var p=lsPlan(); return p?lsCur(p):null; }, count:lsCount, moveOpen:lsMoveOpen, pill:function(){ return ls.pill; }, tc:tc, tcPlan:tcPlan, roster:function(){ return tcRoster(tcPlan()); }}; }
+  if(/[?&]dev/.test(location.search)) window.__cam={ set:function(o){ if(o.ap!=null) apIdx=o.ap; if(o.sh!=null) shIdx=o.sh; if(o.iso!=null) isoIdx=o.iso; computeCam(); }, raise:function(){ if(!viewfinderOn) raiseCamera(); }, af:function(){ afPending="say"; }, focus:function(){ return focusDist; } };
   if(/[?&]dev/.test(location.search)) window.__dof={ aim:function(y,p){ yaw=y; pitch=p; }, pb:function(){ var P=viewer.P, n=P.length/3, mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9], md=[[],[],[]]; for(var i=0;i<n;i++) for(var k=0;k<3;k++){ var v=P[i*3+k]; if(v<mn[k]) mn[k]=v; if(v>mx[k]) mx[k]=v; if(i%50===0) md[k].push(v); } md=md.map(function(a){ a.sort(function(x,y){ return x-y; }); return +a[a.length>>1].toFixed(2); }); var f=new THREE.Vector3(); camera.getWorldDirection(f); return {n:n, mn:mn.map(function(v){ return +v.toFixed(1); }), mx:mx.map(function(v){ return +v.toFixed(1); }), med:md, cam:camera.position.toArray().map(function(v){ return +v.toFixed(2); }), dir:f.toArray().map(function(v){ return +v.toFixed(2); }), A0:viewer.A[0], A1:viewer.A[1000]}; }, ap:function(N){ var i=APERTURES.indexOf(N); if(i>=0){ apIdx=i; computeCam(); } }, focus:function(v){ setFocus(v); }, af:function(){ afPending=true; },
     state:function(){ var sp=viewer&&viewer.spark; var mm=viewer&&viewer.mesh; return {af:afPending, np:viewer&&viewer.P?viewer.P.length/3:-1, ps:mm&&mm.packedSplats?mm.packedSplats.numSplats:-1, ms:mm?mm.numSplats:-1, lod:mm&&mm.lodSplats?mm.lodSplats.numSplats:-1, ok:dOK, ready:!!sp, metres:+focusMetres().toFixed(2), N:APERTURES[apIdx], angle:sp?+sp.apertureAngle.toFixed(5):0, focal:sp?+sp.focalDistance.toFixed(2):0}; } };
   if(/[?&]dev/.test(location.search)){ window.__cb={open:openBack, close:closeBack, tab:cbSetTab, state:function(){ return App.state; },

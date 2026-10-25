@@ -194,7 +194,12 @@
     function hsv2rgb(h,s,v){ h=((h%360)+360)%360/60; var c=v*s, x=c*(1-Math.abs((h%2)-1)), m=v-c, k=Math.floor(h), r, g, b;
       if(k===0){ r=c; g=x; b=0; } else if(k===1){ r=x; g=c; b=0; } else if(k===2){ r=0; g=c; b=x; } else if(k===3){ r=0; g=x; b=c; } else if(k===4){ r=x; g=0; b=c; } else { r=c; g=0; b=x; }
       return [r+m,g+m,b+m]; }
-    var BANDS=[0,30,60,120,180,240,270,300];
+    // Band centres in OKLCH hue, so pixels sort by the colour people see, not by RGB arithmetic: grass lands under Green,
+    // a banana under Yellow (in HSV, foliage sat halfway to yellow and warm yellows a third of the way to orange).
+    var BANDS=[29,62,110,142,195,264,302,335];
+    function okHue(r,g,b){ var lr=s2l(clamp(r,0,1)), lg=s2l(clamp(g,0,1)), lb=s2l(clamp(b,0,1));
+      var l=Math.cbrt(0.4122214708*lr+0.5363325363*lg+0.0514459929*lb), m=Math.cbrt(0.2119034982*lr+0.6806995451*lg+0.1073969566*lb), s_=Math.cbrt(0.0883024619*lr+0.2817188376*lg+0.6299787005*lb);
+      var A=1.9779984951*l-2.4285922050*m+0.4505937099*s_, B=0.0259040371*l+0.7827717662*m-0.8086757660*s_; return (Math.atan2(B,A)*180/Math.PI+360)%360; }
     var BW=new Array(8);
     function bandWeights(h){ var w=BW; for(var k=0;k<8;k++){ var c=BANDS[k], pv=BANDS[(k+7)%8], nx=BANDS[(k+1)%8], diff=((h-c+540)%360)-180;
         var span=diff>=0?(((nx-c)%360)+360)%360:(((c-pv)%360)+360)%360; w[k]=Math.max(1-Math.abs(diff)/Math.max(span,1e-3),0); } return w; }
@@ -265,7 +270,7 @@
           if(cm) for(c=0;c<3;c++) C[c]=lutEval(cm,C[c]);
           if(cr) C[0]=lutEval(cr,C[0]); if(cg) C[1]=lutEval(cg,C[1]); if(cb) C[2]=lutEval(cb,C[2]);
           if(hslOn){ var r0=Math.max(C[0],0), g0=Math.max(C[1],0), b0=Math.max(C[2],0), v0=Math.max(r0,g0,b0), d0=v0-Math.min(r0,g0,b0), s0=v0>1e-9?d0/v0:0;
-            if(s0>1e-4){ var h0=hueOf(r0,g0,b0), wt=bandWeights(h0), dh=0, ds=0, dl=0; for(var b8=0;b8<8;b8++){ dh+=wt[b8]*hh[b8]; ds+=wt[b8]*hs[b8]; dl+=wt[b8]*hl[b8]; }
+            if(s0>1e-4){ var h0=hueOf(r0,g0,b0), wt=bandWeights(okHue(r0,g0,b0)), dh=0, ds=0, dl=0; for(var b8=0;b8<8;b8++){ dh+=wt[b8]*hh[b8]; ds+=wt[b8]*hs[b8]; dl+=wt[b8]*hl[b8]; }
               var out=hsv2rgb(h0+dh/100*30, clamp(s0*(1+ds/100),0,1), v0), L0=luma(C[0],C[1],C[2]), L1=luma(out[0],out[1],out[2]);
               if(L1>1e-6) for(c=0;c<3;c++) out[c]*=L0/L1;
               var kl=Math.pow(2,dl/100*s0); for(c=0;c<3;c++) C[c]=out[c]*kl; } }
@@ -279,11 +284,14 @@
       if(T("gmapOpacity")>0&&p.gmapStops&&p.gmapStops.length>=2) gradientMap(px,N,p.gmapStops,p.gmapMode||"softlight",T("gmapOpacity")/100);
       if(T("glow")>0){ var gl=new F32(N); for(i=0;i<N;i++){ q=i*3; gl[i]=Math.max(Math.max(px[q],px[q+1],px[q+2])-0.6,0); }   // Studium's Glow: a soft bloom from the brights
         var gb=gauss(gl,w,h,Math.max(long*0.008,1)), ka=T("glow")/100*1.3; for(i=0;i<N;i++){ var gv=gb[i]*ka; q=i*3; px[q]+=gv; px[q+1]+=gv; px[q+2]+=gv; } }
-      if(T("halation")>0){   // Studium's Halation: film's red bleed round the brights (light scattering back through the emulsion). Threshold, spread, warmth of the tint.
-        var th=0.4+(p.halationThreshold==null?70:p.halationThreshold)/100*0.55, hl=new F32(N);
-        for(i=0;i<N;i++){ q=i*3; var hm=Math.max(px[q]*0.6+px[q+1]*0.3+px[q+2]*0.1, px[q]*0.85); hl[i]=Math.max(hm-th,0)/(1-th); }
-        var hb=gauss(hl,w,h,Math.max(long*(0.003+(p.halationSpread==null?40:p.halationSpread)/100*0.027),1)), hk=T("halation")/100*1.1, hu=(p.halationHue==null?30:p.halationHue)/100, tg=0.16+hu*0.5, tb=0.02+hu*0.12;
-        for(i=0;i<N;i++){ var hv=hb[i]*hk; if(hv<=0) continue; q=i*3; px[q]+=hv*(1-Math.min(px[q],1)); px[q+1]+=tg*hv*(1-Math.min(px[q+1],1)); px[q+2]+=tb*hv*(1-Math.min(px[q+2],1)); } }
+      if(T("halation")>0){   // Studium's Halation: film's red bleed round the brights (light scattering back through the emulsion into the red layer).
+        // Threshold picks what counts as bright (soft knee), Spread sets the radius; the glow is a tight core plus a wide tail, like
+        // the real thing, screened on in the tint so it shows on the dark side of an edge and never clips the highlight itself.
+        var th=0.15+(p.halationThreshold==null?70:p.halationThreshold)/100*0.8, knee=Math.min(th+0.2,1), hl=new F32(N);
+        for(i=0;i<N;i++){ q=i*3; var hm=Math.max(px[q]*0.5+px[q+1]*0.4+px[q+2]*0.1, px[q]*0.9); hl[i]=smoothstep(th,knee,hm)*Math.min(hm,1.5); }
+        var hsg=Math.max(long*(0.002+(p.halationSpread==null?40:p.halationSpread)/100*0.022),1), hb1=gauss(hl,w,h,hsg), hb2=gauss(hl,w,h,hsg*3.2);
+        var hk=T("halation")/100*2.4, hu=(p.halationHue==null?30:p.halationHue)/100, tg=0.16+hu*0.5, tb=0.02+hu*0.12;
+        for(i=0;i<N;i++){ var hv=Math.min((hb1[i]*0.7+hb2[i]*0.5)*hk,1); if(hv<=0.0005) continue; q=i*3; px[q]+=hv*(1-Math.min(px[q],1)); px[q+1]+=tg*hv*(1-Math.min(px[q+1],1)); px[q+2]+=tb*hv*(1-Math.min(px[q+2],1)); } }
       if(T("vignetteAmount")) vignette(px,w,h,p);
       if(T("grainAmount")>0){ var cell=1+(p.grainSize==null?25:p.grainSize)/25, rough=(p.grainRoughness==null?50:p.grainRoughness)/100, ga=T("grainAmount")/100*0.12, sd=p.seed||0, pscale=1/ps;
         for(var y3=0;y3<h;y3++) for(var x3=0;x3<w;x3++){ var fx=x3*pscale/cell, fy=y3*pscale/cell, n=vnoise(fx,fy,sd)*(1-rough)+vnoise(fx*2.3,fy*2.3,sd+7)*rough; q=(y3*w+x3)*3;

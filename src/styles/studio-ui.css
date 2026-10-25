@@ -250,6 +250,18 @@ body.st-zoom #st-select .st-loupe .lp{position:fixed;left:40px;right:40px;top:84
 .gm-hex{flex:1;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.06em;color:#8d8678}
 .gm-del{height:24px;padding:0 10px;border-radius:5px;border:1px solid rgba(240,232,214,.12);background:none;color:#a69f91;font-family:'Geist',ui-sans-serif,system-ui,sans-serif;font-size:11.5px;cursor:pointer}
 .gm-del:hover{border-color:#e4552e;color:#e4552e}
+.gm-pop{position:absolute;top:44px;width:216px;padding:8px;border-radius:8px;background:#1d1a15;border:1px solid rgba(240,232,214,.14);box-shadow:0 14px 34px -10px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.5);z-index:20;touch-action:none}
+.gm-pop::before{content:"";position:absolute;top:-5px;left:50%;width:8px;height:8px;margin-left:-4px;background:#1d1a15;border-left:1px solid rgba(240,232,214,.14);border-top:1px solid rgba(240,232,214,.14);transform:rotate(45deg)}
+.gm-sv{position:relative;height:118px;border-radius:5px;cursor:crosshair;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
+.gm-sv i,.gm-hue i{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;border:1.5px solid #f4f1ea;box-shadow:0 0 0 1px rgba(0,0,0,.6);pointer-events:none}
+.gm-hue{position:relative;height:10px;margin-top:10px;border-radius:5px;cursor:ew-resize;background:linear-gradient(90deg,#f00,#ff0 16.7%,#0f0 33.3%,#0ff 50%,#00f 66.7%,#f0f 83.3%,#f00)}
+.gm-hue i{top:50%}
+.gm-pop-r{display:flex;align-items:center;gap:8px;margin-top:10px}
+.gm-chip{width:22px;height:22px;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.5)}
+.gm-hexin{flex:1;min-width:0;height:24px;padding:0 8px;border-radius:5px;border:1px solid rgba(240,232,214,.12);background:#13110d;color:#f4f1ea;font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.06em;outline:none}
+.gm-hexin:focus{border-color:#e3ad57}
+.gm-pop-x{height:24px;padding:0 10px;border-radius:5px;border:1px solid rgba(240,232,214,.12);background:none;color:#f4f1ea;font-family:'Geist',ui-sans-serif,system-ui,sans-serif;font-size:11.5px;cursor:pointer}
+.gm-pop-x:hover{border-color:#e3ad57}
 #editor .lr-sec[data-sec="gmap"] .lr-note{margin-left:6px}
 /* folded settings under Grain and Halation */
 #editor .lr-row.has-more{position:relative}

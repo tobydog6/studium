@@ -377,7 +377,8 @@
     if(!pre&&s.float) Array.prototype.forEach.call(document.querySelectorAll(s.float),function(x){ x.classList.add('co-float'); });
     if(r&&r.width>2&&r.bottom>0&&r.top<window.innerHeight){ var p=6; ring.style.left=(r.left-p)+"px"; ring.style.top=(r.top-p)+"px"; ring.style.width=(r.width+2*p)+"px"; ring.style.height=(r.height+2*p)+"px"; ring.classList.add("show");
       var W=window.innerWidth, H=window.innerHeight, cw=e.offsetWidth||440, chh=e.offsetHeight||130, x, y;
-      if(r.left>W*0.55&&r.left-p-20-360>12){ e.style.width="360px"; cw=360; chh=e.offsetHeight||chh; x=r.left-p-20-cw; y=Math.max(12,Math.min(H-chh-12,r.top+r.height/2-chh/2)); }   /* beside a panel row: narrow, so the photo stays mostly clear */
+      var beside=r.left>W*0.55&&r.left-p-20-360>12; e.classList.toggle("beside", !!beside);
+      if(beside){ e.style.width="360px"; cw=360; chh=e.offsetHeight||chh; x=r.left-p-20-cw; y=Math.max(12,Math.min(H-chh-12,r.top+r.height/2-chh/2)); }   /* beside a panel row: narrow, so the photo stays mostly clear */
       else { var below=r.bottom+p+16+chh<H-10; x=Math.max(12,Math.min(W-cw-12,r.left+r.width/2-cw/2)); y=below?r.bottom+p+16:Math.max(12,r.top-p-16-chh); }
       /* column: stay in the target's own column (its right edge), below it if there's room, else above: the light table stays clear */
       if(s.place==="column"){ var col=t.closest(".st-loupe")||t, cr=col.getBoundingClientRect(), cwid=Math.min(cw,Math.max(300,cr.width)); e.style.width=cwid+"px"; cw=cwid; chh=e.offsetHeight||chh;
@@ -390,7 +391,7 @@
       else if(e.classList.contains("side")){ e.classList.remove("side"); e.style.width=""; }
       else if(s.place!=="column"&&!(r.left>W*0.55&&r.left-p-20-360>12)) e.style.width="";
       e.style.left=x+"px"; e.style.top=y+"px"; e.style.bottom="auto"; e.style.transform="none"; e.classList.add("pinned"); }
-    else { ring.classList.remove("show"); e.style.left=""; e.style.top=""; e.style.bottom=""; e.style.transform=""; e.style.width=""; e.classList.remove("pinned","side"); } }
+    else { ring.classList.remove("show"); e.style.left=""; e.style.top=""; e.style.bottom=""; e.style.transform=""; e.style.width=""; e.classList.remove("pinned","side","beside"); } }
   document.addEventListener("click",function(e){ if(!CO.on) return; var s=coSteps()[CO.i]; if(s&&s.click&&e.target.closest&&e.target.closest(s.click)) CO.s.ok=true; }, true);
   document.addEventListener("keydown",function(e){ if(!CO.on) return; var m={KeyW:"W",KeyA:"A",KeyS:"S",KeyD:"D",KeyQ:"Q",KeyE:"E",KeyP:"P",KeyB:"B",Space:"SPACE",Digit2:"2",Backslash:"\\",Escape:"ESC",Enter:"ENTER",KeyC:"C"}[e.code]; if(m) CO.keys[m]=true; }, true);
   if(/[?&]dev/.test(location.search)) window.__co={ state:function(){ var s=coSteps()[CO.i]; return {on:CO.on, tour:CO.tour, done:CO.done, i:CO.i, n:coSteps().length, ch:s&&s.ch, shown:!!document.querySelector("#coCard.show"), ed:edState?{i:edState.i, a:edState.aspect, cx:+edState.cx.toFixed(3), cy:+edState.cy.toFixed(3)}:null}; }, skip:function(){ coFinish(true); },

@@ -5,8 +5,8 @@
   // SYNC puts this frame's settings (not its crop) on all of them. Copy and paste settings with Ctrl+C / Ctrl+V.
   var DEV_CROP=["aspect","zoom","cx","cy","rot","cropRatio"], DEV_VIEW=["secLight","secColor","secEffects","secMix","secGrade"], devClip=null, devSel={}, devAnchor=-1, devBusy=false, devScope=null;   // devScope: just one library folder's frames, when edited as a group
   function devList(){ return devScope&&devScope.length?devScope.filter(function(i){ return i<photos.length; }):photos.map(function(_,i){ return i; }); }
-  function devClone(E){ var o={}; for(var k in EDEF) o[k]=E[k]==null?EDEF[k]:E[k]; return o; }   // older edits get today's defaults for newer controls
-  function devIsDefault(E){ for(var k in EDEF){ if(DEV_VIEW.indexOf(k)>=0) continue; if(E[k]!==EDEF[k]) return false; } return true; }
+  function devClone(E){ var o={}; for(var k in EDEF){ var v=E[k]==null?EDEF[k]:E[k]; o[k]=(v&&typeof v==="object")?JSON.parse(JSON.stringify(v)):v; } return o; }   // older edits get today's defaults for newer controls; arrays copied, never shared
+  function devIsDefault(E){ for(var k in EDEF){ if(DEV_VIEW.indexOf(k)>=0) continue; var a=E[k], b=EDEF[k]; if(a&&typeof a==="object"){ if(JSON.stringify(a)!==JSON.stringify(b)) return false; } else if(a!==b) return false; } return true; }
   function devSettings(E){ var o={}; for(var k in EDEF){ if(DEV_CROP.indexOf(k)<0) o[k]=E[k]; } return o; }
   // Rendering at full size runs in background workers (crdev.js): the frame keeps its settings at once and its
   // picture updates a moment later. p.baked records which settings the current picture was made with.

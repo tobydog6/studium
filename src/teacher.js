@@ -66,8 +66,8 @@
     el.querySelector(".tc-step").innerHTML=lsKind(ph)==="none"?'<span class="none">Nothing to count. Time decides.</span>':'<button data-tc="n-" aria-label="Fewer">−</button><b>'+ph.n+'</b><button data-tc="n+" aria-label="More">+</button><span>'+tcUnit(ph)+'</span>';
     el.querySelector(".tc-see").innerHTML='<div class="mini"><span class="k">'+lsHM(T[tc.sel].s)+' · '+cbEsc((c.teacher||"YOUR TEACHER").toUpperCase())+'’S PLAN</span><h3>Time to '+cbEsc(ph.title.charAt(0).toLowerCase()+ph.title.slice(1))+'.</h3><p>'+cbEsc(ph.does||"")+'.</p><div class="bt"><span class="g">GO TO '+LS_PLACES[ph.opens].toUpperCase()+'</span><span class="o">'+(ph.firm?'MOVES IN 1 MIN':'FINISH SHOT')+'</span></div></div>';
     var live=tcLive(pl); el.querySelector(".tc-during").innerHTML='<div class="h"><span class="eb">DURING CLASS</span><span class="st"><i class="'+(live?'on':'')+'"></i>'+(live?'LIVE':pl.sent?'SENT · NOT IN PERIOD':'NOT SENT YET')+'</span></div>'
-      +'<div class="bt"><button data-tc="plus5"'+(live?'':' disabled')+'>+5 MIN</button><button data-tc="pause"'+(live?'':' disabled')+'>'+(pl.paused?'RESUME':'PAUSE')+'</button><button class="o" data-tc="moveon"'+(live?'':' disabled')+'>MOVE ON NOW</button></div>';
-    el.querySelector(".tc-send").textContent=pl.sent?'SENT TO '+c.name.toUpperCase()+' ✓':'SEND TO '+c.name.toUpperCase(); el.querySelector(".tc-send").classList.toggle("sent", !!pl.sent); }
+      +'<div class="bt"><button data-tc="plus5"'+(live?'':' disabled')+'>+5 min</button><button data-tc="pause"'+(live?'':' disabled')+'>'+(pl.paused?'Resume':'Pause')+'</button><button class="o" data-tc="moveon"'+(live?'':' disabled')+'>Move on now</button></div>';
+    el.querySelector(".tc-send").textContent=pl.sent?'Sent to '+c.name+' ✓':'Send to '+c.name; el.querySelector(".tc-send").classList.toggle("sent", !!pl.sent); }
   function tcEdgeDrag(e, j){ e.preventDefault(); e.stopPropagation(); var pl=tcPlan(), tl=$("teacher").querySelector(".tc-tl"), W=tl.clientWidth-56, span=Math.max(lsTotal(pl)+10,60), k=W/span, x0=e.clientX, d0=pl.phases[j].dur;
     tc.drag=j; function mv(ev){ var d=Math.max(5, Math.round((d0+(ev.clientX-x0)/k)/5)*5); if(d!==pl.phases[j].dur){ pl.phases[j].dur=d; tc.sel=j; tcRenderPlan(true); } }
     function up(){ window.removeEventListener("pointermove",mv); window.removeEventListener("pointerup",up); tc.drag=null; lsSave(); tcRenderPlan(); }
@@ -95,7 +95,7 @@
   function tcRenderLive(){ var el=$("teacher").querySelector(".tc-live"), pl=tcPlan(), c=tcClass(); if(!pl) return;
     var live=tcLive(pl), cur=lsCur(pl, tcClock(pl)), T=cur.T, n=pl.phases.length, R=tcRoster(pl), inC=R.filter(function(s){ return s.status!=="out"; }).length;
     el.querySelector(".tl-status").innerHTML='<i class="'+(live?'on':'')+'"></i>'+(live?'LIVE':'REHEARSAL')+' · '+inC+' / '+R.length+' IN'+(live?'':' · <span class="dim">SEND THE PLAN AND OPEN THIS IN THE PERIOD TO GO LIVE</span>');
-    el.querySelector("[data-tc=pause]").textContent=(live?pl.paused:tc.rPause)?'RESUME':'PAUSE';
+    el.querySelector("[data-tc=pause]").textContent=(live?pl.paused:tc.rPause)?'Resume':'Pause';
     var tot=lsTotal(pl), W=el.querySelector(".tl-strip").clientWidth, k=W/tot;
     el.querySelector(".tl-strip").innerHTML=pl.phases.map(function(p,j){ var dn=R.filter(function(s){ return s.status==="done"||s.status==="ahead"; }).length;
       return '<span class="'+(j<cur.i?'past':j===cur.i?'now':'')+(p.firm?' firm':'')+'" style="width:'+(p.dur*k-3).toFixed(1)+'px">'+cbEsc(p.title.toUpperCase())+(j===cur.i?' · '+dn+' / '+inC+' DONE':'')+(p.firm?' · '+LS_PLACES[p.opens].toUpperCase():'')+'</span>'; }).join("");

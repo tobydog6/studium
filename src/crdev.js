@@ -194,7 +194,12 @@
     function hsv2rgb(h,s,v){ h=((h%360)+360)%360/60; var c=v*s, x=c*(1-Math.abs((h%2)-1)), m=v-c, k=Math.floor(h), r, g, b;
       if(k===0){ r=c; g=x; b=0; } else if(k===1){ r=x; g=c; b=0; } else if(k===2){ r=0; g=c; b=x; } else if(k===3){ r=0; g=x; b=c; } else if(k===4){ r=x; g=0; b=c; } else { r=c; g=0; b=x; }
       return [r+m,g+m,b+m]; }
-    var BANDS=[0,30,60,120,180,240,270,300];
+    // Band centres in OKLCH hue, so pixels sort by the colour people see, not by RGB arithmetic: grass lands under Green,
+    // a banana under Yellow (in HSV, foliage sat halfway to yellow and warm yellows a third of the way to orange).
+    var BANDS=[29,62,110,142,195,264,302,335];
+    function okHue(r,g,b){ var lr=s2l(clamp(r,0,1)), lg=s2l(clamp(g,0,1)), lb=s2l(clamp(b,0,1));
+      var l=Math.cbrt(0.4122214708*lr+0.5363325363*lg+0.0514459929*lb), m=Math.cbrt(0.2119034982*lr+0.6806995451*lg+0.1073969566*lb), s_=Math.cbrt(0.0883024619*lr+0.2817188376*lg+0.6299787005*lb);
+      var A=1.9779984951*l-2.4285922050*m+0.4505937099*s_, B=0.0259040371*l+0.7827717662*m-0.8086757660*s_; return (Math.atan2(B,A)*180/Math.PI+360)%360; }
     var BW=new Array(8);
     function bandWeights(h){ var w=BW; for(var k=0;k<8;k++){ var c=BANDS[k], pv=BANDS[(k+7)%8], nx=BANDS[(k+1)%8], diff=((h-c+540)%360)-180;
         var span=diff>=0?(((nx-c)%360)+360)%360:(((c-pv)%360)+360)%360; w[k]=Math.max(1-Math.abs(diff)/Math.max(span,1e-3),0); } return w; }
@@ -265,7 +270,7 @@
           if(cm) for(c=0;c<3;c++) C[c]=lutEval(cm,C[c]);
           if(cr) C[0]=lutEval(cr,C[0]); if(cg) C[1]=lutEval(cg,C[1]); if(cb) C[2]=lutEval(cb,C[2]);
           if(hslOn){ var r0=Math.max(C[0],0), g0=Math.max(C[1],0), b0=Math.max(C[2],0), v0=Math.max(r0,g0,b0), d0=v0-Math.min(r0,g0,b0), s0=v0>1e-9?d0/v0:0;
-            if(s0>1e-4){ var h0=hueOf(r0,g0,b0), wt=bandWeights(h0), dh=0, ds=0, dl=0; for(var b8=0;b8<8;b8++){ dh+=wt[b8]*hh[b8]; ds+=wt[b8]*hs[b8]; dl+=wt[b8]*hl[b8]; }
+            if(s0>1e-4){ var h0=hueOf(r0,g0,b0), wt=bandWeights(okHue(r0,g0,b0)), dh=0, ds=0, dl=0; for(var b8=0;b8<8;b8++){ dh+=wt[b8]*hh[b8]; ds+=wt[b8]*hs[b8]; dl+=wt[b8]*hl[b8]; }
               var out=hsv2rgb(h0+dh/100*30, clamp(s0*(1+ds/100),0,1), v0), L0=luma(C[0],C[1],C[2]), L1=luma(out[0],out[1],out[2]);
               if(L1>1e-6) for(c=0;c<3;c++) out[c]*=L0/L1;
               var kl=Math.pow(2,dl/100*s0); for(c=0;c<3;c++) C[c]=out[c]*kl; } }
@@ -275,26 +280,76 @@
           if(hdr) for(c=0;c<3;c++){ var xh=Math.max(C[c],0); C[c]=(xh*(2.51*xh+0.03))/(xh*(2.43*xh+0.59)+0.14)*1.06; }   // Studium's HDR look: a filmic shoulder
           px[q]=C[0]; px[q+1]=C[1]; px[q+2]=C[2]; } }
       if(T("noiseLuminance")>0||T("noiseColor")>0||T("sharpenAmount")>0) detail(px,w,h,p,ps);
+      if(T("filmBlend")>0&&FILM[p.filmLook]) filmLook(px,N,FILM[p.filmLook],T("filmBlend")/100,T("skinBias")/100,T("fade")/100);
+      if(T("gmapOpacity")>0&&p.gmapStops&&p.gmapStops.length>=2) gradientMap(px,N,p.gmapStops,p.gmapMode||"softlight",T("gmapOpacity")/100);
       if(T("glow")>0){ var gl=new F32(N); for(i=0;i<N;i++){ q=i*3; gl[i]=Math.max(Math.max(px[q],px[q+1],px[q+2])-0.6,0); }   // Studium's Glow: a soft bloom from the brights
         var gb=gauss(gl,w,h,Math.max(long*0.008,1)), ka=T("glow")/100*1.3; for(i=0;i<N;i++){ var gv=gb[i]*ka; q=i*3; px[q]+=gv; px[q+1]+=gv; px[q+2]+=gv; } }
+      if(T("halation")>0){   // Studium's Halation: film's red bleed round the brights (light scattering back through the emulsion into the red layer).
+        // Threshold picks what counts as bright (soft knee), Spread sets the radius; the glow is a tight core plus a wide tail, like
+        // the real thing, screened on in the tint so it shows on the dark side of an edge and never clips the highlight itself.
+        var th=0.15+(p.halationThreshold==null?80:p.halationThreshold)/100*0.8, knee=Math.min(th+0.2,1), hl=new F32(N);
+        for(i=0;i<N;i++){ q=i*3; var hm=Math.max(px[q]*0.5+px[q+1]*0.4+px[q+2]*0.1, px[q]*0.9); hl[i]=smoothstep(th,knee,hm)*Math.min(hm,1.5); }
+        var hsg=Math.max(long*(0.002+Math.pow((p.halationSpread==null?30:p.halationSpread)/100,1.6)*0.022),1)   /* curved: more of the slider in the tight end, where it looks like film */, hb1=gauss(hl,w,h,hsg), hb2=gauss(hl,w,h,hsg*3.2);
+        var hk=T("halation")/100*2.4, hu=(p.halationHue==null?30:p.halationHue)/100, tg=0.16+hu*0.5, tb=0.02+hu*0.12;
+        for(i=0;i<N;i++){ var hv=Math.min((hb1[i]*0.7+hb2[i]*0.5)*hk,1); if(hv<=0.0005) continue; q=i*3; px[q]+=hv*(1-Math.min(px[q],1)); px[q+1]+=tg*hv*(1-Math.min(px[q+1],1)); px[q+2]+=tb*hv*(1-Math.min(px[q+2],1)); } }
       if(T("vignetteAmount")) vignette(px,w,h,p);
       if(T("grainAmount")>0){ var cell=1+(p.grainSize==null?25:p.grainSize)/25, rough=(p.grainRoughness==null?50:p.grainRoughness)/100, ga=T("grainAmount")/100*0.12, sd=p.seed||0, pscale=1/ps;
         for(var y3=0;y3<h;y3++) for(var x3=0;x3<w;x3++){ var fx=x3*pscale/cell, fy=y3*pscale/cell, n=vnoise(fx,fy,sd)*(1-rough)+vnoise(fx*2.3,fy*2.3,sd+7)*rough; q=(y3*w+x3)*3;
           var lgr=clamp(luma(px[q],px[q+1],px[q+2]),0,1), gn=(n-0.5)*2*ga*(0.4+2.4*lgr*(1-lgr)); px[q]+=gn; px[q+1]+=gn; px[q+2]+=gn; } }
       for(i=0;i<N*3;i++) px[i]=clamp(px[i],0,1); }
+    // ---- Studium's film looks: a stack of sliders, not a LUT. Each look is a toe, an S curve, subtractive saturation
+    // (strong colours get denser, not brighter), richness (more colour in the mids and shadows than the highlights) and a
+    // split tone; Blend mixes the whole look in; Skin bias protects (+) or exposes (−) skin tones to it, and warms or cools them.
+    var FILM={ cinematic:{toe:0.02,s:0.35,sub:0.22,rich:0.12,sh:[-0.03,0.0,0.05],hi:[0.05,0.02,-0.03],warm:0.01},
+      faded:{toe:0.07,s:-0.15,sub:0.3,rich:0.0,sh:[0.0,0.02,0.04],hi:[0.05,0.035,0.0],warm:0.02},
+      chrome:{toe:0.0,s:0.55,sub:0.1,rich:0.25,sh:[-0.02,0.0,0.06],hi:[0.0,0.0,0.0],warm:0.0},
+      warm:{toe:0.03,s:0.2,sub:0.18,rich:0.15,sh:[0.02,0.01,-0.02],hi:[0.06,0.03,-0.02],warm:0.035},
+      noir:{toe:0.01,s:0.6,sub:1.0,rich:0.0,sh:[0,0,0],hi:[0,0,0],warm:0.0,mono:1,red:1} };
+    function filmLook(px,N,L,blend,skin,fade){ var toe=L.toe+fade*0.12, sc=L.s, sub=L.sub, rich=L.rich, sh=L.sh, hi=L.hi;
+      for(var i=0;i<N;i++){ var q=i*3, r0=px[q], g0=px[q+1], b0=px[q+2], r=r0, g=g0, b=b0, c, C=[r,g,b];
+        var lm0=clamp(luma(r0,g0,b0),0,1), mx=Math.max(r0,g0,b0), mn=Math.min(r0,g0,b0), st=mx>1e-5?(mx-mn)/mx:0;
+        if(L.mono){ var lw=L.red?clamp(0.5*r0+0.4*g0+0.1*b0,0,1):lm0; C=[lw,lw,lw]; }
+        for(c=0;c<3;c++){ var x=clamp(C[c],0,1), s3=x*x*(3-2*x), y=x+(s3-x)*sc; C[c]=toe+(1-toe)*y; }   // toe and S curve
+        var lm=clamp(luma(C[0],C[1],C[2]),0,1), den=Math.max(C[0],C[1],C[2])-lm;
+        for(c=0;c<3;c++){ C[c]=lm+(C[c]-lm)*(1-sub*0.45)-sub*0.35*den;   // subtractive saturation: colour comes off as density
+          C[c]=lm+(C[c]-lm)*(1+rich*(1-lm)*1.2); }                       // richness: more colour where it's darker
+        var wsh=(1-lm)*(1-lm), whi=lm*lm; for(c=0;c<3;c++) C[c]+=sh[c]*wsh+hi[c]*whi+L.warm*(c===0?1:c===1?0.35:-0.6)*0.5;   // split tone and warmth
+        // skin: hue 10..45°, some colour, mid tones. Positive bias keeps the look off skin and warms it; negative lets it through and cools it.
+        var hue=0; if(mx-mn>1e-5){ if(mx===r0) hue=((g0-b0)/(mx-mn)+6)%6; else if(mx===g0) hue=(b0-r0)/(mx-mn)+2; else hue=(r0-g0)/(mx-mn)+4; hue*=60; }
+        var sm=(hue>=8&&hue<=48&&st>0.1&&lm0>0.15&&lm0<0.92)?smoothstep(0.1,0.3,st)*(1-Math.abs(hue-28)/22):0, kb=blend*(1-Math.max(skin,0)*sm);
+        for(c=0;c<3;c++){ var v=[r0,g0,b0][c]+(C[c]-[r0,g0,b0][c])*kb; v+=sm*skin*0.04*(c===0?1:c===1?0.25:-0.5); px[q+c]=v; } } }
+    // ---- Gradient Map, as in Photoshop: the luminance picks a colour off the ramp, then that colour is blended over ----
+    function gradientMap(px,N,stops,mode,op){ var S=stops.slice().sort(function(a,b){ return a[0]-b[0]; }), L=new F32(256*3), i, c;
+      for(i=0;i<256;i++){ var x=i/255, j=0; while(j<S.length-2&&x>S[j+1][0]) j++; var a=S[j], b=S[j+1], t=clamp((x-a[0])/Math.max(b[0]-a[0],1e-6),0,1); for(c=0;c<3;c++) L[i*3+c]=a[1+c]+(b[1+c]-a[1+c])*t; }
+      function soft(bs,cl){ return cl<=0.5?bs-(1-2*cl)*bs*(1-bs):bs+(2*cl-1)*((bs<=0.25?((16*bs-12)*bs+4)*bs:Math.sqrt(bs))-bs); }
+      function over(bs,cl){ return bs<=0.5?2*bs*cl:1-2*(1-bs)*(1-cl); }
+      for(i=0;i<N;i++){ var q=i*3, r=clamp(px[q],0,1), g=clamp(px[q+1],0,1), bb=clamp(px[q+2],0,1), lm=clamp(luma(r,g,bb),0,1), k=Math.round(lm*255)*3, B=[r,g,bb], out=[0,0,0];
+        if(mode==="color"){ var lc=luma(L[k],L[k+1],L[k+2]), kk=lc>1e-4?lm/lc:0; for(c=0;c<3;c++) out[c]=clamp(L[k+c]*kk,0,1); }
+        else for(c=0;c<3;c++){ var cl=L[k+c], bs=B[c]; out[c]=mode==="normal"?cl:mode==="multiply"?bs*cl:mode==="screen"?1-(1-bs)*(1-cl):mode==="overlay"?over(bs,cl):soft(bs,cl); }
+        for(c=0;c<3;c++) px[q+c]=B[c]+(out[c]-B[c])*op; } }
     return {develop:develop, setTables:function(t){ WB=t; }};
   }
 
   // ---- page side: Studium's sliders → Camera Raw settings, and the workers that run them ----
   var CR_PROF={ color:{sat:0,con:0,warm:0,vib:0}, mono:{sat:0,con:0,warm:0,vib:0}, vivid:{sat:12,con:10,warm:0,vib:15}, flat:{sat:-20,con:-25,warm:0,vib:0}, portrait:{sat:-5,con:-5,warm:10,vib:0} };
-  function crParams(E){ var lm=E.secLight?1:0, cm=E.secColor?1:0, fm=E.secEffects?1:0, pr=CR_PROF[E.profile]||CR_PROF.color;
+  function crParams(E){ var lm=E.secLight?1:0, cm=E.secColor?1:0, fm=E.secEffects?1:0, dm=(E.secDetail==null||E.secDetail)?1:0, pr=CR_PROF[E.profile]||CR_PROF.color;
     return { exposure:E.exposure/50*lm, contrast:(E.contrast+pr.con)*lm, highlights:E.highlights*lm, shadows:E.shadows*lm, whites:E.whites*lm, blacks:E.blacks*lm,
       temperature:(E.temp+pr.warm)*cm, tint:E.tint*cm, vibrance:(E.vibrance+pr.vib)*cm, saturation:(E.saturation+pr.sat)*cm,
       texture:E.texture*fm, clarity:E.clarity*fm, dehaze:E.dehaze*fm, vignetteAmount:E.vignette*fm, glow:(E.glow||0)*fm,
       grainAmount:E.grain*fm, grainSize:E.grainSize, grainRoughness:E.grainRough, mono:E.mono?1:0, hdr:E.hdr?1:0, seed:7,
+      gmapOpacity:(E.secGmap==null||E.secGmap)?(E.gmOpacity||0):0, gmapMode:E.gmMode||"softlight", gmapStops:crStops(E.gmStops),
+      filmLook:E.film||"none", filmBlend:(E.film&&E.film!=="none"&&(E.secFilm==null||E.secFilm)?(E.filmBlend==null?100:E.filmBlend):0), skinBias:E.skinBias||0, fade:E.fade||0,
+      sharpenAmount:(E.sharpen||0)*dm, sharpenRadius:(E.shRadius==null?10:E.shRadius)/10, sharpenDetail:E.shDetail==null?25:E.shDetail, sharpenMasking:E.shMask||0,
+      noiseLuminance:(E.nrLum||0)*dm, noiseLuminanceDetail:E.nrLumDetail==null?50:E.nrLumDetail, noiseColor:(E.nrCol||0)*dm, noiseColorDetail:E.nrColDetail==null?50:E.nrColDetail,
+      halation:(E.halation||0)*fm, halationSpread:E.halSpread==null?30:E.halSpread, halationThreshold:E.halThresh==null?80:E.halThresh, halationHue:E.halHue==null?30:E.halHue,
       hslHue:crBands(E,"hH",E.secMix), hslSat:crBands(E,"hS",E.secMix), hslLum:crBands(E,"hL",E.secMix),
       gradeShadows:crWheel(E,"gSh",E.secGrade), gradeMidtones:crWheel(E,"gMi",E.secGrade), gradeHighlights:crWheel(E,"gHi",E.secGrade), gradeGlobal:crWheel(E,"gGl",E.secGrade),
-      gradeBlending:E.gBlend==null?50:E.gBlend, gradeBalance:(E.gBal||0) }; }
+      gradeBlending:E.gBlend==null?50:E.gBlend, gradeBalance:(E.gBal||0),
+      pointCurve:crCurve(E.cvM,E.secCurve), pointCurveRed:crCurve(E.cvR,E.secCurve), pointCurveGreen:crCurve(E.cvG,E.secCurve), pointCurveBlue:crCurve(E.cvB,E.secCurve),
+      curveHighlights:crOn(E.cvHi,E.secCurve), curveLights:crOn(E.cvLi,E.secCurve), curveDarks:crOn(E.cvDa,E.secCurve), curveShadows:crOn(E.cvSh,E.secCurve) }; }
+  function crOn(v,on){ return (on==null||on)?(v||0):0; }
+  function crStops(st){ if(!st||st.length<2) return null; return st.map(function(s){ var h=String(s[1]||"#000000").replace("#",""); if(h.length===3) h=h.replace(/./g,function(ch){ return ch+ch; }); var n=parseInt(h,16)||0; return [+s[0]||0,((n>>16)&255)/255,((n>>8)&255)/255,(n&255)/255]; }); }
+  function crCurve(c,on){ return (on==null||on)&&c&&c.length>=2?c:null; }
   function crBands(E,k,on){ var a=[]; for(var i=0;i<8;i++) a.push((E[k+i]||0)*(on==null||on?1:0)); return a; }
   function crWheel(E,k,on){ var m=(on==null||on)?1:0; return {hue:E[k+"H"]||0, sat:(E[k+"S"]||0)*m, lum:(E[k+"L"]||0)*m}; }
   function CRWORKER(self, E){   // message handler shared by the Web Worker and the main-thread fallback
@@ -336,11 +391,11 @@
     var ow=Math.max(2,Math.round(cr.w*V.hi)), oh=Math.max(2,Math.round(cr.h*V.hi)), dw=Math.max(2,Math.round(cr.w*sc)), dh=Math.max(2,Math.round(cr.h*sc));
     if(mode==="hires"&&dw<=Math.round(cr.w*V.fin)*1.1) return;   // the full preview is already sharp enough
     var cv=$("editCanvas"); if(cv){ cv.style.width=V.cw.toFixed(1)+"px"; cv.style.height=V.ch.toFixed(1)+"px"; }
-    var key=[edState.i,edState.rot,Math.round(cr.x),Math.round(cr.y),Math.round(cr.w),Math.round(cr.h),dw,dh,edSrc&&edSrc.src.length,edSrc&&edSrc.src.slice(-40)].join("|");
+    var key=[edState.i,edState.rot,Math.round(cr.x),Math.round(cr.y),Math.round(cr.w),Math.round(cr.h),dw,dh,edSrc&&edSrc.src.length,edSrc&&edSrc.src.slice(-40),(typeof healHash==="function")?healHash(edState):""].join("|");
     crv.pend={mode:mode,key:key,cr:cr,ow:ow,oh:oh,dw:dw,dh:dh,p:crParams(edState),orig:edShowOrig}; crPump(); }
   function crZoomed(){ clearTimeout(crv.zt); crv.zt=setTimeout(function(){ if(!crv.pend) crRequest("hires"); },260); }
   function crPump(){ if(crv.busy||!crv.pend) return; var r=crv.pend; crv.pend=null;
-    if(r.orig){ var v0=$("editCanvas"); if(v0.width!==r.ow||v0.height!==r.oh){ v0.width=r.ow; v0.height=r.oh; } var x0=v0.getContext("2d"); x0.imageSmoothingQuality="high"; x0.drawImage(edRC,r.cr.x,r.cr.y,r.cr.w,r.cr.h,0,0,r.ow,r.oh);
+    if(r.orig){ var v0=$("editCanvas"); if(v0.width!==r.ow||v0.height!==r.oh){ v0.width=r.ow; v0.height=r.oh; } var x0=v0.getContext("2d"); x0.imageSmoothingQuality="high"; x0.drawImage((typeof edRC0!=="undefined"&&edRC0)||edRC,r.cr.x,r.cr.y,r.cr.w,r.cr.h,0,0,r.ow,r.oh);
       try{ var id0=x0.getImageData(0,0,r.ow,r.oh); crv.last={w:r.ow,h:r.oh,data:id0.data}; }catch(e){} crv.shown="orig"; scheduleHist(); return; }
     if(crv.sent.indexOf(r.key)<0){ var im=crSrcFor(r.cr,r.dw,r.dh); crPrev.send({t:"src",key:r.key,w:r.dw,h:r.dh,data:im.data},null,0,[im.data.buffer]); crv.sent.unshift(r.key); crv.sent.length=Math.min(crv.sent.length,3); }
     crv.busy=true; var t0=performance.now(), ps=r.dw/r.cr.w;
@@ -355,7 +410,7 @@
     crv.last={w:res.w,h:res.h,data:res.data}; crv.shown=r.mode; scheduleHist(); }
   // ---- full-resolution renders (leaving a frame, Sync, Make a copy) ----
   function crRotCrop(img,E){ var iw=img.naturalWidth, ih=img.naturalHeight, rot=E.rot||0, rw=(rot%180===0)?iw:ih, rh=(rot%180===0)?ih:iw;
-    var c=document.createElement("canvas"); c.width=rw; c.height=rh; var x=c.getContext("2d"); x.translate(rw/2,rh/2); x.rotate(rot*Math.PI/180); x.drawImage(img,-iw/2,-ih/2);
+    var c=document.createElement("canvas"); c.width=rw; c.height=rh; var x=c.getContext("2d"); x.translate(rw/2,rh/2); x.rotate(rot*Math.PI/180); x.drawImage((typeof healSource==="function")?healSource(img,E):img,-iw/2,-ih/2);
     var cr=cropRectFor(E,rw,rh), ow=Math.max(2,Math.round(cr.w)), oh=Math.max(2,Math.round(cr.h)), o=document.createElement("canvas"); o.width=ow; o.height=oh;
     var ox=o.getContext("2d"); ox.drawImage(c,cr.x,cr.y,cr.w,cr.h,0,0,ow,oh); return o; }
   function crBake(img,E,cb){ if(!crBakePool) crBakePool=crPool(Math.max(1,Math.min(3,((navigator.hardwareConcurrency||2)-2)||1)));

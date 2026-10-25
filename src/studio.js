@@ -3,7 +3,7 @@
   // to the location). Edit hosts the develop panel under the studio bar; every other room is drawn here, and
   // Gallery's "walk the show" opens the 3D gallery show.
   var ST_ROOMS=[["research","Research"],["select","Select"],["edit","Edit"],["workshop","Workbook"],["folio","Folio"],["book","Book"],["gallery","Gallery"]];
-  var st={open:false, room:"select", cur:-1, cols:4, wsPages:[], wsBoard:null, foBoard:null, projects:[]};
+  var st={open:false, room:"select", cur:-1, cols:4, wsPages:[], wsBoard:null, foBoard:null, projects:[], thumb:"m", hideRej:false, cmp:-1};
 
   function stPencil(seed){   // a loose grease-pencil loop on a superellipse, overshooting where it started
     var cx=107, cy=74, a=102, b=69, n=7, N=54, k0=seed*1.7, pts=[];
@@ -31,10 +31,10 @@
     ["hub","studio","gallery","landing","prompt"].forEach(hubHide);
     st.open=true; if(st.cur<0||st.cur>photos.length-1) st.cur=photos.length-1;
     el.classList.remove("hidden"); stRoom(room||st.room||"select"); updatePrompt(); }
-  function closeStudio(){ if(!st.open) return; stHideLegacy(); st.open=false; $("studioX").classList.add("hidden");
+  function closeStudio(){ if(!st.open) return; if(st.zoom) stZoom(false); stHideLegacy(); st.open=false; $("studioX").classList.add("hidden");
     if(loaded){ hubShow("hud"); App.go("scene"); updatePrompt(); } else showHub(); }
   function stHideLegacy(){ var ed=$("editor"); if(ed&&!ed.classList.contains("hidden")&&typeof devCommit==="function") devCommit(); Object.keys(ST_LEGACY).forEach(function(k){ var e=$(ST_LEGACY[k]); if(e) e.classList.add("hidden"); }); document.body.classList.remove("st-legacy"); }
-  function stRoom(r){ if(r!=="edit"&&typeof devScope!=="undefined") devScope=null; st.room=r; App.go("studio."+r); stHideLegacy();
+  function stRoom(r){ if(r!=="edit"&&typeof devScope!=="undefined") devScope=null; if(st.zoom) stZoom(false); st.room=r; App.go("studio."+r); stHideLegacy();
     ["research","select","workshop","folio","book","gallery"].forEach(function(k){ var c=$("st-"+k); if(c) c.classList.toggle("hidden", k!==r); });
     var empty=!photos.length;
     if(ST_LEGACY[r]){ document.body.classList.add("st-legacy");
@@ -46,7 +46,7 @@
   function stRenderBar(){ var bar=$("stBar"); if(!bar) return; var places={}; photos.forEach(function(p){ places[stPlaceOf(p)]=1; });
     bar.querySelector(".st-tabs").innerHTML=ST_ROOMS.map(function(r,i){ return '<button class="st-tab'+(r[0]===st.room?' on':'')+'" data-st-room="'+r[0]+'"><span class="n">0'+(i+1)+'</span>'+r[1]+'</button>'; }).join("");
     bar.querySelector(".st-sub").textContent=Object.keys(places).join(", ")+(photos.length?", "+photos.length+" frame"+(photos.length===1?"":"s"):"No frames yet");
-    var hints={ select:[["← →","Move"],["P","Pick"],["X","Reject"],["1–5","Rate"],["Enter","Edit this frame"],["Q E","Rooms"]],
+    var hints={ select:[["← →","Move"],["P","Pick"],["X","Reject"],["1–5","Rate"],["V","Compare"],["Z","Full screen"],["Enter","Edit this frame"],["Q E","Rooms"]],
       edit:[["\\","Before / after"],["⌘Z","Undo"],["Q E","Rooms"],["Esc","Back to Select"]],
       workshop:[["Drag","Frames onto the page"],["Click","Write in a text box"],["Del","Remove"],["⌘D","Duplicate"],["⌘Z","Undo"],["Q E","Rooms"]],
       folio:[["Drag","Frames or folders into a section"],["⤢","Zoom into a section"],["Drag across","Select several"],["Del","Remove"],["⌘Z","Undo"],["Q E","Rooms"]],
@@ -60,8 +60,14 @@
     if(st.cur<0||st.cur>photos.length-1) st.cur=photos.length-1;
     libRender(box.querySelector(".st-lib"), "select"); var shown=libItems(LIB.key);
     if(!shown.length){ sheet.innerHTML='<div class="st-none"><span class="h">This folder is empty.</span><span class="b">'+(LIB.key.indexOf("proj:")===0?'Drag frames from another folder onto the project to add them.':'Pick another folder on the left.')+'</span></div>'; stRenderLoupe(); return; }
+    var allShown=shown; if(st.hideRej) shown=shown.filter(function(i){ return !photos[i].reject; }); if(!shown.length) shown=allShown;
     if(shown.indexOf(st.cur)<0) st.cur=shown[0];
-    sheet.innerHTML=shown.map(function(i){ var p=photos[i], n=i+1, r=p.rating||0, stars="";
+    var nRej=allShown.filter(function(i){ return photos[i].reject; }).length;
+    sheet.setAttribute("data-thumb", st.thumb||"m");
+    sheet.innerHTML='<div class="st-sheet-h"><span class="eb">'+cbEsc(libName(LIB.key).toUpperCase())+' · '+allShown.length+(nRej?' · '+nRej+' REJECTED':'')+'</span><span class="sp"></span>'
+      +(nRej?'<button class="st-hb'+(st.hideRej?' on':'')+'" data-st-hiderej>'+(st.hideRej?'Show rejects':'Hide rejects')+'</button>':'')
+      +'<span class="st-sizes"><button class="st-hb'+(st.thumb==="s"?' on':'')+'" data-st-size="s" title="Small thumbnails">S</button><button class="st-hb'+(st.thumb==="m"?' on':'')+'" data-st-size="m" title="Medium thumbnails">M</button><button class="st-hb'+(st.thumb==="l"?' on':'')+'" data-st-size="l" title="Large thumbnails">L</button></span></div>'
+      +shown.map(function(i){ var p=photos[i], n=i+1, r=p.rating||0, stars="";
       for(var s=1;s<=5;s++) stars+='<i class="'+(s<=r?'on':'')+'">★</i>';
       return '<div class="st-cell'+(i===st.cur?' cur':'')+(LIB.sel[i]?' msel':'')+(p.pick?' pick':'')+(p.reject?' rej':'')+'" data-st-frame="'+i+'" draggable="true">'
         +'<div class="edge"><span>▸'+n+'</span><span>'+n+'A</span><span>'+cbEsc(stPlaceOf(p).toUpperCase().slice(0,10))+'</span></div>'
@@ -71,24 +77,32 @@
         +(p.edited?'<span class="ed">EDITED</span>':'')+'</div>'
         +'<div class="meta"><span>'+stMeta(p)+'</span><span class="stars">'+stars+'</span></div></div>'; }).join("");
     var cells=sheet.querySelectorAll(".st-cell"); if(cells.length>1){ var y0=cells[0].offsetTop, c=0; for(var k=0;k<cells.length&&cells[k].offsetTop===y0;k++) c++; st.cols=Math.max(1,c); }
+    if(st.cmp>=0&&st.cmp<photos.length){ var cc=sheet.querySelector('.st-cell[data-st-frame="'+st.cmp+'"]'); if(cc) cc.classList.add("ref"); }
     var cur=sheet.querySelector(".st-cell.cur"); if(cur&&cur.scrollIntoView) cur.scrollIntoView({block:"nearest"});
     stRenderLoupe(); }
+  function stExif(p){ return (p.mm?p.mm+" MM · ":"")+(p.f?"f/"+p.f+" · ":"")+(p.sh||"")+(p.iso?" · ISO "+p.iso:""); }
   function stRenderLoupe(){ var side=$("st-select").querySelector(".st-loupe"), p=photos[st.cur]; if(!p){ side.innerHTML=""; return; }
     var r=p.rating||0, stars=""; for(var s=1;s<=5;s++) stars+='<button class="st-star'+(s<=r?' on':'')+'" data-st-rate="'+s+'" aria-label="'+s+' stars">★</button>';
     var picks=stPicks(), brief=activeBrief>=0?BRIEFS[activeBrief]:null, target=5, slots="";
     for(var j=0;j<target;j++){ var pi=picks[j]; slots+='<span class="slot'+(pi!=null?' on':'')+'">'+(pi!=null?'<img src="'+photos[pi].url+'" alt="">':'')+'</span>'; }
-    side.innerHTML='<div class="lp"><img src="'+p.url+'" alt="Frame '+(st.cur+1)+'"></div>'
-      +'<div class="row1"><span class="fn">Frame '+cbPad(st.cur+1)+'</span><span class="ml">'+(p.mm?p.mm+" MM · ":"")+(p.f?"f/"+p.f+" · ":"")+(p.sh||"")+(p.iso?" · ISO "+p.iso:"")+'</span></div>'
-      +'<div class="row2"><button class="st-btn'+(p.pick?' on':'')+'" data-st-act="pick">PICK <span>P</span></button><button class="st-btn'+(p.reject?' on':'')+'" data-st-act="reject">REJECT <span>X</span></button><div class="stars">'+stars+'</div></div>'
+    /* compare: the frame you marked with V on the left, the one under the cursor on the right (Lightroom's select and candidate) */
+    var ref=st.cmp>=0&&st.cmp<photos.length&&st.cmp!==st.cur?photos[st.cmp]:null, lp;
+    if(ref) lp='<div class="lp cmp" data-st-zoom><div class="half"><img src="'+ref.url+'" alt="Frame '+(st.cmp+1)+'"><span class="tag">SELECT · FRAME '+cbPad(st.cmp+1)+'</span><span class="ex">'+stExif(ref)+'</span></div><div class="half cand"><img src="'+p.url+'" alt="Frame '+(st.cur+1)+'"><span class="tag">CANDIDATE · FRAME '+cbPad(st.cur+1)+'</span><span class="ex">'+stExif(p)+'</span></div></div>';
+    else lp='<div class="lp" data-st-zoom><img src="'+p.url+'" alt="Frame '+(st.cur+1)+'"></div>';
+    side.innerHTML=lp
+      +'<div class="row1"><span class="fn">Frame '+cbPad(st.cur+1)+(ref?' <i>against '+cbPad(st.cmp+1)+'</i>':'')+'</span><span class="ml">'+stExif(p)+'</span></div>'
+      +'<div class="row2"><button class="st-btn'+(p.pick?' on':'')+'" data-st-act="pick">Pick <span>P</span></button><button class="st-btn'+(p.reject?' on':'')+'" data-st-act="reject">Reject <span>X</span></button><button class="st-btn cmpb'+(ref||st.cmp===st.cur?' on':'')+'" data-st-act="compare" title="'+(ref?'Make this frame the select':st.cmp===st.cur?'Stop comparing':'Hold this frame, then arrow to another to compare')+'">'+(ref?'Swap':'Compare')+' <span>V</span></button><button class="st-btn" data-st-act="edit">Edit <span>↵</span></button><div class="stars">'+stars+'</div></div>'
       +'<div class="brief"><span class="eb">'+(brief?"BRIEF "+cbPad(activeBrief+1)+" · "+cbEsc(brief.t.toUpperCase()):"YOUR FOLIO")+'</span>'
       +'<div class="t"><span>Pick '+(['zero','one','two','three','four','five','six','seven','eight'][target]||target)+' frames for your folio.</span><span class="n">'+Math.min(picks.length,99)+' / '+target+'</span></div><div class="slots">'+slots+'</div></div>'
       +'<label class="why"><span class="eb">WHY THIS ONE?</span><textarea id="stWhy" rows="3" placeholder="'+(p.pick?"Say what this frame does that the others don’t.":"Pick this frame, then write why it earns a place.")+'">'+cbEsc(p.note||"")+'</textarea></label>'
-      +'<button class="st-punctum" data-st-act="punctum"><span><b>SEND PICKS TO PUNCTUM</b><i>Your class critiques them anonymously</i></span><svg width="8" height="12" viewBox="0 0 8 12" fill="none" stroke="#e3ad57" stroke-width="1.6" aria-hidden="true"><path d="M1.5 1l5 5-5 5"/></svg></button>';
+      +'<button class="st-punctum" data-st-act="punctum"><span><b>Send picks to Punctum</b><i>Your class critiques them anonymously</i></span><svg width="8" height="12" viewBox="0 0 8 12" fill="none" stroke="#e3ad57" stroke-width="1.6" aria-hidden="true"><path d="M1.5 1l5 5-5 5"/></svg></button>';
     var w=$("stWhy"); if(w){ w.oninput=function(){ var ph=photos[st.cur]; if(ph){ ph.note=this.value; saveSession(); } }; w.onkeydown=function(e){ e.stopPropagation(); if(e.key==="Escape") this.blur(); }; } }
   function stTogglePick(){ var p=photos[st.cur]; if(!p) return; p.pick=!p.pick; if(p.pick) p.reject=false; saveSession(); stRenderSelect(); }
   function stToggleReject(){ var p=photos[st.cur]; if(!p) return; p.reject=!p.reject; if(p.reject) p.pick=false; saveSession(); stRenderSelect(); }
   function stRate(s){ var p=photos[st.cur]; if(!p) return; p.rating=(p.rating===s?0:s); saveSession(); stRenderSelect(); }
-  function stMove(d){ if(!photos.length) return; var L=libItems(LIB.key); if(!L.length) return; var j=L.indexOf(st.cur); st.cur=L[Math.max(0,Math.min(L.length-1,(j<0?0:j)+d))]; stRenderSelect(); }
+  function stCompare(){ if(!photos.length) return; if(st.cmp===st.cur) st.cmp=-1; else st.cmp=st.cur; stRenderSelect(); }
+  function stZoom(on){ st.zoom=on==null?!st.zoom:!!on; document.body.classList.toggle("st-zoom", !!(st.zoom&&photos.length)); }   /* Z: the frame fills the screen */   /* V: hold this frame; V again on it lets go; V on another makes that the select */
+  function stMove(d){ if(!photos.length) return; var L=libItems(LIB.key); if(st.hideRej){ var L2=L.filter(function(i){ return !photos[i].reject; }); if(L2.length) L=L2; } if(!L.length) return; var j=L.indexOf(st.cur); st.cur=L[Math.max(0,Math.min(L.length-1,(j<0?0:j)+d))]; stRenderSelect(); }
 
   // ---- 03 WORKBOOK and 04 FOLIO are free layout boards (board.js) ----
   function stBoard(){ return st.room==="workshop"?wsB:st.room==="folio"?foB:null; }
@@ -276,10 +290,10 @@
     if(typing) return true;
     if(c==="KeyQ"&&!e.ctrlKey&&!e.metaKey){ stCycle(-1); return true; } if(c==="KeyE"&&!e.ctrlKey&&!e.metaKey){ stCycle(1); return true; }
     var bd=stBoard(); if(bd&&c!=="KeyQ"&&c!=="KeyE"&&bd.key(e)) return true;
-    if(c==="Escape"){ e.preventDefault(); if(st.room==="select") closeStudio(); else stRoom("select"); return true; }
+    if(c==="Escape"){ e.preventDefault(); if(st.room==="select"&&st.zoom) stZoom(false); else if(st.room==="select"&&st.cmp>=0){ st.cmp=-1; stRenderSelect(); } else if(st.room==="select") closeStudio(); else stRoom("select"); return true; }
     if(ST_LEGACY[st.room]) return false;   // the editor and builders keep their own keys
     if(st.room==="select"){ if(c==="ArrowRight") stMove(1); else if(c==="ArrowLeft") stMove(-1); else if(c==="ArrowDown") stMove(st.cols); else if(c==="ArrowUp") stMove(-st.cols);
-      else if(c==="KeyP") stTogglePick(); else if(c==="KeyX") stToggleReject(); else if(/^Digit[0-5]$/.test(c)){ var s=+c.slice(5); if(s===0){ var p=photos[st.cur]; if(p){ p.rating=0; saveSession(); stRenderSelect(); } } else stRate(s); }
+      else if(c==="KeyP") stTogglePick(); else if(c==="KeyX") stToggleReject(); else if(c==="KeyV") stCompare(); else if(c==="KeyZ") stZoom(); else if(/^Digit[0-5]$/.test(c)){ var s=+c.slice(5); if(s===0){ var p=photos[st.cur]; if(p){ p.rating=0; saveSession(); stRenderSelect(); } } else stRate(s); }
       else if(c==="Enter"&&photos.length) stRoom("edit"); else return true; e.preventDefault(); return true; }
     if(st.room==="book"){ var sn=bkSpreads().length;
       if(c==="ArrowRight"){ bk.spread=Math.min(sn-1,bk.spread+1); bk.sel=null; bkRender(); } else if(c==="ArrowLeft"){ bk.spread=Math.max(0,bk.spread-1); bk.sel=null; bkRender(); }
@@ -288,7 +302,10 @@
     if(st.room==="gallery"){ if(c==="KeyF") gaCycleFrame(); else if(c==="ArrowRight"){ ga.gap=Math.min(500,ga.gap+50); gaRender(); } else if(c==="ArrowLeft"){ ga.gap=Math.max(100,ga.gap-50); gaRender(); }
       else if(c==="KeyW"&&photos.length){ openGalleryShow(); document.body.classList.add("st-legacy"); } return true; }
     return true; }
-  function stClick(e){ var t=e.target.closest("[data-bk-slot],[data-bk-pic],[data-bk-spread],[data-bk-size],[data-bk-tpl],[data-bk-act],[data-bk-page],[data-ga-print],[data-ga-frame],[data-ga-act],[data-ga-label],[data-ga-lsize],[data-st-room],[data-st-frame],[data-st-rate],[data-st-act],[data-st-close]"); if(!t) return;
+  function stClick(e){ var t=e.target.closest("[data-bk-slot],[data-bk-pic],[data-bk-spread],[data-bk-size],[data-bk-tpl],[data-bk-act],[data-bk-page],[data-ga-print],[data-ga-frame],[data-ga-act],[data-ga-label],[data-ga-lsize],[data-st-room],[data-st-frame],[data-st-rate],[data-st-act],[data-st-close],[data-st-size],[data-st-hiderej],[data-st-zoom]"); if(!t) return;
+    if(t.hasAttribute("data-st-zoom")) return stZoom();
+    if(t.hasAttribute("data-st-size")){ st.thumb=t.getAttribute("data-st-size"); return stRenderSelect(); }
+    if(t.hasAttribute("data-st-hiderej")){ st.hideRej=!st.hideRej; return stRenderSelect(); }
     if(t.hasAttribute("data-st-close")) return closeStudio();
     if(t.hasAttribute("data-bk-slot")){ var q=t.getAttribute("data-bk-slot").split(":"); return bkSlotClick(+q[0],+q[1]); }
     if(t.hasAttribute("data-bk-page")){ bk.focus=+t.getAttribute("data-bk-page"); bk.sel=null; return bkRender(); }
@@ -309,7 +326,7 @@
       LIB.sel[st.cur]=LIB.sel[st.cur]||e.shiftKey; return stRenderSelect(); }
     if(t.hasAttribute("data-st-frame")){ var i=+t.getAttribute("data-st-frame"); if(e.detail>=2&&i===st.cur) return stRoom("edit"); st.cur=i; return stRenderSelect(); }
     if(t.hasAttribute("data-st-rate")) return stRate(+t.getAttribute("data-st-rate"));
-    if(t.hasAttribute("data-st-act")){ var a=t.getAttribute("data-st-act"); if(a==="pick") stTogglePick(); else if(a==="reject") stToggleReject(); else if(a==="punctum"){ closeStudio(); openPunctum(); } return; } }
+    if(t.hasAttribute("data-st-act")){ var a=t.getAttribute("data-st-act"); if(a==="pick") stTogglePick(); else if(a==="reject") stToggleReject(); else if(a==="compare") stCompare(); else if(a==="edit"&&photos.length) stRoom("edit"); else if(a==="punctum"){ closeStudio(); openPunctum(); } return; } }
   (function wireStudio(){ var el=$("studioX"); if(!el) return; el.addEventListener("click",stClick);
     el.addEventListener("dragstart",function(e){ var c=e.target.closest&&e.target.closest("[data-st-frame]"); if(!c) return; var i=+c.getAttribute("data-st-frame"), list=LIB.sel[i]?libSelList():[i];
       e.dataTransfer.setData("text/plain","bd:"+list.join(",")); e.dataTransfer.effectAllowed="copy"; });

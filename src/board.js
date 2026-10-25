@@ -286,7 +286,7 @@
       return '<svg width="72" height="34" viewBox="0 0 594 280" aria-hidden="true"><rect width="594" height="280" class="pg"/>'+r.map(function(q){ return '<rect x="'+q.x.toFixed(0)+'" y="'+q.y.toFixed(0)+'" width="'+q.w.toFixed(0)+'" height="'+q.h.toFixed(0)+'"/>'; }).join("")+'</svg>'; }
     function swatch(c){ return '<i class="sw" style="background:'+c+'"></i>'; }
     function renderSide(){ var el=$(o.el).querySelector(".bd-side"), pg=page(), d=doc(), one=B.sel.length===1?pg.items[B.sel[0]]:null, h="";
-      if(o.templates) h+='<button class="ws-gold bd-save" data-bd-act="save">✓ SAVE PAGE</button>';
+      if(o.templates) h+='<button class="ws-gold bd-save" data-bd-act="save">Save page</button>';
       if(o.templates) h+='<div class="bd-sec"><span class="eb">PAGE TEMPLATES <i>ADDS A NEW PAGE</i></span><div class="bd-tmpls">'+o.templates.map(function(t,i){ return '<button data-bd-tmpl="'+i+'" title="'+cbEsc(t.tip||t.name)+'">'+tmplPreview(t)+'<span>'+t.name.toUpperCase()+'</span></button>'; }).join("")+'</div></div>';
       if(!o.sections) h+='<div class="bd-sec"><span class="eb">ARRANGE PHOTOS <i>THEN MOVE THINGS</i></span><div class="bd-tpls">'+o.layouts.map(function(t,i){ return '<button data-bd-tpl="'+i+'" title="'+cbEsc(t.tip||t.name)+'">'+tplPreview(t)+'<span>'+t.name.toUpperCase()+'</span></button>'; }).join("")+'</div></div>';
       if(o.bgs) h+='<div class="bd-sec"><span class="eb">PAGE COLOUR</span><div class="bd-chips">'+Object.keys(BD_BGS).map(function(b){ return '<button data-bd-bg="'+b+'" class="'+(bgOf(pg)===b?'on':'')+'" title="'+BD_BGS[b][0]+'">'+swatch(BD_BGS[b][1])+BD_BGS[b][0]+'</button>'; }).join("")+'</div></div>';
@@ -677,7 +677,7 @@
     emptyTitle:"Your folio board. No text.", emptyBody:"A1 panels side by side, read left to right. Drag frames or whole folders into the sections and they pack themselves edge to edge, or fill the whole board in one go. Every frame keeps its shape.",
     cap:function(d){ return d.panels+" × A1 PORTRAIT PANELS · "+(d.panels*594)+" × 841 MM · LAYOUT "+(d.cur+1)+" OF "+d.pages.length; },
     load:function(){ return st.foBoard||null; }, save:function(d){ st.foBoard=d; saveSession(); },
-    layouts:FO_LAYOUTS, exportLabel:"EXPORT PANELS AS PDF",
+    layouts:FO_LAYOUTS, exportLabel:"Export panels as PDF",
     exportFn:function(B){ var d=B.doc_(), out=[], p=0, dpi=110; toast("Building your folio panels…");
       (function next(){ if(p>=d.panels){ pbBuildPDF(out, namePrefix()+"folio-panels.pdf", "Folio panels downloaded, one A1 page each", dpi); return; } B.draw(B.page(), dpi/25.4, function(cv){ out.push(cv); next(); }, {x:594*(p++), w:594}); })(); }});
   // old workshop pages (fixed template) come across as editable boards

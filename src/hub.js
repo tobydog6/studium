@@ -49,8 +49,9 @@
       html+='<span class="pr" style="left:'+P[0]+'px;top:'+P[1]+'px;width:'+P[2]+'px;height:'+Math.round(P[2]*2/3)+'px;transform:rotate('+P[3]+'deg);z-index:'+(q===2?3:q===1?2:1)+'">'
         +(pic?'<img src="'+hubThumb(i)+'" alt="" draggable="false">'+(photos[i].pick?'<svg class="ring" viewBox="0 0 100 66" preserveAspectRatio="none" aria-hidden="true"><path d="M18 9 C50 -3 104 6 103 36 C102 72 30 74 3 46 C-2 23 25 3 60 5" fill="none" stroke="#d2462a" stroke-width="2.2" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>':''):'<i></i>')+'</span>'; }
     h.querySelector(".d7-stack").innerHTML=html;
+    var sl=h.querySelector(".d7-studio-lbl small"), npk=stPicks().length; if(sl) sl.textContent=photos.length?photos.length+" FRAME"+(photos.length===1?"":"S")+" · "+npk+" PICK"+(npk===1?"":"S"):"YOUR PRINTS LAND HERE";
     // the loupe
-    var lp=stPicks(), li=lp.length?lp[lp.length-1]:(photos.length?photos.length-1:-1); h.querySelector(".d7-loupe img").src=li>=0?hubThumb(li):HUB_FILL[5];
+    var lp=stPicks(), li=lp.length?lp[lp.length-1]:(photos.length?photos.length-1:-1); h.querySelector(".d7-loupe img").src=li>=0?hubThumb(li):HUB_FILL[1]; h.querySelector(".d7-loupe").classList.toggle("empty", li<0);
     var crit=""; if(pl){ var T=lsTimes(pl); pl.phases.forEach(function(p,j){ if(!crit&&p.opens==="punctum"&&j>=cur) crit=j===cur?"OPEN NOW":"OPENS AT "+lsHM(T[j].s); }); }
     h.querySelector(".d7-loupe small").textContent=crit||"LOOK CLOSELY AT OTHER PHOTOGRAPHERS";
     // one action, under whichever thing is next
@@ -74,7 +75,7 @@
     if(pl){ var c=lsCur(pl), tot=lsTotal(pl), done=Math.max(0,Math.min(1,(c.now-pl.start)/tot)), left=Math.max(0,Math.ceil(pl.start+tot-c.now)), cls=lsClass()||{};
       ck.innerHTML='<span>'+(cls.period?'PERIOD '+cbEsc(String(cls.period)):'TODAY')+'</span><span class="tr"><i style="width:'+(done*100).toFixed(1)+'%"></i><b style="left:'+(done*100).toFixed(1)+'%"></b></span><span class="w">'+(pl.paused?'PAUSED':c.i<0?'STARTS '+lsHM(pl.start):c.i>=pl.phases.length?'DONE':left+' MIN LEFT')+'</span>';
       if(ls.phase!==null&&h.getAttribute("data-phase")!==String(c.i)){ h.setAttribute("data-phase",String(c.i)); hubRender(); } }
-    else ck.innerHTML='<span class="w">'+d.toLocaleDateString("en-NZ",{weekday:"short",day:"numeric",month:"short"}).toUpperCase()+' · '+lsHM(lsMinOf(d))+'</span>';
+    else ck.innerHTML="";   /* no period running: the clock has no job on the desk (the sign-in screen keeps the time) */
     var sv=h.querySelector(".h6-saved"); if(sv) sv.classList.toggle("off", !photos.length); }
   function hubNote(){ var w=lsWho(); if(!w||!w.code) return null; var list=(lsDB.notes[w.code+"/"+w.name]||[]).filter(function(n){ return !n.read; }); return list[list.length-1]||null; }
   function hubAct(a, el){ var who=lsWho();

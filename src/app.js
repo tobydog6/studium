@@ -1148,7 +1148,7 @@
     else if(e.code==="KeyG"){ if(viewfinderOn) cycleComp(); else toggleGrid(); }
     else if(e.code==="KeyX"){ e.preventDefault(); if(loaded) setVertical(!vertical); }
     else if(e.code==="Tab"){ e.preventDefault(); openStudio("select"); }
-    else if(e.code==="KeyT"&&loaded){ e.preventDefault(); if(e.shiftKey) ptToggle(); else cuToggle(); }   // T: the cube of places; Shift+T: a portal right here
+    else if(e.code==="KeyT"&&loaded){ e.preventDefault(); cuToggle(); }   // T: the cube of places (choose a side and you go straight there)
     else if(e.code==="KeyF"&&viewfinderOn){ e.preventDefault(); afPending="say"; }   // refocus on the middle of the frame
     else if(e.code==="ArrowUp"){ e.preventDefault(); setFocus(focusDist+0.05); }
     else if(e.code==="ArrowDown"){ e.preventDefault(); setFocus(focusDist-0.05); }

@@ -24,4 +24,5 @@ A browser photography studio for NZ Years 11–13, built on Gaussian splats. Own
 - Student-facing copy: NZ spelling, warm, second person, no em dashes in UI text.
 - Use block comments `/* */` inside one-line code, never trailing `//` (it has swallowed code before).
 - Commit as Sam: `git -c user.name="Sam Quinn" -c user.email="sapphirehound66@gmail.com" commit`.
-- `assets/scenes/carpark.sog` is ~54 MB; consider Git LFS for further big scans.
+- `assets/scenes/carpark.sog` is ~54 MB. `assets/scenes/maurice.sog` (~118 MB) is in Git LFS; put any further big scans there too.
+- Saint Maurice is CC BY-NC-ND (`licenses/maurice-CC-BY-NC-ND.txt`): format changes only, never crop or thin it, keep the credit.

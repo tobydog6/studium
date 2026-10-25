@@ -92,9 +92,9 @@
     // the dive: fly straight at the chosen face's middle
     if(CU.dive){ var d=CU.dive, u=Math.min(1,(now-d.t0)/d.dur), s0=u*u*(3-2*u), fall=u*u;
       CU.q.slerp(d.q,Math.min(1,0.06+u*0.3)); CU.grp.quaternion.copy(CU.q); CU.spin.set(0,0);
-      // it drops into the world, shrinking to where the opening will stand, and the world comes back into focus around it
+      // the chosen side swells to fill the view, then you're there
       CU.grp.position.set(d.to.x*s0, d.to.y*fall+0.25*Math.sin(u*Math.PI)*(1-u), 0); CU.grp.scale.setScalar(1+(d.scale-1)*s0); CU.k=1-s0; CU.bgMat.uniforms.k.value=1-s0;
-      if(u>=1){ cuLand(); return false; } }
+      if(u>=1){ cuArrive(); return false; } }
     else CU.grp.position.set(0,0,0);
     CU.cam.updateProjectionMatrix(); CU.cam.updateMatrixWorld(true); CU.grp.updateMatrixWorld(true);
     CU.bgMat.uniforms.k.value=e;
@@ -121,13 +121,9 @@
   function cuArrive(){ var f=CU.dive.f, c2=f.userData.cam, fwd=new THREE.Vector3(0,0,-1).applyQuaternion(c2.quaternion), sp=f.userData.spot;
     camPos.copy(sp.o.position); yaw=Math.atan2(-fwd.x,-fwd.z); pitch=Math.asin(Math.max(-1,Math.min(1,fwd.y))); _vel.set(0,0,0); if(PT) PT.prev=null;
     CU.open=false; CU.phase=""; CU.dive=null; cuUI(false); document.body.classList.remove("cube-open"); toast(sp.name.split(" · ")[1]?"You're on the "+sp.name.split(" · from the ")[1]+" side":sp.name); }
-  /* choosing a side: the cube turns that side to you and drops to where the opening will stand, then tears open as the portal */
+  /* choosing a side: the cube turns that side to you and you fall into it, arriving where that side was looking from */
   function cuDiveInto(i){ var f=CU.faces[i]; if(!f||CU.dive) return; var n=new THREE.Vector3(0,0,1).applyQuaternion(f.quaternion), q=new THREE.Quaternion().setFromUnitVectors(n,new THREE.Vector3(0,0,1));
-    var H=ptHere(), s=ptScale(), ndc=H.p.clone().project(camera), D=CU.dist, tv=Math.tan(CU.cam.fov*Math.PI/360), tm=Math.tan(camera.fov*Math.PI/360), aspect=CU.cam.aspect||1;
-    var dist=H.p.distanceTo(camera.position), ang=(PT_R*s/dist)/tm, sc=Math.max(0.05,ang*tv*D/CU_H*0.92);
-    CU.dive={f:f, q:q, t0:performance.now(), dur:1100, to:new THREE.Vector2(ndc.x*tv*aspect*D, ndc.y*tv*D), scale:sc}; cuUI(false, true); }
-  function cuLand(){ var sp=CU.dive.f.userData.spot; CU.open=false; CU.phase=""; CU.dive=null; CU.grp.position.set(0,0,0); cuUI(false); document.body.classList.remove("cube-open");
-    ptOpen(sp, 0.95); if(typeof ptSound==="function") ptSound(true); }
+    CU.dive={f:f, q:q, t0:performance.now(), dur:1000, to:new THREE.Vector2(0,0), scale:Math.max(2.4,CU.dist/CU_H*1.6)}; cuUI(false, true); if(typeof ptSound==="function") ptSound(true, true); }
 
   // ---- input: drag to turn, click a side to go, wheel to come closer ----
   function cuUI(on, keepHidden){ var el=CU.ui; if(!el){ el=CU.ui=document.createElement("div"); el.id="cubeUI"; el.className="cu-ui";

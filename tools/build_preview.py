@@ -3,10 +3,10 @@
 # python3 tools/build_preview.py decoded.splat out.stm --n 600000 --cx 0 --cy 0 --r 6
 import numpy as np, zlib, struct, argparse
 ap=argparse.ArgumentParser(); ap.add_argument('src'); ap.add_argument('out'); ap.add_argument('--n',type=int,default=600000)
-ap.add_argument('--cx',type=float,default=0); ap.add_argument('--cy',type=float,default=0); ap.add_argument('--r',type=float,default=6)
+ap.add_argument('--cx',type=float,default=0); ap.add_argument('--cy',type=float,default=0); ap.add_argument('--r',type=float,default=6); ap.add_argument('--up',default='zup')   # ydown scans are level in x and z
 A=ap.parse_args()
 d=np.fromfile(A.src,dtype=np.uint8).reshape(-1,32); p=d[:,:12].copy().view(np.float32).reshape(-1,3); sc=d[:,12:24].copy().view(np.float32).reshape(-1,3); a=d[:,27].astype(np.float64)
-near=np.hypot(p[:,0]-A.cx,p[:,1]-A.cy)<A.r
+near=(np.hypot(p[:,0]-A.cx,p[:,2]-A.cy) if A.up=='ydown' else np.hypot(p[:,0]-A.cx,p[:,1]-A.cy))<A.r
 score=np.where(near,a*np.cbrt(sc.prod(1)+1e-30),-1)
 keep=np.argsort(-score)[:A.n]; keep=keep[score[keep]>0]
 dd=d[keep]; pos=p[keep]; s3=sc[keep]; print('kept',len(dd))

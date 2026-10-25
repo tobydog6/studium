@@ -31,13 +31,20 @@
   // Opacity per cell, normalised so only the densest cells (solid things) come out near-opaque, blurred twice so shadows
   // are soft. On the GPU each lit splat marches toward its light through it: solid things block, leaves let light through.
   function rlGrid(){ if(RL.grid) return RL.grid; var N=RL.N, P=RL.P, A=RL.A, mn=boxMin, mx=boxMax, pad=0.05*(sceneMaxDim||8);
-    var x0=mn.x-pad, y0=mn.y-pad, z0=mn.z-pad, ex=mx.x-x0+pad, ey=mx.y-y0+pad, ez=mx.z-z0+pad, cell=Math.max(ex,ey,ez)/200;
+    var x0=mn.x-pad, y0=mn.y-pad, z0=mn.z-pad, ex=mx.x-x0+pad, ey=mx.y-y0+pad, ez=mx.z-z0+pad;
+    /* sized by volume, not the longest side: about 9 million cells, so a church or a car park gets 10 to 15 cm cells instead of 25 to 50 */
+    var cell=Math.max(Math.cbrt(ex*ey*ez/9e6), Math.max(ex,ey,ez)/1024, 0.04*RL.S);
     var nx=Math.max(2,Math.ceil(ex/cell)), ny=Math.max(2,Math.ceil(ey/cell)), nz=Math.max(2,Math.ceil(ez/cell)), raw=new Float32Array(nx*ny*nz), i;
     for(i=0;i<N;i++){ var gx=((P[i*3]-x0)/cell)|0, gy=((P[i*3+1]-y0)/cell)|0, gz=((P[i*3+2]-z0)/cell)|0;
       if(gx<0||gy<0||gz<0||gx>=nx||gy>=ny||gz>=nz) continue; raw[(gz*ny+gy)*nx+gx]+=A?A[i]:1; }
     var nzv=[]; for(i=0;i<raw.length;i+=7) if(raw[i]>0) nzv.push(raw[i]); nzv.sort(function(a,b){ return a-b; });
     var med=nzv.length?nzv[Math.floor(nzv.length*0.8)]:1, k=(RL.shK||0.35)/med;
     var T=new Float32Array(raw.length), a=raw, b=T, d, x, y, z;
+    /* thicken by a cell first (splats are counted at their centres, so a wall of big splats is full of gaps light would leak through) */
+    for(d=0;d<3;d++){ var st0=d===0?1:d===1?nx:nx*ny, len0=d===0?nx:d===1?ny:nz;
+      for(z=0;z<nz;z++) for(y=0;y<ny;y++) for(x=0;x<nx;x++){ var c0=(z*ny+y)*nx+x, q0=d===0?x:d===1?y:z, m0=a[c0];
+        if(q0>0&&a[c0-st0]>m0) m0=a[c0-st0]; if(q0<len0-1&&a[c0+st0]>m0) m0=a[c0+st0]; b[c0]=m0*0.6+a[c0]*0.4; }
+      var t0=a; a=b; b=t0; }
     for(d=0;d<6;d++){ var st=d%3===0?1:d%3===1?nx:nx*ny, len=d%3===0?nx:d%3===1?ny:nz;
       for(z=0;z<nz;z++) for(y=0;y<ny;y++) for(x=0;x<nx;x++){ var c=(z*ny+y)*nx+x, q=d%3===0?x:d%3===1?y:z;
         b[c]=a[c]*0.5+(q>0?a[c-st]:0)*0.25+(q<len-1?a[c+st]:0)*0.25; }
@@ -54,20 +61,23 @@
     "float rlTau(sampler3D G, vec3 p, vec3 o, vec3 inv){ vec3 uv=(p-o)*inv; if(any(lessThan(uv,vec3(0.0)))||any(greaterThan(uv,vec3(1.0)))) return -1.0; return texture(G,uv).r; }",
     // to a lamp: never pitch black (light bounces), so shadows keep a fifth of the light
     "float rlMarchP(sampler3D G, vec3 o, vec3 inv, float cell, vec3 p, vec3 L){ vec3 d=L-p; float dist=length(d); if(dist<cell*2.0) return 1.0; d/=dist; float acc=0.0;",
-    "  for(int i=0;i<128;i++){ float t=cell*3.0+float(i)*cell*0.8; if(t>dist-cell) break; float v=rlTau(G,p+d*t,o,inv); if(v<0.0) break; acc+=v*0.8; if(acc>4.0) break; }",
+    "  float st=max(cell*0.8, dist/180.0); for(int i=0;i<200;i++){ float t=cell*3.0+float(i)*st; if(t>dist-cell) break; float v=rlTau(G,p+d*t,o,inv); if(v<0.0) break; acc+=v*st/cell; if(acc>4.0) break; }",
     "  return 0.22+0.78*exp(-acc); }",
     // to the sun: parallel rays, out of the scan or a few metres; the daylight fills the shade
     "float rlMarchD(sampler3D G, vec3 o, vec3 inv, float cell, vec3 p, vec3 d){ float acc=0.0;",
-    "  for(int i=0;i<70;i++){ float t=cell*3.0+float(i)*cell*1.2; float v=rlTau(G,p+d*t,o,inv); if(v<0.0) break; acc+=v*1.2; if(acc>4.0) break; }",
-    "  return exp(-acc); }"].join("\n");
+    "  for(int i=0;i<140;i++){ float t=cell*3.0+float(i)*cell*1.2; float v=rlTau(G,p+d*t,o,inv); if(v<0.0) break; acc+=v*1.2; if(acc>4.0) break; }",
+    "  return exp(-acc); }",
+    /* the scan's density, sampled either side: its slope points out of solid things, a surface direction for every splat */
+    "float rlT0(sampler3D G, vec3 p, vec3 o, vec3 inv){ return max(rlTau(G,p,o,inv),0.0); }",
+    "vec3 rlGrad(sampler3D G, vec3 o, vec3 inv, float e, vec3 p){ return vec3(rlT0(G,p+vec3(e,0,0),o,inv)-rlT0(G,p-vec3(e,0,0),o,inv), rlT0(G,p+vec3(0,e,0),o,inv)-rlT0(G,p-vec3(0,e,0),o,inv), rlT0(G,p+vec3(0,0,e),o,inv)-rlT0(G,p-vec3(0,0,e),o,inv)); }"].join("\n");
   function rlInstall(){ if(RL.gpu&&RL.gpu.mesh===viewer.mesh) return; var D=SPARK.dyno, U={}, mesh=viewer.mesh;
     var dummy=new THREE.Data3DTexture(new Uint16Array([0]),1,1,1); dummy.format=THREE.RedFormat; dummy.type=THREE.HalfFloatType; dummy.needsUpdate=true;
     var lt=new THREE.DataTexture(new Float32Array(4*4*RL_MAX),4,RL_MAX,THREE.RGBAFormat,THREE.FloatType); lt.needsUpdate=true;
     U.on=D.dynoFloat(0); U.amb=D.dynoVec3(new THREE.Vector3(1,1,1)); U.cam=D.dynoVec3(new THREE.Vector3());
     U.sunOn=D.dynoFloat(0); U.sunDir=D.dynoVec3(new THREE.Vector3(0,1,0)); U.sunCol=D.dynoVec3(new THREE.Vector3());
     U.nl=D.dynoInt(0); U.lt=D.dynoSampler2D(lt); U.is2=D.dynoFloat(1);
-    U.shad=D.dynoFloat(0); U.grid=D.dynoSampler3D(dummy); U.go=D.dynoVec3(new THREE.Vector3()); U.ginv=D.dynoVec3(new THREE.Vector3(1,1,1)); U.cell=D.dynoFloat(1); U.cut=D.dynoFloat(1e30);
-    var types={gsplat:D.Gsplat, on:"float", amb:"vec3", cam:"vec3", sunOn:"float", sunDir:"vec3", sunCol:"vec3", nl:"int", lt:"sampler2D", is2:"float", shad:"float", grid:"sampler3D", go:"vec3", ginv:"vec3", cell:"float", cut:"float"};
+    U.shad=D.dynoFloat(0); U.gok=D.dynoFloat(0); U.grid=D.dynoSampler3D(dummy); U.go=D.dynoVec3(new THREE.Vector3()); U.ginv=D.dynoVec3(new THREE.Vector3(1,1,1)); U.cell=D.dynoFloat(1); U.cut=D.dynoFloat(1e30);
+    var types={gsplat:D.Gsplat, on:"float", amb:"vec3", cam:"vec3", sunOn:"float", sunDir:"vec3", sunCol:"vec3", nl:"int", lt:"sampler2D", is2:"float", shad:"float", gok:"float", grid:"sampler3D", go:"vec3", ginv:"vec3", cell:"float", cut:"float"};
     var mod=D.dynoBlock({gsplat:D.Gsplat},{gsplat:D.Gsplat},function(io){ var ins={gsplat:io.gsplat}; for(var k in U) ins[k]=U[k];
       var dd=D.dyno({inTypes:types, outTypes:{gsplat:D.Gsplat}, inputs:ins, globals:function(){ return [RL_GLSL]; },
         statements:function(c){ var i=c.inputs, o=c.outputs.gsplat; return [
@@ -78,15 +88,22 @@
           "  vec3 n=normalize(rlRot("+o+".quaternion, ax));",
           "  float mn=min(s.x,min(s.y,s.z)), mxv=max(s.x,max(s.y,s.z)), md=s.x+s.y+s.z-mn-mxv; float f=clamp(1.0-mn/max(md,1e-6)*1.4,0.0,1.0);",   // a disc is flat: thin axis much smaller than the next
           "  if(dot(n,"+i.cam+"-c)<0.0) n=-n;",   // a disc has two sides: take the one you can see
-          "  vec3 Lt="+i.amb+";",
-          "  if("+i.sunOn+">0.5){ float sl=max(dot(n,"+i.sunDir+"),0.0); float ss=sl*f+0.45*(1.0-f); if(ss>0.002){ if("+i.shad+">0.5) ss*=rlMarchD("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c,"+i.sunDir+"); Lt+=ss*"+i.sunCol+"; } }",
+          "  float ao=1.0;",
+          "  if("+i.gok+">0.5){ vec3 gn=-rlGrad("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c); float gl=length(gn);",
+          "    if(gl>0.08){ gn/=gl; float w=clamp((gl-0.08)*2.5,0.0,1.0);",   // a clear slope: the surface faces out of the solid
+          "      if(dot(n,gn)<0.0) n=-n; n=normalize(mix(n,gn,w*(1.0-0.55*f))); f=max(f,w*0.85); }",
+          "    float o1=rlT0("+i.grid+",c+n*"+i.cell+"*1.5,"+i.go+","+i.ginv+"), o2=rlT0("+i.grid+",c+n*"+i.cell+"*3.5,"+i.go+","+i.ginv+");",
+          "    ao=clamp(exp(-(o1*0.55+o2*0.3)),0.3,1.0); }",   // corners and the undersides of things get less of the sky
+          "  vec3 V=normalize("+i.cam+"-c); vec3 Ls=vec3(0.0);",
+          "  vec3 Lt="+i.amb+"*ao;",
+          "  if("+i.sunOn+">0.5){ float sl=max(dot(n,"+i.sunDir+"),0.0); float ss=sl*f+0.45*(1.0-f); if(ss>0.002){ if("+i.shad+">0.5) ss*=rlMarchD("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c,"+i.sunDir+"); Lt+=ss*"+i.sunCol+"; Ls+=pow(max(dot(n,normalize("+i.sunDir+"+V)),0.0),40.0)*0.18*f*ss*"+i.sunCol+"; } }",
           "  for(int m=0;m<"+RL_MAX+";m++){ if(m>="+i.nl+") break;",
           "    vec4 la=texelFetch("+i.lt+",ivec2(0,m),0), lb=texelFetch("+i.lt+",ivec2(1,m),0), le=texelFetch("+i.lt+",ivec2(2,m),0), lf=texelFetch("+i.lt+",ivec2(3,m),0);",
           "    vec3 l=la.xyz-c; float r2=dot(l,l); float d=max(sqrt(r2),1e-6); float lam=max(dot(n,l)/d,0.0); float sh=lam*f+0.45*(1.0-f);",   // blobby splats get a soft half-light
           "    if(lb.a>0.5){ float ca=-dot(l,le.xyz)/d; if(ca<=le.w) continue; if(ca<lf.x){ float u=(ca-le.w)/(lf.x-le.w); sh*=u*u*(3.0-2.0*u); } }",
           "    if("+i.shad+">0.5) sh*=rlMarchP("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c,la.xyz);",
-          "    Lt+=sh/(r2*"+i.is2+"+la.w)*lb.rgb; }",
-          "  "+o+".rgba.rgb=min("+o+".rgba.rgb*Lt, vec3(1.0));",
+          "    vec3 li=sh/(r2*"+i.is2+"+la.w)*lb.rgb; Lt+=li; Ls+=pow(max(dot(n,normalize(l/d+V)),0.0),32.0)*0.22*f*li; }",   // a soft sheen on flat surfaces: floors, paint, glass
+          "  "+o+".rgba.rgb=min("+o+".rgba.rgb*Lt+Ls, vec3(1.0));",
           "  if(c.y>"+i.cut+") "+o+".rgba.a=0.0;",   // plan view: hide everything above head height
           "}"]; } });
       return {gsplat:dd.outputs.gsplat}; });
@@ -106,8 +123,8 @@
     on.slice(0,RL_MAX).forEach(function(L,m){ var c=rlLightRGB(L), half=L.cone*Math.PI/360, o=m*16;
       lt.set([L.x,L.y,L.z,L.soft, c[0]*L.power*E,c[1]*L.power*E,c[2]*L.power*E, L.type==="spot"?1:0, L.dir[0],L.dir[1],L.dir[2],Math.cos(half), Math.cos(half*0.7),0,0,0], o); });
     G0.lt.needsUpdate=true; U.nl.value=Math.min(on.length,RL_MAX);
-    var useG=RL.shadows&&(on.length||SUN); U.shad.value=useG?1:0;
-    if(useG){ var G=rlGrid(); U.grid.value=G.tex; U.go.value.set(G.x0,G.y0,G.z0); U.ginv.value.set(1/(G.nx*G.cell),1/(G.ny*G.cell),1/(G.nz*G.cell)); U.cell.value=G.cell; }
+    var useG=RL.shadows&&(on.length||SUN); U.shad.value=useG?1:0; U.gok.value=1;
+    { var G=rlGrid(); U.grid.value=G.tex; U.go.value.set(G.x0,G.y0,G.z0); U.ginv.value.set(1/(G.nx*G.cell),1/(G.ny*G.cell),1/(G.nz*G.cell)); U.cell.value=G.cell; }
     U.cut.value=RL.plan?RL.cutY:1e30;
     G0.mesh.updateVersion();
     if(typeof SKY!=="undefined"&&SKY.mesh) SKY.mesh.material.uniforms.dim.value=Math.max(0.05,Math.min(1,D*E));   // the sky goes down with the daylight

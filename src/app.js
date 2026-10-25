@@ -525,7 +525,13 @@
       // Studium draws into its own buffer and grades in sRGB (like the old engine): Spark would otherwise convert to linear there
       if(!spark.__srgb){ spark.__srgb=true; var obr=spark.onBeforeRender; spark.onBeforeRender=function(){ obr.apply(spark,arguments); if(spark.uniforms&&spark.uniforms.encodeLinear) spark.uniforms.encodeLinear.value=false; var ov=SPARK.SparkRenderer.sparkOverride; if(ov&&ov.uniforms&&ov.uniforms.encodeLinear) ov.uniforms.encodeLinear.value=false; }; }
       var mesh=new SPARK.SplatMesh({fileBytes:new Uint8Array(ab), fileType:format, lod:true}); mesh.quaternion.copy(q); var SC=(keepCol&&CH.spec&&CH.spec.scale)||1; mesh.scale.setScalar(SC); scene.add(mesh);   // some scans come in at a fraction of real size
-      viewer={spark:spark, mesh:mesh, splatMesh:mesh, P:null, dispose:function(){ scene.remove(mesh); scene.remove(spark); try{ mesh.dispose(); }catch(e){} }};
+      viewer={spark:spark, mesh:mesh, splatMesh:mesh, P:null, dispose:function(){ scene.remove(mesh); scene.remove(spark); try{ mesh.dispose(); }catch(e){} if(viewer&&viewer.detail){ scene.remove(viewer.detail); try{ viewer.detail.dispose(); }catch(e){} } }};
+      /* a scene's main subject can ship as its own full-detail piece: drawn without level of detail, so it's never merged
+         to save budget, and the merged copy of it in the big scan is hidden (the lighting modifier keeps hiding it) */
+      var DT=keepCol&&CH.spec&&CH.spec.detail;
+      if(DT){ viewer.cut=DT.cut; mesh.worldModifier=dtCutModifier(DT.cut); mesh.updateGenerator();
+        assetBytes(DT.data).then(function(b2){ if(!viewer||viewer.mesh!==mesh) return; var dm=new SPARK.SplatMesh({fileBytes:new Uint8Array(b2), fileType:FMT[DT.ext||"sog"], lod:false});
+          dm.quaternion.copy(q); dm.scale.setScalar(SC); scene.add(dm); viewer.detail=dm; if(typeof RL!=="undefined"&&RL.gpu&&RL.gpu.U.on.value>0&&typeof rlDetail==="function") rlDetail(); }).catch(function(e){ console.warn("detail piece", e); }); }
       // Spark says "initialized" before its level-of-detail build has the splats ready: wait for them. Then, because
       // the LoD splats live in a streaming pager that can't be read back, parse the same bytes once more without LoD to
       // get every splat's centre (world space) and opacity: framing, autofocus and lighting read those.
@@ -547,6 +553,10 @@
       else toast("Couldn't load that splat ("+m.slice(0,80)+")");
     });
   }
+  function dtCutModifier(cut){ var D=SPARK.dyno, C=D.dynoVec4(new THREE.Vector4(cut[0],cut[1],cut[2],0)), Y=D.dynoVec2(new THREE.Vector2(cut[3],cut[4]));
+    return D.dynoBlock({gsplat:D.Gsplat},{gsplat:D.Gsplat},function(io){ var dd=D.dyno({inTypes:{gsplat:D.Gsplat, cut:"vec4", cy:"vec2"}, outTypes:{gsplat:D.Gsplat}, inputs:{gsplat:io.gsplat, cut:C, cy:Y},
+      statements:function(c){ var i=c.inputs, o=c.outputs.gsplat; return [o+" = "+i.gsplat+";",
+        "{ vec3 p="+o+".center; if(length(p.xz-"+i.cut+".xy)<"+i.cut+".z && p.y>"+i.cy+".x && p.y<"+i.cy+".y) "+o+".rgba.a=0.0; }"]; } }); return {gsplat:dd.outputs.gsplat}; }); }
   function reloadWithUp(up){ if(lastSource!==null) loadSplat(lastSource,up); }
   // ---- bundled scenes (embedded in the file) ----
   // .stm: Studium's packed scan (zlib, 16-bit positions and log scales, byte planes), unpacked to .splat here.

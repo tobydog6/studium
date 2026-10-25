@@ -75,18 +75,19 @@
     /* the scan's density, sampled either side: its slope points out of solid things, a surface direction for every splat */
     "float rlT0(sampler3D G, vec3 p, vec3 o, vec3 inv){ return max(rlTau(G,p,o,inv),0.0); }",
     "vec3 rlOut(sampler3D G, vec3 p, vec3 o, vec3 inv){ vec3 uv=(p-o)*inv; if(any(lessThan(uv,vec3(0.0)))||any(greaterThan(uv,vec3(1.0)))) return vec3(0.0); return texture(G,uv).gba; }"].join("\n");
-  function rlInstall(){ if(RL.gpu&&RL.gpu.mesh===viewer.mesh) return; var D=SPARK.dyno, U={}, mesh=viewer.mesh;
+  function rlInstall(){ if(RL.gpu&&RL.gpu.mesh===viewer.mesh) return; var D=SPARK.dyno, U={}, mesh=viewer.mesh, STM;
     var dummy=new THREE.Data3DTexture(new Uint16Array([0]),1,1,1); dummy.format=THREE.RedFormat; dummy.type=THREE.HalfFloatType; dummy.needsUpdate=true;
     var lt=new THREE.DataTexture(new Float32Array(4*4*RL_MAX),4,RL_MAX,THREE.RGBAFormat,THREE.FloatType); lt.needsUpdate=true;
     U.on=D.dynoFloat(0); U.amb=D.dynoVec3(new THREE.Vector3(1,1,1)); U.cam=D.dynoVec3(new THREE.Vector3());
     U.sunOn=D.dynoFloat(0); U.sunDir=D.dynoVec3(new THREE.Vector3(0,1,0)); U.sunCol=D.dynoVec3(new THREE.Vector3());
     U.nl=D.dynoInt(0); U.lt=D.dynoSampler2D(lt); U.is2=D.dynoFloat(1);
-    U.shad=D.dynoFloat(0); U.gok=D.dynoFloat(0); U.grid=D.dynoSampler3D(dummy); U.go=D.dynoVec3(new THREE.Vector3()); U.ginv=D.dynoVec3(new THREE.Vector3(1,1,1)); U.cell=D.dynoFloat(1); U.cut=D.dynoFloat(1e30);
-    var types={gsplat:D.Gsplat, on:"float", amb:"vec3", cam:"vec3", sunOn:"float", sunDir:"vec3", sunCol:"vec3", nl:"int", lt:"sampler2D", is2:"float", shad:"float", gok:"float", grid:"sampler3D", go:"vec3", ginv:"vec3", cell:"float", cut:"float"};
+    U.shad=D.dynoFloat(0); U.gok=D.dynoFloat(0); U.grid=D.dynoSampler3D(dummy); U.go=D.dynoVec3(new THREE.Vector3()); U.ginv=D.dynoVec3(new THREE.Vector3(1,1,1)); U.cell=D.dynoFloat(1); U.cut=D.dynoFloat(1e30); U.dcut=D.dynoVec4(new THREE.Vector4(0,0,-1,0)); U.dcy=D.dynoVec2(new THREE.Vector2(0,0));
+    var types={gsplat:D.Gsplat, on:"float", amb:"vec3", cam:"vec3", sunOn:"float", sunDir:"vec3", sunCol:"vec3", nl:"int", lt:"sampler2D", is2:"float", shad:"float", gok:"float", grid:"sampler3D", go:"vec3", ginv:"vec3", cell:"float", cut:"float", dcut:"vec4", dcy:"vec2"};
     var mod=D.dynoBlock({gsplat:D.Gsplat},{gsplat:D.Gsplat},function(io){ var ins={gsplat:io.gsplat}; for(var k in U) ins[k]=U[k];
       var dd=D.dyno({inTypes:types, outTypes:{gsplat:D.Gsplat}, inputs:ins, globals:function(){ return [RL_GLSL]; },
-        statements:function(c){ var i=c.inputs, o=c.outputs.gsplat; return [
+        statements:(STM=function(c){ var i=c.inputs, o=c.outputs.gsplat; return [
           o+" = "+i.gsplat+";",
+          "if(length("+o+".center.xz-"+i.dcut+".xy)<"+i.dcut+".z && "+o+".center.y>"+i.dcy+".x && "+o+".center.y<"+i.dcy+".y) "+o+".rgba.a=0.0;",   // the subject's own full-detail piece draws this part
           "if("+i.on+" > 0.5 && isGsplatActive("+o+".flags)){",
           "  vec3 c="+o+".center; vec3 s=abs("+o+".scales);",
           "  int k=(s.x<=s.y && s.x<=s.z)?0:((s.y<=s.z)?1:2); vec3 ax=k==0?vec3(1.0,0.0,0.0):(k==1?vec3(0.0,1.0,0.0):vec3(0.0,0.0,1.0));",
@@ -110,9 +111,16 @@
           "    vec3 li=sh/(r2*"+i.is2+"+la.w)*lb.rgb; Lt+=li; Ls+=pow(max(dot(n,normalize(l/d+V)),0.0),32.0)*0.22*f*li; }",   // a soft sheen on flat surfaces: floors, paint, glass
           "  "+o+".rgba.rgb=min("+o+".rgba.rgb*Lt+Ls, vec3(1.0));",
           "  if(c.y>"+i.cut+") "+o+".rgba.a=0.0;",   // plan view: hide everything above head height
-          "}"]; } });
+          "}"]; }) });
       return {gsplat:dd.outputs.gsplat}; });
-    mesh.worldModifier=mod; mesh.updateGenerator(); RL.gpu={mesh:mesh, U:U, lt:lt, dummy:dummy}; }
+    var cut=viewer.cut; if(cut){ U.dcut.value.set(cut[0],cut[1],cut[2],0); U.dcy.value.set(cut[3],cut[4]); }
+    mesh.worldModifier=mod; mesh.updateGenerator(); RL.gpu={mesh:mesh, U:U, lt:lt, dummy:dummy, mk:function(){ var U2={}; for(var k in U) U2[k]=U[k]; return U2; }};
+    /* the detail piece gets the same lighting, without the cut */
+    RL.gpu.modFor=function(){ var U2=RL.gpu.mk(); U2.dcut=D.dynoVec4(new THREE.Vector4(0,0,-1,0));
+      var m2=D.dynoBlock({gsplat:D.Gsplat},{gsplat:D.Gsplat},function(io){ var ins={gsplat:io.gsplat}; for(var k in U2) ins[k]=U2[k];
+        var d2=D.dyno({inTypes:types, outTypes:{gsplat:D.Gsplat}, inputs:ins, globals:function(){ return [RL_GLSL]; }, statements:STM}); return {gsplat:d2.outputs.gsplat}; }); return m2; };
+    rlDetail(); }
+  function rlDetail(){ var dm=viewer&&viewer.detail; if(!dm||!RL.gpu||RL.gpu.detail===dm) return; dm.worldModifier=RL.gpu.modFor(); dm.updateGenerator(); RL.gpu.detail=dm; }
 
   // push the current lights to the GPU, then ask Spark to re-run the modifier
   function rlApply(){ if(!RL.ready||!RL.gpu) return; var G0=RL.gpu, U=G0.U, t0=performance.now();
@@ -132,9 +140,11 @@
     { var G=rlGrid(); U.grid.value=G.tex; U.go.value.set(G.x0,G.y0,G.z0); U.ginv.value.set(1/(G.nx*G.cell),1/(G.ny*G.cell),1/(G.nz*G.cell)); U.cell.value=G.cell; }
     U.cut.value=RL.plan?RL.cutY:1e30;
     G0.mesh.updateVersion();
+    rlDetail(); var dm=viewer&&viewer.detail; if(dm&&G0.detail===dm){ if(dm.maxSh>0){ dm.__sh=dm.maxSh; dm.maxSh=0; dm.updateGenerator(); } dm.updateVersion(); }
     if(typeof SKY!=="undefined"&&SKY.mesh) SKY.mesh.material.uniforms.dim.value=Math.max(0.05,Math.min(1,D*E));   // the sky goes down with the daylight
     RL.ms=Math.round(performance.now()-t0); rlMarkers(); rlPlanUI(); rlPanel(); }
   function rlRestore(){ if(!RL.gpu) return; RL.gpu.U.on.value=0; var M=RL.gpu.mesh; if(M.__sh!=null){ M.maxSh=M.__sh; M.__sh=null; M.updateGenerator(); } M.updateVersion();
+    var dm=RL.gpu.detail; if(dm){ if(dm.__sh!=null){ dm.maxSh=dm.__sh; dm.__sh=null; dm.updateGenerator(); } dm.updateVersion(); }
     if(typeof SKY!=="undefined"&&SKY.mesh) SKY.mesh.material.uniforms.dim.value=1; }
   function rlSunDir(){ var a=RL.sunAz*Math.PI/180, e=RL.sunEl*Math.PI/180; return [Math.cos(e)*Math.sin(a), Math.sin(e), Math.cos(e)*Math.cos(a)]; }
 

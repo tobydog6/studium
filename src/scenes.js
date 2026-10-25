@@ -16,6 +16,8 @@ challenges:[
 {id:"maurice",fullRes:true,name:"Saint Maurice",desc:"The Parish Church of Saint Maurice, about ten million splats: pews, a raised chancel and a side chapel. Scan by Pavel Tanhäuser (superspl.at), CC BY-NC-ND 4.0.",credit:"Scan: Pavel Tanhäuser, CC BY-NC-ND 4.0",up:"ydown",scale:1,ext:"sog",thumb:"asset:assets/scenes/maurice-card.webp",data:"asset-b64:assets/scenes/maurice.sog",collide:"asset-b64:assets/scenes/maurice-collide.bin",preview:"asset-b64:assets/scenes/maurice-preview.stm",ground:-2.16,
  spots:[[0,15,0,"down the aisle"],[0,-2,0,"from the crossing"],[-15,6,0,"from the side chapel"]],
  subject:[0,-18], spawn:[0,16,0,-0.04], challenges:[]},
-{id:"carpark",fullRes:true,name:"The Car Park",desc:"A car park scanned at full detail, about four million splats. Bring your own lights and watch the shadows fall.",up:"zup",scale:5,ext:"sog",thumb:"asset:assets/scenes/carpark-card.webp",data:"asset-b64:assets/scenes/carpark.sog",collide:"asset-b64:assets/scenes/carpark-collide.bin",preview:"asset-b64:assets/scenes/carpark-preview.stm",ground:-0.096,
+{id:"carpark",fullRes:true,name:"The Car Park",desc:"A car park scanned at full detail, about four million splats. Bring your own lights and watch the shadows fall.",up:"zup",scale:5,ext:"sog",thumb:"asset:assets/scenes/carpark-card.webp",data:"asset-b64:assets/scenes/carpark.sog",collide:"asset-b64:assets/scenes/carpark-collide.bin",preview:"asset-b64:assets/scenes/carpark-preview.stm",
+ detail:{data:"asset-b64:assets/scenes/carpark-subject.sog", ext:"sog", cut:[0,0.4,0.85,0.6,2.75]},   /* the man on the block, always at full detail (world units: x, z, radius, y from, y to) */
+ground:-0.096,
  spots:[[2.5,7.5,0,"the shopfront"],[1.29,5.14,0,"by the red car"],[-3.49,0.36,0,"from the kerb"]],
  subject:[-1.74,3.39], spawn:[2.5,7.5,0.35,-0.12], challenges:[]}];

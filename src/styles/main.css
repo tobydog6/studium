@@ -1780,6 +1780,7 @@ body.nav-looking .ch-marks .chm{opacity:.75}
 .ch-done.show{animation:chDn 2.8s ease forwards}
 @keyframes chDn{0%{opacity:0;transform:translate(-50%,-50%) scale(.9)}10%{opacity:1;transform:translate(-50%,-50%) scale(1.02)}16%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0}}
 body[data-state="back"] .ch-card,body[data-state="bag"] .ch-card,body[data-state^="studio"] .ch-card,body[data-state="hub"] .ch-card{display:none}
+body.cube-open .ch-marks,body.cube-open .ch-card{display:none}   /* the cube has the screen: no frame markers over it (ux-scene) */
 .chm b{display:none}.chm.lbl b{display:block}
 .chm:not(.lbl) i{width:11px;height:11px;opacity:.8}
 

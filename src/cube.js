@@ -4,7 +4,7 @@
   // arriving at that place standing, looking at what matters there. T or Escape puts it away.
   // Faces are good spots in this scan for now (round the subject, looking at it); with more scans each face is a scan.
   // Each visible face is drawn by its own Spark renderer (three at most can face you), so none re-sorts another's view.
-  var CU={open:false, phase:"", t0:0, k:0, grp:null, scene:null, cam:null, faces:[], sparks:[], rts:[], q:new THREE.Quaternion(), spin:new THREE.Vector2(0,0),
+  var CU={open:false, phase:"", t0:0, k:0, grp:null, scene:null, cam:null, faces:[], sparks:[], rts:[], q:new THREE.Quaternion(), spin:new THREE.Vector2(0,0), yaw:0.62, pitch:-0.42,
     drag:null, hover:-1, dive:null, dist:4.2, stars:null, ui:null, ret:null};
   var CU_H=0.8, CU_K=2.2;   // half the cube's size (overlay units), and how many metres of world one unit is through the glass
 
@@ -88,7 +88,7 @@
     if(!CU.scene){ CU.scene=new THREE.Scene(); CU.cam=new THREE.PerspectiveCamera(38,1,0.01,200); var b=cuBuild(); CU.grp=b.grp; CU.faces=b.faces; CU.scene.add(CU.grp); cuBgInit(); }
     cuCapture();
     CU.spots=cuAllSpots(); CU.faces.forEach(function(f,i){ f.userData.spot=CU.spots[i]; var u=f.material.uniforms; if(u.tLabel){ if(u.tLabel.value) u.tLabel.value.dispose(); u.tLabel.value=cuLabelTex(CU.spots[i]); u.lab.value=1; } });
-    CU.q.setFromEuler(new THREE.Euler(-0.42,0.62,0)); CU.spin.set(0.0,0.35); CU.dist=4.2; CU.open=true; CU.phase="opening"; CU.t0=performance.now(); CU.k=0; CU.dive=null; CU.hover=-1;
+    CU.yaw=0.62; CU.pitch=-0.42; CU.q.setFromEuler(new THREE.Euler(CU.pitch,CU.yaw,0,"XYZ")); CU.spin.set(0.0,0.35); CU.dist=4.2; CU.open=true; CU.phase="opening"; CU.t0=performance.now(); CU.k=0; CU.dive=null; CU.hover=-1;
     cuUI(true); document.body.classList.add("cube-open"); ptSoundSafe(true); App.note&&App.note("cube"); }
   /* if anything goes wrong, put everything back: no cube, all the controls showing */
   function cuReset(){ CU.open=false; CU.phase=""; CU.dive=null; if(CU.grp) CU.grp.position.set(0,0,0); cuUI(false); document.body.classList.remove("cube-open"); }
@@ -102,12 +102,14 @@
     var e=1-Math.pow(1-CU.k,3), W=renderer.domElement.width, H=renderer.domElement.height;
     // spin: drag sets it, it eases off; a slow idle drift when untouched
     if(!CU.drag&&!CU.dive){ CU.spin.multiplyScalar(0.94); if(CU.spin.length()<0.0015) CU.spin.set(0,0.0015); }
-    var qx=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),CU.spin.y), qy=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),CU.spin.x); CU.q.premultiply(qx).premultiply(qy);
-    CU.grp.quaternion.copy(CU.q); CU.grp.scale.setScalar(Math.max(0.001,e*(1+0.05*Math.sin(e*Math.PI))));
+    // a turntable, not a free spin: drag sideways to turn it, up and down to tilt it (within limits), and it never rolls, so nothing reads upside down
+    CU.yaw+=CU.spin.y; CU.pitch=Math.max(-1.25,Math.min(1.25,CU.pitch+CU.spin.x));
+    if(CU.dive){ var dd=CU.dive, du0=Math.min(1,(now-dd.t0)/dd.dur), dk=Math.min(1,0.08+du0*0.35), dy=((dd.yaw-CU.yaw+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI; CU.yaw+=dy*dk; CU.pitch+=(dd.pitch-CU.pitch)*dk; }
+    CU.q.setFromEuler(new THREE.Euler(CU.pitch,CU.yaw,0,"XYZ")); CU.grp.quaternion.copy(CU.q); CU.grp.scale.setScalar(Math.max(0.001,e*(1+0.05*Math.sin(e*Math.PI))));
     CU.grp.rotation.y+=0; CU.cam.aspect=W/H; CU.cam.position.set(0,0,CU.dist); CU.cam.lookAt(0,0,0);
     // the dive: fly straight at the chosen face's middle
     if(CU.dive){ var d=CU.dive, u=Math.min(1,(now-d.t0)/d.dur), s0=u*u*(3-2*u), fall=u*u;
-      CU.q.slerp(d.q,Math.min(1,0.06+u*0.3)); CU.grp.quaternion.copy(CU.q); CU.spin.set(0,0);
+      CU.spin.set(0,0);
       // the chosen side swells to fill the view, then you're there
       CU.grp.position.set(d.to.x*s0, d.to.y*fall+0.25*Math.sin(u*Math.PI)*(1-u), 0); CU.grp.scale.setScalar(1+(d.scale-1)*s0); CU.k=1-s0; CU.bgMat.uniforms.k.value=1-s0;
       if(u>=1){ cuArrive(); return false; } }
@@ -140,12 +142,13 @@
     camPos.copy(sp.o.position); yaw=Math.atan2(-fwd.x,-fwd.z); pitch=Math.asin(Math.max(-1,Math.min(1,fwd.y))); _vel.set(0,0,0); if(PT) PT.prev=null;
     CU.open=false; CU.phase=""; CU.dive=null; cuUI(false); document.body.classList.remove("cube-open"); toast(sp.frame?"Standing where "+sp.name.split(" · ")[1].toLowerCase()+" is shot from. Raise the camera.":sp.name.split(" · from the ")[1]?"You're on the "+sp.name.split(" · from the ")[1]+" side":sp.name); }
   /* choosing a side: the cube turns that side to you and you fall into it, arriving where that side was looking from */
-  function cuDiveInto(i){ var f=CU.faces[i]; if(!f||CU.dive) return; var n=new THREE.Vector3(0,0,1).applyQuaternion(f.quaternion), q=new THREE.Quaternion().setFromUnitVectors(n,new THREE.Vector3(0,0,1));
-    CU.dive={f:f, q:q, t0:performance.now(), dur:1000, to:new THREE.Vector2(0,0), scale:Math.max(2.4,CU.dist/CU_H*1.6)}; cuUI(false, true); if(typeof ptSound==="function") ptSound(true, true); }
+  function cuDiveInto(i){ var f=CU.faces[i]; if(!f||CU.dive) return; var n=new THREE.Vector3(0,0,1).applyQuaternion(f.quaternion);   /* the face's normal in the cube's own frame */
+    var yaw=Math.abs(n.y)>0.9?CU.yaw:-Math.atan2(n.x,n.z), pitch=n.y>0.9?Math.PI/2:n.y<-0.9?-Math.PI/2:0;   /* the turn and tilt that bring this face square to you */
+    CU.dive={f:f, yaw:yaw, pitch:pitch, t0:performance.now(), dur:1000, to:new THREE.Vector2(0,0), scale:Math.max(2.4,CU.dist/CU_H*1.6)}; cuUI(false, true); if(typeof ptSound==="function") ptSound(true, true); }
 
   // ---- input: drag to turn, click a side to go, wheel to come closer ----
   function cuUI(on, keepHidden){ var el=CU.ui; if(!el){ el=CU.ui=document.createElement("div"); el.id="cubeUI"; el.className="cu-ui";
-      el.innerHTML='<div class="cu-name"></div><div class="cu-hint">DRAG TO TURN IT · CLICK A SIDE TO GO THERE · <b>T</b> TO PUT IT AWAY</div>'; document.body.appendChild(el);
+      el.innerHTML='<div class="cu-name"></div><div class="cu-hint">DRAG TO TURN IT, UP AND DOWN TO TILT · CLICK A SIDE TO GO THERE · <b>T</b> TO PUT IT AWAY</div>'; document.body.appendChild(el);
       el.addEventListener("pointerdown",function(e){ if(CU.dive) return; CU.drag={x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, t:performance.now()}; el.setPointerCapture(e.pointerId); });
       el.addEventListener("pointermove",function(e){ if(CU.drag){ var dx=e.clientX-CU.drag.x, dy=e.clientY-CU.drag.y; CU.drag.x=e.clientX; CU.drag.y=e.clientY; CU.spin.set(dy*0.006, dx*0.006); } else cuHover(e); });
       el.addEventListener("pointerup",function(e){ var d=CU.drag; CU.drag=null; if(d&&Math.hypot(e.clientX-d.x0,e.clientY-d.y0)<5){ var i=cuPick(e); if(i>=0) cuDiveInto(i); } });

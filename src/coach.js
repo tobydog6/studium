@@ -120,10 +120,11 @@
       done:function(){ return Math.abs(coDialVal(key)-CO.s.v)>=2; }, bar:function(){ return Math.min(1,Math.abs(coDialVal(key)-CO.s.v)/2); }}; }
   var CO_TOURS={
     basics:{where:function(){ return loaded&&!App.is("hub")&&!(typeof st!=="undefined"&&st.open); }, steps:[
-      {ch:"MOVE", line:function(){ return 'Click, then move the mouse to look around'; }, sub:"Esc lets go of the mouse.",
+      {ch:"MOVE", line:function(){ return 'Click, then move the mouse to look around'; }, sub:"Esc lets go of the mouse. The sharp thing in front of you is the subject; if you lose it, a gold ring points the way back.",
         done:function(){ return CO.look>1.6; }, bar:function(){ return CO.look/1.6; }},
-      {ch:"MOVE", line:function(){ return coK("W")+coK("A")+coK("S")+coK("D")+' to walk'; }, sub:"Have a wander. You can't walk through the stump.",
-        done:function(){ return CO.walked>3; }, bar:function(){ return CO.walked/3; }},
+      {ch:"MOVE", line:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return d>4.5?'Head back to the gold ring: that\'s '+(typeof chSubjectName==="function"?chSubjectName().toLowerCase():"the subject"):coK("W")+coK("A")+coK("S")+coK("D")+' to walk'; },
+        sub:"Have a wander, but stay close. A scan is only sharp near the thing it was made of; the edges always go soft.",
+        done:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return CO.walked>3&&d<4.5; }, bar:function(){ return Math.min(1,CO.walked/3); }},
       {ch:"MOVE", line:function(){ return coK("Q")+' to crouch, '+coK("E")+' to stand tall'; }, sub:"Where you hold the camera changes the picture.",
         done:function(){ return CO.keys.Q&&CO.keys.E; }},
       {ch:"SHOOT", line:function(){ return '<kbd>RIGHT CLICK</kbd> raises the camera to your eye'; }, sub:"Right click again to lower it. "+coK("P")+" does the same.",
@@ -317,13 +318,16 @@
   function coHidesFrames(){ return CO.on&&CO.tour==="basics"; }   /* the gold frames wait until the warm-up's done */
   function coEl(){ var e=$("coCard"); if(!e){ e=document.createElement("div"); e.id="coCard"; e.className="co-card"; document.body.appendChild(e);
       var r=document.createElement("div"); r.id="coRing"; r.className="co-ring"; document.body.appendChild(r);
-      e.addEventListener("click",function(ev){ if(ev.target.closest("[data-co-skip]")){ ev.stopPropagation(); coFinish(true); }
+      e.addEventListener("click",function(ev){ if(ev.target.closest("[data-co-skipall]")){ ev.stopPropagation(); coFinish(true); return; }
+        if(ev.target.closest("[data-co-skip]")){ ev.stopPropagation(); coSkipStep(); }
         if(ev.target.closest("[data-co-next]")){ ev.stopPropagation(); CO.s.ok=true; } }); } return e; }
   function coStart(tour){ tour=tour||"basics"; if(CO.on&&CO.tour===tour) return; if(CO.on) coStop(); CO.ticking=false;
-    CO.tour=tour; CO.on=true; CO.done=false; if(Q.tours[tour]&&(Q.tourStep[tour]||0)>=coLen(tour)) Q.tourStep[tour]=0; CO.i=Q.tourStep[tour]||0; CO.look=0; CO.walked=0; CO.lx=null; CO.seen=-1; coEnter(); coLoop(); }
+    CO.tour=tour; CO.on=true; CO.done=false; CO.skipped=0; if(Q.tours[tour]&&(Q.tourStep[tour]||0)>=coLen(tour)) Q.tourStep[tour]=0; CO.i=Q.tourStep[tour]||0; CO.look=0; CO.walked=0; CO.lx=null; CO.seen=-1; coEnter(); coLoop(); }
   function coMultiOff(){ Array.prototype.forEach.call(document.querySelectorAll('.co-multi,.co-float'),function(e){ e.classList.remove('co-multi','co-float'); }); }
   function coEnter(){ coUnmark(); coMultiOff(); if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); if(typeof cbRender==="function") cbRender(); } var s=coSteps()[CO.i]; CO.s={}; CO.keys={}; CO.t0=performance.now(); CO.seen=-1; CO.lockTo=s&&s.info?CO.t0+READ_MS:0; if(s&&s.start) s.start(); CO.html=""; }
   function coStop(){ coMultiOff(); if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); } setTimeout(function(){ if(typeof chMarkers==="function") chMarkers(); },0); coUnmark(); if(CO.tgt){ CO.tgt.classList.remove("co-target"); CO.tgt=null; } CO.on=false; cancelAnimationFrame(CO.raf); var e=$("coCard"), r=$("coRing"); if(e) e.classList.remove("show","media"); if(r) r.classList.remove("show"); document.body.classList.remove("co-on","co-dial"); }
+  /* SKIP moves past one prompt, not the whole tour: one click on the first step used to throw the warm-up away. Skip all is offered once you've skipped a step */
+  function coSkipStep(){ if(!CO.on||CO.ticking) return; CO.skipped=(CO.skipped||0)+1; coUnmark(); CO.i++; Q.tourStep[CO.tour]=CO.i; qSave(); if(CO.i>=coSteps().length) coFinish(false); else coEnter(); }
   function coFinish(skipped){ CO.done=true; Q.tourStep[CO.tour]=coSteps().length; Q.tours[CO.tour]=true; qSave(); coStop();
     if(skipped) toast(CO.tour==="basics"?"Warm-up skipped. The gold frames are out.":"Tour skipped."); }
   function coLoop(){ cancelAnimationFrame(CO.raf); CO.raf=requestAnimationFrame(coLoop); if(!CO.on) return; var T=CO_TOURS[CO.tour], e0;
@@ -352,7 +356,7 @@
     else if(s.need==="crop"&&!cropActive()) pre='Open the crop again: click <b>Crop</b> or press '+coK("C");
     var b=s.bar?Math.max(0,Math.min(1,s.bar())):null;
     var html='<div class="co-top">'+chs.map(function(c){ var on=c.ch===s.ch, past=CO.i>c.first&&!on; return '<span class="co-ch'+(on?' on':'')+(past?' past':'')+'">'+c.ch+'</span>'; }).join('<i></i>')
-      +'<button class="co-skip" data-co-skip title="Skip this tour">SKIP</button></div>'
+      +(CO.skipped?'<button class="co-skip all" data-co-skipall title="Skip the rest of this tour">SKIP ALL</button>':'')+'<button class="co-skip" data-co-skip title="Skip this step">SKIP STEP</button></div>'
       +(s.media&&!pre?'<canvas class="co-media" data-co-media="'+s.media+'"></canvas>':'')
       +'<div class="co-line">'+(pre||s.line())+'</div>'+((pre?'':s.sub)?'<div class="co-sub">'+s.sub+'</div>':'')
       +'<div class="co-foot"><div class="co-dots">'+inCh.map(function(_,j){ return '<i class="'+(j<k?'d':j===k?'c':'')+'"></i>'; }).join("")+'</div>'

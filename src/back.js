@@ -69,14 +69,27 @@
   // ---- the exposure the meter reads, in plain words ----
   function cbThirds(ev){ var n=Math.round(Math.abs(ev)*3), w=Math.floor(n/3), r=n%3;
     var s=(w?String(w):"")+(r===1?"⅓":r===2?"⅔":""); return (ev<0?"−":"+")+(s||"0"); }
-  function cbMeterWords(){ var ev=evStops, n=Math.round(Math.abs(ev)*3), t=SHUTTERS[shIdx], head, body;
-    if(n===0){ head="Spot on"; body="The meter is happy. Frame it and shoot."; }
+  function cbMeterWords(){ var ev=evStops, n=Math.round(Math.abs(ev)*3), t=SHUTTERS[shIdx], head, body, F=cbFrameHold();
+    if(n===0){ head="Spot on"; body=F?"The meter is happy and the frame's settings hold. Flip back and shoot.":"The meter is happy. Frame it and shoot."; }
+    else if(F&&F.free.length){   // a gold frame pins some settings: trade with the ones it leaves free
+      var dark=ev<0, moves={sh:dark?"a slower shutter":"a faster shutter", ap:dark?"a wider aperture (smaller f-number)":"a smaller aperture (bigger f-number)", iso:dark?"a higher ISO":"a lower ISO"};
+      head=(dark?"Too dark, ":"Too bright, ")+cbThirds(ev);
+      body="Keep "+F.held.map(function(k){ return cbFmtKey(k); }).join(" and ")+" for the frame. "+(dark?"Let more light in with ":"Cut the light with ")+F.free.map(function(k){ return moves[k]; }).join(F.free.length>2?", ":" or ")+"."; }
     else if(ev>0 && n<=2){ head="A touch bright, "+cbThirds(ev); body="Close down a little: a faster shutter, a smaller aperture or a lower ISO."; }
     else if(ev>0){ head="Too bright, "+cbThirds(ev); body="Highlights will blow out. Try a faster shutter or a lower ISO first."; }
     else if(n<=2){ head="A touch dark, "+cbThirds(ev); body="Open up a little: a slower shutter, a wider aperture or a higher ISO."; }
     else { head="Too dark, "+cbThirds(ev); body="Shadows will turn to mud. Raise the ISO or open the aperture."; }
     var shake = t>1/Math.max(focalMM,1)+1e-9 ? "Slower than 1/"+focalMM+" at "+focalMM+" mm, so brace yourself or it will blur." : "";
     return {head:head, body:body, shake:shake}; }
+  function cbFmtKey(k){ return k==="sh"?SHUTTER_LABELS[shIdx]:k==="ap"?"f/"+APERTURES[apIdx]:"ISO "+ISOS[isoIdx]; }
+  // the gold frame you're standing in, and which of shutter / aperture / ISO it pins (held) and leaves to you (free)
+  function cbFrameHold(){ var P=typeof chActivePad==="function"?chActivePad():null; if(!P) return null; var W=chWants(P), held=[], free=[];
+    [["sh",W.sh],["ap",W.f],["iso",W.iso]].forEach(function(r){ (r[1]?held:free).push(r[0]); });
+    return {P:P, W:W, held:held, free:free}; }
+  // the stops a need allows on a row, as an index range [lo,hi] (or null when the row is free)
+  function cbBand(key, W){ var n=key==="sh"?W.sh:key==="ap"?W.f:W.iso; if(!n) return null; var vals=key==="sh"?SHUTTERS:key==="ap"?APERTURES:ISOS, lo=-1, hi=-1;
+    vals.forEach(function(v,i){ var ok=key==="sh"?((n.max==null||v<=n.max*1.001)&&(n.min==null||v>=n.min*0.999)):((n.max==null||v<=n.max)&&(n.min==null||v>=n.min)); if(ok){ if(lo<0) lo=i; hi=i; } });
+    return lo<0?null:[lo,hi]; }
 
   // ---- tab bar + footer, shared by every tab ----
   function cbChrome(right, footL, footR, body){
@@ -98,11 +111,14 @@
     ap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 3l3.6 7.2M21 12l-7.8 1.2M16.5 19.8L11 14.3M6 18.6l2.7-7.4M3.3 9.3l7.9 1.1M9 3.5l1.5 7.9"/></svg>',
     iso:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" stroke-width="2.4" stroke-linecap="round"/></svg>'};
   function cbFmt(r,v){ return r.key==="ap"?"f/"+v:v; }
-  function cbShoot(){ var rows=cbShootRows(), html="";
+  function cbShoot(){ var rows=cbShootRows(), html="", F=cbFrameHold(), offEv=Math.round(Math.abs(evStops)*3)>0;
     rows.forEach(function(r,ri){ var n=r.vals.length, stops="", pc=function(i){ return (n>1?i/(n-1)*100:50).toFixed(3)+"%"; };
-      r.vals.forEach(function(v,i){ stops+='<button class="cb-stop'+(i===r.idx?' cur':'')+'" style="left:'+pc(i)+'" data-cb-set="'+r.key+':'+i+'"><i></i><span>'+cbEsc(v)+'</span></button>'; });
-      html+='<div class="cb-scale cb-'+r.key+(ri===cbRow?' sel':'')+'" data-cb-row="'+ri+'"><div class="cb-cap"><span class="ic">'+CB_ICON[r.key]+'</span><span class="c">'+r.cap+'</span><span class="now">'+cbEsc(cbFmt(r,r.vals[r.idx]))+'</span></div>'
-        +'<div class="cb-track" data-cb-track="'+r.key+'"><div class="cb-line'+(r.dir<0?' rev':'')+'"><b style="width:'+pc(r.idx)+'"></b></div>'+stops+'<span class="cb-knob" style="left:'+pc(r.idx)+'"><i></i></span>'
+      var band=F?cbBand(r.key,F.W):null, hit=band&&r.idx>=band[0]&&r.idx<=band[1], free=F&&!band&&offEv;
+      r.vals.forEach(function(v,i){ stops+='<button class="cb-stop'+(i===r.idx?' cur':'')+(band&&i>=band[0]&&i<=band[1]?' want':'')+'" style="left:'+pc(i)+'" data-cb-set="'+r.key+':'+i+'"><i></i><span>'+cbEsc(v)+'</span></button>'; });
+      var bandHtml=band?'<span class="cb-band'+(hit?' hit':'')+'" style="left:'+pc(band[0])+';width:calc('+pc(band[1])+' - '+pc(band[0])+')"><em>'+(hit?'✓ FRAME':'THE FRAME WANTS')+'</em></span>':'';
+      var tag=band?'<span class="tag'+(hit?' ok':'')+'">'+(hit?'✓ SET FOR THE FRAME':'FOR THE FRAME')+'</span>':free?'<span class="tag free">'+(evStops<0?'MORE LIGHT ›':'‹ LESS LIGHT')+'</span>':'';
+      html+='<div class="cb-scale cb-'+r.key+(ri===cbRow?' sel':'')+(band?' held':'')+(hit?' hit':'')+(free?' free':'')+'" data-cb-row="'+ri+'"><div class="cb-cap"><span class="ic">'+CB_ICON[r.key]+'</span><span class="c">'+r.cap+'</span>'+tag+'<span class="now">'+cbEsc(cbFmt(r,r.vals[r.idx]))+'</span></div>'
+        +'<div class="cb-track" data-cb-track="'+r.key+'"><div class="cb-line'+(r.dir<0?' rev':'')+'"><b style="width:'+pc(r.idx)+'"></b></div>'+bandHtml+stops+'<span class="cb-knob" style="left:'+pc(r.idx)+'"><i></i></span>'
         +'<div class="cb-ends"><span>‹ '+cbEsc(r.lo)+'</span><span>'+cbEsc(r.hi)+' ›</span></div></div></div>'; });
     var m=cbMeterWords(), a=Math.max(-3,Math.min(3,evStops))/3*55*Math.PI/180;
     var nx=(66+48*Math.sin(a)).toFixed(1), ny=(66-48*Math.cos(a)).toFixed(1), b=curBody();
@@ -115,8 +131,12 @@
       +(cbTask()||'<div class="cb-info"><span>'+cbEsc((b.fmt||"").toUpperCase())+'</span><span>'+focalMM+' MM</span><span>FOCUS '+focusBars()+'</span></div>')+'</div>';
     return cbChrome(cbCounter("FRAME",cbPad(photos.length+1)), cbEsc(cbPlace.toUpperCase()), "SPACE · BACK TO THE VIEWFINDER", html); }
   // standing in a gold frame: its checklist comes onto the back with you, so you can see what to set
-  function cbTask(){ if(typeof CH==="undefined"||!(CH.active>=0)||!CH.pads[CH.active]) return ""; var P=CH.pads[CH.active], ck=chChecks(P).slice(1);
-    return '<div class="cb-task"><span class="k">CHALLENGE · '+cbEsc(P.c.title||"")+'</span>'+ck.map(function(x){ return '<span class="r'+(x.ok?' ok':'')+'"><i>'+(x.ok?'✓':'')+'</i><em>'+cbEsc(x.label.replace(/:.*$/,""))+'</em><b>'+cbEsc(x.now||"")+'</b></span>'; }).join("")+'</div>'; }
+  function cbTask(){ if(typeof CH==="undefined"||!(CH.active>=0)||!CH.pads[CH.active]) return ""; var P=CH.pads[CH.active], ck=chChecks(P).slice(1), next=-1;
+    ck.forEach(function(x,j){ if(next<0&&!x.ok) next=j; }); var all=next<0;
+    return '<div class="cb-task'+(all?' all':'')+'"><span class="k">GOLD FRAME · '+cbEsc(P.c.title||"")+'</span>'+ck.map(function(x,j){ var w=x.where, here=w&&w.at==="back", chip="";
+        if(!x.ok&&w){ if(w.at==="bag") chip='<kbd class="w" data-cb-btn="bag">B · BAG</kbd>'; else if(here) chip='<kbd class="w here">HERE</kbd>'; else if(w.at==="zoom") chip='<kbd class="w">SCROLL IN THE FINDER</kbd>'; else chip='<kbd class="w">'+cbEsc(w.key)+'</kbd>'; }
+        return '<span class="r'+(x.ok?' ok':'')+(j===next?' next':'')+'"><i>'+(x.ok?'✓':'')+'</i><em>'+cbEsc(x.label.replace(/[:(].*$/,""))+'</em>'+chip+'<b>'+cbEsc(x.now||"")+'</b></span>'; }).join("")
+      +(all?'<span class="go">ALL SET · SPACE, THEN SHOOT</span>':'')+'</div>'; }
   function cbShootStep(d){ var r=cbShootRows()[cbRow]; var i=Math.max(0,Math.min(r.vals.length-1,r.idx+d)); if(i===r.idx) return;
     if(r.key==="sh") shIdx=i; else if(r.key==="ap") apIdx=i; else isoIdx=i; computeCam(); cbRender(); }
   function cbShootSet(key,i){ if(key==="sh") shIdx=i; else if(key==="ap") apIdx=i; else isoIdx=i;

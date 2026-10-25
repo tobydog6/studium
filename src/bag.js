@@ -112,7 +112,14 @@
     updatePrompt(); }
 
   // ---- render: compute every style from state (same maths as the mockup) ----
-  function bagRender(){ if(!bagEls||!bg.open) return; var E=bagEls, s=bg, inLens=s.stage==="lens", kit=bgKit(), cur=bgCur();
+  // what the gold frame you're standing in wants from the bag: a body, and a lens (a focal length, or the zoom)
+  function bagWants(){ var P=typeof chActivePad==="function"?chActivePad():null; if(!P) return null; var W=chWants(P), out={body:W.body||null, lens:null, zoomTo:null, title:P.c.title||""};
+    var sys=(out.body||bg.body)==="67"?"67":"35", kit=LENS_KITS[sys];
+    if(W.lensMM){ kit.forEach(function(l){ if(!l.zoom&&l.mm===W.lensMM) out.lens=l.id; }); }
+    else if(W.mm){ kit.forEach(function(l){ if(l.zoom){ var ok=l.zoom.some(function(z){ return (W.mm.max==null||z<=W.mm.max)&&(W.mm.min==null||z>=W.mm.min); }); if(ok&&!out.lens){ out.lens=l.id; out.zoomTo=W.mm.max!=null?Math.min.apply(null,l.zoom.filter(function(z){ return (W.mm.max==null||z<=W.mm.max)&&(W.mm.min==null||z>=W.mm.min); })):null; } } }); }
+    if(!out.body&&!out.lens) return null; return out; }
+  function bagRender(){ if(!bagEls||!bg.open) return; var E=bagEls, s=bg, inLens=s.stage==="lens", kit=bgKit(), cur=bgCur(), want=bagWants();
+    var wantBodyOk=!want||!want.body||want.body===s.body, wantLensOk=!want||!want.lens||want.lens===s.lens;
     var OFF="translate(210px, 136px) scale(1.16)", NEAR="translate(24px, 15px) scale(1.012)";
     var glow="drop-shadow(0 0 1.5px rgba(246,206,140,0.95)) drop-shadow(0 0 12px rgba(227,173,87,0.5))";
     var outEase="cubic-bezier(.5,0,1,.5)", inEase="cubic-bezier(.16,1,.3,1)";
@@ -137,11 +144,14 @@
     slide(E.info,-700); slide(E.right,560);
     var B=BAG_BODIES.filter(function(b){ return b.id===s.body; })[0]||BAG_BODIES[0], crop=s.body==="ml"?1.6:s.body==="67"?0.49:1;
     var equiv=function(l){ if(crop===1) return ""; return "FRAMES LIKE "+l.label.split("–").map(function(n){ return Math.round(parseInt(n,10)*crop); }).join("–")+" MM"; };
-    E.head.querySelector(".eb").textContent=inLens?"CHANGE LENS":"CAMERA BAG";
-    E.head.querySelector(".sub").textContent=inLens?"Swap as many as you like, then lock one in.":"Choose a body, then a lens.";
+    E.head.querySelector(".eb").textContent=inLens?"CHANGE LENS":(want?"CAMERA BAG · GOLD FRAME":"CAMERA BAG");
+    var wantWords=""; if(want){ var wb=want.body?BAG_BODIES.filter(function(b){ return b.id===want.body; })[0]:null, wl=want.lens?LENS_KITS[(want.body||s.body)==="67"?"67":"35"].filter(function(l){ return l.id===want.lens; })[0]:null;
+      wantWords=(wantBodyOk&&wantLensOk)?"That's the kit the frame wants. Done takes you back to it.":"The frame wants "+(wb?"the "+wb.card:"this body")+(wl?" with the "+wl.long.replace(/ f\/.*$/,"")+(want.zoomTo?" at "+want.zoomTo+" mm":""):"")+"."; }
+    E.head.querySelector(".sub").textContent=inLens?(want&&!wantLensOk&&want.lens?"The frame wants the "+LENS_KITS[bgSys()].filter(function(l){ return l.id===want.lens; }).map(function(l){ return l.label; })[0]+" mm. Click it, then lock it in.":"Swap as many as you like, then lock one in."):(wantWords||"Choose a body, then a lens.");
+    E.head.classList.toggle("want", !!want);
     E.head.querySelector(".close").textContent=inLens?"ESC · CANCEL":"B · CLOSE";
     E.info.querySelector("h1").textContent=B.card; E.info.querySelector(".spec").textContent=B.spec+" · "+cur.long.toUpperCase(); E.info.querySelector("p").textContent=B.note;
-    E.cards.forEach(function(c){ c.classList.toggle("on", c.getAttribute("data-bg-body")===s.body); });
+    E.cards.forEach(function(c){ var id=c.getAttribute("data-bg-body"), w=!!(want&&want.body&&want.body===id); c.classList.toggle("on", id===s.body); c.classList.toggle("want", w&&id!==s.body); c.classList.toggle("want-ok", w&&id===s.body); c.classList.toggle("dim", !!(want&&want.body&&!w&&id!==s.body)); });
     var lb=E.right.querySelector(".lensbtn"); lb.querySelector("img").src=BAG_A("thumb-"+cur.id); lb.querySelector(".nm").textContent=cur.long;
     lb.querySelector(".kd").textContent=cur.kind+" · ON THE CAMERA"+(equiv(cur)?" · "+equiv(cur):""); E.right.querySelector(".lnote").textContent=cur.note;
     var lockedNew=s.lens!==s.orig;
@@ -151,10 +161,11 @@
     // tray: rebuilt only when the kit changes, then classes update
     if(E.tray.getAttribute("data-sys")!==bgSys()){ E.tray.setAttribute("data-sys",bgSys()); E.tray.innerHTML=kit.map(function(l){
       return '<button class="bg-cell" data-bg-lens="'+l.id+'" aria-label="Put on the '+l.long+' lens"><span class="im"><img alt="" src="'+BAG_A("thumb-"+l.id)+'"></span><span class="num">'+l.label+'<span class="u"> mm</span></span><span class="tg"></span></button>'; }).join(""); }
-    Array.prototype.forEach.call(E.tray.querySelectorAll(".bg-cell"),function(c,i){ var id=c.getAttribute("data-bg-lens"), on=id===s.lens, l=kit[i];
-      c.classList.toggle("on",on); c.classList.toggle("cursor", inLens&&i===s.cursor&&!on); c.querySelector(".tg").textContent=on?"ON CAMERA":l.kind; });
+    Array.prototype.forEach.call(E.tray.querySelectorAll(".bg-cell"),function(c,i){ var id=c.getAttribute("data-bg-lens"), on=id===s.lens, l=kit[i], w=!!(want&&want.lens===id);
+      c.classList.toggle("on",on); c.classList.toggle("cursor", inLens&&i===s.cursor&&!on); c.classList.toggle("want", w&&!on); c.querySelector(".tg").textContent=on?(w?"ON CAMERA ✓":"ON CAMERA"):(w?"THE FRAME WANTS THIS":l.kind); });
+    lb.classList.toggle("want", !!(want&&want.lens&&!wantLensOk)); lb.querySelector(".ch").firstChild.textContent=(want&&want.lens&&!wantLensOk)?"CHANGE TO "+(LENS_KITS[bgSys()].filter(function(l){ return l.id===want.lens; }).map(function(l){ return l.label; })[0]||"")+" ":"CHANGE ";
     E.tray.classList.toggle("on",inLens); E.actions.classList.toggle("on",inLens);
-    E.actions.querySelector(".gold").textContent=lockedNew?"LOCK IN "+cur.label+(cur.label.length>3?"":" MM"):"DONE";
+    E.actions.querySelector(".gold").textContent=lockedNew?"LOCK IN "+cur.label+(cur.label.length>3?"":" MM")+(want&&want.lens===s.lens?" · BACK TO THE FRAME":""):"DONE";
     var hints=inLens?[["← →","Choose lens"],["Space","Put it on"],["Enter","Lock in"],["Esc","Cancel"]]:[["← →","Body"],["L","Change lens"],["B","Close bag"]];
     E.hints.innerHTML=hints.map(function(h){ return '<span><kbd>'+h[0]+'</kbd>'+h[1]+'</span>'; }).join(""); }
 

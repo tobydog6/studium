@@ -574,7 +574,7 @@
       frameScene(); if(typeof wxArrival==="function"&&wxArrival()){} else if(keepCol&&CH.spec&&CH.spec.spawn){ var sp=CH.spec.spawn; if(sp[4]&&WK.mode==="walk") WK.eye=sp[4]; camPos.set(sp[0], WK.col?wkGround(sp[0],sp[1])+WK.eye:camPos.y, sp[1]); yaw=sp[2]||0; pitch=sp[3]||-0.1; }   // a scene can say where to stand first
       chAttach(); loaded=true; updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
-      toast("Click to look around · P raises the camera · Space for the menu");   // the guide's first popup covers the controls
+      /* no toast on arrival: the coach's first prompt and the look-around pill already say it (ux-scene) */
     }).catch(function(err){
       console.error("Load failed:",err); hideLoader();
       if(viewer){ try{ viewer.dispose(); }catch(e){} viewer=null; } loaded=false; show(landing);
@@ -824,6 +824,7 @@
     if(curBody().film){ var onBody=photos.filter(function(p){ return p.body===curBody().name; }).length; if(onBody%(curBody().roll||10)===0) toast("Roll finished. A fresh roll is loaded."); }
     photoTip(); saveSession();
   }
+  if(/[?&]dev/.test(location.search)) document.body.classList.add("dev");   /* OPEN A SCAN and HIDE FRAMES live in the top bar for Sam, not for students */
   if(/[?&]dev/.test(location.search)) window.__shake={ capture:function(k){ renderFrame(0); return captureAspect(curAspect(), k); }, risk:function(){ return shakeRisk(); }, limit:function(){ return handheldLimit().label; } };
   function namePrefix(){ return studentName?studentName.replace(/[^\w -]/g,"").trim().replace(/\s+/g,"-")+"-":""; }
   function fileName(i){ return namePrefix()+"splat-photo-"+String(i+1).padStart(2,"0")+".png"; }

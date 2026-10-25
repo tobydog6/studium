@@ -144,8 +144,23 @@
       else if(n.k==="vert"){ ok=!!vertical; nw=vertical?"VERTICAL":"HORIZONTAL"; }
       else if(n.k==="iso"){ var iso=ISOS[isoIdx]; ok=(n.max==null||iso<=n.max)&&(n.min==null||iso>=n.min); nw="ISO "+iso; }
       else if(n.k==="sh"){ var t=SHUTTERS[shIdx]; ok=(n.max==null||t<=n.max*1.001)&&(n.min==null||t>=n.min*0.999); nw=SHUTTER_LABELS[shIdx]; }
-      out.push({label:n.label, ok:ok, now:nw}); });
+      out.push({label:n.label, ok:ok, now:nw, k:n.k, need:n, where:chWhere(n)}); });
     return out; }
+  // where each need gets fixed, so every unticked row can say so (and open it)
+  function chWhere(n){ if(!n) return null;
+    if(n.k==="body"||n.k==="lens") return {at:"bag", key:"B", word:"BAG"};
+    if(n.k==="mm"){ var l=typeof curLens==="function"?curLens():null; return l&&l.zoom?{at:"zoom", key:"SCROLL", word:"ZOOM"}:{at:"bag", key:"B", word:"BAG"}; }
+    if(n.k==="f"||n.k==="sh"||n.k==="iso"||n.k==="ev") return {at:"back", key:"SPACE", word:"BACK"};
+    if(n.k==="vert") return {at:"scene", key:"X", word:"TURN"};
+    return null; }
+  // the frame's wants, for the bag and the back: body id, lens (by focal length), zoom range, and the settings
+  function chWants(P){ var W={body:null, lensMM:null, mm:null, f:null, sh:null, iso:null, ev:null, vert:false}; if(!P) return W;
+    (P.c.need||[]).forEach(function(n){ if(n.k==="body") W.body=n.id; else if(n.k==="lens") W.lensMM=n.mm; else if(n.k==="mm") W.mm=n; else if(n.k==="f") W.f=n; else if(n.k==="sh") W.sh=n; else if(n.k==="iso") W.iso=n; else if(n.k==="ev") W.ev=n; else if(n.k==="vert") W.vert=true; });
+    return W; }
+  function chActivePad(){ return CH.active>=0&&CH.pads[CH.active]?CH.pads[CH.active]:null; }
+  // how far you are from the scan's subject (the sharp bit), or Infinity when the scene hasn't got one
+  function chSubjectDist(){ var S=CH.spec&&CH.spec.subject; return S?Math.hypot(camPos.x-S[0],camPos.z-S[1]):Infinity; }
+  function chSubjectName(){ return (CH.spec&&(CH.spec.subjectName||CH.spec.name))||cbPlace||"the subject"; }
   // ---- the card, the title flash, the done stamp ----
   function chCard(P, update){ var el=$("chCard"); if(!el) return;
     if(!P){ el.classList.remove("show"); CH.cardFor=-1; return; }
@@ -153,8 +168,19 @@
     if(!update||CH.cardFor!==i){ CH.cardFor=i;
       var ref=/dof/.test(P.c.id)&&typeof CO_AP!=="undefined"&&CO_AP.ok?CO_AP.im[0].src:"";
       el.innerHTML=(ref?'<div class="ref"><img src="'+ref+'" alt=""><span>WHAT YOU\'RE AFTER</span></div>':'')+'<span class="k">CHALLENGE '+(i+1)+' OF '+CH.pads.length+(done?' · DONE ✓':'')+'</span><b class="t">'+cbEsc(P.c.title)+'</b><p>'+cbEsc(P.c.brief)+'</p><div class="ck"></div><span class="go"></span>'; el.classList.add("show"); }
-    el.querySelector(".ck").innerHTML=checks.map(function(x){ return '<div class="'+(x.ok?'ok':'')+'"><i>'+(x.ok?'✓':'')+'</i><span>'+cbEsc(x.label)+'</span><em>'+x.now+'</em></div>'; }).join("");
-    var go=el.querySelector(".go"); go.textContent=all?(viewfinderOn?"EVERYTHING’S SET. TAKE THE SHOT ↵":"EVERYTHING’S SET. RAISE THE CAMERA (P) AND SHOOT"):"TICK THEM ALL, THEN SHOOT"; go.classList.toggle("on", all); el.classList.toggle("ready", all); }
+    // each unticked row says where it gets fixed; the first one is the one to do next, and clicking it opens that place
+    var next=-1; checks.forEach(function(x,j){ if(next<0&&!x.ok&&x.where&&(x.where.at==="bag"||x.where.at==="back")) next=j; });
+    el.querySelector(".ck").innerHTML=checks.map(function(x,j){ var w=x.where, chip=(!x.ok&&w)?'<kbd class="w'+(j===next?' nxt':'')+'"'+(w.at==="bag"||w.at==="back"?' data-ch-open="'+w.at+'"':'')+'>'+w.key+' · '+w.word+'</kbd>':'';
+      var label=w?x.label.replace(/\s*[:(].*$/,""):x.label;   // the chip says where, so the label keeps just the what
+      return '<div class="'+(x.ok?'ok':'')+(j===next?' next':'')+'"><i>'+(x.ok?'✓':'')+'</i><span>'+cbEsc(label)+'</span><em>'+x.now+'</em>'+chip+'</div>'; }).join("");
+    var go=el.querySelector(".go"); go.textContent=all?(viewfinderOn?"EVERYTHING’S SET. TAKE THE SHOT ↵":"EVERYTHING’S SET. RAISE THE CAMERA (P) AND SHOOT"):(next>=0?"NEXT: "+checks[next].where.word.replace("BACK","CAMERA BACK").replace("BAG","CAMERA BAG")+" · "+checks[next].where.key:"TICK THEM ALL, THEN SHOOT"); go.classList.toggle("on", all); el.classList.toggle("ready", all);
+    chCardPlace(el); }
+  // with the camera raised the card tucks inside the frame, small, so the picture stays the picture
+  function chCardPlace(el){ var vf=!!viewfinderOn&&typeof vfRect==="function"; el.classList.toggle("vf", vf);
+    if(vf){ var r=vfRect(), bc=$("vfBriefChip"), top=r.y+14+(bc&&!bc.classList.contains("hidden")?44:0); el.style.left=(r.x+14)+"px"; el.style.top=top+"px"; }
+    else { el.style.left=""; el.style.top=""; } }
+  (function wireChCard(){ var el=$("chCard"); if(!el) return; el.addEventListener("click",function(e){ var b=e.target.closest("[data-ch-open]"); if(!b) return; e.preventDefault(); e.stopPropagation();
+      var at=b.getAttribute("data-ch-open"); if(at==="bag"&&typeof openBag==="function") openBag(); else if(at==="back"&&typeof openBack==="function") openBack(); }); })();
   function chFlash(P){ var f=$("chFlash"); if(!f) return; f.innerHTML='<span>CHALLENGE</span><b>'+cbEsc(P.c.title)+'</b>'; f.classList.remove("show"); void f.offsetWidth; f.classList.add("show"); }
   function chOnShot(p){ if(CH.active<0) return; var P=CH.pads[CH.active], checks=chChecks(P), miss=checks.filter(function(x){ return !x.ok; });
     if(miss.length){ toast("Close. Still to do: "+miss.map(function(x){ return x.label.toLowerCase(); }).join(", ")); return; }
@@ -165,17 +191,24 @@
     if(CH.pull>=0&&CH.pads[CH.pull]===P) chLetGo(); CH.doneHold=true; clearTimeout(CH.doneT); CH.doneT=setTimeout(function(){ CH.doneHold=false; }, 2600); }
   // ---- on-screen markers that point to the frames ----
   var _chV=new THREE.Vector3();
-  function chMarkers(){ var host=$("chMarks"); if(!host) return; var show=loaded&&App.is("scene")&&CH.pads.length&&!chOff();
+  function chMarkers(){ var host=$("chMarks"); if(!host) return; var subj=!!(CH.spec&&CH.spec.subject), off=chOff(), show=loaded&&App.is("scene")&&((CH.pads.length&&!off)||subj);
     host.classList.toggle("show", !!show); if(!show) return;
-    if(host.children.length!==CH.pads.length) host.innerHTML=CH.pads.map(function(){ return '<span class="chm"><i></i><b></b></span>'; }).join("");
+    if(host.children.length!==CH.pads.length+1) host.innerHTML=CH.pads.map(function(){ return '<span class="chm"><i></i><b></b></span>'; }).join("")+'<span class="chm subj"><i></i><b></b></span>';
     var W=window.innerWidth, H=window.innerHeight, nearest=-1, nd=1e9;
+    // a point in the world → a spot on the screen, pinned to the edge (and flipped) when it's off or behind you
+    var place=function(el, vx, vy, vz, m){ var e=m?m-20:40; m=m||90; _chV.set(vx, vy, vz).project(camera); var behind=_chV.z>1, x=(_chV.x*0.5+0.5)*W, y=(-_chV.y*0.5+0.5)*H, off=behind||x<e||x>W-e||y<60||y>H-90;
+      if(behind){ x=W-x; y=H-y; } if(off){ x=Math.max(m,Math.min(W-m,x)); y=Math.max(120,Math.min(H-120,behind?H-120:y)); }
+      el.style.transform="translate("+x.toFixed(0)+"px,"+y.toFixed(0)+"px)"; el.classList.toggle("off", off); return off; };
     CH.pads.forEach(function(P,i){ var d=Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z); if(!CH.done[P.c.id]&&d<nd){ nd=d; nearest=i; } });
     CH.pads.forEach(function(P,i){ var el=host.children[i], done=CH.done[P.c.id], d=Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z);
-      if(CH.active>=0||done){ el.style.display="none"; return; } el.style.display=""; el.classList.toggle("lbl", i===nearest);
-      _chV.set(P.F.x, P.F.y+P.h/2+0.3, P.F.z).project(camera); var behind=_chV.z>1, x=(_chV.x*0.5+0.5)*W, y=(-_chV.y*0.5+0.5)*H, off=behind||x<40||x>W-40||y<60||y>H-90;
-      if(behind){ x=W-x; y=H-y; } if(off){ x=Math.max(90,Math.min(W-90,x)); y=Math.max(120,Math.min(H-120,behind?H-120:y)); }
-      el.style.transform="translate("+x.toFixed(0)+"px,"+y.toFixed(0)+"px)"; el.classList.toggle("off", off); el.classList.toggle("done", !!done);
-      el.querySelector("b").textContent=Math.round(d)+" M"; }); }
+      if(off||CH.active>=0||done){ el.style.display="none"; return; } el.style.display=""; el.classList.toggle("lbl", i===nearest);
+      place(el, P.F.x, P.F.y+P.h/2+0.3, P.F.z); el.classList.toggle("done", !!done);
+      el.querySelector("b").textContent=Math.round(d)+" M"; });
+    // the subject: the sharp bit of the scan, where the frames all look. Shown until you're close, so nobody wanders off into the soft edges
+    var se=host.children[CH.pads.length], S=CH.spec&&CH.spec.subject; if(!S){ se.style.display="none"; return; }
+    var sd=Math.hypot(camPos.x-S[0],camPos.z-S[1]), near=sd<2.6; se.style.display=(CH.active>=0||CH.intro||near)?"none":"";
+    if(se.style.display==="") { var off=place(se, S[0], (typeof wkGround==="function"?wkGround(S[0],S[1]):0)+0.9, S[1], 150);
+      se.querySelector("b").textContent=((CH.spec.subjectName||cbPlace||"THE SUBJECT")+" · "+(off?Math.round(sd)+" M THIS WAY":"YOUR SUBJECT")).toUpperCase(); } }
   if(/[?&]dev/.test(location.search)){ window.__ch={ pads:function(){ return CH.pads.map(function(P){ return {id:P.c.id, x:P.E.x, z:P.E.z, y:P.E.y, w:P.w, done:!!CH.done[P.c.id]}; }); }, active:function(){ return CH.active; },
       checks:function(){ return CH.active>=0?chChecks(CH.pads[CH.active]):null; } };
     window.__ch.set=function(o){ if(o.mm!=null){ focalMM=o.mm; zoomMM=o.mm; } if(o.f!=null){ var j=APERTURES.indexOf(o.f); if(j>=0) apIdx=j; } if(o.eye!=null) WK.eye=o.eye; if(o.sh!=null){ var q=SHUTTER_LABELS.indexOf(o.sh); if(q>=0) shIdx=q; } computeCam();
@@ -183,4 +216,5 @@
     window.__ch.aim=function(i){ var d=CH.pads[i].d; yaw=Math.atan2(-d.x,-d.z); pitch=Math.asin(Math.max(-1,Math.min(1,d.y))); basis(); };
     window.__ch.goto=function(i){ var P=CH.pads[i]; CH.pull=-1; CH.locked=false; CH.cool=i; camPos.x=P.E.x; camPos.z=P.E.z; WK.eye=P.E.y-wkGround(P.E.x,P.E.z); _vel.set(0,0,0); };
     window.__ch.approach=function(i,out,turn){ var P=CH.pads[i], L=Math.hypot(P.d.x,P.d.z)||1; out=out==null?0.35:out; camPos.x=P.F.x-P.d.x/L*out; camPos.z=P.F.z-P.d.z/L*out; yaw=Math.atan2(-P.d.x,-P.d.z)+(turn==null?0.3:turn); pitch=0; _vel.set(0,0,0); };
-    window.__ch.pull=function(){ return {i:CH.pull, locked:CH.locked, cool:CH.cool, hold:chHold()}; }; window.__ch.nudge=function(){ CH.nudge=true; }; }
+    window.__ch.pull=function(){ return {i:CH.pull, locked:CH.locked, cool:CH.cool, hold:chHold()}; }; window.__ch.nudge=function(){ CH.nudge=true; };
+    window.__ch.force=function(i){ CH.intro=null; CH.pull=-1; CH.locked=false; CH.cool=i; CH.focus=i; CH.active=i; chCard(i>=0?CH.pads[i]:null); if(typeof cbRender==="function") cbRender(); if(typeof bagRender==="function") bagRender(); }; }

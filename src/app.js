@@ -123,7 +123,12 @@
       "    for(int i=0;i<12;i++){ float a=float(i)*2.3999632+1.2; float rr=(float(i)+1.0)/12.0*7.0;",
       "      vec3 sm=texture2D(tDiffuse, vUv+vec2(cos(a),sin(a))*rr*tx).rgb*exposure; bl+=max(sm-0.72,0.0); }",
       "    c+=bl/12.0*1.5*filmic*gBloom; }",
-      "  vec3 x=max(c,0.0); vec3 aces=clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0);",  // ACES filmic tonemap
+      /* clarity: midtone local contrast against a wide neighbourhood (before the curve, in the same space), so faces and forms get their shape back */
+      "  if(filmic>0.01){ float lm=0.0; for(int i=0;i<8;i++){ float a=float(i)*0.7853982+0.39; lm+=dot(texture2D(tDiffuse,vUv+vec2(cos(a),sin(a))*vec2(resolution.y/resolution.x,1.0)*0.018).rgb,vec3(0.299,0.587,0.114)); }",
+      "    lm=lm/8.0*exposure; float l0=dot(c,vec3(0.299,0.587,0.114)); float lc=clamp(l0,0.0,1.0); c+=(l0-lm)*0.5*filmic*4.0*lc*(1.0-lc); }",
+      /* ACES filmic, done in linear light (the picture arrives display-encoded): a real S-curve, so shadows deepen and
+         highlights roll off. Applied straight to encoded values it flattened everything: mids up, highlights down */
+      "  vec3 x=pow(max(c,0.0),vec3(2.2))*0.8; vec3 aces=pow(clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0),vec3(1.0/2.2));",
       "  c=mix(clamp(c,0.0,1.0),aces,filmic);",
       "  c=(c-0.5)*gCon+0.5;",                               // grade: contrast
       "  float lum=dot(c,vec3(0.299,0.587,0.114)); c=mix(vec3(lum),c,gSat);",  // grade: saturation

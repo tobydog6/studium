@@ -83,14 +83,14 @@
   var fsScene=new THREE.Scene();
   var fsCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
   var fsMat=new THREE.ShaderMaterial({
-    uniforms:{ tDiffuse:{value:sceneRT.texture}, clar:{value:0.12}, up:{value:0}, exposure:{value:1}, filmic:{value:0}, vignette:{value:0.1}, grain:{value:0}, dof:{value:0}, focus:{value:0.5}, seed:{value:0},
+    uniforms:{ tDiffuse:{value:sceneRT.texture}, clar:{value:0}, lin:{value:0}, up:{value:0}, exposure:{value:1}, filmic:{value:0}, vignette:{value:0.1}, grain:{value:0}, dof:{value:0}, focus:{value:0.5}, seed:{value:0},
       gCon:{value:1}, gSat:{value:1}, gWarm:{value:0}, gBloom:{value:1}, gDof:{value:1}, gGrain:{value:1}, resolution:{value:new THREE.Vector2(_sz.x,_sz.y)},
       tDepth:{value:null}, useDepth:{value:0}, focusD:{value:2}, cocK:{value:0}, maxR:{value:22} },
     vertexShader:"varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }",
     fragmentShader:[
       "precision highp float;",
       "varying vec2 vUv;",
-      "uniform sampler2D tDiffuse; uniform float clar; uniform float up; uniform float exposure,filmic,vignette,grain,dof,focus,seed,gCon,gSat,gWarm,gBloom,gDof,gGrain; uniform vec2 resolution;",
+      "uniform sampler2D tDiffuse; uniform float clar; uniform float lin; uniform float up; uniform float exposure,filmic,vignette,grain,dof,focus,seed,gCon,gSat,gWarm,gBloom,gDof,gGrain; uniform vec2 resolution;",
       "uniform sampler2D tDepth; uniform float useDepth,focusD,cocK,maxR;",
       "float depthAt(vec2 uv){ vec4 d=texture2D(tDepth,uv); return d.a>0.03?d.r/d.a:1.0e5; }",
       "float cocAt(vec2 uv){ return min(maxR, cocK*abs(1.0-focusD/depthAt(uv))); }",   // thin lens: blur grows with distance from the focus plane
@@ -141,7 +141,7 @@
       "    lm=lm/8.0*exposure; float l0=dot(c,vec3(0.299,0.587,0.114)); float lc=clamp(l0,0.0,1.0); c+=(l0-lm)*clar*filmic*4.0*lc*(1.0-lc); }",   /* how much: per scene (flat, overcast scans need more) */
       /* ACES filmic, done in linear light (the picture arrives display-encoded): a real S-curve, so shadows deepen and
          highlights roll off. Applied straight to encoded values it flattened everything: mids up, highlights down */
-      "  vec3 x=pow(max(c,0.0),vec3(2.2))*0.8; vec3 aces=pow(clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0),vec3(1.0/2.2));",
+      "  vec3 x=lin>0.5?pow(max(c,0.0),vec3(2.2))*0.8:max(c,0.0); vec3 aces=clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0); if(lin>0.5) aces=pow(aces,vec3(1.0/2.2));",   /* the original look by default; a scene can ask for the linear S-curve */
       "  c=mix(clamp(c,0.0,1.0),aces,filmic);",
       "  c=(c-0.5)*gCon+0.5;",                               // grade: contrast
       "  float lum=dot(c,vec3(0.299,0.587,0.114)); c=mix(vec3(lum),c,gSat);",  // grade: saturation
@@ -458,7 +458,7 @@
     if(loaded&&dt>0) chTick(dt);
     renderer.setRenderTarget(fsTarget);
     fsMat.uniforms.tDiffuse.value=sceneRT.texture;
-    fsMat.uniforms.exposure.value=fx.exposure; fsMat.uniforms.filmic.value=fx.filmic; fsMat.uniforms.clar.value=(typeof CH!=="undefined"&&CH&&CH.spec&&CH.spec.clarity!=null)?CH.spec.clarity:0.12;
+    fsMat.uniforms.exposure.value=fx.exposure; fsMat.uniforms.filmic.value=fx.filmic; var lk=(typeof CH!=="undefined"&&CH&&CH.spec)||{}; fsMat.uniforms.clar.value=lk.clarity||0; fsMat.uniforms.lin.value=lk.contrast?1:0;
     fsMat.uniforms.vignette.value=fx.vignette; fsMat.uniforms.grain.value=fx.grain; fsMat.uniforms.dof.value=fx.dof; fsMat.uniforms.focus.value=focusDist;
     fsMat.uniforms.useDepth.value=0;
     fsMat.uniforms.gCon.value=gCon; fsMat.uniforms.gSat.value=gSat; fsMat.uniforms.gWarm.value=gWarm+camWarm;

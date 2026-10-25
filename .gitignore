@@ -5,3 +5,4 @@ original.html
 .DS_Store
 __pycache__/
 docs/media/walk/
+.claude/settings.local.json

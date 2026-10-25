@@ -104,7 +104,7 @@
   function coFmt(key,v){ return key==="exposure"?fmtExp(v):(v>0?"+":"")+v; }
   function coSet(sec,id,key,val,tol,name,what){ return {ch:sec==="light"?"LIGHT":sec==="color"?"COLOUR":"EFFECTS",
       line:function(){ var v=edState?edState[key]:0, ok=Math.abs(v-val)<=tol; return 'Drag <b>'+name+'</b> to the gold mark: <b>'+coFmt(key,val)+'</b>'+(ok&&CO.down?' <span class="co-now ok">let go</span>':''); },
-      sub:name+" "+what, target:coRow(id), mark:[id,val], dwell:500, place:"low",
+      sub:name+" "+what, target:coRow(id), mark:[id,val], dwell:500,
       prep:function(){ coSec(sec); coShow(coRow(id)); setTimeout(function(){ coMark(id,val); },120); },
       done:function(){ return !CO.down&&Math.abs(edState[key]-val)<=tol; },
       bar:function(){ var v=edState[key]; return Math.max(0,1-Math.abs(v-val)/Math.max(Math.abs(val),20)); }}; }
@@ -171,11 +171,11 @@
       {ch:"LOOK", line:function(){ return '<b>Click any photo</b> to see it big'; }, sub:"Whichever catches your eye. Or use "+'← →'+" to move along.",
         target:'#st-select .st-sheet', start:function(){ CO.s.cur=st.cur; }, done:function(){ return st.cur!==CO.s.cur; }},
       {ch:"CHOOSE", line:function(){ return '<b>Pick</b> keeps it for your folio'; }, sub:"Click Pick, or press P. The pencil ring shows it's in.",
-        target:'#st-select [data-st-act="pick"]', done:function(){ var p=photos[st.cur]; return !!(p&&p.pick); }},
+        target:'#st-select [data-st-act="pick"]', place:"column", done:function(){ var p=photos[st.cur]; return !!(p&&p.pick); }},
       {ch:"CHOOSE", line:function(){ return '<b>Reject</b> the ones you won\'t use'; }, sub:"Click a weaker photo first, then Reject (or press X). It's struck out, not deleted.",
-        target:'#st-select [data-st-act="reject"]', start:function(){ CO.s.r=photos.filter(function(p){ return p.reject; }).length; }, done:function(){ return photos.filter(function(p){ return p.reject; }).length>CO.s.r; }},
+        target:'#st-select [data-st-act="reject"]', place:"column", start:function(){ CO.s.r=photos.filter(function(p){ return p.reject; }).length; }, done:function(){ return photos.filter(function(p){ return p.reject; }).length>CO.s.r; }},
       {ch:"CHOOSE", line:function(){ return 'Now pick your best <b>'+coPickN()+'</b>'; }, sub:"Click a photo, then Pick. Click Pick again to change your mind.",
-        target:'#st-select .st-loupe .brief', nodim:true, done:function(){ return coPicks()===coPickN(); }, bar:function(){ return coPicks()/coPickN(); }}]},
+        target:'#st-select .st-loupe .brief', place:"column", nodim:true, done:function(){ return coPicks()===coPickN(); }, bar:function(){ return coPicks()/coPickN(); }}]},
     // One photo, every slider to a gold mark (the photo stays bright, and it only ticks once you let go on the mark),
     // then the image resets and it's yours: edit, Copy, next photo, Paste, and the rest of the picks.
     edit:{where:coInEditor, nodim:true, steps:[
@@ -194,9 +194,9 @@
       {ch:"GRADE", line:function(){ return '<b>Color Grading</b> tints the shadows, midtones and highlights'; }, sub:"Film looks, moods, sunsets. A little goes a long way.",
         target:'#lrGrade', prep:function(){ coSec("grading"); if(typeof cgTab!=="undefined"&&cgTab!=="3"){ cgTab="3"; edpGrade(); } coShow('#lrGrade .cg-pair'); }, info:true},
       {ch:"GRADE", line:function(){ return 'Drag in the <b>Shadows</b> wheel towards blue'; }, sub:"Further from the middle is stronger.",
-        target:'#lrGrade .cg-disc[data-cg="gSh"]', place:"low", done:function(){ return edState.gShS>=10&&!CO.down; }},
+        target:'#lrGrade .cg-disc[data-cg="gSh"]', done:function(){ return edState.gShS>=10&&!CO.down; }},
       {ch:"GRADE", line:function(){ return 'And the <b>Highlights</b> wheel towards orange'; }, sub:"Cool shadows, warm light: the classic film look.",
-        target:'#lrGrade .cg-disc[data-cg="gHi"]', place:"low", done:function(){ return edState.gHiS>=10&&!CO.down; }},
+        target:'#lrGrade .cg-disc[data-cg="gHi"]', done:function(){ return edState.gHiS>=10&&!CO.down; }},
       {ch:"CROP", line:function(){ return 'Click <b>Crop</b>'; }, sub:"Or press "+coK("C")+". The whole photo comes back with a box over it.",
         target:'#eCrop', done:function(){ return cropActive(); }},
       {ch:"CROP", line:function(){ return 'Pick <b>4:5</b>'; }, sub:"A tall shape, like a print or a phone screen. Free lets you make any shape.",
@@ -377,17 +377,21 @@
     if(!pre&&s.float) Array.prototype.forEach.call(document.querySelectorAll(s.float),function(x){ x.classList.add('co-float'); });
     if(r&&r.width>2&&r.bottom>0&&r.top<window.innerHeight){ var p=6; ring.style.left=(r.left-p)+"px"; ring.style.top=(r.top-p)+"px"; ring.style.width=(r.width+2*p)+"px"; ring.style.height=(r.height+2*p)+"px"; ring.classList.add("show");
       var W=window.innerWidth, H=window.innerHeight, cw=e.offsetWidth||440, chh=e.offsetHeight||130, x, y;
-      if(r.left>W*0.55&&r.left-p-20-cw>12){ x=r.left-p-20-cw; y=Math.max(12,Math.min(H-chh-12,r.top+r.height/2-chh/2)); }
+      if(r.left>W*0.55&&r.left-p-20-360>12){ e.style.width="360px"; cw=360; chh=e.offsetHeight||chh; x=r.left-p-20-cw; y=Math.max(12,Math.min(H-chh-12,r.top+r.height/2-chh/2)); }   /* beside a panel row: narrow, so the photo stays mostly clear */
       else { var below=r.bottom+p+16+chh<H-10; x=Math.max(12,Math.min(W-cw-12,r.left+r.width/2-cw/2)); y=below?r.bottom+p+16:Math.max(12,r.top-p-16-chh); }
+      /* column: stay in the target's own column (its right edge), below it if there's room, else above: the light table stays clear */
+      if(s.place==="column"){ var col=t.closest(".st-loupe")||t, cr=col.getBoundingClientRect(), cwid=Math.min(cw,Math.max(300,cr.width)); e.style.width=cwid+"px"; cw=cwid; chh=e.offsetHeight||chh;
+        x=Math.max(12,Math.min(W-cw-12,cr.right-cw)); var fitsBelow=r.bottom+p+16+chh<H-10; y=fitsBelow?r.bottom+p+16:Math.max(12,cr.top+12); }   /* no room below: over the top of the column (the big preview), never over the buttons */
       if(s.place==="low"){ var stg=document.querySelector("#editStage"), sr=stg?stg.getBoundingClientRect():{left:0,width:W}; x=Math.max(12,Math.min(W-cw-12,sr.left+sr.width/2-cw/2)); y=H-chh-10; }   // over the film strip, clear of the photo
       if(s.place==="bottom"){ x=Math.max(12,Math.min(W-cw-12,r.left+r.width/2-cw/2)); y=Math.max(r.bottom+p+16,H-chh-64); if(y+chh>H-8) y=H-chh-8; }   // under the screen, clear of the rows
       /* side: beside the camera screen, so the sliders and the meter stay clear to use */
       if(s.place==="side"){ var rr=0; Array.prototype.forEach.call(document.querySelectorAll('#camback .cb-scale'),function(x){ rr=Math.max(rr,x.getBoundingClientRect().right); }); rr=Math.max(rr,r.right);
         var sw=Math.max(260,Math.min(440,W-rr-40)); e.style.width=sw+"px"; e.classList.add("side"); cw=sw; chh=e.offsetHeight||chh; x=Math.min(W-sw-12,rr+24); y=Math.max(12,Math.min(H-chh-12,H/2-chh/2)); }
       else if(e.classList.contains("side")){ e.classList.remove("side"); e.style.width=""; }
+      else if(s.place!=="column"&&!(r.left>W*0.55&&r.left-p-20-360>12)) e.style.width="";
       e.style.left=x+"px"; e.style.top=y+"px"; e.style.bottom="auto"; e.style.transform="none"; e.classList.add("pinned"); }
     else { ring.classList.remove("show"); e.style.left=""; e.style.top=""; e.style.bottom=""; e.style.transform=""; e.style.width=""; e.classList.remove("pinned","side"); } }
   document.addEventListener("click",function(e){ if(!CO.on) return; var s=coSteps()[CO.i]; if(s&&s.click&&e.target.closest&&e.target.closest(s.click)) CO.s.ok=true; }, true);
   document.addEventListener("keydown",function(e){ if(!CO.on) return; var m={KeyW:"W",KeyA:"A",KeyS:"S",KeyD:"D",KeyQ:"Q",KeyE:"E",KeyP:"P",KeyB:"B",Space:"SPACE",Digit2:"2",Backslash:"\\",Escape:"ESC",Enter:"ENTER",KeyC:"C"}[e.code]; if(m) CO.keys[m]=true; }, true);
   if(/[?&]dev/.test(location.search)) window.__co={ state:function(){ var s=coSteps()[CO.i]; return {on:CO.on, tour:CO.tour, done:CO.done, i:CO.i, n:coSteps().length, ch:s&&s.ch, shown:!!document.querySelector("#coCard.show"), ed:edState?{i:edState.i, a:edState.aspect, cx:+edState.cx.toFixed(3), cy:+edState.cy.toFixed(3)}:null}; }, skip:function(){ coFinish(true); },
-    next:function(){ CO.s.ok=true; }, go:function(){ if(CO.on&&!CO.ticking) coTicked(); }, clip:function(kind,cv,ms){ coMediaDraw(kind,cv,ms); }, nudge:function(o){ if(o.look) CO.look+=o.look; if(o.walk) CO.walked+=o.walk; if(o.keys) o.keys.forEach(function(k){ CO.keys[k]=true; }); } };
+    start:coStart, next:function(){ CO.s.ok=true; }, go:function(){ if(CO.on&&!CO.ticking) coTicked(); }, clip:function(kind,cv,ms){ coMediaDraw(kind,cv,ms); }, nudge:function(o){ if(o.look) CO.look+=o.look; if(o.walk) CO.walked+=o.walk; if(o.keys) o.keys.forEach(function(k){ CO.keys[k]=true; }); } };

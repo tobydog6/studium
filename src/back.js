@@ -8,15 +8,13 @@
   // design canvas and scaled into it, so type sizes match the approved mockup.
   var CB_RENDER="asset:assets/camera/dslr-back.webp";
   var CB_IMG={w:1760,h:1328}, CB_SCREEN={x:378,y:598,w:684,h:472}, CB_DESIGN={w:780,h:538};
-  var CB_TABS=[["shoot","Shoot"],["review","Review"],["brief","Brief"],["setup","Setup"]];
+  var CB_TABS=[["shoot","Shoot"]];   /* the back is the settings, nothing else: review lives in the Studio (ux-scene) */
+  var CB_TABS_ALL=[["shoot","Shoot"],["review","Review"],["brief","Brief"],["setup","Setup"]];
   // physical controls on the body: [id, centre x, centre y, radius, printed label, label side]
   var CB_BUTTONS=[   // centres and radii measured off the render (Hough circles), so the hit areas sit exactly on the buttons
     ["bag",    385, 461, 37, "BAG",     "top"],
-    ["photos", 499, 461, 40, "PHOTOS",  "top"],
-    ["review",1203, 631, 47, "REVIEW",  "right"],
-    ["brief", 1199, 732, 20, "BRIEF",   "right"],
+    ["photos", 499, 461, 40, "STUDIO",  "top"],
     ["shoot", 1272, 876, 48, "SET · SHOOT", "dial"],
-    ["setup", 1195,1061, 41, "SETUP",   "bottom"],
     ["back",  1317,1061, 40, "BACK",    "bottom"]
   ];
 
@@ -95,8 +93,8 @@
 
   // ---- tab bar + footer, shared by every tab ----
   function cbChrome(right, footL, footR, body){
-    var tabs=CB_TABS.map(function(t,i){ var on=t[0]===cbTab;
-      return '<button class="cb-tab'+(on?' on':'')+'" data-cb-tab="'+t[0]+'"><span class="n">0'+(i+1)+'</span>'+t[1]+'</button>'; }).join("");
+    var tabs=CB_TABS.length>1?CB_TABS.map(function(t,i){ var on=t[0]===cbTab;
+      return '<button class="cb-tab'+(on?' on':'')+'" data-cb-tab="'+t[0]+'"><span class="n">0'+(i+1)+'</span>'+t[1]+'</button>'; }).join(""):'<span class="cb-tab on cb-title"><span class="n">M</span>Settings</span>';
     return '<div class="cb-top"><div class="cb-tabs">'+tabs+'</div><div class="cb-right">'+right+'</div></div>'
       +'<div class="cb-body cb-'+cbTab+'">'+body+'</div>'
       +'<div class="cb-foot"><span>'+footL+'</span><span>'+footR+'</span></div><div class="cb-glass"></div>'; }
@@ -131,7 +129,7 @@
       +'<path d="M66 66 L'+nx+' '+ny+'" stroke="#e3ad57" stroke-width="1.6" stroke-linecap="round"/><circle cx="66" cy="66" r="3.5" fill="#e3ad57"/></svg>'
       +'<div class="cb-words"><span class="h">'+cbEsc(m.head)+'</span><span class="b">'+cbEsc(m.body)+'</span>'+(m.shake?'<span class="s">'+cbEsc(m.shake)+'</span>':'')+'</div>'
       +(cbTask()||'<div class="cb-info"><span>'+cbEsc((b.fmt||"").toUpperCase())+'</span><span>'+focalMM+' MM</span><span>FOCUS '+focusBars()+'</span></div>')+'</div>';
-    return cbChrome(cbCounter("FRAME",cbPad(photos.length+1)), cbEsc(cbPlace.toUpperCase()), "SPACE · BACK TO THE VIEWFINDER", html); }
+    return cbChrome(cbCounter("FRAME",cbPad(photos.length+1)), cbEsc(cbPlace.toUpperCase()), "SPACE · BACK TO THE SCENE", html); }
   // standing in a gold frame: its checklist comes onto the back with you, so you can see what to set
   function cbTask(){ if(typeof CH==="undefined"||!(CH.active>=0)||!CH.pads[CH.active]) return ""; var P=CH.pads[CH.active], ck=chChecks(P).slice(1), next=-1;
     ck.forEach(function(x,j){ if(next<0&&!x.ok) next=j; }); var all=next<0;
@@ -238,7 +236,7 @@
     ui.innerHTML= cbTab==="shoot"?cbShoot() : cbTab==="review"?cbReviewHtml() : cbTab==="brief"?cbBriefHtml() : cbSetupHtml();
     Array.prototype.forEach.call(document.querySelectorAll("[data-cb-print]"),function(p){ p.classList.toggle("on", p.getAttribute("data-cb-print")===cbTab); });
     Array.prototype.forEach.call(document.querySelectorAll("[data-cb-btn]"),function(h){ h.classList.toggle("on", h.getAttribute("data-cb-btn")===cbTab); });
-    var hints={ shoot:[["Space","Viewfinder"],["Q E","Tabs"],["Click / drag","Change a setting"],["← →","Step"],["B","Camera bag"]],
+    var hints={ shoot:[["Space","Back to the scene"],["Click / drag","Change a setting"],["↑ ↓","Row"],["← →","Step"],["B","Camera bag"],["Tab","Studio"]],
       review:[["Space","Viewfinder"],["Q E","Tabs"],["← →","Step"],["1–5","Rate"],["P","Pick"]],
       brief:[["Space","Viewfinder"],["Q E","Tabs"],["↑ ↓","Choose"],["↵","Set brief"]],
       setup:[["Space","Viewfinder"],["Q E","Tabs"],["↑ ↓","Choose"],["← →","Change"],["↵","Do"]] }[cbTab];
@@ -249,7 +247,7 @@
   // ---- input ----
   function cbKey(e){ var c=e.code, k=e.key;
     if(c==="Space"||c==="Escape"){ e.preventDefault(); closeBack(); return true; }
-    if(c==="KeyQ"){ cbCycleTab(-1); return true; } if(c==="KeyE"){ cbCycleTab(1); return true; }
+    if(c==="KeyQ"||c==="KeyE"){ if(CB_TABS.length>1) cbCycleTab(c==="KeyQ"?-1:1); return true; }
     if(c==="KeyB"){ e.preventDefault(); cbPress("bag"); closeBack(false); openBag("back"); return true; }
     if(c==="Tab"){ e.preventDefault(); closeBack(false); openStudio("select"); return true; }
     var up=c==="ArrowUp", dn=c==="ArrowDown", lf=c==="ArrowLeft", rt=c==="ArrowRight", en=(c==="Enter"||c==="NumpadEnter");

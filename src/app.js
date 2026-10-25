@@ -38,7 +38,7 @@
   var renderer,camera,scene=null,viewer=null,loaded=false,looking=false,viewfinderOn=false;
   var camPos=new THREE.Vector3(), yaw=0, pitch=0, sceneMaxDim=8, _edgeT=0;
   var boxMin=new THREE.Vector3(-1e9,-1e9,-1e9), boxMax=new THREE.Vector3(1e9,1e9,1e9), boundsOn=true;
-  var keys={}, sens=0.0009, invertY=false, moveScale=0.12;
+  var keys={}, sens=0.0009, invertY=false, moveScale=0.07;   /* a walking pace; Shift still runs */
   var photos=[], clock=new THREE.Clock();
   var _vel=new THREE.Vector3();
   var lastSource=null, lastFormat=null, lastUp="ydown";
@@ -408,12 +408,13 @@
       }
       if(_mv.lengthSq()>0) _mv.normalize().multiplyScalar(maxV);   // target velocity
       // frame-rate-independent smoothing: ease velocity toward target (smooth accel + glide to stop)
-      var resp=moving?11.0:8.0, t=1-Math.exp(-resp*Math.min(dt,0.05));
+      var resp=moving?5.5:3.8, t=1-Math.exp(-resp*Math.min(dt,0.05));   /* a slow lean in, a long glide out */
       _vel.x+=(_mv.x-_vel.x)*t; _vel.y+=(_mv.y-_vel.y)*t; _vel.z+=(_mv.z-_vel.z)*t;
       if(WK.col&&WK.mode==="walk") _vel.y=0;
       if(_vel.lengthSq()>1e-10){
         if(WK.col) wkMove(dt); else camPos.addScaledVector(_vel, dt);
         if(boundsOn){ var bx=camPos.x, bz=camPos.z; camPos.x=Math.min(Math.max(camPos.x,boxMin.x),boxMax.x); camPos.y=Math.min(Math.max(camPos.y,boxMin.y),boxMax.y); camPos.z=Math.min(Math.max(camPos.z,boxMin.z),boxMax.z);
+          if(typeof bndClamp==="function"&&bndClamp()){ bx=NaN; }   /* the circle round the subject */
           if((bx!==camPos.x||bz!==camPos.z)&&Date.now()-_edgeT>1500){ _edgeT=Date.now(); if(typeof achEvent==="function") achEvent("bounds"); } }
       }
     }
@@ -464,7 +465,7 @@
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
     renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
-    if(viewer){ try{ skyFollow(); wxSkyFor(camera.position); sparkLens(); ptRender(); wxSkyFor(camera.position); renderer.setRenderTarget(sceneRT); renderer.render(scene,camera); chRender(dt); }catch(e){ if(!renderFrame.warned){ renderFrame.warned=1; console.error("render failed",e); } } }
+    if(viewer){ try{ skyFollow(); wxSkyFor(camera.position); sparkLens(); ptRender(); wxSkyFor(camera.position); renderer.setRenderTarget(sceneRT); renderer.render(scene,camera); chRender(dt); if(typeof bndRender==="function") bndRender(dt); }catch(e){ if(!renderFrame.warned){ renderFrame.warned=1; console.error("render failed",e); } } }
     var useD=false;
     if(loaded&&dt>0) chTick(dt);
     renderer.setRenderTarget(fsTarget);
@@ -1031,6 +1032,7 @@
 @@include sky.js@@
 @@include relight.js@@
 @@include challenge.js@@
+@@include guardian.js@@
 @@include portal.js@@
 @@include cube.js@@
 @@include worlds.js@@
@@ -1185,7 +1187,7 @@
     keys[e.code]=true;
     if(e.code==="Escape" && anyOutputOpen()){ e.preventDefault(); ["folio","photobook","galleryshow"].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.add("hidden"); }); return; }
     if(e.code==="Space"){ e.preventDefault(); if(!loaded || anyOutputOpen() || !gallery.classList.contains("hidden") || !editor.classList.contains("hidden")) return;
-      if(!menu.classList.contains("hidden")) closeMenu(); else if(viewfinderOn) openBack(); else kitToggle(); return; }
+      if(!menu.classList.contains("hidden")) closeMenu(); else kitToggle(); return; }   /* one key, one popup, camera up or down */
     if(e.code==="KeyB" && loaded && !menuOpen()){ e.preventDefault(); openBag(); return; }
     if(menuOpen()){ if(e.code==="Escape"){ if(!editor.classList.contains("hidden")){ closeEditor(); buildGallery(); show(gallery); } else if(!gallery.classList.contains("hidden")){hide(gallery);updatePrompt();} else if(!menu.classList.contains("hidden")){closeMenu();} } return; }
     if(e.code==="KeyP"){ e.preventDefault(); toggleViewfinder(); }

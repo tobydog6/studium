@@ -22,8 +22,16 @@
       return {o:o, name:((CH.spec&&CH.spec.name)||"The scan")+" · from the "+side}; }); }
 
   /* the faces: good spots round each world that's loaded (the one you're in first), six in all */
+  /* the gold frames' eye points as viewpoints: each is a real photographer's position (low and close, back with the long lens, over the top), named for its shot */
+  function cuFrameSpots(n){ var pads=(typeof CH!=="undefined"&&CH.pads)||[], out=[];
+    pads.slice(0,n).forEach(function(P){ var o=new THREE.Object3D(); o.position.copy(P.E); var M=new THREE.Matrix4().lookAt(o.position, P.T, UPY); o.quaternion.setFromRotationMatrix(M); o.updateMatrixWorld(true);
+      out.push({o:o, name:((CH.spec&&CH.spec.name)||"The scan")+" · "+(P.c.title||"a frame"), frame:P.c.id}); });
+    return out; }
   function cuAllSpots(){ var W=(typeof WX!=="undefined"?WX.worlds:[]).filter(function(w){ return w.ready; }), others=W.filter(function(w){ return w!==WX.home; });
-    if(!others.length) return cuSpots(6);
+    if(!others.length){ var fs=cuFrameSpots(6); if(!fs.length) return cuSpots(6); var fill=cuSpots(6), seen={}, mix=fs.slice(), j=0;   /* this scan's viewpoints: the frames first, then good spots round the subject */
+      fs.forEach(function(f){ seen[Math.round(f.o.position.x*2)+","+Math.round(f.o.position.z*2)]=1; });
+      while(mix.length<6&&j<fill.length){ var c=fill[j++], k=Math.round(c.o.position.x*2)+","+Math.round(c.o.position.z*2); if(!seen[k]){ seen[k]=1; mix.push(c); } }
+      return mix; }
     var home=cuSpots(3), rest=[]; others.forEach(function(w){ rest=rest.concat(wxSpots(w, Math.ceil(3/others.length))); });
     var out=[]; for(var i=0;i<6;i++){ var a=i%2?rest:home, k=i>>1; out.push(a[k%a.length]||home[k%home.length]); } return out; }
 
@@ -120,7 +128,7 @@
   // landing: become the camera that was looking through the glass
   function cuArrive(){ var f=CU.dive.f, c2=f.userData.cam, fwd=new THREE.Vector3(0,0,-1).applyQuaternion(c2.quaternion), sp=f.userData.spot;
     camPos.copy(sp.o.position); yaw=Math.atan2(-fwd.x,-fwd.z); pitch=Math.asin(Math.max(-1,Math.min(1,fwd.y))); _vel.set(0,0,0); if(PT) PT.prev=null;
-    CU.open=false; CU.phase=""; CU.dive=null; cuUI(false); document.body.classList.remove("cube-open"); toast(sp.name.split(" · ")[1]?"You're on the "+sp.name.split(" · from the ")[1]+" side":sp.name); }
+    CU.open=false; CU.phase=""; CU.dive=null; cuUI(false); document.body.classList.remove("cube-open"); toast(sp.frame?"Standing where "+sp.name.split(" · ")[1].toLowerCase()+" is shot from. Raise the camera.":sp.name.split(" · from the ")[1]?"You're on the "+sp.name.split(" · from the ")[1]+" side":sp.name); }
   /* choosing a side: the cube turns that side to you and you fall into it, arriving where that side was looking from */
   function cuDiveInto(i){ var f=CU.faces[i]; if(!f||CU.dive) return; var n=new THREE.Vector3(0,0,1).applyQuaternion(f.quaternion), q=new THREE.Quaternion().setFromUnitVectors(n,new THREE.Vector3(0,0,1));
     CU.dive={f:f, q:q, t0:performance.now(), dur:1000, to:new THREE.Vector2(0,0), scale:Math.max(2.4,CU.dist/CU_H*1.6)}; cuUI(false, true); if(typeof ptSound==="function") ptSound(true, true); }

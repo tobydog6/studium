@@ -1,0 +1,95 @@
+/* ===================== STUDIO-SIDE UI PASS (branch ui-studio) =====================
+   Sign-in, the hub (desk), the studio rooms and the teacher views only. Nothing in here touches :root tokens,
+   base element styles or the in-scene UI (HUD, viewfinder, camera back, bag, quest card), which live on ux-scene.
+   The one rule applied throughout: mono caps are for DATA and KEYS (f/2.8, frame 02, class codes, keycaps, small
+   section labels); things you press read as words, in Geist, sentence case. Fraunces stays for titles. */
+
+/* ---- buttons: the word rule ---- */
+.si-g,.si-m,.si-code button,.si-name button,
+.d7-act .h6-cta,
+.st-btn,.st-punctum b,.ws-gold,.ws-b,.rs-go,.rs-go2,
+.tc-send,.tl-ctl button,.tc-during button,.tc-ghost[data-tc="preview"]{
+  font-family:'Geist',ui-sans-serif,system-ui,sans-serif!important;font-weight:500!important;font-size:13.5px!important;
+  letter-spacing:.005em!important;text-transform:none!important;line-height:1}
+.ws-gold{padding:13px 16px!important}
+.rs-go,.rs-go2{height:44px;padding:0 20px;border-radius:8px}
+.st-btn{height:40px;padding:0 16px!important;border-radius:8px;display:inline-flex!important;align-items:center;gap:10px}
+.st-btn span{font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.1em;opacity:.55;padding:1px 6px;border:1px solid rgba(240,232,214,.18);border-radius:4px}
+.st-btn.on span{border-color:rgba(228,85,46,.5)}
+/* keycaps inside word-buttons stay mono and quiet */
+.d7-act .h6-cta kbd,.ws-b kbd{font-family:'Geist Mono',ui-monospace,monospace!important;font-size:10.5px}
+
+/* ---- sign-in ---- */
+.si-g,.si-m{height:50px;border-radius:9px}
+.si-code button,.si-name button{width:104px}
+.si-foot{bottom:40px;gap:22px;font-size:11px;color:#5f594e}
+.si-foot button{height:34px;padding:0 14px!important;border-radius:17px;border:1px solid rgba(240,232,214,.14)!important;font-family:'Geist',ui-sans-serif,system-ui,sans-serif;font-size:12.5px;font-weight:500;letter-spacing:.005em;text-transform:none;color:#c9c2b4}
+.si-foot button:hover{border-color:#e3ad57!important;color:#e3ad57}
+.si-foot span{display:none}
+.si-help{color:#8d8678}
+
+/* ---- hub: one truth about progress ---- */
+.d7-rail{display:none}                                   /* the quest card already says where you are; the five-step rail was a second answer */
+.hub7 .h6-clock:empty{display:none}
+.d7-act .h6-cta{height:48px;line-height:46px;padding:0 22px;display:inline-block;text-transform:lowercase!important}
+.d7-act .h6-cta::first-letter{text-transform:uppercase}  /* the label is written in caps elsewhere; this reads it as a word (needs a block box, not flex) */
+.d7-act .h6-cta kbd{margin-left:12px}
+.d7-act .h6-status{font-size:10.5px;color:#a69f91}
+/* empty desk: paper, not black holes */
+.d7-stack .pr:has(i){background:#efebe2;opacity:.16;box-shadow:0 18px 30px -16px rgba(0,0,0,.8)}
+.d7-stack .pr i{background:#efebe2}
+.hub7[data-next="studio"] .d7-stack .pr:has(i){opacity:.3}
+.d7-studio-lbl{display:flex;flex-direction:column;gap:5px}
+.d7-studio-lbl small{font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;letter-spacing:.14em;color:#8d8678}
+/* the loupe reads as glass with something under it, not a hole */
+.d7-loupe .lens{background:#2a241a}
+.d7-loupe .lens img{width:100%;height:100%;margin:0;object-fit:cover;transform:scale(2.2);transform-origin:42% 48%;filter:brightness(1.05) saturate(1.05)}   /* a magnified crop that always fills the glass */
+.d7-loupe.empty .lens img{transform:scale(1.35);filter:brightness(1.3) saturate(.9);opacity:.85}
+.d7-stack .pr:has(i){z-index:0!important}                /* blank paper sits under the prints, never over them */
+.d7-loupe .lens::after{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse 60% 45% at 32% 28%,rgba(255,255,255,.22),rgba(255,255,255,0) 70%);pointer-events:none}
+/* the header's own words */
+.hub7 .h6-me small{font-size:9.5px;color:#8d8678}
+
+/* ---- studio: Select ---- */
+.st-sheet{grid-template-columns:repeat(auto-fill,minmax(164px,1fr));gap:14px 16px}
+.st-loupe{width:clamp(420px,42vw,760px);padding-right:4px}
+.st-loupe .lp{aspect-ratio:auto;height:min(44vh,460px)}
+.st-loupe .fn{font-size:26px}
+.st-loupe .brief .t{font-size:18px}
+.st-punctum{padding:12px 14px!important;border-radius:8px}
+.st-punctum b{color:#f4f1ea}
+.st-punctum i{font-size:12px}
+/* the tab strip: a touch more presence on a 1500px screen */
+.st-tab{font-size:11.5px!important;gap:8px}
+.st-tab .n{font-size:9.5px}
+
+/* ---- studio: folio, quieter empty sections ---- */
+.bd-secempty{border:1px dashed rgba(141,134,120,.3);background:rgba(141,134,120,.035)}
+.bd-secempty span{font-size:8px;color:#a39c8e}
+.bd-secempty b{font-size:13px;color:#9b9486}
+.bd-sheet.black .bd-secempty{border-color:rgba(240,232,214,.14)}
+
+/* ---- studio: side-rail buttons line up ---- */
+.ws-b{height:44px;padding:0 14px!important;border-radius:8px;font-weight:400!important}
+.bk-side .ws-gold,.ga-side .ws-gold{margin-top:0}
+
+/* ---- research: the gold actions ---- */
+.rs-go2{font-weight:400!important}
+
+/* ---- teacher: tabs are tabs, actions are actions ---- */
+.tc-bar .rr{gap:12px}
+.tc-tabs{padding:3px;border-radius:8px}
+.tc-tabs button{height:30px;padding:0 14px;border-radius:6px;font-size:10.5px}
+.tc-bar .rr .tc-tabs{margin-right:14px;padding-right:0;position:relative}
+.tc-bar .rr .tc-tabs::after{content:"";position:absolute;right:-14px;top:5px;bottom:5px;width:1px;background:rgba(240,232,214,.12)}
+.tc-ghost[data-tc="preview"]{height:32px;padding:0 14px;border:1px solid rgba(240,232,214,.16)!important;border-radius:16px;color:#d8d2c6!important}
+.tc-ghost[data-tc="preview"]:hover{border-color:#e3ad57!important;color:#e3ad57!important}
+.tc-ghost[data-tc="out"]{font-size:10.5px}
+.tc-cls{gap:10px;height:32px;padding:0 14px 0 16px;border-radius:16px;color:#d8d2c6}
+.tc-cls::after{content:"";width:6px;height:6px;border-right:1px solid #8d8678;border-bottom:1px solid #8d8678;transform:translateY(-2px) rotate(45deg)}
+.tc-cls:hover{border-color:#e3ad57}.tc-cls:hover::after{border-color:#e3ad57}
+.tc-send{height:46px;padding:0 24px;border-radius:9px;box-shadow:0 10px 30px -12px rgba(227,173,87,.6)}
+.tc-send:hover{background:#ebba68}
+.tl-ctl button,.tc-during button{height:38px;border-radius:7px}
+.tl-ctl button.g{box-shadow:0 10px 30px -12px rgba(227,173,87,.6)}
+.tc-foot span{font-size:10px;color:#6f695d}

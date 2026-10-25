@@ -13,6 +13,9 @@
 <style>
 @@include styles/main.css@@
 </style>
+<style id="studio-ui">
+@@include styles/studio-ui.css@@
+</style>
 </head>
 <body>
   <div id="viewport"></div>
@@ -102,7 +105,7 @@
       <button class="d7-obj d7-prints" id="tileStudio" data-d7="studio" aria-label="Studio">
         <span class="d7-stack"></span><span class="d7-glow"></span><span class="d7-next">NEXT</span>
       </button>
-      <div class="d7-studio-lbl"><b>Studio</b></div>
+      <div class="d7-studio-lbl"><b>Studio</b><small></small></div>
       <button class="d7-obj d7-loupe" id="tilePunctum" data-d7="critique" aria-label="Research">
         <span class="lens"><img alt="" draggable="false"></span>
         <span class="d7-lbl"><b>Research</b><small></small></span>
@@ -120,15 +123,15 @@
       <h1>Studium</h1>
       <span class="si-eb"></span>
       <p class="si-sub"></p>
-      <button class="si-g" data-si="google">CONTINUE WITH SCHOOL GOOGLE</button>
-      <button class="si-m" data-si="microsoft">CONTINUE WITH SCHOOL MICROSOFT</button>
+      <button class="si-g" data-si="google">Continue with school Google</button>
+      <button class="si-m" data-si="microsoft">Continue with school Microsoft</button>
       <div class="si-or"><span>FIRST TIME?</span></div>
-      <div class="si-code"><input id="siCode" maxlength="6" placeholder="CLASS CODE" autocomplete="off" spellcheck="false" aria-label="Class code"><button data-si="join">JOIN</button></div>
-      <div class="si-name hidden"><input id="siName" placeholder="Your name, the way your teacher knows it" maxlength="40" autocomplete="off" aria-label="Your name"><button data-si="name">START</button></div>
+      <div class="si-code"><input id="siCode" maxlength="6" placeholder="CLASS CODE" autocomplete="off" spellcheck="false" aria-label="Class code"><button data-si="join">Join</button></div>
+      <div class="si-name hidden"><input id="siName" placeholder="Your name, the way your teacher knows it" maxlength="40" autocomplete="off" aria-label="Your name"><button data-si="name">Start</button></div>
       <p class="si-help">Your teacher has it on the board. You only need it once.</p>
       <button class="si-demo" data-si="demo"><span class="t">Play the demo</span><span class="d">ABOUT 30 MINUTES · SHOOT · PICK · EDIT · CHOOSE YOUR OWN</span><span class="go">→</span></button>
     </div>
-    <div class="si-foot"><button data-si="solo">TRY IT ON YOUR OWN · FREE TRIAL</button><span>·</span><button data-si="teacher">I’M A TEACHER</button></div>
+    <div class="si-foot"><button data-si="solo">Try it on your own, free</button><span>·</span><button data-si="teacher">I’m a teacher</button></div>
   </div>
 
   <!-- TEACHER: plan, live, board. Built by src/teacher.js -->
@@ -136,7 +139,7 @@
     <header class="tc-bar">
       <div class="l"><span class="w">Studium</span><span class="r">TEACHER</span></div>
       <div class="m"><button class="tc-cls" data-tc="cls"></button><div class="tc-pop hidden"></div></div>
-      <div class="rr"><nav class="tc-tabs"><button data-tc-tab="plan">PLAN</button><button data-tc-tab="live">LIVE</button><button data-tc-tab="quests">QUESTS</button></nav><button class="tc-ghost" data-tc="preview">STUDENT VIEW</button><span class="tc-who"></span><button class="tc-ghost" data-tc="out">SIGN OUT</button></div>
+      <div class="rr"><nav class="tc-tabs"><button data-tc-tab="plan">PLAN</button><button data-tc-tab="live">LIVE</button><button data-tc-tab="quests">QUESTS</button></nav><button class="tc-ghost" data-tc="preview">Student view</button><span class="tc-who"></span><button class="tc-ghost" data-tc="out">SIGN OUT</button></div>
     </header>
     <section class="tc-plan">
       <div class="tc-head"><div><h1>Plan the period.</h1><p>Students see this on their hub, get a heads-up two minutes before each change, and a card when it’s time to move on.</p></div>
@@ -146,7 +149,7 @@
       <footer class="tc-foot"><span>DRAG BLOCK EDGES TO CHANGE TIMES · CLICK A BLOCK TO EDIT IT · TAB FOR LIVE</span><button class="tc-send" data-tc="send"></button></footer>
     </section>
     <section class="tc-live hidden">
-      <div class="tl-top"><div class="tl-status"></div><div class="tl-ctl"><button data-tc="plus5">+5 MIN</button><button data-tc="pause">PAUSE</button><button class="o" data-tc="moveon">MOVE ON NOW</button><button class="g" data-tc="board">PROJECT TO BOARD</button></div></div>
+      <div class="tl-top"><div class="tl-status"></div><div class="tl-ctl"><button data-tc="plus5">+5 min</button><button data-tc="pause">Pause</button><button class="o" data-tc="moveon">Move on now</button><button class="g" data-tc="board">Project to board</button></div></div>
       <div class="tl-bar"><div class="tl-strip"></div><div class="tl-now"></div></div>
       <div class="tl-main"><div class="tl-left"><div class="tl-filters"></div><div class="tl-grid"></div></div><aside class="tl-side"></aside></div>
     </section>
@@ -240,7 +243,7 @@
         <div><div class="ga-row"><span class="eb">PAGES</span><span class="bk-pages ga-gapv"></span></div><p class="ga-note">Lay-flat, matte paper. Pages come in spreads, so pairs matter.</p></div>
         <div class="bk-seq"><span class="eb gold">SEQUENCE</span><p class="bk-tip"></p></div>
         <button class="ws-b" data-bk-act="rebuild">Rebuild from my picks</button>
-        <button class="ws-gold" data-bk-act="export">EXPORT BOOK PDF</button>
+        <button class="ws-gold" data-bk-act="export">Export book PDF</button>
       </aside>
     </div>
     <div id="st-gallery" class="st-room hidden">
@@ -254,7 +257,7 @@
           <div class="ga-frames ga-lsizes"><button data-ga-lsize="1">S</button><button data-ga-lsize="2">M</button><button data-ga-lsize="3">L</button></div></div>
         <button class="ws-b ga-rehang hidden" data-ga-act="rehang">Re-hang evenly</button>
         <button class="ws-b" data-ga-act="walk">Walk the show <kbd>W</kbd></button>
-        <button class="ws-gold" data-ga-act="export">SAVE THE WALL AS AN IMAGE</button>
+        <button class="ws-gold" data-ga-act="export">Save the wall as an image</button>
       </aside>
     </div>
     <div id="stEmpty" class="st-empty hidden"><span class="h">Nothing to work on yet.</span><span class="b">Shoot some frames in a location first. Your picks from Select flow into every room.</span></div>

@@ -251,3 +251,11 @@ body.st-zoom #st-select .st-loupe .lp{position:fixed;left:40px;right:40px;top:84
 .gm-del{height:24px;padding:0 10px;border-radius:5px;border:1px solid rgba(240,232,214,.12);background:none;color:#a69f91;font-family:'Geist',ui-sans-serif,system-ui,sans-serif;font-size:11.5px;cursor:pointer}
 .gm-del:hover{border-color:#e4552e;color:#e4552e}
 #editor .lr-sec[data-sec="gmap"] .lr-note{margin-left:6px}
+/* folded settings under Grain and Halation */
+#editor .lr-row.has-more{position:relative}
+#editor .lr-more{position:absolute;right:-4px;top:50%;width:18px;height:18px;margin-top:-9px;display:flex;align-items:center;justify-content:center;border:0;border-radius:4px;background:none;color:#6f695d;cursor:pointer;padding:0;transition:transform .15s}
+#editor .lr-more:hover{color:#f4f1ea}
+#editor .lr-more.open{transform:rotate(180deg)}
+#editor .lr-row.has-more .lr-v{margin-right:16px}
+#editor .lr-fold{display:none}
+#editor .lr-fold.open{display:block}

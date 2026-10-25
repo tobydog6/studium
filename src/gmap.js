@@ -19,7 +19,7 @@
       +(st.length>2?'<button class="gm-del" data-gm-del title="Remove this stop">Remove</button>':'')+'</div>'
       +'<div class="lr-row wb"><span class="lr-n">Blend</span><select class="lr-sel sm" data-gm-mode>'+GM_MODES.map(function(m){ return '<option value="'+m[0]+'"'+(m[0]===mode?' selected':'')+'>'+m[1]+'</option>'; }).join("")+'</select></div>'
       +'<div class="lr-row'+(op?' touched':'')+'"><span class="lr-n">Opacity</span><input type="range" data-gm-op min="0" max="100" value="'+op+'"><span class="lr-v" data-gm-opv>'+op+'</span></div>'
-      +'<p class="lr-note">Double-click the bar for a new stop. Soft light at 20 to 40 is the classic: it colours the shadows and the lights without flattening the photograph.</p>';
+      +'<p class="lr-note">Double-click a stop for its colour, double-click the bar for a new stop, right-click a stop to remove it. Soft light at 20 to 40 is the classic: it colours the shadows and the lights without flattening the photograph.</p>';
     if(typeof cvFillAll==="function") cvFillAll(); }
   function gmSync(){ if($("lrGmap")) gmRender(); }
   function gmCommit(){ queueRender(); }
@@ -29,7 +29,7 @@
       if(b.hasAttribute("data-gm-del")){ var st=gmStops(); if(st.length>2){ st.splice(gmSel,1); gmSel=Math.max(0,gmSel-1); gmRender(); gmCommit(); edPushHist(); } return; }
       if(b.hasAttribute("data-gm-stop")&&!gmDrag){ gmSel=+b.getAttribute("data-gm-stop"); gmRender(); } });
     el.addEventListener("dblclick",function(e){ if(!edState) return; var s=e.target.closest("[data-gm-stop]"), bar=e.target.closest("[data-gm-bar]");
-      if(s){ var st=gmStops(), i=+s.getAttribute("data-gm-stop"); if(st.length>2){ st.splice(i,1); gmSel=Math.max(0,i-1); gmRender(); gmCommit(); edPushHist(); } return; }
+      if(s){ gmSel=+s.getAttribute("data-gm-stop"); gmRender(); var inp=el.querySelector("[data-gm-color]"); if(inp){ try{ inp.showPicker?inp.showPicker():inp.click(); }catch(er){ inp.click(); } } return; }
       if(bar){ var r=bar.getBoundingClientRect(), x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)), st2=gmStops(), S=st2.slice().sort(function(a,b){ return a[0]-b[0]; }), j=0; while(j<S.length-2&&x>S[j+1][0]) j++;
         var a=S[j], b2=S[j+1], t=(x-a[0])/Math.max(b2[0]-a[0],1e-6), hx=function(c){ var n=parseInt(c.slice(1),16); return [(n>>16)&255,(n>>8)&255,n&255]; }, A=hx(a[1]), B=hx(b2[1]), C=A.map(function(v,k){ return Math.round(v+(B[k]-v)*t); });
         st2.push([+x.toFixed(3),"#"+C.map(function(v){ return ("0"+v.toString(16)).slice(-2); }).join("")]); gmSel=st2.length-1; gmRender(); gmCommit(); edPushHist(); } });
@@ -37,6 +37,7 @@
       if(t.hasAttribute("data-gm-color")){ gmStops()[gmSel][1]=t.value; var sw=el.querySelector(".gm-swatch"), sp=el.querySelector('[data-gm-stop="'+gmSel+'"]'), rp=el.querySelector(".gm-ramp"), hx=el.querySelector(".gm-hex"); if(sw) sw.style.setProperty("--c",t.value); if(sp) sp.style.setProperty("--c",t.value); if(rp) rp.style.background=gmCss(gmStops()); if(hx) hx.textContent=t.value.toUpperCase()+" · "+Math.round(gmStops()[gmSel][0]*100)+"%"; gmCommit(); return; }
       if(t.hasAttribute("data-gm-op")){ edState.gmOpacity=+t.value; var o=el.querySelector("[data-gm-opv]"); if(o) o.textContent=t.value; gmCommit(); } });
     el.addEventListener("change",function(e){ if(!edState) return; var t=e.target; if(t.hasAttribute("data-gm-mode")){ edState.gmMode=t.value; gmCommit(); edPushHist(); } else if(t.hasAttribute("data-gm-color")||t.hasAttribute("data-gm-op")) edPushHist(); });
+    el.addEventListener("contextmenu",function(e){ var s=e.target.closest("[data-gm-stop]"); if(!s||!edState) return; e.preventDefault(); var st=gmStops(), i=+s.getAttribute("data-gm-stop"); if(st.length>2){ st.splice(i,1); gmSel=Math.max(0,i-1); gmRender(); gmCommit(); edPushHist(); } });
     // drag a stop along the bar
     el.addEventListener("pointerdown",function(e){ var s=e.target.closest("[data-gm-stop]"); if(!s||!edState||e.button!==0) return; var bar=s.closest("[data-gm-bar]"); gmSel=+s.getAttribute("data-gm-stop"); gmDrag={i:gmSel,bar:bar,moved:false,x0:e.clientX}; try{ s.setPointerCapture(e.pointerId); }catch(er){} });
     el.addEventListener("pointermove",function(e){ if(!gmDrag) return; var r=gmDrag.bar.getBoundingClientRect(), x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)); if(!gmDrag.moved&&Math.abs(e.clientX-gmDrag.x0)<3) return; gmDrag.moved=true;

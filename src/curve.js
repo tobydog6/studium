@@ -78,6 +78,13 @@
       var b=document.createElement("button"); b.className="lr-reset"; b.type="button"; b.title="Reset this section"; b.setAttribute("aria-label","Reset this section"); b.innerHTML='<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3.2 6.5A5.2 5.2 0 1 1 3 9.8"/><path d="M2.6 3.4v3.3h3.3"/></svg>';
       b.addEventListener("click",function(ev){ ev.stopPropagation(); edSectionReset(sec.getAttribute("data-sec")); }); hd.insertBefore(b, eye||null); }); })();
 
+  // ---- Grain and Halation keep their finer settings behind a chevron on the row ----
+  (function wireMore(){ [["pGrain","grainSub"],["pHalation","halSub"]].forEach(function(pair){ var inp=$(pair[0]), sub=$(pair[1]); if(!inp||!sub) return; var row=inp.closest(".lr-row"); if(!row||row.querySelector(".lr-more")) return;
+      var b=document.createElement("button"); b.className="lr-more"; b.type="button"; b.title="More settings"; b.setAttribute("aria-label","More settings"); b.innerHTML='<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M2.5 3.5 5 6.5l2.5-3"/></svg>';
+      row.appendChild(b); row.classList.add("has-more"); sub.classList.add("lr-fold");
+      b.addEventListener("click",function(ev){ ev.stopPropagation(); sub.classList.toggle("open"); b.classList.toggle("open", sub.classList.contains("open")); });
+      inp.addEventListener("input",function(){ if(+inp.value>0&&!sub.classList.contains("open")){ sub.classList.add("open"); b.classList.add("open"); } }); }); })();
+
   // ---- the fill from the centre on every slider, and .touched on moved rows ----
   function cvFill(r){ var mn=+r.min||0, mx=+r.max||100, v=+r.value, p=(v-mn)/(mx-mn)*100, z=mn<0?50:0, lo=Math.min(p,z), hi=Math.max(p,z);
     r.style.setProperty("--lo",lo.toFixed(2)+"%"); r.style.setProperty("--hi",hi.toFixed(2)+"%"); var row=r.closest(".lr-row"); if(row) row.classList.toggle("touched", Math.abs(p-z)>0.5); }

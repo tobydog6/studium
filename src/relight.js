@@ -254,11 +254,11 @@
   function rlPlanUp(){ window.removeEventListener("pointermove",rlPlanMove); var d=rlDrag; rlDrag=null; if(d&&d.sun){ rlApply(); return; } if(d&&!d.pan){ if(d.moved) RL.moved=(RL.moved||0)+1; rlApply(); } }
 
   // ---- open and close: Lighting is one place. Done keeps your lights; "Natural light" takes them all away ----
-  function rlOpen(){ if(!loaded) return; RL.ui=true; RL.on=true; if(!Q.flags.rlOpened) qFlag("rlOpened"); rlPanel();
+  function rlOpen(){ if(!loaded) return; RL.ui=true; RL.on=true; if(!Q.flags.rlOpened) qFlag("rlOpened"); rlPanel(); document.body.classList.add("rl-open");
     if(typeof coStart==="function"&&!CO.on){ var seen="1"; try{ seen=localStorage.getItem("studium_lighttour"); localStorage.setItem("studium_lighttour","1"); }catch(e){} if(seen!=="1"&&!Q.tours.lighting) coStart("lighting"); }
     if(RL.sunAz==null){ var f0=new THREE.Vector3(); camera.getWorldDirection(f0); RL.sunAz=((Math.atan2(f0.x,f0.z)*180/Math.PI+140)%360+360)%360; }   // side-back light: shadows run across the frame
     var go=function(){ RL.target=null; rlView("plan"); }; if(!RL.ready){ if(!RL.busy) rlPrepare(go); } else go(); }
-  function rlClose(){ if(!RL.ui) return; RL.ui=false; if(RL.plan){ RL.plan=false; RL.view="eye"; rlApply(); } rlPlanUI(); rlPanel(); rlVis(); }
+  function rlClose(){ if(!RL.ui) return; RL.ui=false; document.body.classList.remove("rl-open"); if(RL.plan){ RL.plan=false; RL.view="eye"; rlApply(); } rlPlanUI(); rlPanel(); rlVis(); }
   function rlToggle(){ if(RL.ui) rlClose(); else rlOpen(); }
   function rlNatural(){ RL.sunPow=0; RL.lights.forEach(rlDrop); RL.lights=[]; RL.sel=-1; RL.dusk=1; RL.ambK=6500; RL.exp=0; rlRestore(); RL.on=false; rlClose(); }
   function rlStatus(t){ RL.status=t; rlPanel(); }

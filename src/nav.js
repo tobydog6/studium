@@ -46,18 +46,21 @@
   // ================= KIT MENU (Space in the scene) =================
   // One key for everything you carry: the camera back, the bag and the lights. Space again closes it. B and L stay as shortcuts.
   var KIT={open:false, sel:0};
-  var KIT_ITEMS=[["back","Camera back","SETTINGS · YOUR PHOTOS","1"],["bag","Camera bag","BODIES · LENSES","2"],["lights","Lighting","TIME OF DAY · LIGHTS · PLAN","3"]];
+  var KIT_ITEMS=[["back","Settings","SHUTTER · APERTURE · ISO","1"],["bag","Bag","BODIES · LENSES","2"],["lights","Lighting","TIME OF DAY · LIGHTS · PLAN","3"],["studio","Studio","PICK · EDIT · MAKE · SHOW","4"]];
+  /* the studio card: your latest frames as a loose stack of prints (blank paper before you've shot) */
+  function kitStudioArt(){ var L=photos.filter(function(p){ return !p.research; }).slice(-3).reverse(), h="";
+    for(var i=0;i<3;i++){ var p=L[i]; h+=p?'<img class="ka-p ka-p'+(i+1)+'" src="'+p.url+'" alt="" draggable="false">':'<i class="ka-p ka-p'+(i+1)+'"></i>'; } return h; }
   var KIT_ART={
     back:'<img class="ka-back" src="asset:assets/camera/dslr-back.webp" alt="" draggable="false">',
-    bag:'<img class="ka-l1" src="asset:assets/bag/lens-2470.webp" alt="" draggable="false"><img class="ka-l2" src="asset:assets/bag/lens-85.webp" alt="" draggable="false"><img class="ka-l3" src="asset:assets/bag/lens-50.webp" alt="" draggable="false">',
+    bag:'<i class="ka-shelf"></i><i class="ka-bspot"></i><img class="ka-t ka-t1" src="asset:assets/bag/thumb-2470.webp" alt="" draggable="false"><img class="ka-t ka-t3" src="asset:assets/bag/thumb-85.webp" alt="" draggable="false"><img class="ka-t ka-t2" src="asset:assets/bag/thumb-50.webp" alt="" draggable="false">',
     lights:'<i class="ka-floor"></i><i class="ka-glow"></i><img class="ka-soft" src="asset:assets/kit/softbox.webp" alt="" draggable="false">'};
   function kitRender(){ var k=$("kitMenu"); if(!k){ k=document.createElement("div"); k.id="kitMenu"; document.body.appendChild(k);
       k.addEventListener("click",function(e){ var b=e.target.closest("[data-kit]"); if(b){ e.stopPropagation(); kitGo(b.getAttribute("data-kit")); } else if(!e.target.closest(".kit-card")) kitClose(); });
       k.addEventListener("mouseover",function(e){ var b=e.target.closest("[data-kit-i]"); if(b&&+b.getAttribute("data-kit-i")!==KIT.sel){ KIT.sel=+b.getAttribute("data-kit-i"); kitMark(); } }); }
     k.classList.toggle("show",KIT.open); if(!KIT.open) return;
     k.innerHTML='<div class="kit-wrap"><div class="kit-top"><span class="kit-eb">YOUR KIT</span><h2>What do you need?</h2><em>&ldquo;Everything you carry, one key away&rdquo;</em></div>'
-      +'<div class="kit-row">'+KIT_ITEMS.map(function(it,i){ return '<button class="kit-card" data-kit="'+it[0]+'" data-kit-i="'+i+'"><div class="kit-art ka-'+it[0]+'">'+KIT_ART[it[0]]+'</div><div class="kit-meta"><b>'+it[1]+'</b><span>'+it[2]+'</span></div><kbd>'+it[3]+'</kbd></button>'; }).join("")+'</div>'
-      +'<div class="kit-foot"><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> or click to choose</span><span><kbd>Space</kbd> or <kbd>Esc</kbd> back to the scene</span></div></div>';
+      +'<div class="kit-row">'+KIT_ITEMS.map(function(it,i){ return '<button class="kit-card" data-kit="'+it[0]+'" data-kit-i="'+i+'"><div class="kit-art ka-'+it[0]+'">'+(it[0]==="studio"?kitStudioArt():KIT_ART[it[0]])+'</div><div class="kit-meta"><b>'+it[1]+'</b><span>'+it[2]+'</span></div><kbd>'+it[3]+'</kbd></button>'; }).join("")+'</div>'
+      +'<div class="kit-foot"><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> or click to choose</span><span><kbd>Space</kbd> or <kbd>Esc</kbd> back to the scene</span></div></div>';
     kitMark(); }
   function kitMark(){ Array.prototype.forEach.call(document.querySelectorAll("#kitMenu .kit-card"),function(c,i){ c.classList.toggle("on", i===KIT.sel); }); }
   function kitOpen(){ if(!loaded||(typeof st!=="undefined"&&st.open)) return; if(looking) document.exitPointerLock(); KIT.open=true; KIT.sel=0; kitRender(); }
@@ -65,9 +68,10 @@
   function kitToggle(){ if(KIT.open) kitClose(); else kitOpen(); }
   function kitGo(a){ kitClose();
     if(a==="back") openBack(); else if(a==="bag") openBag();
+    else if(a==="studio"&&typeof openStudio==="function"){ if(looking) document.exitPointerLock(); openStudio("select"); }
     else if(a==="lights"&&typeof rlOpen==="function"){ if(!RL.ui) rlOpen(); }
     navRender(); }
-  window.addEventListener("keydown",function(e){ if(!KIT.open) return; var c=e.code, n={Digit1:0,Digit2:1,Digit3:2}[c];
-    if(n!=null||c==="Space"||c==="Enter"||c==="Escape"||c==="ArrowLeft"||c==="ArrowRight"||c==="Tab"){ e.preventDefault(); e.stopImmediatePropagation(); } else return;
-    if(n!=null) kitGo(KIT_ITEMS[n][0]); else if(c==="Enter") kitGo(KIT_ITEMS[KIT.sel][0]); else if(c==="Escape"||c==="Tab"||c==="Space") kitClose();
-    else { KIT.sel=(KIT.sel+(c==="ArrowRight"?1:KIT_ITEMS.length-1))%KIT_ITEMS.length; kitMark(); } },true);
+  window.addEventListener("keydown",function(e){ if(!KIT.open) return; var c=e.code, n={Digit1:0,Digit2:1,Digit3:2,Digit4:3}[c];
+    if(n!=null||c==="Space"||c==="Enter"||c==="Escape"||c==="ArrowLeft"||c==="ArrowRight"||c==="ArrowUp"||c==="ArrowDown"||c==="Tab"){ e.preventDefault(); e.stopImmediatePropagation(); } else return;
+    if(n!=null) kitGo(KIT_ITEMS[n][0]); else if(c==="Enter") kitGo(KIT_ITEMS[KIT.sel][0]); else if(c==="Escape"||c==="Space") kitClose(); else if(c==="Tab") kitGo("studio");
+    else { var N=KIT_ITEMS.length, d=c==="ArrowRight"?1:c==="ArrowLeft"?N-1:2; KIT.sel=(KIT.sel+d)%N; kitMark(); } },true);   /* a 2 by 2: left and right step, up and down swap rows */

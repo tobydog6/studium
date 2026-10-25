@@ -4,7 +4,7 @@
   // arriving at that place standing, looking at what matters there. T or Escape puts it away.
   // Faces are good spots in this scan for now (round the subject, looking at it); with more scans each face is a scan.
   // Each visible face is drawn by its own Spark renderer (three at most can face you), so none re-sorts another's view.
-  var CU={open:false, phase:"", t0:0, k:0, grp:null, scene:null, cam:null, faces:[], sparks:[], rts:[], q:new THREE.Quaternion(), spin:new THREE.Vector2(0,0),
+  var CU={open:false, phase:"", t0:0, k:0, grp:null, scene:null, cam:null, faces:[], sparks:[], rts:[], q:new THREE.Quaternion(), spin:new THREE.Vector2(0,0), yaw:0.62, pitch:-0.42,
     drag:null, hover:-1, dive:null, dist:4.2, stars:null, ui:null, ret:null};
   var CU_H=0.8, CU_K=2.2;   // half the cube's size (overlay units), and how many metres of world one unit is through the glass
 
@@ -22,17 +22,33 @@
       return {o:o, name:((CH.spec&&CH.spec.name)||"The scan")+" · from the "+side}; }); }
 
   /* the faces: good spots round each world that's loaded (the one you're in first), six in all */
+  /* the gold frames' eye points as viewpoints: each is a real photographer's position (low and close, back with the long lens, over the top), named for its shot */
+  function cuFrameSpots(n){ var pads=(typeof CH!=="undefined"&&CH.pads)||[], out=[];
+    pads.slice(0,n).forEach(function(P){ var o=new THREE.Object3D(); o.position.copy(P.E); var M=new THREE.Matrix4().lookAt(o.position, P.T, UPY); o.quaternion.setFromRotationMatrix(M); o.updateMatrixWorld(true);
+      out.push({o:o, name:((CH.spec&&CH.spec.name)||"The scan")+" · "+(P.c.title||"a frame"), frame:P.c.id, mm:P.c.mm||50, hfov:2*Math.atan(18/Math.max(P.c.mm||50,8))*180/Math.PI}); });   /* each face sees through that shot's lens, so a wide and a tele read differently */
+    return out; }
   function cuAllSpots(){ var W=(typeof WX!=="undefined"?WX.worlds:[]).filter(function(w){ return w.ready; }), others=W.filter(function(w){ return w!==WX.home; });
-    if(!others.length) return cuSpots(6);
+    if(!others.length){ var fs=cuFrameSpots(6); if(!fs.length) return cuSpots(6); var fill=cuSpots(6), seen={}, mix=fs.slice(), j=0;   /* this scan's viewpoints: the frames first, then good spots round the subject */
+      fs.forEach(function(f){ seen[Math.round(f.o.position.x*2)+","+Math.round(f.o.position.z*2)]=1; });
+      while(mix.length<6&&j<fill.length){ var c=fill[j++], k=Math.round(c.o.position.x*2)+","+Math.round(c.o.position.z*2); if(!seen[k]){ seen[k]=1; mix.push(c); } }
+      return mix; }
     var home=cuSpots(3), rest=[]; others.forEach(function(w){ rest=rest.concat(wxSpots(w, Math.ceil(3/others.length))); });
     var out=[]; for(var i=0;i<6;i++){ var a=i%2?rest:home, k=i>>1; out.push(a[k%a.length]||home[k%home.length]); } return out; }
 
+  // the caption on a face: what the shot is, and its lens, small along the bottom edge
+  function cuLabelTex(sp){ var c=document.createElement("canvas"); c.width=512; c.height=512; var g=c.getContext("2d"); g.clearRect(0,0,512,512); if(!sp) return new THREE.CanvasTexture(c);
+    var name=(sp.name||"").split(" · ")[1]||sp.name||"", lens=sp.mm?sp.mm+" MM":"";
+    var grd=g.createLinearGradient(0,330,0,512); grd.addColorStop(0,"rgba(8,7,5,0)"); grd.addColorStop(1,"rgba(8,7,5,0.82)"); g.fillStyle=grd; g.fillRect(0,330,512,182);
+    g.textBaseline="alphabetic"; g.fillStyle="#e3ad57"; g.font="500 17px 'Geist Mono', ui-monospace, monospace"; g.fillText((sp.frame?"GOLD FRAME":"VIEWPOINT")+(lens?"  ·  "+lens:""),34,432);
+    g.fillStyle="#f4f1ea"; g.font="300 40px 'Fraunces', Georgia, serif"; var w=g.measureText(name).width; if(w>444){ g.font="300 "+Math.floor(40*444/w)+"px 'Fraunces', Georgia, serif"; } g.fillText(name,34,478);
+    var t=new THREE.CanvasTexture(c); t.flipY=true; t.minFilter=THREE.LinearFilter; return t; }
   // ---- the cube itself ----
   function cuFaceMat(){ return new THREE.ShaderMaterial({ toneMapped:false, side:THREE.FrontSide,
-    uniforms:{ tView:{value:null}, res:{value:new THREE.Vector2(1,1)}, live:{value:0}, hi:{value:0}, time:{value:0} },
+    uniforms:{ tView:{value:null}, tLabel:{value:null}, lab:{value:0}, res:{value:new THREE.Vector2(1,1)}, live:{value:0}, hi:{value:0}, time:{value:0} },
     vertexShader:"varying vec2 vUv; varying vec3 vN; varying vec3 vV; void main(){ vUv=uv; vec4 w=modelMatrix*vec4(position,1.0); vN=normalize(mat3(modelMatrix)*normal); vV=normalize(cameraPosition-w.xyz); gl_Position=projectionMatrix*viewMatrix*w; }",
-    fragmentShader:"uniform sampler2D tView; uniform vec2 res; uniform float live; uniform float hi; uniform float time; varying vec2 vUv; varying vec3 vN; varying vec3 vV;"
+    fragmentShader:"uniform sampler2D tView; uniform sampler2D tLabel; uniform float lab; uniform vec2 res; uniform float live; uniform float hi; uniform float time; varying vec2 vUv; varying vec3 vN; varying vec3 vV;"
       +" void main(){ vec3 c=texture2D(tView,gl_FragCoord.xy/res).rgb; c=mix(vec3(0.06,0.06,0.08),c,live);"
+      +" vec4 lb=texture2D(tLabel,vUv); c=mix(c,lb.rgb,lb.a*lab);"   // the shot's name, etched along the bottom of the glass
       +" float fr=pow(1.0-max(dot(vN,vV),0.0),3.0); c+=vec3(0.75,0.8,1.0)*fr*0.35;"   // a sheen of glass
       +" vec2 e=min(vUv,1.0-vUv); float edge=min(e.x,e.y); c+=vec3(1.0,0.95,0.85)*smoothstep(0.035,0.0,edge)*0.6; c+=vec3(1.0,0.9,0.7)*hi*0.10;"
       +" gl_FragColor=vec4(c,1.0); }" }); }
@@ -71,8 +87,8 @@
   function cuOpen(){ if(CU.open) return; if(typeof PT!=="undefined"&&PT.on) ptDispose(); if(viewfinderOn) lowerCamera(); if(looking){ try{ document.exitPointerLock(); }catch(e){} }
     if(!CU.scene){ CU.scene=new THREE.Scene(); CU.cam=new THREE.PerspectiveCamera(38,1,0.01,200); var b=cuBuild(); CU.grp=b.grp; CU.faces=b.faces; CU.scene.add(CU.grp); cuBgInit(); }
     cuCapture();
-    CU.spots=cuAllSpots(); CU.faces.forEach(function(f,i){ f.userData.spot=CU.spots[i]; });
-    CU.q.setFromEuler(new THREE.Euler(-0.42,0.62,0)); CU.spin.set(0.0,0.35); CU.dist=4.2; CU.open=true; CU.phase="opening"; CU.t0=performance.now(); CU.k=0; CU.dive=null; CU.hover=-1;
+    CU.spots=cuAllSpots(); CU.faces.forEach(function(f,i){ f.userData.spot=CU.spots[i]; var u=f.material.uniforms; if(u.tLabel){ if(u.tLabel.value) u.tLabel.value.dispose(); u.tLabel.value=cuLabelTex(CU.spots[i]); u.lab.value=1; } });
+    CU.yaw=0.62; CU.pitch=-0.42; CU.q.setFromEuler(new THREE.Euler(CU.pitch,CU.yaw,0,"XYZ")); CU.spin.set(0.0,0.35); CU.dist=4.2; CU.open=true; CU.phase="opening"; CU.t0=performance.now(); CU.k=0; CU.dive=null; CU.hover=-1;
     cuUI(true); document.body.classList.add("cube-open"); ptSoundSafe(true); App.note&&App.note("cube"); }
   /* if anything goes wrong, put everything back: no cube, all the controls showing */
   function cuReset(){ CU.open=false; CU.phase=""; CU.dive=null; if(CU.grp) CU.grp.position.set(0,0,0); cuUI(false); document.body.classList.remove("cube-open"); }
@@ -86,12 +102,14 @@
     var e=1-Math.pow(1-CU.k,3), W=renderer.domElement.width, H=renderer.domElement.height;
     // spin: drag sets it, it eases off; a slow idle drift when untouched
     if(!CU.drag&&!CU.dive){ CU.spin.multiplyScalar(0.94); if(CU.spin.length()<0.0015) CU.spin.set(0,0.0015); }
-    var qx=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),CU.spin.y), qy=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),CU.spin.x); CU.q.premultiply(qx).premultiply(qy);
-    CU.grp.quaternion.copy(CU.q); CU.grp.scale.setScalar(Math.max(0.001,e*(1+0.05*Math.sin(e*Math.PI))));
+    // a turntable, not a free spin: drag sideways to turn it, up and down to tilt it (within limits), and it never rolls, so nothing reads upside down
+    CU.yaw+=CU.spin.y; CU.pitch=Math.max(-1.25,Math.min(1.25,CU.pitch+CU.spin.x));
+    if(CU.dive){ var dd=CU.dive, du0=Math.min(1,(now-dd.t0)/dd.dur), dk=Math.min(1,0.08+du0*0.35), dy=((dd.yaw-CU.yaw+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI; CU.yaw+=dy*dk; CU.pitch+=(dd.pitch-CU.pitch)*dk; }
+    CU.q.setFromEuler(new THREE.Euler(CU.pitch,CU.yaw,0,"XYZ")); CU.grp.quaternion.copy(CU.q); CU.grp.scale.setScalar(Math.max(0.001,e*(1+0.05*Math.sin(e*Math.PI))));
     CU.grp.rotation.y+=0; CU.cam.aspect=W/H; CU.cam.position.set(0,0,CU.dist); CU.cam.lookAt(0,0,0);
     // the dive: fly straight at the chosen face's middle
     if(CU.dive){ var d=CU.dive, u=Math.min(1,(now-d.t0)/d.dur), s0=u*u*(3-2*u), fall=u*u;
-      CU.q.slerp(d.q,Math.min(1,0.06+u*0.3)); CU.grp.quaternion.copy(CU.q); CU.spin.set(0,0);
+      CU.spin.set(0,0);
       // the chosen side swells to fill the view, then you're there
       CU.grp.position.set(d.to.x*s0, d.to.y*fall+0.25*Math.sin(u*Math.PI)*(1-u), 0); CU.grp.scale.setScalar(1+(d.scale-1)*s0); CU.k=1-s0; CU.bgMat.uniforms.k.value=1-s0;
       if(u>=1){ cuArrive(); return false; } }
@@ -109,7 +127,9 @@
       var c2=f.userData.cam||(f.userData.cam=new THREE.PerspectiveCamera()); var L=new THREE.Matrix4().copy(f.matrixWorld).invert().multiply(CU.cam.matrixWorld), lp=new THREE.Vector3(), lq=new THREE.Quaternion(), ls=new THREE.Vector3(); L.decompose(lp,lq,ls);
       // through the glass: your place in front of this face, scaled up, set down at its spot
       c2.position.copy(lp.multiplyScalar(CU_K*s)).applyQuaternion(sp.o.quaternion).add(sp.o.position); c2.quaternion.copy(sp.o.quaternion).multiply(lq);
-      c2.fov=CU.cam.fov; c2.aspect=CU.cam.aspect; c2.far=camera.far; var dir=new THREE.Vector3(); c2.updateMatrixWorld(true); c2.getWorldDirection(dir);
+      c2.fov=sp.hfov?2*Math.atan(Math.tan(sp.hfov*Math.PI/360)/CU.cam.aspect)*180/Math.PI:CU.cam.fov; c2.aspect=CU.cam.aspect; c2.far=camera.far;
+      if(CU.dive&&CU.dive.f===f){ var du=Math.min(1,(now-CU.dive.t0)/CU.dive.dur), ds=du*du*(3-2*du); c2.position.lerp(sp.o.position,ds); c2.quaternion.slerp(sp.o.quaternion,ds); c2.fov+=(camera.fov-c2.fov)*ds; f.material.uniforms.lab.value=1-ds; }   /* by the end it IS where you land, looking how you'll look */
+      var dir=new THREE.Vector3(); c2.updateMatrixWorld(true); c2.getWorldDirection(dir);
       c2.near=Math.max(0.02, sp.o.position.clone().sub(c2.position).dot(dir)*0.97); c2.updateProjectionMatrix(); c2.updateMatrixWorld(true);
       renderer.setRenderTarget(rt); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
       wxSkyFor(c2.position); try{ B.render(scene,c2); }catch(err){ if(!cuRender.warned){ cuRender.warned=1; console.warn("cube pass",err); } }
@@ -120,14 +140,15 @@
   // landing: become the camera that was looking through the glass
   function cuArrive(){ var f=CU.dive.f, c2=f.userData.cam, fwd=new THREE.Vector3(0,0,-1).applyQuaternion(c2.quaternion), sp=f.userData.spot;
     camPos.copy(sp.o.position); yaw=Math.atan2(-fwd.x,-fwd.z); pitch=Math.asin(Math.max(-1,Math.min(1,fwd.y))); _vel.set(0,0,0); if(PT) PT.prev=null;
-    CU.open=false; CU.phase=""; CU.dive=null; cuUI(false); document.body.classList.remove("cube-open"); toast(sp.name.split(" · ")[1]?"You're on the "+sp.name.split(" · from the ")[1]+" side":sp.name); }
+    CU.open=false; CU.phase=""; CU.dive=null; cuUI(false); document.body.classList.remove("cube-open"); toast(sp.frame?"Standing where "+sp.name.split(" · ")[1].toLowerCase()+" is shot from. Raise the camera.":sp.name.split(" · from the ")[1]?"You're on the "+sp.name.split(" · from the ")[1]+" side":sp.name); }
   /* choosing a side: the cube turns that side to you and you fall into it, arriving where that side was looking from */
-  function cuDiveInto(i){ var f=CU.faces[i]; if(!f||CU.dive) return; var n=new THREE.Vector3(0,0,1).applyQuaternion(f.quaternion), q=new THREE.Quaternion().setFromUnitVectors(n,new THREE.Vector3(0,0,1));
-    CU.dive={f:f, q:q, t0:performance.now(), dur:1000, to:new THREE.Vector2(0,0), scale:Math.max(2.4,CU.dist/CU_H*1.6)}; cuUI(false, true); if(typeof ptSound==="function") ptSound(true, true); }
+  function cuDiveInto(i){ var f=CU.faces[i]; if(!f||CU.dive) return; var n=new THREE.Vector3(0,0,1).applyQuaternion(f.quaternion);   /* the face's normal in the cube's own frame */
+    var yaw=Math.abs(n.y)>0.9?CU.yaw:-Math.atan2(n.x,n.z), pitch=n.y>0.9?Math.PI/2:n.y<-0.9?-Math.PI/2:0;   /* the turn and tilt that bring this face square to you */
+    CU.dive={f:f, yaw:yaw, pitch:pitch, t0:performance.now(), dur:1000, to:new THREE.Vector2(0,0), scale:Math.max(2.4,CU.dist/CU_H*1.6)}; cuUI(false, true); if(typeof ptSound==="function") ptSound(true, true); }
 
   // ---- input: drag to turn, click a side to go, wheel to come closer ----
   function cuUI(on, keepHidden){ var el=CU.ui; if(!el){ el=CU.ui=document.createElement("div"); el.id="cubeUI"; el.className="cu-ui";
-      el.innerHTML='<div class="cu-name"></div><div class="cu-hint">DRAG TO TURN IT · CLICK A SIDE TO GO THERE · <b>T</b> TO PUT IT AWAY</div>'; document.body.appendChild(el);
+      el.innerHTML='<div class="cu-name"></div><div class="cu-hint">DRAG TO TURN IT, UP AND DOWN TO TILT · CLICK A SIDE TO GO THERE · <b>T</b> TO PUT IT AWAY</div>'; document.body.appendChild(el);
       el.addEventListener("pointerdown",function(e){ if(CU.dive) return; CU.drag={x:e.clientX, y:e.clientY, x0:e.clientX, y0:e.clientY, t:performance.now()}; el.setPointerCapture(e.pointerId); });
       el.addEventListener("pointermove",function(e){ if(CU.drag){ var dx=e.clientX-CU.drag.x, dy=e.clientY-CU.drag.y; CU.drag.x=e.clientX; CU.drag.y=e.clientY; CU.spin.set(dy*0.006, dx*0.006); } else cuHover(e); });
       el.addEventListener("pointerup",function(e){ var d=CU.drag; CU.drag=null; if(d&&Math.hypot(e.clientX-d.x0,e.clientY-d.y0)<5){ var i=cuPick(e); if(i>=0) cuDiveInto(i); } });

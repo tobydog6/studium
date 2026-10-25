@@ -8,15 +8,13 @@
   // design canvas and scaled into it, so type sizes match the approved mockup.
   var CB_RENDER="asset:assets/camera/dslr-back.webp";
   var CB_IMG={w:1760,h:1328}, CB_SCREEN={x:378,y:598,w:684,h:472}, CB_DESIGN={w:780,h:538};
-  var CB_TABS=[["shoot","Shoot"],["review","Review"],["brief","Brief"],["setup","Setup"]];
+  var CB_TABS=[["shoot","Shoot"]];   /* the back is the settings, nothing else: review lives in the Studio (ux-scene) */
+  var CB_TABS_ALL=[["shoot","Shoot"],["review","Review"],["brief","Brief"],["setup","Setup"]];
   // physical controls on the body: [id, centre x, centre y, radius, printed label, label side]
   var CB_BUTTONS=[   // centres and radii measured off the render (Hough circles), so the hit areas sit exactly on the buttons
     ["bag",    385, 461, 37, "BAG",     "top"],
-    ["photos", 499, 461, 40, "PHOTOS",  "top"],
-    ["review",1203, 631, 47, "REVIEW",  "right"],
-    ["brief", 1199, 732, 20, "BRIEF",   "right"],
+    ["photos", 499, 461, 40, "STUDIO",  "top"],
     ["shoot", 1272, 876, 48, "SET · SHOOT", "dial"],
-    ["setup", 1195,1061, 41, "SETUP",   "bottom"],
     ["back",  1317,1061, 40, "BACK",    "bottom"]
   ];
 
@@ -29,9 +27,9 @@
   // ---- layout: scale the render so the screen dominates and the right-hand buttons stay in view ----
   function cbLayout(){ var st=$("cbStage"); if(!st) return;
     var vw=window.innerWidth, vh=window.innerHeight-44;
-    var k=Math.min(vw*0.56/CB_SCREEN.w, vh*0.62/CB_SCREEN.h);
+    var k=Math.min(vw*0.60/CB_SCREEN.w, vh*0.58/CB_SCREEN.h);   /* settings only now: the screen is most of the view, with the eyepiece showing above it */
     var cx=CB_SCREEN.x+CB_SCREEN.w/2, cy=CB_SCREEN.y+CB_SCREEN.h/2;
-    var tx=vw*0.42-cx*k, ty=vh*0.545-cy*k;
+    var tx=vw*0.5-cx*k, ty=vh*0.555-cy*k;
     st.style.transform="translate("+tx.toFixed(1)+"px,"+ty.toFixed(1)+"px) scale("+k.toFixed(4)+")"; }
   function cbBuildBody(){ var st=$("cbStage"); if(!st||st.getAttribute("data-built")) return; st.setAttribute("data-built","1");
     var rd=$("cbRender"); if(rd&&!rd.getAttribute("src")) rd.src=CB_RENDER;
@@ -69,19 +67,34 @@
   // ---- the exposure the meter reads, in plain words ----
   function cbThirds(ev){ var n=Math.round(Math.abs(ev)*3), w=Math.floor(n/3), r=n%3;
     var s=(w?String(w):"")+(r===1?"⅓":r===2?"⅔":""); return (ev<0?"−":"+")+(s||"0"); }
-  function cbMeterWords(){ var ev=evStops, n=Math.round(Math.abs(ev)*3), t=SHUTTERS[shIdx], head, body;
-    if(n===0){ head="Spot on"; body="The meter is happy. Frame it and shoot."; }
+  function cbMeterWords(){ var ev=evStops, n=Math.round(Math.abs(ev)*3), t=SHUTTERS[shIdx], head, body, F=cbFrameHold();
+    if(n===0){ head="Spot on"; body=F?"The meter is happy and the frame's settings hold. Flip back and shoot.":"The meter is happy. Frame it and shoot."; }
+    else if(F&&F.free.length){   // a gold frame pins some settings: set those first, then trade with the ones it leaves free
+      var dark=ev<0, names={sh:"the shutter", ap:"the aperture", iso:"the ISO"}, moves={sh:dark?"a slower shutter":"a faster shutter", ap:dark?"a wider aperture (smaller f-number)":"a smaller aperture (bigger f-number)", iso:dark?"a higher ISO":"a lower ISO"};
+      head=(dark?"Too dark, ":"Too bright, ")+cbThirds(ev);
+      var trade=(dark?"let more light in with ":"cut the light with ")+F.free.map(function(k){ return moves[k]; }).join(F.free.length>2?", ":" or ")+".";
+      if(F.toSet.length) body="Set "+F.toSet.map(function(k){ return names[k]; }).join(" and ")+" to the gold band first, then "+trade;
+      else body="Keep "+F.held.map(function(k){ return cbFmtKey(k); }).join(" and ")+" for the frame, and "+trade; }
     else if(ev>0 && n<=2){ head="A touch bright, "+cbThirds(ev); body="Close down a little: a faster shutter, a smaller aperture or a lower ISO."; }
     else if(ev>0){ head="Too bright, "+cbThirds(ev); body="Highlights will blow out. Try a faster shutter or a lower ISO first."; }
     else if(n<=2){ head="A touch dark, "+cbThirds(ev); body="Open up a little: a slower shutter, a wider aperture or a higher ISO."; }
     else { head="Too dark, "+cbThirds(ev); body="Shadows will turn to mud. Raise the ISO or open the aperture."; }
     var shake = t>1/Math.max(focalMM,1)+1e-9 ? "Slower than 1/"+focalMM+" at "+focalMM+" mm, so brace yourself or it will blur." : "";
     return {head:head, body:body, shake:shake}; }
+  function cbFmtKey(k){ return k==="sh"?SHUTTER_LABELS[shIdx]:k==="ap"?"f/"+APERTURES[apIdx]:"ISO "+ISOS[isoIdx]; }
+  // the gold frame you're standing in, and which of shutter / aperture / ISO it pins (held) and leaves to you (free)
+  function cbFrameHold(){ var P=typeof chActivePad==="function"?chActivePad():null; if(!P) return null; var W=chWants(P), held=[], toSet=[], free=[], idx={sh:shIdx, ap:apIdx, iso:isoIdx};
+    [["sh",W.sh],["ap",W.f],["iso",W.iso]].forEach(function(r){ if(!r[1]){ free.push(r[0]); return; } var b=cbBand(r[0],W); (b&&idx[r[0]]>=b[0]&&idx[r[0]]<=b[1]?held:toSet).push(r[0]); });
+    return {P:P, W:W, held:held, toSet:toSet, free:free}; }
+  // the stops a need allows on a row, as an index range [lo,hi] (or null when the row is free)
+  function cbBand(key, W){ var n=key==="sh"?W.sh:key==="ap"?W.f:W.iso; if(!n) return null; var vals=key==="sh"?SHUTTERS:key==="ap"?APERTURES:ISOS, lo=-1, hi=-1;
+    vals.forEach(function(v,i){ var ok=key==="sh"?((n.max==null||v<=n.max*1.001)&&(n.min==null||v>=n.min*0.999)):((n.max==null||v<=n.max)&&(n.min==null||v>=n.min)); if(ok){ if(lo<0) lo=i; hi=i; } });
+    return lo<0?null:[lo,hi]; }
 
   // ---- tab bar + footer, shared by every tab ----
   function cbChrome(right, footL, footR, body){
-    var tabs=CB_TABS.map(function(t,i){ var on=t[0]===cbTab;
-      return '<button class="cb-tab'+(on?' on':'')+'" data-cb-tab="'+t[0]+'"><span class="n">0'+(i+1)+'</span>'+t[1]+'</button>'; }).join("");
+    var tabs=CB_TABS.length>1?CB_TABS.map(function(t,i){ var on=t[0]===cbTab;
+      return '<button class="cb-tab'+(on?' on':'')+'" data-cb-tab="'+t[0]+'"><span class="n">0'+(i+1)+'</span>'+t[1]+'</button>'; }).join(""):'<span class="cb-tab on cb-title"><span class="n">M</span>Settings</span>';
     return '<div class="cb-top"><div class="cb-tabs">'+tabs+'</div><div class="cb-right">'+right+'</div></div>'
       +'<div class="cb-body cb-'+cbTab+'">'+body+'</div>'
       +'<div class="cb-foot"><span>'+footL+'</span><span>'+footR+'</span></div><div class="cb-glass"></div>'; }
@@ -98,11 +111,14 @@
     ap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 3l3.6 7.2M21 12l-7.8 1.2M16.5 19.8L11 14.3M6 18.6l2.7-7.4M3.3 9.3l7.9 1.1M9 3.5l1.5 7.9"/></svg>',
     iso:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" stroke-width="2.4" stroke-linecap="round"/></svg>'};
   function cbFmt(r,v){ return r.key==="ap"?"f/"+v:v; }
-  function cbShoot(){ var rows=cbShootRows(), html="";
+  function cbShoot(){ var rows=cbShootRows(), html="", F=cbFrameHold(), offEv=Math.round(Math.abs(evStops)*3)>0;
     rows.forEach(function(r,ri){ var n=r.vals.length, stops="", pc=function(i){ return (n>1?i/(n-1)*100:50).toFixed(3)+"%"; };
-      r.vals.forEach(function(v,i){ stops+='<button class="cb-stop'+(i===r.idx?' cur':'')+'" style="left:'+pc(i)+'" data-cb-set="'+r.key+':'+i+'"><i></i><span>'+cbEsc(v)+'</span></button>'; });
-      html+='<div class="cb-scale cb-'+r.key+(ri===cbRow?' sel':'')+'" data-cb-row="'+ri+'"><div class="cb-cap"><span class="ic">'+CB_ICON[r.key]+'</span><span class="c">'+r.cap+'</span><span class="now">'+cbEsc(cbFmt(r,r.vals[r.idx]))+'</span></div>'
-        +'<div class="cb-track" data-cb-track="'+r.key+'"><div class="cb-line'+(r.dir<0?' rev':'')+'"><b style="width:'+pc(r.idx)+'"></b></div>'+stops+'<span class="cb-knob" style="left:'+pc(r.idx)+'"><i></i></span>'
+      var band=F?cbBand(r.key,F.W):null, hit=band&&r.idx>=band[0]&&r.idx<=band[1], free=F&&!band&&offEv;
+      r.vals.forEach(function(v,i){ stops+='<button class="cb-stop'+(i===r.idx?' cur':'')+(band&&i>=band[0]&&i<=band[1]?' want':'')+'" style="left:'+pc(i)+'" data-cb-set="'+r.key+':'+i+'"><i></i><span>'+cbEsc(v)+'</span></button>'; });
+      var bandHtml=band?'<span class="cb-band'+(hit?' hit':'')+'" style="left:'+pc(band[0])+';width:calc('+pc(band[1])+' - '+pc(band[0])+')"><em>'+(hit?'✓ FRAME':'THE FRAME WANTS')+'</em></span>':'';
+      var more=(evStops<0)!==(r.dir<0), tag=band?'<span class="tag'+(hit?' ok':'')+'">'+(hit?'✓ SET FOR THE FRAME':'FOR THE FRAME')+'</span>':free?'<span class="tag free">'+(more?(evStops<0?'MORE LIGHT ›':'LESS LIGHT ›'):(evStops<0?'‹ MORE LIGHT':'‹ LESS LIGHT'))+'</span>':'';
+      html+='<div class="cb-scale cb-'+r.key+(ri===cbRow?' sel':'')+(band?' held':'')+(hit?' hit':'')+(free?' free':'')+'" data-cb-row="'+ri+'"><div class="cb-cap"><span class="ic">'+CB_ICON[r.key]+'</span><span class="c">'+r.cap+'</span>'+tag+'<span class="now">'+cbEsc(cbFmt(r,r.vals[r.idx]))+'</span></div>'
+        +'<div class="cb-track" data-cb-track="'+r.key+'"><div class="cb-line'+(r.dir<0?' rev':'')+'"><b style="width:'+pc(r.idx)+'"></b></div>'+bandHtml+stops+'<span class="cb-knob" style="left:'+pc(r.idx)+'"><i></i></span>'
         +'<div class="cb-ends"><span>‹ '+cbEsc(r.lo)+'</span><span>'+cbEsc(r.hi)+' ›</span></div></div></div>'; });
     var m=cbMeterWords(), a=Math.max(-3,Math.min(3,evStops))/3*55*Math.PI/180;
     var nx=(66+48*Math.sin(a)).toFixed(1), ny=(66-48*Math.cos(a)).toFixed(1), b=curBody();
@@ -113,10 +129,14 @@
       +'<path d="M66 66 L'+nx+' '+ny+'" stroke="#e3ad57" stroke-width="1.6" stroke-linecap="round"/><circle cx="66" cy="66" r="3.5" fill="#e3ad57"/></svg>'
       +'<div class="cb-words"><span class="h">'+cbEsc(m.head)+'</span><span class="b">'+cbEsc(m.body)+'</span>'+(m.shake?'<span class="s">'+cbEsc(m.shake)+'</span>':'')+'</div>'
       +(cbTask()||'<div class="cb-info"><span>'+cbEsc((b.fmt||"").toUpperCase())+'</span><span>'+focalMM+' MM</span><span>FOCUS '+focusBars()+'</span></div>')+'</div>';
-    return cbChrome(cbCounter("FRAME",cbPad(photos.length+1)), cbEsc(cbPlace.toUpperCase()), "SPACE · BACK TO THE VIEWFINDER", html); }
+    return cbChrome(cbCounter("FRAME",cbPad(photos.length+1)), cbEsc(cbPlace.toUpperCase()), "SPACE · BACK TO THE SCENE", html); }
   // standing in a gold frame: its checklist comes onto the back with you, so you can see what to set
-  function cbTask(){ if(typeof CH==="undefined"||!(CH.active>=0)||!CH.pads[CH.active]) return ""; var P=CH.pads[CH.active], ck=chChecks(P).slice(1);
-    return '<div class="cb-task"><span class="k">CHALLENGE · '+cbEsc(P.c.title||"")+'</span>'+ck.map(function(x){ return '<span class="r'+(x.ok?' ok':'')+'"><i>'+(x.ok?'✓':'')+'</i><em>'+cbEsc(x.label.replace(/:.*$/,""))+'</em><b>'+cbEsc(x.now||"")+'</b></span>'; }).join("")+'</div>'; }
+  function cbTask(){ if(typeof CH==="undefined"||!(CH.active>=0)||!CH.pads[CH.active]) return ""; var P=CH.pads[CH.active], ck=chChecks(P).slice(1), next=-1;
+    ck.forEach(function(x,j){ if(next<0&&!x.ok) next=j; }); var all=next<0;
+    return '<div class="cb-task'+(all?' all':'')+'"><span class="k">GOLD FRAME · '+cbEsc(P.c.title||"")+'</span>'+ck.map(function(x,j){ var w=x.where, here=w&&w.at==="back", chip="";
+        if(!x.ok&&w){ if(w.at==="bag") chip='<kbd class="w" data-cb-btn="bag">B · BAG</kbd>'; else if(here) chip='<kbd class="w here">HERE</kbd>'; else if(w.at==="zoom") chip='<kbd class="w">SCROLL IN THE FINDER</kbd>'; else chip='<kbd class="w">'+cbEsc(w.key)+'</kbd>'; }
+        return '<span class="r'+(x.ok?' ok':'')+(j===next?' next':'')+'"><i>'+(x.ok?'✓':'')+'</i><em>'+cbEsc(x.label.replace(/[:(].*$/,""))+'</em>'+chip+'<b>'+cbEsc(x.now||"")+'</b></span>'; }).join("")
+      +(all?'<span class="go">ALL SET · SPACE, THEN SHOOT</span>':'')+'</div>'; }
   function cbShootStep(d){ var r=cbShootRows()[cbRow]; var i=Math.max(0,Math.min(r.vals.length-1,r.idx+d)); if(i===r.idx) return;
     if(r.key==="sh") shIdx=i; else if(r.key==="ap") apIdx=i; else isoIdx=i; computeCam(); cbRender(); }
   function cbShootSet(key,i){ if(key==="sh") shIdx=i; else if(key==="ap") apIdx=i; else isoIdx=i;
@@ -216,7 +236,7 @@
     ui.innerHTML= cbTab==="shoot"?cbShoot() : cbTab==="review"?cbReviewHtml() : cbTab==="brief"?cbBriefHtml() : cbSetupHtml();
     Array.prototype.forEach.call(document.querySelectorAll("[data-cb-print]"),function(p){ p.classList.toggle("on", p.getAttribute("data-cb-print")===cbTab); });
     Array.prototype.forEach.call(document.querySelectorAll("[data-cb-btn]"),function(h){ h.classList.toggle("on", h.getAttribute("data-cb-btn")===cbTab); });
-    var hints={ shoot:[["Space","Viewfinder"],["Q E","Tabs"],["Click / drag","Change a setting"],["← →","Step"],["B","Camera bag"]],
+    var hints={ shoot:[["Space","Back to the scene"],["Click / drag","Change a setting"],["↑ ↓","Row"],["← →","Step"],["B","Bag"],["Tab","Studio"]],
       review:[["Space","Viewfinder"],["Q E","Tabs"],["← →","Step"],["1–5","Rate"],["P","Pick"]],
       brief:[["Space","Viewfinder"],["Q E","Tabs"],["↑ ↓","Choose"],["↵","Set brief"]],
       setup:[["Space","Viewfinder"],["Q E","Tabs"],["↑ ↓","Choose"],["← →","Change"],["↵","Do"]] }[cbTab];
@@ -227,7 +247,7 @@
   // ---- input ----
   function cbKey(e){ var c=e.code, k=e.key;
     if(c==="Space"||c==="Escape"){ e.preventDefault(); closeBack(); return true; }
-    if(c==="KeyQ"){ cbCycleTab(-1); return true; } if(c==="KeyE"){ cbCycleTab(1); return true; }
+    if(c==="KeyQ"||c==="KeyE"){ if(CB_TABS.length>1) cbCycleTab(c==="KeyQ"?-1:1); return true; }
     if(c==="KeyB"){ e.preventDefault(); cbPress("bag"); closeBack(false); openBag("back"); return true; }
     if(c==="Tab"){ e.preventDefault(); closeBack(false); openStudio("select"); return true; }
     var up=c==="ArrowUp", dn=c==="ArrowDown", lf=c==="ArrowLeft", rt=c==="ArrowRight", en=(c==="Enter"||c==="NumpadEnter");

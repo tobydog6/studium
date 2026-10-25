@@ -52,7 +52,7 @@
     for(var i=0;i<3;i++){ var p=L[i]; h+=p?'<img class="ka-p ka-p'+(i+1)+'" src="'+p.url+'" alt="" draggable="false">':'<i class="ka-p ka-p'+(i+1)+'"></i>'; } return h; }
   var KIT_ART={
     back:'<img class="ka-back" src="asset:assets/camera/dslr-back.webp" alt="" draggable="false">',
-    bag:'<img class="ka-l1" src="asset:assets/bag/lens-2470.webp" alt="" draggable="false"><img class="ka-l2" src="asset:assets/bag/lens-85.webp" alt="" draggable="false"><img class="ka-l3" src="asset:assets/bag/lens-50.webp" alt="" draggable="false">',
+    bag:'<i class="ka-shelf"></i><i class="ka-bspot"></i><img class="ka-t ka-t1" src="asset:assets/bag/thumb-2470.webp" alt="" draggable="false"><img class="ka-t ka-t3" src="asset:assets/bag/thumb-85.webp" alt="" draggable="false"><img class="ka-t ka-t2" src="asset:assets/bag/thumb-50.webp" alt="" draggable="false">',
     lights:'<i class="ka-floor"></i><i class="ka-glow"></i><img class="ka-soft" src="asset:assets/kit/softbox.webp" alt="" draggable="false">'};
   function kitRender(){ var k=$("kitMenu"); if(!k){ k=document.createElement("div"); k.id="kitMenu"; document.body.appendChild(k);
       k.addEventListener("click",function(e){ var b=e.target.closest("[data-kit]"); if(b){ e.stopPropagation(); kitGo(b.getAttribute("data-kit")); } else if(!e.target.closest(".kit-card")) kitClose(); });

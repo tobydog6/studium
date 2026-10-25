@@ -27,9 +27,9 @@
   // ---- layout: scale the render so the screen dominates and the right-hand buttons stay in view ----
   function cbLayout(){ var st=$("cbStage"); if(!st) return;
     var vw=window.innerWidth, vh=window.innerHeight-44;
-    var k=Math.min(vw*0.74/CB_SCREEN.w, vh*0.80/CB_SCREEN.h);   /* settings only now: the screen fills most of the view, the body is a frame round it */
+    var k=Math.min(vw*0.62/CB_SCREEN.w, vh*0.66/CB_SCREEN.h);   /* settings only now: the screen is most of the view, with the eyepiece showing above it */
     var cx=CB_SCREEN.x+CB_SCREEN.w/2, cy=CB_SCREEN.y+CB_SCREEN.h/2;
-    var tx=vw*0.5-cx*k, ty=vh*0.52-cy*k;
+    var tx=vw*0.5-cx*k, ty=vh*0.61-cy*k;
     st.style.transform="translate("+tx.toFixed(1)+"px,"+ty.toFixed(1)+"px) scale("+k.toFixed(4)+")"; }
   function cbBuildBody(){ var st=$("cbStage"); if(!st||st.getAttribute("data-built")) return; st.setAttribute("data-built","1");
     var rd=$("cbRender"); if(rd&&!rd.getAttribute("src")) rd.src=CB_RENDER;

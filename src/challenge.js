@@ -118,7 +118,7 @@
     if(Math.abs((+el.style.opacity||0)-v)>0.004) el.style.opacity=v.toFixed(3); }
   // The card (and the title) only appear once a frame starts drawing you in. They stay while you work near it,
   // and go when you walk off or finish it.
-  function chTick(dt){ if(!CH.pads.length||!loaded) return;
+  function chTick(dt){ if(!loaded) return; if(!CH.pads.length){ chMarkers(); return; }   /* no frames here, but the subject ring still needs placing each frame */
     var off=chOff(); if(off){ CH.wasOff=true; if(CH.active>=0){ CH.active=-1; chCard(null); } chMarkers(); return; }
     if(CH.wasOff){ CH.wasOff=false; CH.pads.forEach(function(P){ P.vis=0; });   // the warm-up's done: the frames fade in
       var f=$("chFlash"); if(f){ f.innerHTML='<span>UNLOCKED</span><b>The gold frames are out</b>'; f.classList.remove("show"); void f.offsetWidth; f.classList.add("show"); }

@@ -122,9 +122,10 @@
     basics:{where:function(){ return loaded&&!App.is("hub")&&!(typeof st!=="undefined"&&st.open); }, steps:[
       {ch:"MOVE", line:function(){ return 'Click, then move the mouse to look around'; }, sub:"Esc lets go of the mouse. The sharp thing in front of you is the subject; if you lose it, a gold ring points the way back.",
         done:function(){ return CO.look>1.6; }, bar:function(){ return CO.look/1.6; }},
-      {ch:"MOVE", line:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return d>4.5?'Head back to the gold ring: that\'s '+(typeof chSubjectName==="function"?chSubjectName().toLowerCase():"the subject"):coK("W")+coK("A")+coK("S")+coK("D")+' to walk'; },
+      {ch:"MOVE", line:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return isFinite(d)&&d>4.5?'Head for the gold ring: that\'s '+(typeof chSubjectName==="function"?chSubjectName():"the subject")+', your subject':coK("W")+coK("A")+coK("S")+coK("D")+' to walk'; },
         sub:"Have a wander, but stay close. A scan is only sharp near the thing it was made of; the edges always go soft.",
-        done:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return CO.walked>3&&d<4.5; }, bar:function(){ return Math.min(1,CO.walked/3); }},
+        start:function(){ CO.s.d0=typeof chSubjectDist==="function"?chSubjectDist():Infinity; },   /* a scene that starts you far from its subject only asks you to head its way */
+        done:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return CO.walked>3&&(!isFinite(d)||d<4.5||d<CO.s.d0-2); }, bar:function(){ return Math.min(1,CO.walked/3); }},
       {ch:"MOVE", line:function(){ return coK("Q")+' to crouch, '+coK("E")+' to stand tall'; }, sub:"Where you hold the camera changes the picture.",
         done:function(){ return CO.keys.Q&&CO.keys.E; }},
       {ch:"SHOOT", line:function(){ return '<kbd>RIGHT CLICK</kbd> raises the camera to your eye'; }, sub:"Right click again to lower it. "+coK("P")+" does the same.",

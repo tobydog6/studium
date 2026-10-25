@@ -454,7 +454,17 @@
               <div class="lr-row"><span class="lr-n">Roughness</span><input type="range" id="pGrainRough" min="0" max="100" value="50"><span class="lr-v" id="vGrainRough">50</span></div>
             </div>
             <div class="lr-row"><span class="lr-n">Glow</span><input type="range" id="pGlow" min="0" max="100" value="0"><span class="lr-v" id="vGlow">0</span></div>
+            <div class="lr-row"><span class="lr-n">Halation</span><input type="range" id="pHalation" min="0" max="100" value="0"><span class="lr-v" id="vHalation">0</span></div>
+            <div class="lr-sub" id="halSub">
+              <div class="lr-row"><span class="lr-n">Spread</span><input type="range" id="pHalSpread" min="0" max="100" value="40"><span class="lr-v" id="vHalSpread">40</span></div>
+              <div class="lr-row"><span class="lr-n">Threshold</span><input type="range" id="pHalThresh" min="0" max="100" value="70"><span class="lr-v" id="vHalThresh">70</span></div>
+              <div class="lr-row"><span class="lr-n">Warmth</span><input type="range" class="trk-hal" id="pHalHue" min="0" max="100" value="30"><span class="lr-v" id="vHalHue">30</span></div>
+            </div>
           </div>
+        </section>
+        <section class="lr-sec" data-sec="curve">
+          <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Tone Curve</span><span class="lr-eye" title="Toggle these edits">◉</span></header>
+          <div class="lr-body" id="lrCurve"></div>
         </section>
         <section class="lr-sec" data-sec="mixer">
           <header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">Color Mixer</span><span class="lr-eye" title="Toggle these edits">◉</span></header>

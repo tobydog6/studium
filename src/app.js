@@ -878,14 +878,16 @@
   var edShowOrig=false, edVZoom=1, edVX=0, edVY=0, edHist=[], edHistI=-1, edRestoring=false;
   var edRafPending=false, edHistTimer=0, edHover=false;
   var EDEF={ exposure:0,contrast:0,highlights:0,shadows:0,whites:0,blacks:0, temp:0,tint:0,vibrance:0,saturation:0,
-    texture:0,clarity:0,dehaze:0,vignette:0,grain:0,grainSize:25,grainRough:50,glow:0,
+    texture:0,clarity:0,dehaze:0,vignette:0,grain:0,grainSize:25,grainRough:50,glow:0, halation:0,halSpread:40,halThresh:70,halHue:30,
     mono:0,hdr:0,profile:"color",wb:"asshot", aspect:"free",zoom:1,rot:0,cx:0.5,cy:0.5, secLight:1,secColor:1,secEffects:1,secMix:1,secGrade:1,
     // Color Mixer: hue / saturation / luminance for eight bands (red, orange, yellow, green, aqua, blue, purple, magenta)
     hH0:0,hH1:0,hH2:0,hH3:0,hH4:0,hH5:0,hH6:0,hH7:0, hS0:0,hS1:0,hS2:0,hS3:0,hS4:0,hS5:0,hS6:0,hS7:0, hL0:0,hL1:0,hL2:0,hL3:0,hL4:0,hL5:0,hL6:0,hL7:0,
     // Color Grading: a hue / saturation / luminance wheel each for shadows, midtones, highlights and the whole image
-    gShH:0,gShS:0,gShL:0, gMiH:0,gMiS:0,gMiL:0, gHiH:0,gHiS:0,gHiL:0, gGlH:0,gGlS:0,gGlL:0, gBlend:50, gBal:0 };
-  var ED_SECKEY={light:"secLight",color:"secColor",effects:"secEffects",mixer:"secMix",grading:"secGrade"};
-  function defEd(i){ var o={},k; for(k in EDEF) o[k]=EDEF[k]; o.i=i; return o; }
+    gShH:0,gShS:0,gShL:0, gMiH:0,gMiS:0,gMiL:0, gHiH:0,gHiS:0,gHiL:0, gGlH:0,gGlS:0,gGlL:0, gBlend:50, gBal:0,
+    // Tone Curve: a point curve for RGB and each channel (0..255 pairs), and the four parametric regions
+    cvM:[[0,0],[255,255]], cvR:[[0,0],[255,255]], cvG:[[0,0],[255,255]], cvB:[[0,0],[255,255]], cvHi:0,cvLi:0,cvDa:0,cvSh:0, secCurve:1 };
+  var ED_SECKEY={light:"secLight",color:"secColor",effects:"secEffects",curve:"secCurve",mixer:"secMix",grading:"secGrade"};
+  function defEd(i){ var o={},k; for(k in EDEF) o[k]=Array.isArray(EDEF[k])?JSON.parse(JSON.stringify(EDEF[k])):EDEF[k]; o.i=i; return o; }
   // Processing is Camera Raw–style, in crdev.js (a port of PhotoCraft's pipeline), off the main thread.
   function eglInit(){}
   function buildRotated(){
@@ -957,15 +959,15 @@
     setS("pWhites","vWhites",E.whites); setS("pBlacks","vBlacks",E.blacks);
     setS("pTemp","vTemp",E.temp); setS("pTint","vTint",E.tint); setS("pVibrance","vVibrance",E.vibrance); setS("pSaturation","vSaturation",E.saturation);
     setS("pTexture","vTexture",E.texture); setS("pClarity","vClarity",E.clarity); setS("pDehaze","vDehaze",E.dehaze); setS("pVignette","vVignette",E.vignette);
-    setS("pGrain","vGrain",E.grain); setS("pGrainSize","vGrainSize",E.grainSize); setS("pGrainRough","vGrainRough",E.grainRough); setS("pGlow","vGlow",E.glow);
+    setS("pGrain","vGrain",E.grain); setS("pGrainSize","vGrainSize",E.grainSize); setS("pGrainRough","vGrainRough",E.grainRough); setS("pGlow","vGlow",E.glow); setS("pHalation","vHalation",E.halation); setS("pHalSpread","vHalSpread",E.halSpread); setS("pHalThresh","vHalThresh",E.halThresh); setS("pHalHue","vHalHue",E.halHue);
     if($("eBW")) $("eBW").classList.toggle("on",!!E.mono);
     if($("eHDR")) $("eHDR").classList.toggle("on",!!E.hdr);
     if($("eProfile")) $("eProfile").value=E.profile; if($("eWB")) $("eWB").value=E.wb;
-    var gs=$("grainSub"); if(gs) gs.style.opacity=(E.grain>0?1:0.4);
+    var gs=$("grainSub"); if(gs) gs.style.opacity=(E.grain>0?1:0.4); var hs=$("halSub"); if(hs) hs.style.opacity=(E.halation>0?1:0.4);
     if(typeof cropUI==="function") cropUI();
     var bb=$("eBefore"); if(bb) bb.classList.toggle("on", !!edShowOrig);
     Array.prototype.forEach.call(document.querySelectorAll("#editor .lr-sec"),function(sec){ var n=sec.getAttribute("data-sec"), ey=sec.querySelector(".lr-eye"); if(ey) ey.classList.toggle("off",!E[ED_SECKEY[n]]); });
-    if(typeof edpSync==="function") edpSync();
+    if(typeof edpSync==="function") edpSync(); if(typeof cvSync==="function") cvSync();
   }
   function openEditor(i){
     if(looking) document.exitPointerLock(); if(typeof edCrop!=="undefined"&&edCrop) cropEnd(true);   // finish a crop on the frame you were on
@@ -1019,6 +1021,7 @@
 @@include crtables.js@@
 @@include crdev.js@@
 @@include edpanels.js@@
+@@include curve.js@@
 @@include develop.js@@
 @@include crop.js@@
 @@include library.js@@
@@ -1118,9 +1121,9 @@
 
   // ---- wire: editor (Lightroom develop panel) ----
   (function(){
-    var em=[["pExposure","exposure","vExposure",fmtExp],["pContrast","contrast","vContrast"],["pHighlights","highlights","vHighlights"],["pShadows","shadows","vShadows"],["pWhites","whites","vWhites"],["pBlacks","blacks","vBlacks"],["pTemp","temp","vTemp"],["pTint","tint","vTint"],["pVibrance","vibrance","vVibrance"],["pSaturation","saturation","vSaturation"],["pTexture","texture","vTexture"],["pClarity","clarity","vClarity"],["pDehaze","dehaze","vDehaze"],["pVignette","vignette","vVignette"],["pGrain","grain","vGrain"],["pGrainSize","grainSize","vGrainSize"],["pGrainRough","grainRough","vGrainRough"],["pGlow","glow","vGlow"]];
+    var em=[["pExposure","exposure","vExposure",fmtExp],["pContrast","contrast","vContrast"],["pHighlights","highlights","vHighlights"],["pShadows","shadows","vShadows"],["pWhites","whites","vWhites"],["pBlacks","blacks","vBlacks"],["pTemp","temp","vTemp"],["pTint","tint","vTint"],["pVibrance","vibrance","vVibrance"],["pSaturation","saturation","vSaturation"],["pTexture","texture","vTexture"],["pClarity","clarity","vClarity"],["pDehaze","dehaze","vDehaze"],["pVignette","vignette","vVignette"],["pGrain","grain","vGrain"],["pGrainSize","grainSize","vGrainSize"],["pGrainRough","grainRough","vGrainRough"],["pGlow","glow","vGlow"],["pHalation","halation","vHalation"],["pHalSpread","halSpread","vHalSpread"],["pHalThresh","halThresh","vHalThresh"],["pHalHue","halHue","vHalHue"]];
     em.forEach(function(m){ var el=$(m[0]); if(!el) return;
-      el.addEventListener("input",function(){ edState[m[1]]=+this.value; var vv=$(m[2]); if(vv) vv.textContent=m[3]?m[3](+this.value):this.value; if(m[1]==="grain"){ var gs=$("grainSub"); if(gs) gs.style.opacity=(+this.value>0)?1:0.4; } queueRender(); });
+      el.addEventListener("input",function(){ edState[m[1]]=+this.value; var vv=$(m[2]); if(vv) vv.textContent=m[3]?m[3](+this.value):this.value; if(m[1]==="grain"){ var gs=$("grainSub"); if(gs) gs.style.opacity=(+this.value>0)?1:0.4; } if(m[1]==="halation"){ var hs=$("halSub"); if(hs) hs.style.opacity=(+this.value>0)?1:0.4; } queueRender(); });
       el.addEventListener("change", edPushHist);
       el.addEventListener("dblclick",function(){ var dv=EDEF[m[1]]; edState[m[1]]=dv; this.value=dv; var vv=$(m[2]); if(vv) vv.textContent=m[3]?m[3](dv):dv; if(m[1]==="grain"){ var gs=$("grainSub"); if(gs) gs.style.opacity=(dv>0)?1:0.4; } edPushHist(); queueRender(); }); });
     if($("eAuto")) $("eAuto").onclick=function(){ autoTone(); edPushHist(); };

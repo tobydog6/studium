@@ -277,6 +277,11 @@
       if(T("noiseLuminance")>0||T("noiseColor")>0||T("sharpenAmount")>0) detail(px,w,h,p,ps);
       if(T("glow")>0){ var gl=new F32(N); for(i=0;i<N;i++){ q=i*3; gl[i]=Math.max(Math.max(px[q],px[q+1],px[q+2])-0.6,0); }   // Studium's Glow: a soft bloom from the brights
         var gb=gauss(gl,w,h,Math.max(long*0.008,1)), ka=T("glow")/100*1.3; for(i=0;i<N;i++){ var gv=gb[i]*ka; q=i*3; px[q]+=gv; px[q+1]+=gv; px[q+2]+=gv; } }
+      if(T("halation")>0){   // Studium's Halation: film's red bleed round the brights (light scattering back through the emulsion). Threshold, spread, warmth of the tint.
+        var th=0.4+(p.halationThreshold==null?70:p.halationThreshold)/100*0.55, hl=new F32(N);
+        for(i=0;i<N;i++){ q=i*3; var hm=Math.max(px[q]*0.6+px[q+1]*0.3+px[q+2]*0.1, px[q]*0.85); hl[i]=Math.max(hm-th,0)/(1-th); }
+        var hb=gauss(hl,w,h,Math.max(long*(0.003+(p.halationSpread==null?40:p.halationSpread)/100*0.027),1)), hk=T("halation")/100*1.1, hu=(p.halationHue==null?30:p.halationHue)/100, tg=0.16+hu*0.5, tb=0.02+hu*0.12;
+        for(i=0;i<N;i++){ var hv=hb[i]*hk; if(hv<=0) continue; q=i*3; px[q]+=hv*(1-Math.min(px[q],1)); px[q+1]+=tg*hv*(1-Math.min(px[q+1],1)); px[q+2]+=tb*hv*(1-Math.min(px[q+2],1)); } }
       if(T("vignetteAmount")) vignette(px,w,h,p);
       if(T("grainAmount")>0){ var cell=1+(p.grainSize==null?25:p.grainSize)/25, rough=(p.grainRoughness==null?50:p.grainRoughness)/100, ga=T("grainAmount")/100*0.12, sd=p.seed||0, pscale=1/ps;
         for(var y3=0;y3<h;y3++) for(var x3=0;x3<w;x3++){ var fx=x3*pscale/cell, fy=y3*pscale/cell, n=vnoise(fx,fy,sd)*(1-rough)+vnoise(fx*2.3,fy*2.3,sd+7)*rough; q=(y3*w+x3)*3;
@@ -292,9 +297,14 @@
       temperature:(E.temp+pr.warm)*cm, tint:E.tint*cm, vibrance:(E.vibrance+pr.vib)*cm, saturation:(E.saturation+pr.sat)*cm,
       texture:E.texture*fm, clarity:E.clarity*fm, dehaze:E.dehaze*fm, vignetteAmount:E.vignette*fm, glow:(E.glow||0)*fm,
       grainAmount:E.grain*fm, grainSize:E.grainSize, grainRoughness:E.grainRough, mono:E.mono?1:0, hdr:E.hdr?1:0, seed:7,
+      halation:(E.halation||0)*fm, halationSpread:E.halSpread==null?40:E.halSpread, halationThreshold:E.halThresh==null?70:E.halThresh, halationHue:E.halHue==null?30:E.halHue,
       hslHue:crBands(E,"hH",E.secMix), hslSat:crBands(E,"hS",E.secMix), hslLum:crBands(E,"hL",E.secMix),
       gradeShadows:crWheel(E,"gSh",E.secGrade), gradeMidtones:crWheel(E,"gMi",E.secGrade), gradeHighlights:crWheel(E,"gHi",E.secGrade), gradeGlobal:crWheel(E,"gGl",E.secGrade),
-      gradeBlending:E.gBlend==null?50:E.gBlend, gradeBalance:(E.gBal||0) }; }
+      gradeBlending:E.gBlend==null?50:E.gBlend, gradeBalance:(E.gBal||0),
+      pointCurve:crCurve(E.cvM,E.secCurve), pointCurveRed:crCurve(E.cvR,E.secCurve), pointCurveGreen:crCurve(E.cvG,E.secCurve), pointCurveBlue:crCurve(E.cvB,E.secCurve),
+      curveHighlights:crOn(E.cvHi,E.secCurve), curveLights:crOn(E.cvLi,E.secCurve), curveDarks:crOn(E.cvDa,E.secCurve), curveShadows:crOn(E.cvSh,E.secCurve) }; }
+  function crOn(v,on){ return (on==null||on)?(v||0):0; }
+  function crCurve(c,on){ return (on==null||on)&&c&&c.length>=2?c:null; }
   function crBands(E,k,on){ var a=[]; for(var i=0;i<8;i++) a.push((E[k+i]||0)*(on==null||on?1:0)); return a; }
   function crWheel(E,k,on){ var m=(on==null||on)?1:0; return {hue:E[k+"H"]||0, sat:(E[k+"S"]||0)*m, lum:(E[k+"L"]||0)*m}; }
   function CRWORKER(self, E){   // message handler shared by the Web Worker and the main-thread fallback

@@ -56,14 +56,14 @@ try {
   await page.keyboard.press('KeyP'); await page.waitForTimeout(1200);
   console.log('viewfinder chips:\n    ' + await text('#viewfinder .vf-chip, #vfTask'));
   await shot('viewfinder');
-  await page.keyboard.press('Space'); await page.waitForTimeout(3500);
+  await page.keyboard.press('Space'); await page.waitForTimeout(800); await page.keyboard.press('Digit1'); await page.waitForTimeout(3500);   /* Space is the kit; 1 is Settings */
   console.log('camera back:\n    ' + await text('#cbUi .cb-task, #cbUi .cb-meter .cb-words, #cbUi .cb-cap'));
   await shot('back');
   // set what the frame wants on the aperture, so the light goes off and the free dials get called out
   await page.evaluate(() => { const b = document.querySelector('#cbUi .cb-stop.want'); if (b) b.click(); }); await page.waitForTimeout(800);
   console.log('camera back after:\n    ' + await text('#cbUi .cb-task, #cbUi .cb-meter .cb-words, #cbUi .cb-cap'));
   await shot('back2');
-  await page.keyboard.press('KeyB'); await page.waitForTimeout(1500);
+  await page.keyboard.press('KeyB'); await page.waitForTimeout(2500);
   console.log('bag:\n    ' + await text('#bag .bg-head, #bag .bg-task, #bag .bg-card.want'));
   await shot('bag');
 } catch (e) { fail = e.message; }

@@ -130,7 +130,7 @@
       else if(inKit && id===s.lens){ var ph2=s.inPhase; op=ph2==="start"?0:1; t=ph2==="start"?OFF:(ph2==="near"||ph2==="twist")?NEAR:"none";
         tr=s.instant?"none":ph2==="near"?"transform 280ms cubic-bezier(.16,1,.3,1), opacity 160ms ease-out":ph2==="seat"?"transform 70ms cubic-bezier(.7,0,1,.6)":"transform 200ms ease";
         if(ph2==="twist") sheen+=" twistIn"; if(s.hover&&!inLens) flt=glow; }
-      L.w.style.transition=(tr==="none"?"":tr+", ")+"filter 160ms ease"; L.w.style.transform=t; L.w.style.opacity=op; L.w.style.filter=flt;
+      L.w.classList.toggle("cur", inKit&&id===s.lens); L.w.style.transition=(tr==="none"?"":tr+", ")+"filter 160ms ease"; L.w.style.transform=t; L.w.style.opacity=op; L.w.style.filter=flt;
       if(L.sheen.className!==sheen) L.sheen.className=sheen; L.img.alt=(inKit&&id===s.lens)?cur.long+" lens on the camera":""; });
     ["dslr","ml","67"].forEach(function(id){ var on=s.body===id, im=E.bodies[id]; im.style.opacity=on?1:0; im.style.transform=on?"none":(id==="dslr"?"translateX(-14px)":"translateX(14px)"); im.alt=on?(id==="dslr"?"Full-frame DSLR body":id==="ml"?"APS-C mirrorless body":"6×7 film SLR body")+", three-quarter view":""; });
     E.thunk.style.transform="translate("+(s.thunk?"-2px, 1.5px":"0, 0")+")"; E.thunk.style.transition="transform "+(s.thunk?"50ms":"160ms")+" cubic-bezier(.3,1.6,.5,1)";

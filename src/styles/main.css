@@ -29,9 +29,9 @@
 
   /* Crosshair (look mode) */
   #crosshair{position:fixed;left:50%;top:50%;width:20px;height:20px;transform:translate(-50%,-50%);pointer-events:none;opacity:0.7;z-index:5}
-  #crosshair:before,#crosshair:after{content:"";position:absolute;background:rgba(255,255,255,0.9);box-shadow:0 0 3px rgba(0,0,0,0.6)}
-  #crosshair:before{left:50%;top:0;width:2px;height:100%;transform:translateX(-50%)}
-  #crosshair:after{top:50%;left:0;height:2px;width:100%;transform:translateY(-50%)}
+  #crosshair:before,#crosshair:after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%}
+  #crosshair:before{width:20px;height:20px;border:1.5px solid rgba(255,255,255,.9);box-shadow:0 0 3px rgba(0,0,0,.6),inset 0 0 3px rgba(0,0,0,.4)}
+  #crosshair:after{width:3px;height:3px;background:rgba(255,255,255,.95);box-shadow:0 0 2px rgba(0,0,0,.7)}
 
   /* Rule-of-thirds grid */
   #grid{position:fixed;inset:0;pointer-events:none;z-index:4}
@@ -102,8 +102,8 @@
   #briefProg{margin-left:auto;color:var(--muted);font-weight:600;text-transform:none;letter-spacing:0}
 
   #toast{position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:40;background:var(--panel-solid);border:1px solid var(--line);
-    color:var(--text);padding:10px 16px;border-radius:11px;font-size:13.5px;box-shadow:var(--shadow);opacity:0;transition:opacity .25s ease;pointer-events:none;max-width:82vw;text-align:center}
-  #toast.show{opacity:1}
+    color:var(--text);padding:10px 16px;border-radius:11px;font-size:13.5px;box-shadow:var(--shadow);opacity:0;transition:opacity .25s ease,transform .45s cubic-bezier(.2,.8,.2,1);transform:translateX(-50%) translateY(10px);pointer-events:none;max-width:82vw;text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%)}
 
   /* Overlays */
   .overlay{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:20px;
@@ -2337,6 +2337,18 @@ body.rl-open .nav-acts,body.rl-open .nav-coach,body.rl-open #hint{opacity:0!impo
 /* ===== ux-scene: the kit is a 2 by 2 (back, bag, lights, studio) ===== */
 #kitMenu .kit-wrap{width:min(880px,92vw)}
 #kitMenu .kit-row{grid-template-columns:repeat(2,1fr);gap:16px}
+/* grid wave: the kit opens as a diagonal wave across the 2 by 2 (Settings, then Bag and Lighting, then Studio), heading first, footer last.
+   fill-mode backwards: the tiles hold their hidden pose through the delay, then hand back to the normal hover lift once in */
+#kitMenu.show .kit-top{animation:kitRise .55s cubic-bezier(.2,.8,.2,1) backwards}
+#kitMenu.show .kit-card{animation:kitWave .62s cubic-bezier(.16,1,.3,1) backwards;animation-delay:calc(90ms + var(--w,0)*80ms)}
+#kitMenu.show .kit-foot{animation:kitRise .5s cubic-bezier(.2,.8,.2,1) .4s backwards}
+@keyframes kitWave{0%{opacity:0;transform:translateY(34px) scale(.94)}60%{opacity:1}100%{opacity:1;transform:none}}
+@keyframes kitRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+/* the tutorial: when a prompt says "Space, then Bag" (or Settings), that tile glows once the kit is open */
+body[data-co-kit="bag"] #kitMenu .kit-card[data-kit="bag"],body[data-co-kit="back"] #kitMenu .kit-card[data-kit="back"]{border-color:#e3ad57;animation:kitWave .62s cubic-bezier(.16,1,.3,1) backwards,coKit 1.5s ease-in-out .8s infinite;animation-delay:calc(90ms + var(--w,0)*80ms),.8s}
+@keyframes coKit{0%,100%{box-shadow:0 0 0 1px rgba(227,173,87,.5),0 0 24px rgba(227,173,87,.25)}50%{box-shadow:0 0 0 2px #e3ad57,0 0 60px rgba(227,173,87,.6)}}
+@media (prefers-reduced-motion:reduce){#kitMenu.show .kit-top,#kitMenu.show .kit-card,#kitMenu.show .kit-foot{animation:none}}
+
 #kitMenu .kit-top{margin-bottom:18px}
 #kitMenu .kit-foot{margin-top:18px}
 #kitMenu .kit-art{height:clamp(120px,19vh,180px)}
@@ -2563,6 +2575,39 @@ body.cube-open #hud,body.cube-open .q-hud,body.cube-open #viewfinder,body.cube-o
 .q-pickcard .gd-acts{margin-top:22px}
 .q-finish .q-go{font-size:20px;line-height:1.5;color:var(--text);margin-top:16px}
 @media (max-width:640px){.q-big{flex-direction:column;align-items:flex-start}.q-br{align-self:stretch;justify-content:space-between}}
+/* ---- quest morph: the card you click grows into the quest's own page (steps, a live clip of what it looks like), then shrinks home ---- */
+#qMorph{position:fixed;z-index:1001;display:none;border-radius:14px;border:1px solid rgba(var(--gold-rgb),.6);background:#1a1712;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.7);opacity:0;pointer-events:none;font-family:var(--sans);color:var(--text)}
+#qMorph.on{display:block}
+#qMorph.live{pointer-events:auto}
+#qMorph .qm-in{position:absolute;inset:0;padding:32px 36px;display:grid;grid-template-columns:1fr 340px;gap:30px;align-items:start;overflow:auto;opacity:0;transition:opacity .25s .16s}
+#qMorph.live .qm-in{opacity:1}
+#qMorph .qm-k{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--accent)}
+#qMorph h3{font-family:var(--serif);font-weight:400;font-size:36px;line-height:1.1;margin:8px 0 10px;letter-spacing:-.01em}
+#qMorph .qm-p{font-size:15.5px;line-height:1.55;color:#b3ab9c;margin:0 0 18px;max-width:560px}
+#qMorph .qm-steps{display:grid;gap:9px;margin:0 0 22px}
+#qMorph .qm-steps span{display:flex;gap:11px;align-items:center;font-size:14.5px}
+#qMorph .qm-steps i{width:17px;height:17px;border-radius:50%;border:1px solid rgba(var(--gold-rgb),.6);flex:none;display:grid;place-items:center;font:600 9px var(--mono);font-style:normal;color:#17140d}
+#qMorph .qm-steps i.ok{background:var(--accent);border-color:var(--accent)}
+#qMorph .qm-acts{display:flex;gap:18px;align-items:center;margin-top:4px}
+#qMorph .qm-clip{display:block;width:100%;aspect-ratio:3/2;border-radius:10px;background:#0c0b0a;border:1px solid rgba(var(--gold-rgb),.3);margin-top:8px}
+#qMorph .qm-cap{display:block;margin-top:9px;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;color:var(--ink-4)}
+#qMorph .qm-x{position:absolute;right:12px;top:10px;width:34px;height:34px;border-radius:50%;border:1px solid rgba(var(--bone-rgb),.14);background:none;color:var(--ink-4);font-size:14px;cursor:pointer}
+#qMorph .qm-x:hover{color:var(--accent);border-color:var(--accent)}
+#qMorph .q-lock{color:#c08a4a;font-size:13.5px}
+@media (max-width:760px){#qMorph .qm-in{grid-template-columns:1fr}}
+.q-acts2{display:flex;gap:18px;align-items:center;margin-top:10px}
+/* ---- soft rise: popups, the coach's prompt (title then sub a beat later), toasts ---- */
+.gd-pop.show .gd-card{animation:gdRise .45s cubic-bezier(.2,.8,.2,1) backwards}
+@keyframes gdRise{from{opacity:0;transform:translateY(16px) scale(.985)}to{opacity:1;transform:none}}
+.co-card.rise .co-line{animation:coSoft .65s cubic-bezier(.2,.7,.2,1) backwards}
+.co-card.rise .co-sub{animation:coSoft .65s cubic-bezier(.2,.7,.2,1) .12s backwards}
+@keyframes coSoft{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* ---- iris: a quest completing opens like an aperture, a gold ring racing ahead ---- */
+.gd-pop.show .gd-card.q-donecard{animation:gdIris .8s cubic-bezier(.6,0,.2,1) backwards}
+@keyframes gdIris{from{clip-path:circle(0% at 50% 50%)}to{clip-path:circle(75% at 50% 50%)}}
+.gd-pop.show:has(> .q-donecard)::after{content:"";position:absolute;left:50%;top:50%;width:0;height:0;border-radius:50%;border:2px solid var(--accent);transform:translate(-50%,-50%);pointer-events:none;animation:gdIrisRing .85s cubic-bezier(.6,0,.2,1) .05s both}
+@keyframes gdIrisRing{0%{width:0;height:0;opacity:.9}100%{width:120vmax;height:120vmax;opacity:0}}
+@media (prefers-reduced-motion:reduce){.gd-pop.show .gd-card,.co-card.rise .co-line,.co-card.rise .co-sub,.gd-pop.show:has(> .q-donecard)::after{animation:none}}
 /* the gallery wall's eye line stays (prints still snap to it) but isn't drawn */
 .ga-eye{visibility:hidden}
 .ws-done{position:fixed;z-index:900;display:none;align-items:center;gap:8px;height:42px;padding:0 18px;border-radius:21px;border:0;background:var(--accent);color:var(--accent-ink);font:600 12px var(--mono);letter-spacing:.14em;cursor:pointer;box-shadow:0 10px 30px -10px rgba(0,0,0,.7)}
@@ -2575,8 +2620,11 @@ body.cube-open #hud,body.cube-open .q-hud,body.cube-open #viewfinder,body.cube-o
 @keyframes coMulti{50%{outline-color:rgba(var(--gold-rgb),.45);box-shadow:0 0 8px rgba(var(--gold-rgb),.2)}}
 .co-float{animation:coFloat 1.6s ease-in-out infinite!important}
 @keyframes coFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-#bag .bg-hot.co-float{outline:2px solid rgba(var(--gold-rgb),.85);outline-offset:2px;box-shadow:0 0 30px rgba(var(--gold-rgb),.45)}
-#bag .bg-hot.co-float .tip{opacity:1;transform:none}
+/* tutorial "change the lens": the mounted lens breathes gold, its CHANGE LENS tag shows, and the lens button warms; no ring */
+body.co-lens #bag .bg-layer.cur{animation:coLens 1.6s ease-in-out infinite}
+@keyframes coLens{0%,100%{filter:drop-shadow(0 0 1.5px rgba(246,206,140,.9)) drop-shadow(0 0 10px rgba(227,173,87,.45))}50%{filter:drop-shadow(0 0 2px rgba(255,225,170,1)) drop-shadow(0 0 28px rgba(227,173,87,.9))}}
+body.co-lens #bag .bg-hot .tip{opacity:1;transform:none}
+body.co-lens #bag .lensbtn{border-color:#e3ad57;box-shadow:0 0 22px rgba(227,173,87,.3)}
 @media (prefers-reduced-motion:reduce){.co-multi,.co-float{animation:none!important}}
 /* autofocus: the square hunts (it breathes and flickers amber), then locks green */
 #viewfinder #vfAF{transition:transform .15s ease}

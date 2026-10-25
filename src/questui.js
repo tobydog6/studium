@@ -43,7 +43,7 @@
   // ---- the focus picker ----
   /* one quest, one big full-width button: title and what it asks on the left, how far along and how long on the right */
   function qCard(x, tag, lock){ var p=qProgress(x.id), started=!!qState(x.id), mins=x.mins?x.mins+" MIN":"";
-    return '<button class="q-big'+(tag==="SUGGESTED"||tag==="NEXT"||tag==="TRACKING"?' sug':'')+(lock?' lock':'')+'"'+(lock?' disabled':' data-q-pick="'+x.id+'"')+'>'
+    return '<button class="q-big'+(tag==="SUGGESTED"||tag==="NEXT"||tag==="TRACKING"?' sug':'')+(lock?' lock':'')+'"'+(lock?' disabled':' data-q-see="'+x.id+'"')+'>'
       +'<span class="q-bl"><span class="q-bk">'+(tag?'<em>'+qEsc(tag)+'</em>':'')+qPillarChip(x)+'</span><b>'+qEsc(x.title)+'</b><span class="q-bp">'+qEsc(lock||x.blurb)+'</span></span>'
       +'<span class="q-br"><span class="q-bn">'+(started?p.done+' / '+p.of:p.of)+'<small>'+(started?'STEPS DONE':p.of===1?'STEP':'STEPS')+'</small></span>'+(mins?'<span class="q-bm">'+mins+'</span>':'')+'<i>›</i></span></button>'; }
   function qPickOpen(){ if(!qMode()) return; var el=gdEl("qPick","gd-pop q-pop"), F=qFoundations().filter(function(f){ return !qIsDone(f.id); }), h;
@@ -117,7 +117,7 @@
       +(open?'<div class="q-body"><p>'+qEsc(x.blurb)+'</p>'+(lock?'<p class="q-lock">'+qEsc(lock)+'</p>':'')
         +qSteps(x.id).map(function(c){ return '<div class="ck'+(c.ok?' ok':'')+'"><i>'+(c.ok?'✓':'')+'</i><span>'+qEsc(c.t)+'</span>'+(c.now?'<em>'+qEsc(c.now)+'</em>':'')+'</div>'; }).join("")
         +(x.page?'<p class="q-mk">Makes: '+qEsc(Q_PAGE_NAMES[x.page]||x.page)+'</p>':'')
-        +(!lock&&s!=="done"&&!tr?'<button class="gd-go q-track" data-q-track="'+x.id+'">TRACK THIS QUEST</button>':'')+'</div>':'')+'</div>'; }
+        +'<div class="q-acts2">'+(!lock&&s!=="done"&&!tr?'<button class="gd-go q-track" data-q-track="'+x.id+'">TRACK THIS QUEST</button>':'')+'<button class="gd-skip" data-q-see="'+x.id+'">See what it looks like ›</button></div></div>':'')+'</div>'; }
   function qLogOpen(){ if(!qMode()) return; qPickClose(); var el=gdEl("qLog","gd-pop q-pop"), t=qTally(), cps=qCheckpoints();
     var tally=["context","craft","environment","drive"].map(function(p){ return '<span class="p-'+p+'"><b>'+PILLARS[p].n+'</b> '+t[p].done+'/'+t[p].of+'</span>'; }).join("");
     var wall=QU.tab==="ach"&&typeof achWallHtml==="function";
@@ -133,11 +133,95 @@
     if(qDemo()) h+='<div class="q-demo"><span>DEMO · '+qTook()+'</span><button class="gd-skip" data-q="restart">Restart demo</button></div>';
     var S=qAll().filter(function(x){ return x.type==="side"; }); if(S.length) h+='<div class="q-sec"><span class="q-sh">SIDE QUESTS</span>'+S.map(qRow).join("")+'</div>';
     el.innerHTML=h+'</div>'; el.classList.add("show"); QU.log=true; qHud(); }
-  function qLogClose(){ var el=$("qLog"); if(el) el.classList.remove("show"); QU.log=false; qHud(); }
+  function qLogClose(){ var el=$("qLog"); if(el) el.classList.remove("show"); QU.log=false; qHud(); qMorphHide(); }
+
+  // ---- quest morph: the card grows into the quest's page, with a live clip of what the quest looks like ----
+  var QM={on:false, id:null, src:null, from:null, raf:0, t0:0};
+  function qMorphEl(){ var e=$("qMorph"); if(!e){ e=document.createElement("div"); e.id="qMorph"; document.body.appendChild(e);
+      e.addEventListener("click",function(ev){ if(ev.target.closest("[data-qm-close]")){ ev.stopPropagation(); qMorphClose(); } });
+      window.addEventListener("keydown",function(ev){ if(QM.on&&ev.code==="Escape"){ ev.stopImmediatePropagation(); qMorphClose(); } },true); } return e; }
+  function qMorphBox(e,b){ e.style.left=b.x+"px"; e.style.top=b.y+"px"; e.style.width=b.w+"px"; e.style.height=b.h+"px"; }
+  function qClipKind(x){ if(x.clip) return x.clip; if((x.steps||[]).some(function(s){ return s.tour==="lighting"; })||/\blight(ing|s)?\b/i.test(x.title)) return "lighting";
+    var g=x.go||"scene"; return g==="workshop"?"workbook":g==="scene"?"shoot":g; }
+  function qMorphOpen(id, src){ var x=qGet(id); if(!x) return; var e=qMorphEl(); if(QM.on) qMorphHide();
+    var r=src?src.getBoundingClientRect():null, W=window.innerWidth, H=window.innerHeight, tw=Math.min(1000,W*0.92), th=Math.min(640,H*0.88);
+    var to={x:(W-tw)/2,y:(H-th)/2,w:tw,h:th}, from=(r&&r.width>10)?{x:r.left,y:r.top,w:r.width,h:r.height}:{x:to.x+to.w*0.1,y:to.y+to.h*0.1,w:to.w*0.8,h:to.h*0.8};
+    QM.id=id; QM.src=src||null; QM.from=from; var st=qSteps(id), lock=qLockReason(x), tr=Q.tracked===id, done=qIsDone(id), kind=qClipKind(x);
+    e.innerHTML='<div class="qm-in"><div><span class="qm-k">'+qPillars(x).map(function(p){ return ((PILLARS[p]||{}).n||p).toUpperCase(); }).join(" · ")+' · '+(x.type==="side"?"SIDE QUEST":x.type==="foundation"?"FOUNDATION":"QUEST")+(x.mins?' · '+x.mins+' MIN':'')+'</span>'
+      +'<h3>'+qEsc(x.title)+'</h3><p class="qm-p">'+qEsc(x.blurb)+'</p>'+(lock?'<p class="q-lock">'+qEsc(lock)+'</p>':'')
+      +'<div class="qm-steps">'+st.map(function(c){ return '<span><i class="'+(c.ok?'ok':'')+'">'+(c.ok?'✓':'')+'</i>'+qEsc(c.t)+'</span>'; }).join("")+'</div>'
+      +(x.page?'<p class="q-mk">Makes: '+qEsc(Q_PAGE_NAMES[x.page]||x.page)+'</p>':'')
+      +'<div class="qm-acts">'+(!lock&&!done?'<button class="gd-go" data-q-pick="'+id+'">'+(tr?'GO TO THIS QUEST ›':'TRACK THIS QUEST ›')+'</button>':'')+'<button class="gd-skip" data-qm-close>Back</button></div></div>'
+      +'<div><canvas class="qm-clip" data-qclip="'+kind+'"></canvas><span class="qm-cap">WHAT THIS QUEST LOOKS LIKE</span></div></div><button class="qm-x" data-qm-close title="Close">✕</button>';
+    e.style.transition="none"; qMorphBox(e,from); e.style.borderRadius="14px"; e.style.opacity=1; e.classList.add("on"); e.classList.remove("live"); if(src) src.style.visibility="hidden";
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ var E="cubic-bezier(.2,.8,.2,1)"; e.style.transition="left .5s "+E+",top .5s "+E+",width .5s "+E+",height .5s "+E+",border-radius .5s"; qMorphBox(e,to); e.style.borderRadius="18px"; e.classList.add("live"); }); });
+    QM.on=true; QM.t0=performance.now(); cancelAnimationFrame(QM.raf);
+    (function loop(){ if(!QM.on) return; QM.raf=requestAnimationFrame(loop); var cv=e.querySelector(".qm-clip"); if(cv) qClipDraw(cv.getAttribute("data-qclip"), cv, performance.now()-QM.t0); })(); }
+  function qMorphClose(){ var e=$("qMorph"); if(!e||!QM.on) return; QM.on=false; cancelAnimationFrame(QM.raf); e.classList.remove("live"); var src=QM.src, from=QM.from;
+    if(src&&document.body.contains(src)){ var r=src.getBoundingClientRect(); if(r.width>10) from={x:r.left,y:r.top,w:r.width,h:r.height}; }
+    qMorphBox(e,from); e.style.borderRadius="14px"; setTimeout(function(){ if(QM.on) return; e.style.opacity=0; e.classList.remove("on"); if(src) src.style.visibility=""; },480); }
+  function qMorphHide(){ var e=$("qMorph"); if(!e) return; QM.on=false; cancelAnimationFrame(QM.raf); e.classList.remove("on","live"); e.style.opacity=0; if(QM.src) QM.src.style.visibility=""; }
+  // the clips: one Stump frame and a few shapes, drawn live, looping about every five seconds. Each shows the quest's core move.
+  function qcE(x){ return x<0?0:x>1?1:x*x*(3-2*x); }
+  function qcS(u,a,b){ return qcE((u-a)/(b-a)); }
+  function qcL(a,b,k){ return a+(b-a)*k; }
+  function qcImg(g,x,y,w,h,f){ var im=CO_IMG; g.save(); g.beginPath(); g.rect(x,y,w,h); g.clip(); if(f) g.filter=f;
+    if(im.complete&&im.naturalWidth){ var ir=im.naturalWidth/im.naturalHeight, dw=w, dh=w/ir; if(dh<h){ dh=h; dw=h*ir; } g.drawImage(im,x+(w-dw)/2,y+(h-dh)/2,dw,dh); } else { g.fillStyle="#3a3024"; g.fillRect(x,y,w,h); } g.restore(); }
+  function qcCur(g,x,y){ g.save(); g.translate(x,y); g.fillStyle="#f4f1ea"; g.strokeStyle="#0c0b0a"; g.lineWidth=1.5; g.beginPath(); g.moveTo(0,0); g.lineTo(0,17); g.lineTo(4.5,13); g.lineTo(7.5,19); g.lineTo(10,18); g.lineTo(7,12); g.lineTo(12,12); g.closePath(); g.fill(); g.stroke(); g.restore(); }
+  function qcTag(g,t){ g.font="500 10.5px 'Geist Mono',ui-monospace,monospace"; var w=g.measureText(t).width; g.fillStyle="rgba(12,11,10,.74)"; g.fillRect(10,10,w+20,22); g.fillStyle="#e3ad57"; g.textBaseline="alphabetic"; g.textAlign="left"; g.fillText(t,20,25); }
+  function qcFrame(g,x,y,w,h,c){ g.strokeStyle=c||"#e3ad57"; g.lineWidth=2; g.strokeRect(x+1,y+1,w-2,h-2); }
+  function qClipDraw(kind, cv, ms){ var dpr=Math.min(2,window.devicePixelRatio||1), W=cv.clientWidth||340, H=cv.clientHeight||227; if(cv.width!==Math.round(W*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+    var g=cv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.globalAlpha=1; g.filter="none"; g.fillStyle="#0c0b0a"; g.fillRect(0,0,W,H); var T=5200, u=(ms%T)/T, k, i;
+    if(kind==="shoot"){ qcImg(g,0,0,W,H); k=qcS(u,.05,.3); var ih=qcL(H,H*0.6,k), iw=qcL(W,W*0.6,k); g.fillStyle="rgba(8,7,6,.78)"; g.fillRect(0,0,W,(H-ih)/2); g.fillRect(0,(H+ih)/2,W,(H-ih)/2); g.fillRect(0,(H-ih)/2,(W-iw)/2,ih); g.fillRect((W+iw)/2,(H-ih)/2,(W-iw)/2,ih);
+      if(k>.95){ var af=u<.56?"#e3ad57":"#5fe08a", s=u<.56?22+Math.sin(ms/40)*2:20; g.strokeStyle=af; g.lineWidth=2; g.strokeRect(W/2-s/2,H/2-s/2,s,s); }
+      var fl=u>.62&&u<.7?1-qcS(u,.62,.7):0; if(fl){ g.fillStyle="rgba(255,255,255,"+fl*0.9+")"; g.fillRect(0,0,W,H); }
+      if(u>.68){ var fk=qcS(u,.68,.95); var pw=qcL(iw,54,fk), ph=qcL(ih,36,fk), px=qcL((W-iw)/2,W-66,fk), py=qcL((H-ih)/2,12,fk); qcImg(g,px,py,pw,ph); qcFrame(g,px,py,pw,ph,"#f4f1ea"); }
+      qcTag(g,u<.3?"RIGHT CLICK · RAISE":u<.56?"HOLD F · FOCUS":u<.68?"CLICK · SHOOT":"INTO YOUR STUDIO"); }
+    else if(kind==="select"){ var cw=(W-40)/3, ch=cw*0.67, gx=16, gy=34; for(i=0;i<6;i++){ var cx=gx+(i%3)*(cw+4), cy=gy+Math.floor(i/3)*(ch+4); qcImg(g,cx,cy,cw,ch,"brightness("+(0.6+0.15*(i%4))+") saturate("+(0.7+0.1*i)+")");
+        if(i===1&&u>.4){ qcFrame(g,cx,cy,cw,ch); g.fillStyle="#e3ad57"; g.fillRect(cx+6,cy+6,34,14); g.fillStyle="#17140d"; g.font="600 8px 'Geist Mono',ui-monospace,monospace"; g.fillText("PICK",cx+10,cy+16); }
+        if(i===5&&u>.78){ g.strokeStyle="#e4552e"; g.lineWidth=3; g.beginPath(); g.moveTo(cx+10,cy+10); g.lineTo(cx+cw-10,cy+ch-10); g.moveTo(cx+cw-10,cy+10); g.lineTo(cx+10,cy+ch-10); g.stroke(); } }
+      var c1x=gx+cw*1.5, c1y=gy+ch*0.5, c2x=gx+2*(cw+4)+cw*0.5, c2y=gy+ch+4+ch*0.5; k=u<.5?qcS(u,.08,.38):qcS(u,.5,.74); qcCur(g,u<.5?qcL(W*0.8,c1x,k):qcL(c1x,c2x,k),u<.5?qcL(H+10,c1y,k):qcL(c1y,c2y,k));
+      qcTag(g,u<.4?"YOUR LIGHT TABLE":u<.5?"P · PICK":u<.78?"NOW A WEAK ONE":"X · REJECT"); }
+    else if(kind==="edit"){ k=qcS(u,.2,.62); var b=1+0.38*k, pw=W*0.6; qcImg(g,0,0,pw,H,"brightness("+b.toFixed(3)+")"); g.fillStyle="#14110d"; g.fillRect(pw,0,W-pw,H);
+      var rows=["EXPOSURE","CONTRAST","HIGHLIGHTS","SHADOWS"]; for(i=0;i<4;i++){ var ry=38+i*42, x0=pw+16, x1=W-16; g.fillStyle="#8d8678"; g.font="500 8px 'Geist Mono',ui-monospace,monospace"; g.fillText(rows[i],x0,ry-8); g.strokeStyle="rgba(244,241,234,.2)"; g.lineWidth=2; g.beginPath(); g.moveTo(x0,ry+8); g.lineTo(x1,ry+8); g.stroke();
+        var f=i===0?0.5+0.4*k:0.5, kx=x0+(x1-x0)*f; g.strokeStyle=i===0?"#e3ad57":"#8d8678"; g.lineWidth=2; g.beginPath(); g.arc(kx,ry+8,5,0,Math.PI*2); g.stroke(); if(i===0){ g.fillStyle="#e3ad57"; g.textAlign="right"; g.fillText("+"+(1.4*k).toFixed(1),x1,ry-8); g.textAlign="left"; qcCur(g,kx+2,ry+10); } }
+      qcTag(g,"DRAG · THE LIGHT SLIDERS"); }
+    else if(kind==="workbook"){ var pw2=W*0.62, ph2=pw2*0.707, px2=W-pw2-14, py2=(H-ph2)/2; g.fillStyle="#f4f1ea"; g.fillRect(px2,py2,pw2,ph2); g.fillStyle="rgba(0,0,0,.35)"; g.fillRect(px2+3,py2+ph2,pw2,4);
+      k=qcS(u,.1,.46); var tw=qcL(70,pw2*0.46,k), th=tw*0.67, tx=qcL(14,px2+16,k), ty=qcL(H-th-14,py2+16,k), bump=u>.46&&u<.56?Math.sin((u-.46)/.1*Math.PI)*4:0; qcImg(g,tx,ty-bump,tw,th); g.fillStyle="rgba(0,0,0,"+(0.25*(1-k)+.1)+")"; if(k<1) g.fillRect(tx+4,ty+th,tw,3); if(k<1) qcCur(g,tx+tw*0.55,ty+th*0.5);
+      var t2=qcS(u,.56,.92); for(i=0;i<4;i++){ var lw=(pw2-tw-48)*[1,.86,.94,.5][i]*qcE(t2*4-i); if(lw>0){ g.fillStyle="#5a5348"; g.fillRect(px2+tw+30,py2+22+i*13,lw,4); } }
+      if(t2>0&&t2<1){ var li=Math.min(3,Math.floor(t2*4)); g.fillStyle="#e3ad57"; g.fillRect(px2+tw+30+(pw2-tw-48)*[1,.86,.94,.5][li]*qcE(t2*4-li)+2,py2+19+li*13,2,10); }
+      qcTag(g,u<.5?"DRAG A PHOTO ONTO THE PAGE":"WRITE WHAT YOU SEE"); }
+    else if(kind==="folio"){ var pw3=(W-56)/3, ph3=pw3*1.41, py3=(H-ph3)/2; for(i=0;i<3;i++){ g.fillStyle="#f4f1ea"; g.fillRect(16+i*(pw3+12),py3,pw3,ph3); }
+      var cells=[[0,0,.55,.4],[.58,0,.42,.26],[.58,.29,.42,.11],[0,.43,.3,.28],[.33,.43,.67,.28],[0,.74,1,.26]]; for(i=0;i<6;i++){ var c=cells[i], a=qcS(u,.1+i*.12,.2+i*.12); if(a<=0) continue; var cx3=16+4+c[0]*(pw3-8), cy3=py3+4+c[1]*(ph3-8), cw3=c[2]*(pw3-8)-2, ch3=c[3]*(ph3-8)-2; g.save(); g.globalAlpha=a; g.translate(cx3+cw3/2,cy3+ch3/2); g.scale(qcL(.85,1,a),qcL(.85,1,a)); qcImg(g,-cw3/2,-ch3/2,cw3,ch3,"brightness("+(0.7+0.12*i)+")"); g.restore(); }
+      if(u<.84){ var ci=Math.min(5,Math.floor((u-.05)/.12)), cc=cells[Math.max(0,ci)]; qcCur(g,16+4+cc[0]*(pw3-8)+cc[2]*(pw3-8)/2,py3+4+cc[1]*(ph3-8)+cc[3]*(ph3-8)/2); }
+      qcTag(g,"FILL A THIRD · EDGE TO EDGE"); }
+    else if(kind==="book"){ var bw=W*0.78, bh=bw*0.5, bx=(W-bw)/2, by=(H-bh)/2; g.fillStyle="#f4f1ea"; g.fillRect(bx,by,bw,bh); g.fillStyle="rgba(0,0,0,.18)"; g.fillRect(bx+bw/2-1,by,2,bh);
+      qcImg(g,bx+14,by+14,bw/2-28,bh-28,"brightness(.8)"); k=qcS(u,.3,.72); var fx=Math.cos(k*Math.PI);
+      if(fx>0){ qcImg(g,bx+bw/2+14,by+14,bw/2-28,bh-28,"brightness(1.05)"); g.save(); g.translate(bx+bw/2,0); g.scale(fx,1); g.fillStyle="#f4f1ea"; g.fillRect(0,by,bw/2,bh); qcImg(g,14,by+14,bw/2-28,bh-28,"brightness(1.05)"); g.fillStyle="rgba(0,0,0,"+(0.25*(1-fx))+")"; g.fillRect(0,by,bw/2,bh); g.restore(); }
+      else { qcImg(g,bx+bw/2+14,by+14,bw/2-28,bh-28,"brightness(1.05) saturate(.7)"); g.save(); g.translate(bx+bw/2,0); g.scale(fx,1); g.fillStyle="#ece8df"; g.fillRect(0,by,bw/2,bh); g.fillStyle="#5a5348"; for(i=0;i<5;i++) g.fillRect(16,by+22+i*12,bw/2-40,3); g.restore(); }
+      g.fillStyle="rgba(0,0,0,.4)"; g.fillRect(bx+3,by+bh,bw,5); qcTag(g,u<.3?"YOUR PICKS AS SPREADS":"TURN THE PAGE"); }
+    else if(kind==="gallery"){ g.fillStyle="#e9e4da"; g.fillRect(0,0,W,H*0.78); g.fillStyle="#6e5a40"; g.fillRect(0,H*0.78,W,H*0.22); var fw=W*0.22, fh=fw*0.67, fy=H*0.3;
+      var sp=g.createRadialGradient(W/2,H*0.1,10,W/2,H*0.35,W*0.5); sp.addColorStop(0,"rgba(255,235,200,.55)"); sp.addColorStop(1,"rgba(255,235,200,0)"); g.fillStyle=sp; g.fillRect(0,0,W,H*0.78);
+      for(i=0;i<3;i++){ var fx2=W*0.14+i*(fw+W*0.08), fy2=fy; if(i===1){ k=qcS(u,.2,.55); fy2=qcL(-fh-20,fy,k); } g.fillStyle="rgba(0,0,0,.22)"; g.fillRect(fx2+4,fy2+6,fw+12,fh+12); g.fillStyle="#17140d"; g.fillRect(fx2-6,fy2-6,fw+12,fh+12); g.fillStyle="#f4f1ea"; g.fillRect(fx2-2,fy2-2,fw+4,fh+4); qcImg(g,fx2,fy2,fw,fh,"brightness("+(0.85+0.1*i)+")"); }
+      g.fillStyle="#17140d"; g.font="500 7px 'Geist Mono',ui-monospace,monospace"; g.fillText("STUMP · 2026",W*0.14,fy+fh+22); qcTag(g,u<.55?"HANG ANOTHER":"SPACE AND SEQUENCE"); }
+    else if(kind==="research"){ var aw=(W-36)/2, ah=aw*0.7, ay=(H-ah)/2+8, fa=u>.72&&u<.78?1-qcS(u,.72,.78):u>=.78&&u<.84?qcS(u,.78,.84):1; g.globalAlpha=fa;
+      qcImg(g,12,ay,aw,ah,u<.78?"brightness(.95)":"brightness(.8) sepia(.3)"); qcImg(g,24+aw,ay,aw,ah,u<.78?"brightness(.7) saturate(.6)":"brightness(1.05)"); g.globalAlpha=1;
+      g.fillStyle="#8d8678"; g.font="500 9px 'Geist Mono',ui-monospace,monospace"; g.fillText("A",12,ay-6); g.fillText("B",24+aw,ay-6);
+      k=qcS(u,.12,.4); if(u<.72){ qcCur(g,qcL(W/2,12+aw*0.5,k),qcL(H-10,ay+ah*0.55,k)); if(u>.42){ qcFrame(g,12,ay,aw,ah); g.fillStyle="#e3ad57"; g.fillRect(12,ay+ah-18,78,18); g.fillStyle="#17140d"; g.font="600 8px 'Geist Mono',ui-monospace,monospace"; g.fillText("STRONGER",18,ay+ah-6); } }
+      qcTag(g,u<.42?"WHICH IS STRONGER?":u<.72?"GO WITH YOUR GUT":"NEXT PAIR"); }
+    else if(kind==="lighting"){ g.strokeStyle="rgba(244,241,234,.06)"; g.lineWidth=1; for(i=0;i<W;i+=24){ g.beginPath(); g.moveTo(i,0); g.lineTo(i,H); g.stroke(); } for(i=0;i<H;i+=24){ g.beginPath(); g.moveTo(0,i); g.lineTo(W,i); g.stroke(); }
+      var sx=W*0.56, sy=H*0.5; k=qcS(u,.15,.5); var lx=qcL(W*0.1,W*0.34,k), ly=qcL(H*0.82,H*0.3,k), on=u>.5?1:0.35;
+      var cone=g.createRadialGradient(lx,ly,2,lx,ly,W*0.42); cone.addColorStop(0,"rgba(255,220,160,"+(0.5*on)+")"); cone.addColorStop(1,"rgba(255,220,160,0)"); g.fillStyle=cone; g.fillRect(0,0,W,H);
+      g.strokeStyle="#e3ad57"; g.lineWidth=2; g.beginPath(); g.arc(sx,sy,16,0,Math.PI*2); g.stroke(); g.fillStyle="rgba(227,173,87,.25)"; g.fill();
+      g.fillStyle="#f4f1ea"; g.beginPath(); g.moveTo(sx,sy+56); g.lineTo(sx-7,sy+72); g.lineTo(sx+7,sy+72); g.closePath(); g.fill();
+      g.fillStyle="#ffe6b4"; g.beginPath(); g.arc(lx,ly,7,0,Math.PI*2); g.fill(); g.strokeStyle="rgba(255,230,180,.5)"; g.setLineDash([3,4]); g.beginPath(); g.moveTo(lx,ly); g.lineTo(sx,sy); g.stroke(); g.setLineDash([]); if(k<1) qcCur(g,lx+6,ly+8);
+      var tw4=W*0.3, th4=tw4*0.67; qcImg(g,W-tw4-10,H-th4-10,tw4,th4,"brightness("+(0.3+0.9*k*on).toFixed(2)+")"); qcFrame(g,W-tw4-10,H-th4-10,tw4,th4,"#f4f1ea"); qcTag(g,u<.15?"MAKE IT NIGHT":u<.5?"DRAG THE LIGHT IN":"SEE IT THROUGH THE LENS"); }
+    else { qcImg(g,0,0,W,H); qcTag(g,"QUEST"); } }
 
   // ---- clicks ----
-  document.addEventListener("click",function(e){ var t=e.target.closest&&e.target.closest("[data-q],[data-q-pick],[data-q-open],[data-q-track]"); if(!t) return; e.stopPropagation();
-    if(t.hasAttribute("data-q-pick")){ var id=t.getAttribute("data-q-pick"); qPickClose(); qLogClose(); qDoneClose(); if(qTrack(id)){ qFlash(8000); QU.seen[id]=qSteps(id).map(function(s){ return s.ok; }); qGoQuest(id); } return; }
+  document.addEventListener("click",function(e){ var t=e.target.closest&&e.target.closest("[data-q],[data-q-pick],[data-q-open],[data-q-track],[data-q-see]"); if(!t) return; e.stopPropagation();
+    if(t.hasAttribute("data-q-see")){ qMorphOpen(t.getAttribute("data-q-see"), t.classList.contains("q-big")?t:t.closest(".q-row")||t); return; }
+    if(t.hasAttribute("data-q-pick")){ var id=t.getAttribute("data-q-pick"); qMorphHide(); qPickClose(); qLogClose(); qDoneClose(); if(qTrack(id)){ qFlash(8000); QU.seen[id]=qSteps(id).map(function(s){ return s.ok; }); qGoQuest(id); } return; }
     if(t.hasAttribute("data-q-open")){ var k=t.getAttribute("data-q-open"); QU.open[k]=!QU.open[k]; qLogOpen(); return; }
     if(t.hasAttribute("data-q-track")){ var id2=t.getAttribute("data-q-track"); qLogClose(); if(qTrack(id2)){ qFlash(8000); qGoQuest(id2); } return; }
     var a=t.getAttribute("data-q");

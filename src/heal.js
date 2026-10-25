@@ -20,14 +20,27 @@
   // the stamp mask over a box: 1 inside each stamp, feathered to 0 at its edge; 2 marks the ring just outside (used for matching)
   function healMask(st,iw,ih,R,bx,by,W,H){ var M=new Float32Array(W*H), ring=new Uint8Array(W*H), pts=st.p, i, j, R2=R*1.5;
     for(i=0;i<pts.length;i++){ var qx=pts[i][0]*iw-bx, qy=pts[i][1]*ih-by, x0=Math.max(0,Math.floor(qx-R2)), x1=Math.min(W-1,Math.ceil(qx+R2)), y0=Math.max(0,Math.floor(qy-R2)), y1=Math.min(H-1,Math.ceil(qy+R2));
-      for(var yy=y0;yy<=y1;yy++) for(var xx=x0;xx<=x1;xx++){ var d=Math.hypot(xx-qx,yy-qy); j=yy*W+xx; if(d<=R2) ring[j]=1; if(d>=R) continue; var v=d<R*0.55?1:1-((d/R-0.55)/0.45); v=v*v*(3-2*v); if(v>M[j]) M[j]=v; } }
+      for(var yy=y0;yy<=y1;yy++) for(var xx=x0;xx<=x1;xx++){ var d=Math.hypot(xx-qx,yy-qy); j=yy*W+xx; if(d<=R2) ring[j]=1; if(d>=R) continue; var v=d<R*0.75?1:1-((d/R-0.75)/0.25); v=v*v*(3-2*v); if(v>M[j]) M[j]=v; } }
     for(j=0;j<W*H;j++) if(M[j]>0.02) ring[j]=0; return {M:M,ring:ring}; }
+  // seamless fill: the source patch is bent to meet the photograph round the edge of the spot. We solve for a smooth
+  // "membrane" that equals (photo − source) on the ring and is harmonic inside, then add it to the source: the texture
+  // comes from the source, the colour and shading come from the pixels round the spot (Pérez's Poisson cloning).
+  function healSolve(v,inside,w,h,iters){ for(var it=0;it<iters;it++){ var fwd=(it&1)===0; for(var yy=0;yy<h;yy++){ var y=fwd?yy:h-1-yy; for(var xx=0;xx<w;xx++){ var x=fwd?xx:w-1-xx, i=y*w+x; if(!inside[i]) continue;
+        var l=x>0?i-1:i, r=x<w-1?i+1:i, u=y>0?i-w:i, d=y<h-1?i+w:i; for(var c=0;c<3;c++) v[i*3+c]=(v[l*3+c]+v[r*3+c]+v[u*3+c]+v[d*3+c])*0.25; } } } }
+  function healMembrane(dd,sd,M,W,H){ var N=W*H, fine=new Float32Array(N*3), inside=new Uint8Array(N), i, c, x, y;
+    for(i=0;i<N;i++){ inside[i]=M[i]>0.001?1:0; for(c=0;c<3;c++) fine[i*3+c]=dd[i*4+c]-sd[i*4+c]; }
+    var f=Math.max(1,Math.ceil(Math.max(W,H)/40)), cw=Math.ceil(W/f), ch=Math.ceil(H/f), cv=new Float32Array(cw*ch*3), cin=new Uint8Array(cw*ch), cnt=new Float32Array(cw*ch);
+    for(i=0;i<N;i++){ if(inside[i]) continue; x=i%W; y=(i/W)|0; var ci=((y/f)|0)*cw+((x/f)|0); cnt[ci]++; for(c=0;c<3;c++) cv[ci*3+c]+=fine[i*3+c]; }
+    var mean=[0,0,0], mn=0; for(i=0;i<cw*ch;i++){ if(cnt[i]>0){ for(c=0;c<3;c++){ cv[i*3+c]/=cnt[i]; mean[c]+=cv[i*3+c]; } mn++; } else cin[i]=1; }
+    if(mn) for(c=0;c<3;c++) mean[c]/=mn; for(i=0;i<cw*ch;i++) if(cin[i]) for(c=0;c<3;c++) cv[i*3+c]=mean[c];
+    healSolve(cv,cin,cw,ch,f>1?260:0);
+    if(f>1) for(i=0;i<N;i++){ if(!inside[i]) continue; x=i%W; y=(i/W)|0; var gx=Math.min(cw-1,Math.max(0,(x+0.5)/f-0.5)), gy=Math.min(ch-1,Math.max(0,(y+0.5)/f-0.5)), x0=gx|0, y0=gy|0, x1=Math.min(cw-1,x0+1), y1=Math.min(ch-1,y0+1), tx=gx-x0, ty=gy-y0;
+      for(c=0;c<3;c++) fine[i*3+c]=(cv[(y0*cw+x0)*3+c]*(1-tx)+cv[(y0*cw+x1)*3+c]*tx)*(1-ty)+(cv[(y1*cw+x0)*3+c]*(1-tx)+cv[(y1*cw+x1)*3+c]*tx)*ty; }
+    healSolve(fine,inside,W,H,f>1?10:60); return fine; }
   function healOne(x,iw,ih,st){ var m=Math.min(iw,ih), R=Math.max(st.r*m,1.5), B=healBox(st,iw,ih,R), ox=Math.round(st.s[0]*iw-B.cx), oy=Math.round(st.s[1]*ih-B.cy);
     var dx0=Math.max(B.x,0,-ox), dy0=Math.max(B.y,0,-oy), dx1=Math.min(B.x+B.w,iw,iw-ox), dy1=Math.min(B.y+B.h,ih,ih-oy); if(dx1-dx0<2||dy1-dy0<2) return;
-    var W=dx1-dx0, H=dy1-dy0, D=x.getImageData(dx0,dy0,W,H), S=x.getImageData(dx0+ox,dy0+oy,W,H), dd=D.data, sd=S.data, mk=healMask(st,iw,ih,R,dx0,dy0,W,H), M=mk.M, ring=mk.ring, j, k;
-    var sr=0,sg=0,sb=0,sw=0; for(j=0;j<W*H;j++){ if(!ring[j]) continue; k=j*4; sr+=dd[k]-sd[k]; sg+=dd[k+1]-sd[k+1]; sb+=dd[k+2]-sd[k+2]; sw++; }
-    var or=sw?sr/sw:0, og=sw?sg/sw:0, ob=sw?sb/sw:0;
-    for(j=0;j<W*H;j++){ var mv=M[j]; if(mv<=0) continue; k=j*4; dd[k]+=(Math.min(255,Math.max(0,sd[k]+or))-dd[k])*mv; dd[k+1]+=(Math.min(255,Math.max(0,sd[k+1]+og))-dd[k+1])*mv; dd[k+2]+=(Math.min(255,Math.max(0,sd[k+2]+ob))-dd[k+2])*mv; }
+    var W=dx1-dx0, H=dy1-dy0, D=x.getImageData(dx0,dy0,W,H), S=x.getImageData(dx0+ox,dy0+oy,W,H), dd=D.data, sd=S.data, M=healMask(st,iw,ih,R,dx0,dy0,W,H).M, mem=healMembrane(dd,sd,M,W,H), j, k;
+    for(j=0;j<W*H;j++){ var mv=M[j]; if(mv<=0) continue; k=j*4; for(var c=0;c<3;c++){ var t=Math.min(255,Math.max(0,sd[k+c]+mem[j*3+c])); dd[k+c]+=(t-dd[k+c])*mv; } }
     x.putImageData(D,dx0,dy0); }
   // pick the source: try a ring of candidates round the spot, score each by how well its surroundings match the spot's
   // surroundings and how flat its middle is, take the best. Done on a small copy so it is instant.

@@ -18,6 +18,10 @@ import * as esbuild from 'esbuild';
 import vm from 'node:vm';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
+// dev builds: --only stump,carpark keeps just those scenes (the others' data is left out and they vanish from the
+// picker); --swap assets/scenes/stump-hd.stm=assets/scenes/stump-dev.stm puts a lighter asset in an existing slot.
+const argOnly = process.argv.indexOf('--only'), ONLY = argOnly > -1 ? process.argv[argOnly + 1].split(',') : null;
+const SWAP = {}; process.argv.forEach((a, i) => { if (a === '--swap') { const [from, to] = process.argv[i + 1].split('='); SWAP[from] = to; } });
 const argOut = process.argv.indexOf('--out');
 const WEB = process.argv.includes('--web');
 const WEBDIR = join(ROOT, 'dist', 'web');
@@ -36,6 +40,8 @@ const stripNl = (s) => (s.endsWith('\n') ? s.slice(0, -1) : s);
 
 function resolveAssets(text) {
   return text.replace(/\b(asset|asset-b64):([A-Za-z0-9_./-]+)/g, (_, kind, rel) => {
+    if (SWAP[rel]) rel = SWAP[rel];
+    if (ONLY && /^assets\/scenes\//.test(rel) && !ONLY.includes(basename(rel).split(/[-.]/)[0])) return '';   // a scene left out of this build
     if (WEB && kind === 'asset-b64' && assetBuf(rel).length > BIG) {   // "@parts:a.0,a.1,…": fetched and joined at runtime
       const buf = assetBuf(rel), names = [];
       for (let i = 0; i * PART < buf.length; i++) { const n = `assets/${basename(rel)}.${i}`; writeFileSync(join(WEBDIR, n), buf.subarray(i * PART, (i + 1) * PART)); names.push(n); }
@@ -63,7 +69,7 @@ const shell = resolveAssets(readFileSync(join(ROOT, 'src', 'index.html'), 'utf8'
 const readSrc = (p) => stripNl(readFileSync(join(ROOT, 'src', p), 'utf8'))
   .replace(/^[ \t]*@@include (\S+)@@$/gm, (_, q) => readSrc(q));
 const html = shell.replace(/^@@include (\S+)@@$/gm, (_, p) =>
-  p === 'engine' ? engine : resolveAssets(readSrc(p)));
+  p === 'engine' ? engine : resolveAssets(readSrc(p)) + (ONLY && p === 'scenes.js' ? `\nSPLAT_SCENES=SPLAT_SCENES.filter(function(s){ return ${JSON.stringify(ONLY)}.indexOf(s.id)>=0; });   /* dev build: --only */` : ''));
 
 if (/@@include|\basset(-b64)?:[A-Za-z]/.test(html.replace(engine, ''))) throw new Error('Unresolved include or asset token');
 // every inline script must at least parse: a stray comment or quote fails the build, not a student's session

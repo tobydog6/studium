@@ -521,7 +521,7 @@
     (isFile?source.arrayBuffer():fetch(source).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.arrayBuffer(); })).then(function(ab){
       scene=new THREE.Scene(); skyAttach(scene); showLoader("Building detail levels…");
       // one Spark renderer for the whole session (its workers stay up); only the scan is swapped
-      var spark=window.__sparkR||(window.__sparkR=new SPARK.SparkRenderer({renderer:renderer})); var DL=DETAIL[sceneDetail]||DETAIL.balanced; spark.lodSplatScale=dynLodBase(); spark.lodRenderScale=(CH.spec&&CH.spec.fullRes)?0.5:1;   /* fullRes scans: budget for every splat, and pick the finest ones down to half a pixel, so close up it's the original data */ spark.maxStdDev=DL.sd||Math.sqrt(8); scene.add(spark);   // splats' faint outer edges trimmed a little: fewer pixels to fill
+      var spark=window.__sparkR||(window.__sparkR=new SPARK.SparkRenderer({renderer:renderer})); var DL=DETAIL[sceneDetail]||DETAIL.balanced; spark.lodSplatScale=dynLodBase(); spark.lodRenderScale=(CH.spec&&CH.spec.fullRes)?0.75:1;   /* fullRes scans: a bigger budget, and finer splats picked close up (three quarters of a pixel), without drawing millions nobody can see */ spark.maxStdDev=DL.sd||Math.sqrt(8); scene.add(spark);   // splats' faint outer edges trimmed a little: fewer pixels to fill
       // Studium draws into its own buffer and grades in sRGB (like the old engine): Spark would otherwise convert to linear there
       if(!spark.__srgb){ spark.__srgb=true; var obr=spark.onBeforeRender; spark.onBeforeRender=function(){ obr.apply(spark,arguments); if(spark.uniforms&&spark.uniforms.encodeLinear) spark.uniforms.encodeLinear.value=false; var ov=SPARK.SparkRenderer.sparkOverride; if(ov&&ov.uniforms&&ov.uniforms.encodeLinear) ov.uniforms.encodeLinear.value=false; }; }
       var mesh=new SPARK.SplatMesh({fileBytes:new Uint8Array(ab), fileType:format, lod:true}); mesh.quaternion.copy(q); var SC=(keepCol&&CH.spec&&CH.spec.scale)||1; mesh.scale.setScalar(SC); scene.add(mesh);   // some scans come in at a fraction of real size
@@ -562,12 +562,12 @@
   function setScale(v){ dyn.scale=v; renderer.setPixelRatio(v); resize(); }
   // resolution first (down to 60%); if that's not enough, trim Spark's splat budget a little too. Both come back with headroom.
   function dynLod(){ var sp=viewer&&viewer.spark; return sp?sp.lodSplatScale:1; }
-  function dynLodBase(){ var b=(DETAIL[sceneDetail]||DETAIL.balanced).lod||1; return CH.spec&&CH.spec.fullRes?Math.max(b,2.2):b; }
+  function dynLodBase(){ var b=(DETAIL[sceneDetail]||DETAIL.balanced).lod||1; return CH.spec&&CH.spec.fullRes?Math.max(b,1.3):b; }
   function dynTick(dt){ if(!loaded||!(dt>0)) return; dyn.ema=dyn.ema*0.9+dt*100; dyn.t+=dt; var mx=dynMax(), sp=viewer&&viewer.spark; if(dyn.scale>mx+0.001){ setScale(mx); return; }
     if(dyn.t<0.6) return; dyn.t=0; var fps=1000/dyn.ema;
     /* when it's slow, thin the distant splats first (barely visible), and only then drop resolution, never below 0.85:
        a blurry picture looks far worse than a little less far-off detail */
-    if(fps<40){ dyn.hi=0; if(sp&&sp.lodSplatScale>dynLodBase()*0.6) sp.lodSplatScale=Math.max(dynLodBase()*0.6, sp.lodSplatScale*0.85); else if(dyn.scale>0.85) setScale(Math.max(0.85,Math.round((dyn.scale-0.1)*100)/100)); }
+    if(fps<40){ dyn.hi=0; if(sp&&sp.lodSplatScale>dynLodBase()*0.35) sp.lodSplatScale=Math.max(dynLodBase()*0.35, sp.lodSplatScale*(fps<25?0.7:0.85)); else if(dyn.scale>0.85) setScale(Math.max(0.85,Math.round((dyn.scale-0.1)*100)/100)); }
     else if(fps>55){ if(++dyn.hi>=3){ dyn.hi=0; if(dyn.scale<mx) setScale(Math.min(mx,Math.round((dyn.scale+0.1)*100)/100)); else if(sp&&sp.lodSplatScale<dynLodBase()) sp.lodSplatScale=Math.min(dynLodBase(), sp.lodSplatScale/0.85); } } else dyn.hi=0; }
   // Keep the splats that show most: rank by opacity and keep the top share. Faint haze goes first and the small,
   // solid splats that carry texture stay, so the lighter levels thin out without going soft or muddy.

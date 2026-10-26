@@ -5,7 +5,7 @@
   var Q_PAGE_NAMES={artist:"Artist model page", rank:"Rank page", annotate:"Annotate page", contact:"Contact sheet page", experiment:"Experiment page",
     mood:"Mood & ideas page", next:"What's next page", edit:"Before & after page", moodboard:"Moodboard", compare:"Compare page"};
   var Q_TOUR_NAMES={basics:"the warm-up", select:"picking and rejecting", edit:"editing", workbook:"the workbook", folio:"the folio", book:"the book",
-    gallery:"the gallery", research:"Research", library:"project folders", lighting:"the lighting rig", artist:"the artist model page"};
+    gallery:"the gallery", research:"Research", library:"project folders", lighting:"the lighting rig", golden:"golden hour", artist:"the artist model page"};
   function qMode(){ var w=typeof lsWho==="function"?lsWho():null; return !!w&&w.role!=="teacher"&&Q.set===(w.demo?"demo":"term1"); }
   function qToday(){ var d=new Date(); return d.getFullYear()+"-"+("0"+(d.getMonth()+1)).slice(-2)+"-"+("0"+d.getDate()).slice(-2); }
   function qPlanLive(){ var pl=typeof lsPlan==="function"&&lsPlan(); if(!pl) return false; var c=lsCur(pl); return c.i>=0&&c.i<pl.phases.length; }
@@ -40,34 +40,43 @@
     if(CO.on) coStop(); if(tour==="lighting"){ qGoDest("scene"); var t0=Date.now(); (function w(){ if(loaded&&App.is("scene")){ if(!RL.ui) rlOpen(); setTimeout(function(){ coStart("lighting"); },400); return; } if(Date.now()-t0<20000) setTimeout(w,300); })(); return; }
     qGoDest(s.go); var T=CO_TOURS[tour], t1=Date.now(); (function wait(){ if(T&&T.where()){ coStart(tour); return; } if(Date.now()-t1<20000) setTimeout(wait,300); })(); }
 
-  // ---- the focus picker ----
-  /* one quest, one big full-width button: title and what it asks on the left, how far along and how long on the right */
-  function qCard(x, tag, lock){ var p=qProgress(x.id), started=!!qState(x.id), mins=x.mins?x.mins+" MIN":"";
-    return '<button class="q-big'+(tag==="SUGGESTED"||tag==="NEXT"||tag==="TRACKING"?' sug':'')+(lock?' lock':'')+'"'+(lock?' disabled':' data-q-see="'+x.id+'"')+'>'
-      +'<span class="q-bl"><span class="q-bk">'+(tag?'<em>'+qEsc(tag)+'</em>':'')+qPillarChip(x)+'</span><b>'+qEsc(x.title)+'</b><span class="q-bp">'+qEsc(lock||x.blurb)+'</span></span>'
-      +'<span class="q-br"><span class="q-bn">'+(started?p.done+' / '+p.of:p.of)+'<small>'+(started?'STEPS DONE':p.of===1?'STEP':'STEPS')+'</small></span>'+(mins?'<span class="q-bm">'+mins+'</span>':'')+'<i>›</i></span></button>'; }
-  function qPickOpen(){ if(!qMode()) return; var el=gdEl("qPick","gd-pop q-pop"), F=qFoundations().filter(function(f){ return !qIsDone(f.id); }), h;
+  // ---- the quest board: rows of three. One tile per quest; a row opens when the row above is done. Click a tile for its page. ----
+  function qTile(x){ var s=qStatus(x.id), p=qProgress(x.id), lock=qLockReason(x), tr=Q.tracked===x.id, sug=!tr&&!lock&&s!=="done"&&(qSuggest()||{}).id===x.id, mins=x.mins?x.mins+" MIN":"";
+    var dots=qSteps(x.id).map(function(c){ return '<i class="'+(c.ok?'ok':'')+'"></i>'; }).join("");
+    var word=tr?"TRACKING":s==="done"?"DONE":s==="active"?"IN PROGRESS":lock?"LOCKED":sug?"SUGGESTED":"";
+    return '<button class="q-tile s-'+s+(tr?' tr':'')+(sug?' sug':'')+'"'+(lock?' disabled':' data-q-see="'+x.id+'"')+'>'
+      +'<span class="q-tk">'+qPillarChip(x)+(mins?'<em>'+mins+'</em>':'')+'</span>'
+      +'<b>'+qEsc(x.title)+'</b><p>'+qEsc(lock||x.blurb)+'</p>'
+      +'<span class="q-tf"><span class="q-dots">'+dots+'</span><span class="q-tw">'+(s==="done"?'✓ ':'')+word+(s!=="done"&&!lock&&qState(x.id)?' · '+p.done+' / '+p.of:'')+'</span></span>'
+      +(s==="done"?'<span class="q-stamp">✓</span>':lock?'<span class="q-lockic">🔒</span>':'')+'</button>'; }
+  function qBoardOpen(tab){ if(!qMode()) return; qDoneClose(); var el=gdEl("qLog","gd-pop q-pop"), wall=(tab||QU.tab)==="ach"&&typeof achWallHtml==="function"; QU.tab=wall?"ach":"q";
     if(typeof looking!=="undefined"&&looking){ try{ document.exitPointerLock(); }catch(e){} }
-    if(F.length){ var f=F[0], n=qFoundations().length-F.length+1;
-      h='<div class="gd-card q-pickcard"><span class="k">FOUNDATION '+n+' OF '+qFoundations().length+'</span><b class="t">What\'s next</b><p>Foundations come first, in order. They open your board.</p><div class="q-list">'+qCard(f, Q.tracked===f.id?"TRACKING":"NEXT")+'</div>'; }
-    else { var sug=qSuggest(), open=qAll().filter(function(x){ return x.type==="main"&&!qIsDone(x.id)&&!qLockReason(x); }), locked=qAll().filter(function(x){ return x.type==="main"&&!qIsDone(x.id)&&qLockReason(x)&&Q.boardOpen; });
-      open.sort(function(a,b){ var r=function(x){ return x.id===Q.tracked?0:sug&&x.id===sug.id?1:qState(x.id)?2:3; }; return r(a)-r(b); });
-      var cards=open.map(function(x){ return qCard(x, x.id===Q.tracked?"TRACKING":sug&&x.id===sug.id?"SUGGESTED":qState(x.id)?"IN PROGRESS":""); }).concat(locked.map(function(x){ return qCard(x, "", qLockReason(x)); }));
-      var left=qAll().filter(function(x){ return x.type==="main"&&!qIsDone(x.id); }).length;
-      h='<div class="gd-card q-pickcard"><span class="k">YOUR BOARD · '+left+' TO GO</span><b class="t">Choose a quest</b><p>'+(cards.length?'Any order you like. You can switch whenever you want, and your progress is kept.':'Everything on your board is done. Nice work.')+'</p><div class="q-list">'+cards.join("")+'</div>'; }
-    h+='<div class="gd-acts"><button class="gd-skip" data-q="skip">Not now</button><button class="gd-skip q-all" data-q="log">See all quests ›</button></div></div>';
-    el.innerHTML=h; el.classList.add("show"); QU.pick=true; Q.lastFocusAsk=qToday(); qSave(); qHud(); }
-  function qPickClose(){ var el=$("qPick"); if(el) el.classList.remove("show"); QU.pick=false; qHud(); }
+    var R=qRows(), all=qAll().filter(function(x){ return x.type!=="side"; }), nd=all.filter(function(x){ return qIsDone(x.id); }).length;
+    var h='<div class="gd-card q-board'+(wall?' wide':'')+'"><div class="q-lh"><div><span class="k">'+(qDemo()?'DEMO · '+qTook().toUpperCase()+' · ':'')+nd+' OF '+all.length+' DONE</span><b class="t">'+(wall?'Achievements':'Your quests')+'</b></div>'
+      +(typeof achWallHtml==="function"?'<div class="q-tabs"><button data-q="tabq" class="'+(wall?'':'on')+'">QUESTS</button><button data-q="taba" class="'+(wall?'on':'')+'">ACHIEVEMENTS · '+achCountAll()+' / '+ACH.length+'</button></div>':'')
+      +'<button class="q-x" data-q="closelog" title="Close">✕</button></div>';
+    if(wall){ el.innerHTML=h+achWallHtml()+'</div>'; el.classList.add("show"); QU.log=true; qHud(); return; }
+    h+='<p class="q-bp0">'+(Q.tracked?'You can switch quests whenever you like. Your progress is kept.':'Pick one to see what it looks like, then track it. Any order within a row.')+'</p>';
+    R.forEach(function(r,i){ var done=r.quests.filter(function(x){ return qIsDone(x.id); }).length, open=i===0||qRowDone(i-1), newly=open&&!QU.rowSeen[i];
+      h+='<div class="q-rowh'+(open?'':' shut')+'"><span class="q-rn">'+(i+1)+'</span><span class="q-rt">'+qEsc(r.n.toUpperCase())+'</span><span class="q-rp">'+(open?done+' / '+r.quests.length:'OPENS WHEN ROW '+i+' IS DONE')+'</span><i class="q-rl"><b style="width:'+(done/Math.max(1,r.quests.length)*100).toFixed(0)+'%"></b></i></div>'
+        +'<div class="q-grid'+(newly?' rise':'')+'">'+r.quests.map(qTile).join("")+'</div>'; if(open) QU.rowSeen[i]=1; });
+    if(qDemo()) h+='<div class="q-demo"><span>DEMO · '+qTook()+'</span><button class="gd-skip" data-q="restart">Restart demo</button></div>';
+    el.innerHTML=h+'</div>'; el.classList.add("show"); QU.log=true; qHud(); }
+  QU.rowSeen={};
+  function qPickOpen(){ qBoardOpen("q"); }
+  function qPickClose(){ qLogClose(); }
+  function qLogOpen(){ qBoardOpen(); }
+  function qLogClose(){ var el=$("qLog"); if(el) el.classList.remove("show"); QU.log=false; QU.pick=false; qHud(); if(typeof qMorphHide==="function") qMorphHide(); }
 
   // ---- the tracked quest card (the HUD) ----
   function qHudShow(){ if(!qMode()||QU.pick||QU.log||QU.done) return false; if(App.is("hub")||App.is("signin")||App.is("teacher")||App.is("landing")) return false;
     var hub=$("hub"); if(hub&&!hub.classList.contains("hidden")) return false; if(typeof coActive==="function"&&coActive()) return false; return loaded||(typeof st!=="undefined"&&st.open); }
   function qHud(){ var el=gdEl("qHud","gd-track q-hud"); if(!qHudShow()){ el.classList.remove("show"); return; }
     var id=Q.tracked, x=id&&qGet(id), vf=typeof viewfinderOn!=="undefined"&&viewfinderOn, html;
-    if(!x){ html='<button class="q-choose" data-q="pick">CHOOSE YOUR FOCUS ›</button>'; }
+    if(!x){ var all=qAll().filter(function(y){ return y.type!=="side"; }), nd=all.filter(function(y){ return qIsDone(y.id); }).length; html='<button class="q-choose" data-q="log">YOUR QUESTS · '+nd+' / '+all.length+' ›</button>'; }
     else { var st0=qSteps(id), d=st0.filter(function(s){ return s.ok; }).length, nx=qNextStep(id), how=nx&&nx.tour&&!coTourDone(nx.tour);
       var late=qDemo()&&nx;   /* in the demo any step can be skipped, so nobody gets stuck */
-      html='<div class="hd"><span class="k">'+(qDemo()?'<em class="q-tm">'+qTook()+'</em>':'')+qEsc(x.title.toUpperCase())+'</span><span class="fr">'+d+' / '+st0.length+'</span><button data-q="how" title="Show me how">?</button><button class="q-logb" data-q="log" title="All your quests">LOG</button></div>'
+      html='<div class="hd"><span class="k">'+(qDemo()?'<em class="q-tm">'+qTook()+'</em>':'')+qEsc(x.title.toUpperCase())+'</span><span class="fr">'+d+' / '+st0.length+'</span><button data-q="how" title="Show me how">?</button><button class="q-logb" data-q="log" title="All your quests">QUESTS</button></div>'
         +'<div class="q-sub">'+(x.type==="foundation"?'<span>FOUNDATION '+x.order+' OF '+qFoundations().length+'</span>':'')+qPillarChip(x)+(x.type==="main"?'<span>'+qEsc(qCpLine(x))+'</span>':'')+'</div>'
         +st0.map(function(c){ return '<div class="ck'+(c.ok?' ok':'')+'"><i>'+(c.ok?'✓':'')+'</i><span>'+qEsc(c.t)+'</span>'+(c.now?'<em>'+qEsc(c.now)+'</em>':'')+'</div>'; }).join("")
         +(how?'<button class="q-how" data-q="how">Show me how: '+qEsc(Q_TOUR_NAMES[nx.tour]||nx.tour)+' ›</button>':'')
@@ -83,14 +92,13 @@
   qOn(function(kind,data){ if(!qMode()) return;
     if(kind==="step"){ var st0=data.steps, prev=QU.seen[data.id]||[]; st0.forEach(function(s,i){ if(s.ok&&!prev[i]) toast("✓ "+s.t); }); QU.seen[data.id]=st0.map(function(s){ return s.ok; }); qFlash(); }
     else if(kind==="complete") QU.moments.push({kind:"complete", id:data.id});
-    else if(kind==="board") QU.moments.push({kind:"board"});
     else if(kind==="finish") QU.moments.push({kind:"finish"}); });
   function qMoment(){ if(QU.done||QU.pick||QU.log||!QU.moments.length) return; if(typeof viewfinderOn!=="undefined"&&viewfinderOn) return; if(typeof coActive==="function"&&coActive()) return;
-    var hasBoard=QU.moments.some(function(m){ return m.kind==="board"; }), m=hasBoard?QU.moments.filter(function(m){ return m.kind==="board"; })[0]:QU.moments[0];
-    QU.moments=hasBoard?QU.moments.filter(function(x){ return x.kind!=="complete"&&x!==m; }):QU.moments.slice(1);   // the board moment covers the foundation it finished
+    var fin=QU.moments.filter(function(m){ return m.kind==="finish"; })[0], C=QU.moments.filter(function(m){ return m.kind==="complete"; }), m=fin||C[C.length-1]||QU.moments[0];
+    QU.moments=QU.moments.filter(function(x){ return x!==m&&x.kind!=="complete"; });   /* completes that never got their moment are folded into the newest */
     if(typeof looking!=="undefined"&&looking){ try{ document.exitPointerLock(); }catch(e){} }
     var el=gdEl("qDone","gd-pop q-pop"), h;
-    if(m.kind==="board"&&qSet().finish){
+    if(false){
       h='<div class="gd-card q-donecard big"><span class="k">FOUNDATIONS DONE</span><b class="t">Your board is open</b><p>From here, you choose the order, one at a time. Your own project comes last. In class, each one counts toward a checkpoint your teacher sets.</p>'
         +'<div class="q-cps">'+qAll().filter(function(x){ return x.type==="main"; }).map(function(x){ return '<span><b>'+qEsc(x.title)+'</b>'+qPillarChip(x)+'</span>'; }).join("")+'</div>'
         +'<div class="gd-acts"><button class="gd-skip" data-q="closedone">Later</button><button class="gd-go" data-q="next">CHOOSE YOUR FIRST ›</button></div></div>'; }
@@ -103,37 +111,12 @@
       h='<div class="gd-card q-donecard"><span class="k">QUEST COMPLETE</span><b class="t">'+qEsc(x.title)+'</b><div class="q-pils">'+qPillarChip(x)+'</div>'
         +'<p>'+(x.page?'You made: '+qEsc(Q_PAGE_NAMES[x.page]||x.page)+'. ':'')+(x.type==="foundation"?'Foundation '+fd+' of '+F.length+' done.':qSet().finish?'That\'s '+qAll().filter(function(y){ return y.type==="main"&&qIsDone(y.id); }).length+' of '+qSet().finish+' for the demo.':'One more toward '+qEsc(qCpLine(x)||"your board")+'.')+'</p>'
         +(function(){ var nf=x.type==="foundation"&&F.filter(function(f){ return !qIsDone(f.id); })[0];   /* the next foundation is one click away, no picker */
+            var ri=qSet().rows?qRowOf(x.id):-1, opened=ri>=0&&qRowDone(ri)&&qRows()[ri+1];
             return nf?'<div class="gd-acts"><button class="gd-skip" data-q="closedone">Keep going here</button><button class="gd-go" data-q-pick="'+nf.id+'">NEXT: '+qEsc(nf.title.toUpperCase())+' ›</button></div></div>'
-              :'<div class="gd-acts"><button class="gd-skip" data-q="closedone">Keep going here</button><button class="gd-go" data-q="next">WHAT\'S NEXT ›</button></div></div>'; })(); }
+              :'<div class="gd-acts"><button class="gd-skip" data-q="closedone">Keep going here</button><button class="gd-go" data-q="next">'+(opened?'ROW '+(ri+2)+' IS OPEN ›':'YOUR QUESTS ›')+'</button></div></div>'; })(); }
     el.innerHTML=h; el.classList.add("show"); QU.done=true; qHud();
     Array.prototype.forEach.call(el.querySelectorAll("[data-q]"),function(b){ readLock(b, Math.min(READ_MS,1500)); }); }
   function qDoneClose(){ var el=$("qDone"); if(el) el.classList.remove("show"); QU.done=false; qHud(); }
-
-  // ---- the quest log ----
-  function qStatusWord(id){ return {done:"COMPLETE", active:"IN PROGRESS", "new":"NOT STARTED", locked:"LOCKED"}[qStatus(id)]||""; }
-  function qRow(x){ var s=qStatus(x.id), p=qProgress(x.id), open=QU.open[x.id], lock=qLockReason(x), tr=Q.tracked===x.id;
-    return '<div class="q-row s-'+s+(open?' open':'')+'"><button class="q-rh" data-q-open="'+x.id+'"><i class="q-dot"></i><b>'+qEsc(x.title)+'</b><span class="q-pils">'+qPillarChip(x)+'</span>'
-      +'<span class="q-st">'+(tr?'TRACKING':qStatusWord(x.id))+'</span><span class="q-pr">'+(s==="done"?"✓":p.done+' / '+p.of)+'</span></button>'
-      +(open?'<div class="q-body"><p>'+qEsc(x.blurb)+'</p>'+(lock?'<p class="q-lock">'+qEsc(lock)+'</p>':'')
-        +qSteps(x.id).map(function(c){ return '<div class="ck'+(c.ok?' ok':'')+'"><i>'+(c.ok?'✓':'')+'</i><span>'+qEsc(c.t)+'</span>'+(c.now?'<em>'+qEsc(c.now)+'</em>':'')+'</div>'; }).join("")
-        +(x.page?'<p class="q-mk">Makes: '+qEsc(Q_PAGE_NAMES[x.page]||x.page)+'</p>':'')
-        +'<div class="q-acts2">'+(!lock&&s!=="done"&&!tr?'<button class="gd-go q-track" data-q-track="'+x.id+'">TRACK THIS QUEST</button>':'')+'<button class="gd-skip" data-q-see="'+x.id+'">See what it looks like ›</button></div></div>':'')+'</div>'; }
-  function qLogOpen(){ if(!qMode()) return; qPickClose(); var el=gdEl("qLog","gd-pop q-pop"), t=qTally(), cps=qCheckpoints();
-    var tally=["context","craft","environment","drive"].map(function(p){ return '<span class="p-'+p+'"><b>'+PILLARS[p].n+'</b> '+t[p].done+'/'+t[p].of+'</span>'; }).join("");
-    var wall=QU.tab==="ach"&&typeof achWallHtml==="function";
-    var h='<div class="gd-card q-logcard'+(wall?' wide':'')+'"><div class="q-lh"><div><span class="k">QUEST LOG</span><b class="t">'+(wall?'Achievements':'Your quests')+'</b></div><button class="q-x" data-q="closelog" title="Close">✕</button></div>'
-      +(typeof achWallHtml==="function"?'<div class="q-tabs"><button data-q="tabq" class="'+(wall?'':'on')+'">QUESTS</button><button data-q="taba" class="'+(wall?'on':'')+'">ACHIEVEMENTS · '+achCountAll()+' / '+ACH.length+'</button></div>':'');
-    if(wall){ el.innerHTML=h+achWallHtml()+'</div>'; el.classList.add("show"); QU.log=true; qHud(); return; }
-    h+='<div class="q-tally">'+tally+'</div>';
-    h+='<div class="q-sec"><span class="q-sh">FOUNDATIONS</span>'+qFoundations().map(qRow).join("")+'</div>';
-    cps.forEach(function(c){ var M=qAll().filter(function(x){ return x.type==="main"&&x.checkpoint===c.id; }); if(!M.length) return;
-      h+='<div class="q-sec'+(Q.boardOpen?'':' dim')+'"><span class="q-sh">CHECKPOINT '+c.id.slice(2)+' · '+qEsc(c.name.toUpperCase())+' · '+qDateNice(c.date).toUpperCase()+'</span>'+(Q.boardOpen?'':'<p class="q-lock">Finish the foundations to open your board.</p>')+M.map(qRow).join("")+'</div>'; });
-    if(!cps.length){ var B=qAll().filter(function(x){ return x.type==="main"; });
-      h+='<div class="q-sec'+(Q.boardOpen?'':' dim')+'"><span class="q-sh">YOUR BOARD'+(qSet().finish?' · FINISH ALL '+(qSet().finish===4?'FOUR':qSet().finish):'')+'</span>'+(Q.boardOpen?'':'<p class="q-lock">Finish the foundations to open your board.</p>')+B.map(qRow).join("")+'</div>'; }
-    if(qDemo()) h+='<div class="q-demo"><span>DEMO · '+qTook()+'</span><button class="gd-skip" data-q="restart">Restart demo</button></div>';
-    var S=qAll().filter(function(x){ return x.type==="side"; }); if(S.length) h+='<div class="q-sec"><span class="q-sh">SIDE QUESTS</span>'+S.map(qRow).join("")+'</div>';
-    el.innerHTML=h+'</div>'; el.classList.add("show"); QU.log=true; qHud(); }
-  function qLogClose(){ var el=$("qLog"); if(el) el.classList.remove("show"); QU.log=false; qHud(); qMorphHide(); }
 
   // ---- quest morph: the card grows into the quest's page, with a live clip of what the quest looks like ----
   var QM={on:false, id:null, src:null, from:null, raf:0, t0:0};
@@ -144,15 +127,14 @@
   function qClipKind(x){ if(x.clip) return x.clip; if((x.steps||[]).some(function(s){ return s.tour==="lighting"; })||/\blight(ing|s)?\b/i.test(x.title)) return "lighting";
     var g=x.go||"scene"; return g==="workshop"?"workbook":g==="scene"?"shoot":g; }
   function qMorphOpen(id, src){ var x=qGet(id); if(!x) return; var e=qMorphEl(); if(QM.on) qMorphHide();
-    var r=src?src.getBoundingClientRect():null, W=window.innerWidth, H=window.innerHeight, tw=Math.min(1000,W*0.92), th=Math.min(640,H*0.88);
+    var r=src?src.getBoundingClientRect():null, W=window.innerWidth, H=window.innerHeight, tw=Math.min(1240,W*0.94), th=Math.min(680,H*0.9);
     var to={x:(W-tw)/2,y:(H-th)/2,w:tw,h:th}, from=(r&&r.width>10)?{x:r.left,y:r.top,w:r.width,h:r.height}:{x:to.x+to.w*0.1,y:to.y+to.h*0.1,w:to.w*0.8,h:to.h*0.8};
     QM.id=id; QM.src=src||null; QM.from=from; var st=qSteps(id), lock=qLockReason(x), tr=Q.tracked===id, done=qIsDone(id), kind=qClipKind(x);
-    e.innerHTML='<div class="qm-in"><div><span class="qm-k">'+qPillars(x).map(function(p){ return ((PILLARS[p]||{}).n||p).toUpperCase(); }).join(" · ")+' · '+(x.type==="side"?"SIDE QUEST":x.type==="foundation"?"FOUNDATION":"QUEST")+(x.mins?' · '+x.mins+' MIN':'')+'</span>'
+    e.innerHTML='<div class="qm-in"><div class="qm-media"><canvas class="qm-clip" data-qclip="'+kind+'"></canvas><span class="qm-cap">WHAT THIS QUEST LOOKS LIKE</span></div><div class="qm-text"><span class="qm-k">'+qPillars(x).map(function(p){ return ((PILLARS[p]||{}).n||p).toUpperCase(); }).join(" · ")+' · '+(x.type==="side"?"SIDE QUEST":x.type==="foundation"?"FOUNDATION":"QUEST")+(x.mins?' · '+x.mins+' MIN':'')+'</span>'
       +'<h3>'+qEsc(x.title)+'</h3><p class="qm-p">'+qEsc(x.blurb)+'</p>'+(lock?'<p class="q-lock">'+qEsc(lock)+'</p>':'')
       +'<div class="qm-steps">'+st.map(function(c){ return '<span><i class="'+(c.ok?'ok':'')+'">'+(c.ok?'✓':'')+'</i>'+qEsc(c.t)+'</span>'; }).join("")+'</div>'
       +(x.page?'<p class="q-mk">Makes: '+qEsc(Q_PAGE_NAMES[x.page]||x.page)+'</p>':'')
-      +'<div class="qm-acts">'+(!lock&&!done?'<button class="gd-go" data-q-pick="'+id+'">'+(tr?'GO TO THIS QUEST ›':'TRACK THIS QUEST ›')+'</button>':'')+'<button class="gd-skip" data-qm-close>Back</button></div></div>'
-      +'<div><canvas class="qm-clip" data-qclip="'+kind+'"></canvas><span class="qm-cap">WHAT THIS QUEST LOOKS LIKE</span></div></div><button class="qm-x" data-qm-close title="Close">✕</button>';
+      +'<div class="qm-acts">'+(!lock&&!done?'<button class="gd-go" data-q-pick="'+id+'">'+(tr?'GO TO THIS QUEST ›':'TRACK THIS QUEST ›')+'</button>':'')+'<button class="gd-skip" data-qm-close>Back</button></div></div></div><button class="qm-x" data-qm-close title="Close">✕</button>';
     e.style.transition="none"; qMorphBox(e,from); e.style.borderRadius="14px"; e.style.opacity=1; e.classList.add("on"); e.classList.remove("live"); if(src) src.style.visibility="hidden";
     requestAnimationFrame(function(){ requestAnimationFrame(function(){ var E="cubic-bezier(.2,.8,.2,1)"; e.style.transition="left .5s "+E+",top .5s "+E+",width .5s "+E+",height .5s "+E+",border-radius .5s"; qMorphBox(e,to); e.style.borderRadius="18px"; e.classList.add("live"); }); });
     QM.on=true; QM.t0=performance.now(); cancelAnimationFrame(QM.raf);
@@ -220,42 +202,41 @@
 
   // ---- clicks ----
   document.addEventListener("click",function(e){ var t=e.target.closest&&e.target.closest("[data-q],[data-q-pick],[data-q-open],[data-q-track],[data-q-see]"); if(!t) return; e.stopPropagation();
-    if(t.hasAttribute("data-q-see")){ qMorphOpen(t.getAttribute("data-q-see"), t.classList.contains("q-big")?t:t.closest(".q-row")||t); return; }
+    if(t.hasAttribute("data-q-see")){ qMorphOpen(t.getAttribute("data-q-see"), t.classList.contains("q-tile")?t:t.closest(".q-tile")||t); return; }
     if(t.hasAttribute("data-q-pick")){ var id=t.getAttribute("data-q-pick"); qMorphHide(); qPickClose(); qLogClose(); qDoneClose(); if(qTrack(id)){ qFlash(8000); QU.seen[id]=qSteps(id).map(function(s){ return s.ok; }); qGoQuest(id); } return; }
     if(t.hasAttribute("data-q-open")){ var k=t.getAttribute("data-q-open"); QU.open[k]=!QU.open[k]; qLogOpen(); return; }
     if(t.hasAttribute("data-q-track")){ var id2=t.getAttribute("data-q-track"); qLogClose(); if(qTrack(id2)){ qFlash(8000); qGoQuest(id2); } return; }
     var a=t.getAttribute("data-q");
     if(a==="tabq"||a==="taba"){ QU.tab=a==="taba"?"ach":"q"; qLogOpen(); return; }
     if(a==="skip"){ qPickClose(); return; } if(a==="log"){ qLogOpen(); return; } if(a==="closelog"){ qLogClose(); return; }
-    if(a==="pick"){ qPickOpen(); return; } if(a==="how"){ qHow(); return; }
-    if(a==="closedone"){ qDoneClose(); return; } if(a==="restart"){ qDemoRestart(); return; } if(a==="explore"){ qDoneClose(); qPickOpen(); return; }
-    if(a==="skipstep"){ qSkipStep(); return; } if(a==="fbsend"){ qFeedbackSend(); return; } if(a==="next"){ qDoneClose(); qPickOpen(); return; } },true);
+    if(a==="pick"){ qBoardOpen("q"); return; } if(a==="how"){ qHow(); return; }
+    if(a==="closedone"){ qDoneClose(); return; } if(a==="restart"){ qDemoRestart(); return; } if(a==="explore"){ qDoneClose(); qGoDest("scene"); return; }
+    if(a==="skipstep"){ qSkipStep(); return; } if(a==="fbsend"){ qFeedbackSend(); return; } if(a==="next"){ qDoneClose(); qBoardOpen("q"); return; } if(a==="board"){ qBoardOpen("q"); return; } },true);
   window.addEventListener("keydown",function(e){ if(e.code!=="Escape") return; if(QU.log){ e.preventDefault(); e.stopImmediatePropagation(); qLogClose(); } else if(QU.pick){ e.preventDefault(); e.stopImmediatePropagation(); qPickClose(); } },true);
 
   // ---- the hub and the nav bar follow the tracked quest ----
   function qHubRender(h){ if(!qMode()||qPlanLive()) return; var x=Q.tracked&&qGet(Q.tracked), p=x&&qProgress(x.id);
     h.querySelector(".h6-eb").textContent=x?"YOUR FOCUS":"CHOOSE YOUR FOCUS";
     h.querySelector(".h6-h").textContent=(x?x.title:"What's your focus today?")+(x?".":"");
-    h.querySelector(".h6-words").textContent=x?x.blurb:"Pick a quest to track. You can switch any time.";
-    var cta=h.querySelector(".h6-cta"); cta.innerHTML=(x?"CARRY ON":"CHOOSE A QUEST")+' <kbd>↵</kbd>';
+    h.querySelector(".h6-words").textContent=x?x.blurb:"Open your quests and pick one. You can switch any time.";
+    var cta=h.querySelector(".h6-cta"); cta.innerHTML=(x?"CARRY ON":"YOUR QUESTS")+' <kbd>↵</kbd>';
     h.querySelector(".h6-status").textContent=x?p.done+" OF "+p.of+" STEPS":"";
     var qb=h.querySelector(".h6-quests"); if(!qb){ qb=document.createElement("button"); qb.className="h6-quests"; qb.setAttribute("data-q","log"); var act=h.querySelector(".d7-act"); if(act) act.appendChild(qb); }
     qb.textContent="YOUR QUESTS ›"; }
-  function qHubGo(){ if(Q.tracked&&!qIsDone(Q.tracked)) qGoQuest(Q.tracked); else qPickOpen(); }
+  function qHubGo(){ if(Q.tracked&&!qIsDone(Q.tracked)) qGoQuest(Q.tracked); else qBoardOpen("q"); }
   function qNavTask(task){ if(!qMode()||qPlanLive()) return false; var x=Q.tracked&&qGet(Q.tracked);
     if(x){ var p=qProgress(x.id); task.innerHTML='<i></i><span class="t">'+qEsc(x.title)+'</span><span class="n">· '+p.done+' / '+p.of+'</span>'; } else task.innerHTML='<i></i><span class="t">Choose your focus</span>';
-    task.classList.remove("empty"); task.setAttribute("data-q", x?"log":"pick"); return true; }
+    task.classList.remove("empty"); task.setAttribute("data-q", "log"); return true; }
 
   // ---- the loop ----
   setInterval(function(){ if(!qMode()){ document.body.classList.remove("q-on"); ["qHud","qPick","qLog","qDone"].forEach(function(k){ var e=$(k); if(e) e.classList.remove("show"); }); return; }
     var hub=$("hub"), atHub=App.is("hub")&&hub&&!hub.classList.contains("hidden");
     if(atHub&&!QU.wasHub) QU.hubAsked=false; QU.wasHub=atHub;
-    if(atHub&&!QU.pick&&!QU.log&&!QU.done&&!qPlanLive()&&!(typeof lsMoveOpen==="function"&&lsMoveOpen())&&(Q.lastFocusAsk!==qToday()||(!Q.tracked&&!QU.hubAsked))){ QU.hubAsked=true; qPickOpen(); }
     qMoment(); qAutoTour(); qHud(); document.body.classList.toggle("q-on", true); }, 700);
   /* seamless: when the step you're on needs a tour you haven't done, it starts by itself (foundations, and the whole demo) */
   QU.auto={};
   var Q_NOAUTO=/[?&]noauto/.test(location.search);   /* scripted tests drive the tours themselves */
-  function qAutoTour(){ if(Q_NOAUTO) return; var id=Q.tracked, x=id&&qGet(id); if(!x||!(qDemo()||x.type==="foundation")) return;
+  function qAutoTour(){ if(Q_NOAUTO||QU.moments.length) return; var id=Q.tracked, x=id&&qGet(id); if(!x||!(qDemo()||x.type==="foundation")) return;
     if(QU.pick||QU.log||QU.done||qPlanLive()||(typeof CO!=="undefined"&&CO.on)||(typeof viewfinderOn!=="undefined"&&viewfinderOn)) return;
     if(App.is("hub")||App.is("signin")||App.is("landing")||App.is("teacher")) return; if(typeof ACHU!=="undefined"&&ACHU.full) return;
     var nx=qNextStep(id); if(!nx||!nx.tour||coTourDone(nx.tour)) return; var k=id+":"+nx.tour; if(QU.auto[k]) return; QU.auto[k]=1; qHow(); }
@@ -314,16 +295,17 @@
       ch=qAll().filter(function(x){ return x.type==="main"&&qIsDone(x.id); }).sort(function(a,b){ return qState(a.id).done-qState(b.id).done; });
     var made=[fr+" frame"+(fr===1?"":"s"), pk+" pick"+(pk===1?"":"s"), pg+" workbook page"+(pg===1?"":"s")]; if(qFolioTop()) made.push("a third of a folio panel");
     var ach=typeof achFinishLine==="function"?achFinishLine():"";
-    return '<div class="gd-card q-donecard big q-finish"><span class="k">DEMO · DONE IN '+qEsc(qTook().toUpperCase())+'</span><b class="t">Now go and shoot more</b><p class="q-go">Your folder is ready. Head back out, take more photos, and load them into it. Everything you learnt today works on them.</p>'
-      +'<p>You shot a real place, chose and edited your best, then picked your own way in: '+ch.map(function(x){ return '<b>'+qEsc(x.title)+'</b>'; }).join(" then ")+'. In class, the board keeps going all term.</p>'
+    return '<div class="gd-card q-donecard big q-finish"><span class="k">EVERY QUEST DONE · '+qEsc(qTook().toUpperCase())+'</span><b class="t">That\'s the whole loop</b><p class="q-go">Studium stays open. Keep shooting the Stump, pick and edit more, fill the rest of the folio, hang a bigger show. Everything you learnt today keeps working, and there are more quests to come.</p>'
       +'<div class="q-made">'+made.map(function(m){ return '<span>'+qEsc(m)+'</span>'; }).join("")+'</div>'+ach
+      +'<div class="q-rooms"><button class="q-room" data-q-go="scene"><b>Shoot</b><span>More frames, any settings</span></button><button class="q-room" data-q-go="select"><b>Edit</b><span>Your library and the develop room</span></button><button class="q-room" data-q-go="folio"><b>Folio</b><span>Two more thirds to fill</span></button><button class="q-room" data-q-go="gallery"><b>Gallery</b><span>Hang a bigger show</span></button></div>'
       +'<div class="q-fb"><span class="k">THREE QUICK QUESTIONS · OPTIONAL</span>'
       +'<label>What was the best moment?<textarea data-fb="best" rows="2" maxlength="400"></textarea></label>'
       +'<label>Where did you get stuck?<textarea data-fb="stuck" rows="2" maxlength="400"></textarea></label>'
       +'<div class="q-rate"><span>Would you want this in class?</span>'+[1,2,3,4,5].map(function(n){ return '<button data-fb-rate="'+n+'">'+n+'</button>'; }).join("")+'</div>'
       +'<button class="gd-skip q-fbsend" data-q="fbsend">Send answers</button></div>'
-      +'<div class="gd-acts"><button class="gd-skip" data-q="restart">Restart demo</button><button class="gd-go" data-q="explore">KEEP EXPLORING ›</button></div></div>'; }
-  document.addEventListener("click",function(e){ var b=e.target.closest&&e.target.closest("[data-fb-rate]"); if(!b) return; e.stopPropagation();
+      +'<div class="gd-acts"><button class="gd-skip" data-q="restart">Restart demo</button><button class="gd-skip" data-q="board">Your quests</button><button class="gd-go" data-q="explore">KEEP SHOOTING ›</button></div></div>'; }
+  document.addEventListener("click",function(e){ var g=e.target.closest&&e.target.closest("[data-q-go]"); if(g){ e.stopPropagation(); qDoneClose(); qGoDest(g.getAttribute("data-q-go")); return; }
+    var b=e.target.closest&&e.target.closest("[data-fb-rate]"); if(!b) return; e.stopPropagation();
     Array.prototype.forEach.call(b.parentNode.querySelectorAll("button"),function(x){ x.classList.toggle("on", x===b); }); },true);
   document.addEventListener("keydown",function(e){ if(e.target&&e.target.closest&&e.target.closest(".q-fb")) e.stopPropagation(); },true);
   function qFeedbackSend(){ var el=$("qDone"); if(!el) return; var g=function(k){ var t=el.querySelector('[data-fb="'+k+'"]'); return t?t.value.trim():""; }, r=el.querySelector("[data-fb-rate].on");

@@ -221,7 +221,12 @@
             p:a*(0.55*Math.sin(t*1.07+2.1)+0.3*Math.sin(t*3.17+0.6)+0.4*Math.sin(t*0.61+1.2))+q*(Math.sin(t*8.1+1.3)+0.6*Math.sin(t*12.7+2.2))}; }
   function setVertical(v){ vertical=!!v; computeCam(); applyFinder(); if(typeof drawComp==="function") drawComp();
     var b=$("navVert"); if(b) b.classList.toggle("on", vertical); var c=$("vfVert"); if(c) c.classList.toggle("on", vertical);
-    if(viewfinderOn&&typeof vfToast==="function") vfToast(vertical?"VERTICAL":"HORIZONTAL"); else toast(vertical?"Camera turned vertical":"Camera back to horizontal"); }
+    if(viewfinderOn&&typeof vfToast==="function") vfToast(vertical?"VERTICAL":"HORIZONTAL"); oriFlash(); }
+  /* the turn itself, big and centred: a frame swings 90° between landscape and portrait, so X is never a mystery */
+  var oriT=0;
+  function oriFlash(){ var e=$("orient"); if(!e){ e=document.createElement("div"); e.id="orient"; e.innerHTML='<div class="ori-fr"><i></i></div><span class="ori-l"></span><span class="ori-k">X TURNS THE CAMERA</span>'; document.body.appendChild(e); }
+    e.querySelector(".ori-l").textContent=vertical?"VERTICAL":"HORIZONTAL"; e.classList.toggle("v", vertical); e.classList.remove("show"); void e.offsetWidth; e.classList.add("show");
+    clearTimeout(oriT); oriT=setTimeout(function(){ e.classList.remove("show"); },1500); }
   function selectBody(i){ bodyIdx=Math.max(0,Math.min(BODIES.length-1,i)); var b=curBody(); if(lensIdx>b.lenses.length-1) lensIdx=Math.min(2,b.lenses.length-1); focalMM=b.lenses[lensIdx]; buildBodyPicker(); buildLensPicker(); computeCam(); applyFinder(); updateCamArt(); updateHoloTags(); }
   function selectLens(i){ var b=curBody(); lensIdx=Math.max(0,Math.min(b.lenses.length-1,i)); focalMM=b.lenses[lensIdx]; buildLensPicker(); computeCam(); applyFinder(); updateHoloTags(); }
   function buildBodyPicker(){ var el=$("bodyList"); if(!el) return; el.innerHTML="";

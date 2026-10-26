@@ -170,6 +170,14 @@
   function rlCur(){ return RL.lights[RL.sel]||null; }
   function rlAimAt(L,p){ var dx=p.x-L.x, dy=p.y-L.y, dz=p.z-L.z, d=Math.hypot(dx,dy,dz)||1; L.dir=[dx/d,dy/d,dz/d]; L.aimT={x:p.x,y:p.y,z:p.z}; }
   function rlSetPos(L,x,z){ L.x=x; L.z=z; L.g=rlGround(x,z); L.y=L.g+L.h*RL.S; if(L.aimT) rlAimAt(L,L.aimT); }
+  /* gold target spots: a tour says where a light should go (angle from the camera side, distance from the subject), the plan draws
+     them, and rlAtSpot says when a light is close enough. RL.want holds exact settings a tour asks for, drawn as bands on the sliders. */
+  function rlSpotPos(sp){ var T=RL.target||rlTarget(), E=RL.eye||{x:camPos.x,z:camPos.z}, S=RL.S, ax=E.x-T.x, az=E.z-T.z, al=Math.hypot(ax,az)||1; ax/=al; az/=al;
+    var a=sp.a*Math.PI/180, d=sp.d*S, ca=Math.cos(a), sa=Math.sin(a); return {x:T.x+(ax*ca-az*sa)*d, z:T.z+(ax*sa+az*ca)*d}; }
+  function rlAtSpot(L,sp){ if(!L||!sp) return false; var P=rlSpotPos(sp); return Math.hypot(L.x-P.x,L.z-P.z)<0.4*RL.S; }
+  var RL_TOL={power:2, k:300, h:0.15, cone:6};
+  function rlWantHit(i,k){ var W=RL.want&&RL.want[i], L=RL.lights[i]; if(!W||W[k]==null||!L) return null; return Math.abs(L[k]-W[k])<=RL_TOL[k]; }
+  function rlWantAll(i){ var W=RL.want&&RL.want[i]; if(!W) return false; return Object.keys(W).every(function(k){ return rlWantHit(i,k); }); }
 
   // what you were looking at when you opened Lighting: new lights land around it, in the classic places
   function rlTarget(){ var f=new THREE.Vector3(); camera.getWorldDirection(f); var p=rlPick(), S=RL.S;
@@ -220,7 +228,7 @@
   function rlPlanUI(){ var u=$("rlPlanUI"); if(!u){ u=document.createElement("div"); u.id="rlPlanUI"; document.body.appendChild(u);
       u.addEventListener("pointerdown",rlPlanDown); u.addEventListener("wheel",function(e){ e.preventDefault(); e.stopPropagation(); RL.planH=Math.max(0.25,Math.min(5,RL.planH*(e.deltaY>0?1.12:0.89))); },{passive:false}); }
     u.classList.toggle("show",!!(RL.ui&&RL.plan)); if(!(RL.ui&&RL.plan)) return;
-    u.innerHTML='<svg></svg>'+(RL.sunPow>0?'<div class="rlp-sun"><i></i><span>SUN</span></div>':'')+'<div class="rlp-t"><i></i><span>SUBJECT</span></div><div class="rlp-you"><i></i><span>YOU</span></div>'+RL.lights.map(function(L,i){ return '<div class="rlp-l'+(i===RL.sel?' on':'')+(L.on?'':' off')+'" data-i="'+i+'"><i style="background:'+rlHex(rlLightRGB(L))+'"></i><span>'+(i+1)+' · '+L.name+'</span></div>'+(L.type==="spot"?'<div class="rlp-h" data-i="'+i+'"></div>':''); }).join("")
+    u.innerHTML='<svg></svg>'+(RL.sunPow>0?'<div class="rlp-sun"><i></i><span>SUN</span></div>':'')+'<div class="rlp-t"><i></i><span>SUBJECT</span></div><div class="rlp-you"><i></i><span>YOU</span></div>'+(RL.spots||[]).map(function(sp,j){ return '<div class="rlp-spot'+(rlAtSpot(RL.lights[sp.i],sp)?' hit':'')+'" data-j="'+j+'"><i></i><span>'+sp.n+'</span></div>'; }).join("")+RL.lights.map(function(L,i){ return '<div class="rlp-l'+(i===RL.sel?' on':'')+(L.on?'':' off')+'" data-i="'+i+'"><i style="background:'+rlHex(rlLightRGB(L))+'"></i><span>'+(i+1)+' · '+L.name+'</span></div>'+(L.type==="spot"?'<div class="rlp-h" data-i="'+i+'"></div>':''); }).join("")
       +'<p class="rlp-tip">'+(RL.lights.length?'<b>Drag a light</b> to move it'+(RL.lights.some(function(L){ return L.type==="spot"; })?' · <b>drag its gold dot</b> to aim':'')+' · ':'Add a light from the panel · ')+'<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or drag the ground to move around · scroll to zoom</p>'; }
   function rlPlanDraw(){ var u=$("rlPlanUI"); if(!u||!RL.plan) return; var svg='';
     RL.lights.forEach(function(L,i){ var p=rlScr(L.x,L.y,L.z), el=u.querySelector('.rlp-l[data-i="'+i+'"]'); if(el) el.style.transform='translate('+p.x.toFixed(1)+'px,'+p.y.toFixed(1)+'px)';
@@ -231,6 +239,7 @@
     var E=RL.eye, R=0.08*RL.planExt*RL.planH, y=rlScr(E.x,RL.gRef,E.z), yf=rlScr(E.x+E.fx*R,RL.gRef,E.z+E.fz*R), you=u.querySelector(".rlp-you"), T=RL.target, tt=rlScr(T.x,T.y,T.z), te=u.querySelector(".rlp-t");
     if(you) you.style.transform='translate('+y.x.toFixed(1)+'px,'+y.y.toFixed(1)+'px) rotate('+(Math.atan2(yf.y-y.y,yf.x-y.x)*180/Math.PI+90).toFixed(1)+'deg)';
     if(te) te.style.transform='translate('+tt.x.toFixed(1)+'px,'+tt.y.toFixed(1)+'px)';
+    (RL.spots||[]).forEach(function(sp,j){ var P=rlSpotPos(sp), q=rlScr(P.x,RL.gRef,P.z), el=u.querySelector('.rlp-spot[data-j="'+j+'"]'); if(el){ el.style.transform='translate('+q.x.toFixed(1)+'px,'+q.y.toFixed(1)+'px)'; el.classList.toggle("hit", rlAtSpot(RL.lights[sp.i],sp)); } });
     svg+='<line class="view" x1="'+y.x+'" y1="'+y.y+'" x2="'+tt.x+'" y2="'+tt.y+'"/>';
     var su=u.querySelector(".rlp-sun"); if(su){ var sp=rlSunScr(), c=rlScr(T.x,RL.gRef,T.z); su.style.transform='translate('+sp.x.toFixed(1)+'px,'+sp.y.toFixed(1)+'px)'; svg+='<line class="sun" x1="'+sp.x+'" y1="'+sp.y+'" x2="'+c.x+'" y2="'+c.y+'"/>'; }
     var sv=u.querySelector("svg"); if(sv) sv.innerHTML=svg; }
@@ -268,7 +277,9 @@
   var RL_SL={ k:[1800,10000,function(v){ return v; },function(x){ return x; }], exp:[-30,30,function(v){ return v/10; },function(x){ return Math.round(x*10); }],
     power:[0,400,function(v){ return v/10; },function(x){ return Math.round(x*10); }], h:[0,250,function(v){ return v/100; },function(x){ return Math.round(x*100); }], cone:[10,120,function(v){ return v; },function(x){ return x; }],
     sunAz:[0,359,function(v){ return v; },function(x){ return Math.round(((x%360)+360)%360); }], sunEl:[2,75,function(v){ return v; },function(x){ return Math.round(x); }] };
-  function rlSl(scope,k,label,obj){ var d=RL_SL[k]; return '<label><span>'+label+'</span><input type="range" data-rl-s="'+scope+'" data-rl-k="'+k+'" min="'+d[0]+'" max="'+d[1]+'" value="'+d[3](obj[k])+'"><em>'+rlShow(k,obj[k])+'</em></label>'; }
+  function rlSl(scope,k,label,obj){ var d=RL_SL[k], W=scope==="l"&&RL.want&&RL.want[RL.sel], want=W&&W[k]!=null?W[k]:null, band='';
+    if(want!=null){ var lo=(d[3](want-(RL_TOL[k]||0))-d[0])/(d[1]-d[0])*100, hi=(d[3](want+(RL_TOL[k]||0))-d[0])/(d[1]-d[0])*100; band='<i class="rl-want'+(rlWantHit(RL.sel,k)?' hit':'')+'" style="left:'+Math.max(0,lo).toFixed(1)+'%;width:'+Math.max(1.5,hi-lo).toFixed(1)+'%"></i><b class="rl-wv">'+rlShow(k,want)+'</b>'; }
+    return '<label class="'+(want!=null?'want':'')+'"><span>'+label+'</span><span class="rl-tr"><input type="range" data-rl-s="'+scope+'" data-rl-k="'+k+'" min="'+d[0]+'" max="'+d[1]+'" value="'+d[3](obj[k])+'">'+band+'</span><em>'+rlShow(k,obj[k])+'</em></label>'; }
   function rlPanel(){ var p=$("rlPanel"); if(!p){ p=document.createElement("div"); p.id="rlPanel"; document.body.appendChild(p); p.addEventListener("input",rlInput); p.addEventListener("click",rlClick); p.addEventListener("keydown",function(e){ e.stopPropagation(); }); }
     p.classList.toggle("show", !!RL.ui); if(!RL.ui) return; var ae=document.activeElement; if(p.contains(ae)&&ae.type==="range") return;   // don't rebuild under a dragging slider
     var L=rlCur(), h='<div class="rl-h"><div><span class="rl-eb">LIGHTING</span><b>Light the scene</b></div><button class="rl-done" data-rl="done" title="Keep these lights (Esc)">DONE</button></div>'+(RL.status?'<p class="rl-s">'+RL.status+'</p>':'');
@@ -285,6 +296,7 @@
   var rlT=0;
   function rlInput(e){ var k=e.target.getAttribute("data-rl-k"); if(!k) return; var obj=e.target.getAttribute("data-rl-s")==="l"?rlCur():RL; if(!obj) return;
     var v=RL_SL[k][2](+e.target.value); obj[k]=v; var em=e.target.parentNode.querySelector("em"); if(em) em.textContent=rlShow(k,v); if(k==="h") rlSetPos(obj,obj.x,obj.z);
+    var bd=e.target.parentNode.querySelector(".rl-want"); if(bd){ var hit=!!rlWantHit(RL.sel,k); bd.classList.toggle("hit", hit); var wv=e.target.parentNode.querySelector(".rl-wv"); if(wv) wv.classList.toggle("hit", hit); }
     rlApply(); }
   function rlClick(e){ var b=e.target.closest("[data-rl],[data-rl-pick],[data-rl-fx],[data-rl-time],[data-rl-view],[data-rl-gel]"); if(!b) return; e.stopPropagation(); var L=rlCur();
     if(!RL.ready&&!b.hasAttribute("data-rl")) return;
@@ -302,6 +314,6 @@
   window.addEventListener("keydown",function(e){ if(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName)) return;
     if(RL.ui&&e.code==="Escape"){ e.preventDefault(); e.stopImmediatePropagation(); rlClose(); return; }
     if(e.code==="KeyL"&&loaded&&(App.is("scene")||App.is("viewfinder"))){ e.preventDefault(); rlToggle(); } },true);
-  if(/[?&]dev/.test(location.search)) window.__rl={ toggle:rlToggle, open:rlOpen, close:rlClose, add:rlAdd, view:rlView, pick:rlPick, scr:function(i){ var L=RL.lights[i]; return L?rlScr(L.x,L.y,L.z):null; },
+  if(/[?&]dev/.test(location.search)) window.__rl={ toggle:rlToggle, open:rlOpen, close:rlClose, add:rlAdd, view:rlView, pick:rlPick, spot:function(i){ var sp=(RL.spots||[])[i], L=RL.lights[sp.i]; if(sp&&L){ var P=rlSpotPos(sp); rlSetPos(L,P.x,P.z); rlApply(); } return !!(sp&&L); }, want:function(){ return RL.want; }, scr:function(i){ var L=RL.lights[i]; return L?rlScr(L.x,L.y,L.z):null; },
     set:function(o){ for(var k in o) RL[k]=o[k]; rlApply(); }, light:function(o){ var L=rlCur(); if(L){ for(var k in o) L[k]=o[k]; rlApply(); } },
     state:function(){ var L=RL.lights[0]; return {sunAz:RL.sunAz, sunPow:RL.sunPow, on:RL.on, ui:!!RL.ui, view:RL.view, ready:RL.ready, N:RL.N, n:RL.lights.length, sel:RL.sel, light:L?{x:L.x,y:L.y,z:L.z}:null, ms:RL.ms, placed:RL.placed||0, moved:RL.moved||0, S:RL.S, planC:RL.planC?{x:RL.planC.x,z:RL.planC.z}:null}; } };

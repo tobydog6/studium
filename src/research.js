@@ -109,7 +109,7 @@
       +'<button class="rs-wall" data-rs-act="mood" aria-label="Open the moodboard"><span class="rs-masonry">'+rs.wall.imgs.map(function(im){ return '<img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'; }).join("")+'</span></button></section>'; }
   function rsShelf(){ var h='';
     if(rs.loading&&!rs.packs) return '<div class="rs-head"><span class="eb">RESEARCH</span><h2>Look closely at other photographers</h2></div><div class="rs-none">Loading packs…</div>';
-    h+=rsWall()+'<div class="rs-head"><span class="eb">PACKS</span><h2>Look closely at other photographers</h2><p>Each pack is one photographer or idea. Play the Culling Game to choose your top three, then see every photograph in the pack.</p></div>';
+    h+=rsWall()+'<div class="rs-head"><span class="eb">PACKS</span><h2>Look closely at other photographers</h2><p>Each pack is one photographer or idea. Play the Culling Game to choose your top three, then open the library to see every photograph from everyone.</p><button class="rs-go2 rs-libgo" data-rs-act="all">Open the library ›</button></div>';
     var glow=rsFirstCull(), pick=glow?(rs.packs||[])[Math.floor(Math.random()*(rs.packs||[]).length)]:null;
     if(glow&&pick) h+='<div class="rs-start"><span class="eb">START HERE</span><b>Play one Culling Game</b><span>Two photographs at a time: pick the stronger one. Two minutes, and you will have a top three.</span><button class="rs-go" data-rs-act="cull" data-rs-id="'+rsEsc(pick.id)+'">Play ›</button></div>';
     return h+'<div class="rs-shelf'+(glow?' rs-glow':'')+'">'+(rs.packs||[]).map(function(p){ var ln=rsLinks(p.links), d1=rs.done[p.id+":punctum"], d2=rs.done[p.id+":cull"];
@@ -128,26 +128,39 @@
     return top+'<span class="rs-count">CULLING · '+c.picks+' PICKS</span></div><div class="rs-cull"><p class="rs-q">Which is the stronger photograph? Go with your gut.</p><div class="rs-ab">'
       +'<button class="rs-card" data-rs-act="pick" data-rs-win="'+(L===a?1:0)+'"><img src="'+rsEsc(L.url)+'" alt="" draggable="false"><span>A</span></button>'
       +'<button class="rs-card" data-rs-act="pick" data-rs-win="'+(R===a?1:0)+'"><img src="'+rsEsc(R.url)+'" alt="" draggable="false"><span>B</span></button></div></div>'; }
-  /* every photograph in the pack: choose six that show this photographer's way of seeing, and they become an artist model page */
-  function rsAmNeed(){ return Math.min(6, (rs.pack&&rs.pack.imgs||[]).length); }
-  function rsAllHTML(top){ var p=rs.pack, ranked=(rs.res&&rs.res.kind==="cull"&&rs.pack===p)?rs.res.top.map(function(x){ return x.id; }):[], am=rs.am||(rs.am=[]), need=rsAmNeed();
-    return top+'<span class="rs-count">CHOSEN · '+am.length+' / '+need+'</span></div><div class="rs-allw"><p class="rs-q">Choose '+need+' photographs that show how this photographer sees. They\'ll go on an artist model page in your workbook, with room for what you notice.</p><div class="rs-mgrid rs-masonry">'
-      +p.imgs.map(function(im){ var k=am.indexOf(im.id), r=ranked.indexOf(im.id); return '<button class="rs-mt rs-at'+(k>=0?' on':'')+'" data-rs-act="ampick" data-rs-img="'+rsEsc(im.id)+'"><img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'+(k>=0?'<b>'+(k+1)+'</b>':'')+(r>=0?'<span>YOUR #'+(r+1)+'</span>':'')+'</button>'; }).join("")
-      +'</div><div class="rs-mbar"><button class="rs-go" data-rs-act="amake"'+(am.length<need?' disabled':'')+'>Make my artist model page ›</button><button class="rs-go2" data-rs-act="amclear">CLEAR</button></div></div>'; }
-  function rsAmToggle(id){ var am=rs.am||(rs.am=[]), i=am.indexOf(id), need=rsAmNeed(); if(i>=0) am.splice(i,1); else if(am.length<need) am.push(id); else toast("That's "+need+": take one off first"); rsRender(); }
-  function rsAmMake(){ var p=rs.pack, ids=(rs.am||[]).slice(); if(!p||ids.length<rsAmNeed()) return; var ims=ids.map(function(id){ return p.imgs.filter(function(x){ return String(x.id)===String(id); })[0]; }).filter(Boolean);
-    var pids=ims.map(function(im){ var i=-1; photos.forEach(function(x,j){ if(x.url===im.url&&x.research) i=j; }); if(i<0){ photos.push({url:im.url, t:new Date(), place:"Research", research:true, credit:p.name}); i=photos.length-1; } return stId(i); });
+  /* the library: every photograph from every photographer, with a rail of folders down the side. Choose at least six (up to twelve),
+     from one photographer or across several, and they become an artist model page. Opened from the Culling Game's results, it starts
+     on the pack you just culled, with your top three badged. */
+  var RS_AM_MAX=12;
+  function rsAmNeed(){ return Math.min(6, rsAll().length||6); }
+  function rsFind(id){ var P=rs.packs||[]; for(var i=0;i<P.length;i++){ var im=P[i].imgs.filter(function(x){ return String(x.id)===String(id); })[0]; if(im) return {im:im, pack:P[i]}; } return null; }
+  function rsLibItems(){ var q=String(rs.q||"").trim().toLowerCase(), out=[]; (rs.packs||[]).forEach(function(p){ if(rs.lib&&rs.lib!=="*"&&String(p.id)!==String(rs.lib)) return; if(q&&p.name.toLowerCase().indexOf(q)<0) return; p.imgs.forEach(function(im){ out.push({im:im, pack:p}); }); }); return out; }
+  function rsAllHTML(top){ var p=rs.pack, am=rs.am||(rs.am=[]), need=rsAmNeed(), P=rs.packs||[], items=rsLibItems(), total=rsAll().length;
+    if(rs.lib==null) rs.lib=p?String(p.id):"*";
+    var ranked=(rs.res&&rs.res.kind==="cull"&&rs.res.top)?rs.res.top.map(function(x){ return String(x.id); }):[];
+    var rail='<aside class="rs-libr"><input class="rs-search" type="search" placeholder="Search artists" value="'+rsEsc(rs.q||"")+'" data-rs-q>'
+      +'<button class="rs-libf'+(rs.lib==="*"?' on':'')+'" data-rs-lib="*"><b>All artists</b><em>'+total+'</em></button><span class="eb">ARTISTS</span>'
+      +P.map(function(k){ var culled=!!(typeof Q!=="undefined"&&Q.rs&&Q.rs.cull&&Q.rs.cull[k.id]); return '<button class="rs-libf'+(String(k.id)===String(rs.lib)?' on':'')+'" data-rs-lib="'+rsEsc(k.id)+'"><b>'+rsEsc(k.name)+'</b>'+(culled?'<i title="Culled">✓</i>':'')+'<em>'+k.imgs.length+'</em></button>'; }).join("")+'</aside>';
+    var lead=am.length<need?'Choose '+need+' photographs that show a way of seeing. One photographer, or a mix: the folders on the left hold everyone.':am.length<RS_AM_MAX?'That\'s enough for a page. Add more if you like, up to '+RS_AM_MAX+', or make the page.':'That\'s the most a page will take. Make the page.';
+    return top+'<span class="rs-count">CHOSEN · '+am.length+' / '+need+(am.length>=need?' · UP TO '+RS_AM_MAX:'')+'</span></div><div class="rs-lib">'+rail+'<div class="rs-libm"><p class="rs-q">'+lead+'</p>'
+      +'<div class="rs-mgrid rs-masonry"'+(items.length?'':' style="display:none"')+'>'+items.map(function(e){ var im=e.im, k=am.indexOf(String(im.id)), r=(rs.pack&&e.pack===rs.pack)?ranked.indexOf(String(im.id)):-1;
+          return '<button class="rs-mt rs-at'+(k>=0?' on':'')+'" data-rs-act="ampick" data-rs-img="'+rsEsc(im.id)+'"><img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'+(k>=0?'<b>'+(k+1)+'</b>':'')+'<span>'+(r>=0?'YOUR #'+(r+1)+' · ':'')+rsEsc(e.pack.name)+'</span></button>'; }).join("")+'</div><div class="rs-none"'+(items.length?' style="display:none"':'')+'>No photographer called that.</div>' 
+      +'<div class="rs-mbar"><button class="rs-go" data-rs-act="amake"'+(am.length<need?' disabled':'')+'>Make my artist model page ›</button><button class="rs-go2" data-rs-act="amclear">CLEAR</button></div></div></div>'; }
+  function rsAmToggle(id){ var am=rs.am||(rs.am=[]), i=am.indexOf(String(id)); if(i>=0) am.splice(i,1); else if(am.length<RS_AM_MAX) am.push(String(id)); else toast("That's "+RS_AM_MAX+": take one off first"); rsRender(); }
+  function rsAmMake(){ var ids=(rs.am||[]).slice(); if(ids.length<rsAmNeed()) return; var hits=ids.map(rsFind).filter(Boolean), ims=hits.map(function(h){ return h.im; }), names=[];
+    hits.forEach(function(h){ if(names.indexOf(h.pack.name)<0) names.push(h.pack.name); });
+    var pids=hits.map(function(h){ var im=h.im, i=-1; photos.forEach(function(x,j){ if(x.url===im.url&&x.research) i=j; }); if(i<0){ photos.push({url:im.url, t:new Date(), place:"Research", research:true, credit:h.pack.name}); i=photos.length-1; } return stId(i); });
     if(typeof refreshCount==="function") refreshCount();
     Promise.all(ims.map(function(im){ return new Promise(function(res){ var pr=new Image(); pr.onload=function(){ res(pr.naturalWidth/Math.max(1,pr.naturalHeight)); }; pr.onerror=function(){ res(1.5); }; pr.src=im.url; }); }))
-      .then(function(A){ var box={x:15,y:34,w:262,h:228}, g=3, items=[{t:"text", role:"title", x:15, y:10, w:390, h:18, text:"Artist model: "+p.name}], n=A.length, best=null;
+      .then(function(A){ var box={x:15,y:34,w:262,h:228}, g=3, items=[{t:"text", role:"title", x:15, y:10, w:390, h:18, text:(names.length>1?"Artist models: ":"Artist model: ")+names.join(", ")}], n=A.length, best=null;
         for(var k=1;k<=n;k++){ var rows=[], per=n/k, at=0; for(var j=0;j<k;j++){ var end=Math.round((j+1)*per); rows.push(A.slice(at,end).map(function(a,q){ return at+q; })); at=end; }
           var hs=rows.map(function(r){ var sa=0; r.forEach(function(i){ sa+=A[i]; }); return (box.w-g*(r.length-1))/sa; }), H=hs.reduce(function(x,y){ return x+y; },0)+g*(k-1);
           var f=Math.min(1,box.h/H), score=Math.abs(1-H*f/box.h)+(1-f)*0.3; if(!best||score<best.s) best={s:score, rows:rows, hs:hs, f:f, H:H*f}; }
         var y=box.y+(box.h-best.H)/2;
         best.rows.forEach(function(r,j){ var h=best.hs[j]*best.f, rw=0; r.forEach(function(i){ rw+=A[i]*h; }); rw+=g*(r.length-1); var x=box.x+(box.w-rw)/2;
           r.forEach(function(i){ items.push({t:"photo", pid:pids[i], x:x, y:y, w:A[i]*h}); x+=A[i]*h+g; }); y+=h+g; });
-        items.push({t:"text", role:"caption", x:15, y:268, w:262, h:14, text:"Photographs: "+p.name});
-        items.push({t:"text", role:"text", x:288, y:34, w:117, h:110, text:"", ph:"What do these photographs have in common? Light, colour, framing, subject..."});
+        items.push({t:"text", role:"caption", x:15, y:268, w:262, h:14, text:"Photographs: "+names.join(", ")});
+        items.push({t:"text", role:"text", x:288, y:34, w:117, h:110, text:"", ph:(names.length>1?"What do these photographs have in common, across the photographers?":"What do these photographs have in common? Light, colour, framing, subject...")});
         items.push({t:"text", role:"text", x:288, y:152, w:117, h:110, text:"", ph:"How will you use this way of seeing in your own shoot?"});
         wsEnsure(); wsB.applyTemplate({id:"artist", name:"Artist model", build:function(){ return {bg:"white", items:items}; }}); rs.sent=(rs.sent||0)+1; rs.am=[]; stRoom("workshop"); }); }
   function rsResults(top){ var res=rs.res, p=rs.pack, h=top+'</div><div class="rs-res">';
@@ -162,18 +175,25 @@
     return h+'<div class="rs-yn"><button class="rs-go2" data-rs-act="'+(res.kind==="punctum"?"cull":"all")+'" data-rs-id="'+rsEsc(p.id)+'">'+(res.kind==="punctum"?"Now the culling game":"See all the photos ›")+'</button><button class="rs-go2" data-rs-act="shelf">All packs</button></div></div>'; }
   function rsRender(){ var box=$("st-research"); if(!box||!st.open||st.room!=="research") return;
     if(rs.view==="mood"&&!rs.pack) rs.pack={name:"Every pack", imgs:[]};
+    if(rs.view==="all"&&!rs.pack) rs.pack={name:"All artists", imgs:[], id:"*"};
     if(rs.view==="shelf"||!rs.pack){ if(!rs.packs&&!rs.loading) return rsLoad(); box.innerHTML=rsShelf(); return; }
-    var top='<div class="rs-bar"><button class="rs-back" data-rs-act="shelf">‹ All packs</button><span class="rs-pn">'+rsEsc(rs.pack.name)+'</span>';
+    var top='<div class="rs-bar"><button class="rs-back" data-rs-act="shelf">‹ All packs</button><span class="rs-pn">'+rsEsc(rs.view==="all"?"The library":rs.pack.name)+'</span>';
     box.innerHTML=rs.view==="round"?rsRound(top):rs.view==="cull"?rsCullHTML(top):rs.view==="mood"?rsMoodHTML(top):rs.view==="all"?rsAllHTML(top):rsResults(top);
     if(rs.view==="round") rsWireNotes(box); }
   function rsWireNotes(box){ Array.prototype.forEach.call(box.querySelectorAll("[data-rs-note]"),function(t){ t.addEventListener("input",function(){ var r=rs.round, im=r.imgs[r.k]; (r.notes[im.id]||(r.notes[im.id]={}))[t.getAttribute("data-rs-note")]=t.value; }); t.addEventListener("keydown",function(e){ e.stopPropagation(); }); }); }
   (function rsWire(){ var box=$("st-research"); if(!box) return;
+    box.addEventListener("input",function(e){ var q=e.target.closest&&e.target.closest("[data-rs-q]"); if(!q) return; rs.q=q.value; var m=box.querySelector(".rs-libm"); if(!m) return;
+      var items=rsLibItems(), am=rs.am||[], ranked=(rs.res&&rs.res.kind==="cull"&&rs.res.top)?rs.res.top.map(function(x){ return String(x.id); }):[], grid=m.querySelector(".rs-mgrid"), none=m.querySelector(".rs-none");
+      var h=items.map(function(e2){ var im=e2.im, k=am.indexOf(String(im.id)), r=(rs.pack&&e2.pack===rs.pack)?ranked.indexOf(String(im.id)):-1; return '<button class="rs-mt rs-at'+(k>=0?' on':'')+'" data-rs-act="ampick" data-rs-img="'+rsEsc(im.id)+'"><img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'+(k>=0?'<b>'+(k+1)+'</b>':'')+'<span>'+(r>=0?'YOUR #'+(r+1)+' · ':'')+rsEsc(e2.pack.name)+'</span></button>'; }).join("");
+      if(grid){ grid.innerHTML=h; grid.style.display=items.length?"":"none"; } if(none) none.style.display=items.length?"none":""; });
+    box.addEventListener("keydown",function(e){ if(e.target.closest&&e.target.closest("[data-rs-q]")) e.stopPropagation(); },true);
     box.addEventListener("click",function(e){ var r=rs.round;
       if(rs.view==="round"&&r&&r.step==="tap"&&!r.tap[r.imgs[r.k].id]){ var w=e.target.closest(".rs-imgw"); if(w){ var b=w.getBoundingClientRect(); r.tap[r.imgs[r.k].id]={x:Math.max(0,Math.min(1,(e.clientX-b.left)/b.width)), y:Math.max(0,Math.min(1,(e.clientY-b.top)/b.height))}; rs.taps=(rs.taps||0)+1; rsRender(); var t0=box.querySelector("[data-rs-note]"); if(t0) t0.focus(); return; } }
+      var lb=e.target.closest("[data-rs-lib]"); if(lb){ rs.lib=lb.getAttribute("data-rs-lib"); var m=box.querySelector(".rs-libm"); if(m) m.scrollTop=0; return rsRender(); }
       var t=e.target.closest("[data-rs-act]"); if(!t) return; var a=t.getAttribute("data-rs-act"), id=t.getAttribute("data-rs-id");
       if(a==="shelf"){ rs.view="shelf"; rs.pack=null; return rsRender(); }
       if(a==="mood"){ rs.view="mood"; rs.pack=null; rs.moodOrder=null; box.scrollTop=0; return rsRender(); }
-      if(a==="all"){ var pk=rsPack(id)||rs.pack; if(!pk) return; if(rs.pack!==pk) rs.am=[]; rs.pack=pk; rs.view="all"; box.scrollTop=0; return rsRender(); }
+      if(a==="all"){ var pk=rsPack(id)||rs.pack; rs.pack=pk||rs.pack||null; rs.lib=pk?String(pk.id):"*"; rs.q=""; rs.view="all"; box.scrollTop=0; return rsRender(); }
       if(a==="ampick") return rsAmToggle(t.getAttribute("data-rs-img")); if(a==="amclear"){ rs.am=[]; return rsRender(); } if(a==="amake") return rsAmMake(); if(a==="mpick") return rsMoodToggle(t.getAttribute("data-rs-url"));
       if(a==="mclear"){ rs.mood=[]; return rsRender(); } if(a==="moodmake") return rsMoodMake();
       if(a==="round") return rsStartRound(rsPack(id)||rs.pack); if(a==="cull") return rsStartCull(rsPack(id)||rs.pack);

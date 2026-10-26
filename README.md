@@ -38,12 +38,13 @@ lives inside it.
   the camera vertical.
 - **A camera bag.** Three bodies (full-frame DSLR, APS-C mirrorless at 1.6×, a 6×7 film SLR on a ten-frame roll), each
   with its own lenses, from a 24–70 zoom to a 165 mm on the 6×7, plus an animated lens swap.
-- **Gold-frame challenges, Skate-style.** Briefs float in the scene as glowing frames: *Shallow depth of field*,
-  *Silhouette*, *Telephoto detail*, *Medium format, vertical*. Walk into the pulse and it pulls you into position. Then
-  it's up to you to nail the settings.
+- **Gold-frame challenges, Skate-style.** Briefs float in the scene as glowing frames, each a different move: *Wide, low
+  and sharp*, *Wide open, fast shutter*, *Film, slow and steady*. Walk into the pulse and it pulls you into position. Then
+  it's up to you to nail the settings; the camera back shows what the frame wants.
 - **Research.** Punctum, rebuilt inside the studio. Artist packs from your Punctum account: the Punctum round (does
   anything prick you? tap the detail, say why) and the Culling Game (two at a time to a top three), with what the class
-  thought, and one click turns a photograph and your notes into an Artist model page.
+  thought. Then the library: every photograph from every photographer, a folder each, and six or more of them (from one
+  photographer or a mix) become an Artist model page.
 - **Select.** A light table with pick (`P`), reject (`X`), stars, notes on *why this one*, folders, projects and
   drag-and-drop import from the computer (EXIF included).
 - **Develop, on a real Camera Raw engine.** A JavaScript port of PhotoCraft's pipeline runs in Web Workers:
@@ -87,6 +88,10 @@ lives inside it.
 </table>
 
 ## News
+
+- **26 Oct 2026.** Quests are a board of rows of three, each row opening when the one above is done, and every quest has a
+  page with a live clip of what it looks like. The lighting quest is a recipe with gold spots in the plan and setting bands
+  on the sliders, then golden hour. Achievements are a two-second flash. The research library holds every photographer.
 
 - **19 Oct 2026.** Playtest round: the viewfinder wheel just zooms; the camera back is sliders, and carries a
   challenge's checklist; bigger popups that wait to be read; a bigger loupe and pick five; the edit tour slider by

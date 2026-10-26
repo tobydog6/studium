@@ -33,7 +33,7 @@
   var CO_IMG=new Image(); CO_IMG.src="asset:assets/coach/stump.jpg";
   var CO_MEDIA={
     shutter:{vals:["1/1000","1/500","1/250","1/125","1/60","1/30","1/15","1/8"], lo:"Freezes everything, but darker", hi:"Brighter, but your hands smear it"},
-    aperture:{vals:["f/2","f/2.8","f/4","f/5.6","f/8","f/11","f/16"], lo:"Bright, and the background melts away", hi:"Darker, but sharp front to back"},
+    aperture:{vals:["f/1.4","f/2","f/2.8","f/4","f/5.6","f/8","f/16"], lo:"Bright, and the background melts away", hi:"Darker, but sharp front to back"},
     iso:{vals:["ISO 100","200","400","800","1600","3200","ISO 6400"], lo:"Clean, but it needs lots of light", hi:"Bright in the dark, but grainy"},
     meter:{vals:["−2","−1","0","+1","+2"], lo:"Too dark: shadows turn to mud", mid:"Just right", hi:"Too bright: the sky burns out"}};
   var coNoise=null;
@@ -47,6 +47,15 @@
   /* the aperture clip: real frames from Studium's own depth of field, f/2 to f/16, focused on the stump */
   var CO_AP={im:[], ok:false}; (function(){ var n=0, srcs=["asset:assets/coach/ap-0.jpg","asset:assets/coach/ap-1.jpg","asset:assets/coach/ap-2.jpg","asset:assets/coach/ap-3.jpg","asset:assets/coach/ap-4.jpg","asset:assets/coach/ap-5.jpg","asset:assets/coach/ap-6.jpg"];
     srcs.forEach(function(s,i){ var im=new Image(); im.onload=function(){ if(++n===srcs.length) CO_AP.ok=true; }; im.src=s; CO_AP.im[i]=im; }); })();
+  /* a nine-blade iris: wide open at t=0, closed down to a small hole at t=1, drawn over the aperture clip so the blades and the blur move together */
+  function coIris(g,cx,cy,R,t){ var n=9, open=0.95-0.72*t, r=R*open, ang=Math.PI*0.55*t;   /* blade overlap grows as it closes */
+    g.save(); g.translate(cx,cy); g.fillStyle="rgba(12,11,10,.8)"; g.beginPath(); g.arc(0,0,R+10,0,Math.PI*2); g.fill();
+    g.fillStyle="#1a1712"; g.strokeStyle="rgba(244,241,234,.22)"; g.lineWidth=1; g.beginPath(); g.arc(0,0,R+2,0,Math.PI*2); g.fill(); g.stroke();
+    g.fillStyle="#2a251c"; for(var i=0;i<n;i++){ var a=i/n*Math.PI*2; g.save(); g.rotate(a); g.beginPath();   /* each blade is a curved wedge pivoting on the rim; the hole is where they stop */
+      g.moveTo(R+2,0); g.arc(0,0,R+2,0,Math.PI*2/n+0.25); g.lineTo(Math.cos(ang)*r,Math.sin(ang)*r); g.quadraticCurveTo(r*0.6,r*0.1,Math.cos(ang-0.9)*r,Math.sin(ang-0.9)*r); g.closePath(); g.fill(); g.restore(); }
+    g.strokeStyle="#e3ad57"; g.lineWidth=1.5; g.beginPath(); for(var k=0;k<=n;k++){ var b=k/n*Math.PI*2+ang; g[k?"lineTo":"moveTo"](Math.cos(b)*r,Math.sin(b)*r); } g.stroke();
+    var lg=g.createRadialGradient(0,0,0,0,0,r); lg.addColorStop(0,"rgba(255,240,210,.55)"); lg.addColorStop(1,"rgba(255,240,210,.08)"); g.fillStyle=lg; g.fill();
+    g.restore(); }
   function coNoiseCanvas(){ if(coNoise) return coNoise; var c=document.createElement("canvas"); c.width=c.height=256; var g=c.getContext("2d"), d=g.createImageData(256,256);
     for(var i=0;i<d.data.length;i+=4){ var v=128+(Math.random()+Math.random()+Math.random()-1.5)*120; d.data[i]=d.data[i+1]=d.data[i+2]=v; d.data[i+3]=255; } g.putImageData(d,0,0); return (coNoise=c); }
   // 0 → 1 → 0 with a pause at each end, so there's time to see both
@@ -65,14 +74,15 @@
       else { var path=[[0,0],[0.3,0.2],[0.55,-0.1],[0.8,0.35],[1,0.15],[0.7,-0.25],[0.45,0.05],[0.2,-0.3]], wob=Math.sin(now/170)*0.15;
         for(var k=0;k<path.length;k++){ g.globalAlpha=1/(k+1); g.drawImage(img,dx+(path[k][0]-0.5+wob)*L,dy+(path[k][1])*L,dw,dh); } g.globalAlpha=1; } }
     else if(kind==="aperture"&&CO_AP.ok){ var fi=t*(CO_AP.im.length-1), a0=Math.floor(fi), a1=Math.min(CO_AP.im.length-1,a0+1), fr=fi-a0, im0=CO_AP.im[a0], r0=im0.naturalWidth/im0.naturalHeight, w0=W, h0=W/r0; if(h0<H){ h0=H; w0=H*r0; }
-      g.drawImage(im0,(W-w0)/2,(H-h0)/2,w0,h0); if(fr>0.01){ g.globalAlpha=fr; g.drawImage(CO_AP.im[a1],(W-w0)/2,(H-h0)/2,w0,h0); g.globalAlpha=1; } }
+      g.filter="brightness("+(1.08-0.4*t).toFixed(3)+")";   /* the frames were metered; here the same shutter stays, so stopping down goes darker */
+      g.drawImage(im0,(W-w0)/2,(H-h0)/2,w0,h0); if(fr>0.01){ g.globalAlpha=fr; g.drawImage(CO_AP.im[a1],(W-w0)/2,(H-h0)/2,w0,h0); g.globalAlpha=1; } g.filter="none"; coIris(g,W-52,50,34,t); }
     else if(kind==="aperture"){ bright=1.32-0.78*t; var B=(1-t)*7;
       g.filter="blur("+B.toFixed(2)+"px) brightness("+bright.toFixed(3)+")"; g.drawImage(img,dx-8,dy-8,dw+16,dh+16);
       // the stump stays sharp: it's what you focused on
       var o=coMediaDraw.o||(coMediaDraw.o=document.createElement("canvas")); o.width=cv.width; o.height=cv.height; var q=o.getContext("2d"); q.setTransform(dpr,0,0,dpr,0,0);
       q.filter="brightness("+bright.toFixed(3)+")"; q.drawImage(img,dx,dy,dw,dh); q.filter="none"; q.globalCompositeOperation="destination-in";
       q.save(); q.translate(W*0.43,H*0.6); q.scale(1,2.1); var rg=q.createRadialGradient(0,0,W*0.07,0,0,W*0.2); rg.addColorStop(0,"#000"); rg.addColorStop(1,"rgba(0,0,0,0)"); q.fillStyle=rg; q.fillRect(-W,-H,2*W,2*H); q.restore();
-      g.filter="none"; g.setTransform(1,0,0,1,0,0); g.drawImage(o,0,0); g.setTransform(dpr,0,0,dpr,0,0); }
+      g.filter="none"; g.setTransform(1,0,0,1,0,0); g.drawImage(o,0,0); g.setTransform(dpr,0,0,dpr,0,0); coIris(g,W-52,50,34,t); }
     else if(kind==="iso"){ bright=0.5+0.85*t; g.filter="brightness("+bright.toFixed(3)+") saturate("+(1-0.35*t).toFixed(3)+")"; g.drawImage(img,dx,dy,dw,dh); g.filter="none";
       var a=Math.pow(t,1.4)*0.75; if(a>0.02){ var n=coNoiseCanvas(); g.globalAlpha=a; g.globalCompositeOperation="overlay"; var ox=Math.random()*128, oy=Math.random()*128, sc=t>0.6?1.6:1.2;
         for(var y=-oy;y<H;y+=256/sc) for(var x=-ox;x<W;x+=256/sc) g.drawImage(n,x,y,256/sc,256/sc); g.globalAlpha=1; g.globalCompositeOperation="source-over"; } }
@@ -202,7 +212,7 @@
       {ch:"CROP", line:function(){ return 'Pick <b>4:5</b>'; }, sub:"A tall shape, like a print or a phone screen. Free lets you make any shape.",
         target:'#editor .lr-ct[data-a="0.8"]', done:function(){ return cropActive()&&edCrop.ratio===0.8; }, need:"crop"},
       {ch:"CROP", line:function(){ return '<b>Drag a corner</b> in, then drag inside the box to move it'; }, sub:"Put the stump a third of the way in, not dead centre.",
-        target:'#cropUI .crop-box', start:function(){ CO.s.b=edCrop?edCrop.w+","+edCrop.x+","+edCrop.y:""; }, done:function(){ return cropActive()&&edCrop.w<0.97&&!CO.down; }, need:"crop"},
+        target:'#cropUI .crop-box', place:"low", start:function(){ CO.s.w=edCrop?edCrop.w:1; }, done:function(){ return cropActive()&&!CO.down&&edCrop.w<CO.s.w-0.03; }, need:"crop"},   /* a corner drag makes the box smaller than it started; picking 4:5 already did, so measure from here */
       {ch:"CROP", line:function(){ return '<b>Apply</b> the crop'; }, sub:"Or press "+coK("ENTER")+". You can open it again any time and the box is where you left it.",
         target:'#eCropApply', done:function(){ return !cropActive()&&edState.aspect!=="free"; }},
       {ch:"COMPARE", line:function(){ return 'Click <b>Before / After</b> to see how far you\'ve come'; }, sub:"The "+coK("\\")+" key does the same. Click it again to come back.",
@@ -281,27 +291,53 @@
       {ch:"KEEP", line:function(){ return '<b>Make the A3 page</b>'; }, sub:"It lands in your workbook, with the photographers credited.",
         target:'#st-research [data-rs-act="moodmake"]', away:true, start:function(){ CO.s.m=rs.moods||0; }, done:function(){ return (rs.moods||0)>CO.s.m; }}]},
     lighting:{where:function(){ return loaded&&typeof RL!=="undefined"&&RL.ui&&!(typeof st!=="undefined"&&st.open); }, steps:[
-      {ch:"LIGHT", line:function(){ return '<b>Lighting</b>: you bring the light'; }, sub:"You're looking down on the scene. The gold ring is your subject, the arrow is you.",
+      {ch:"LIGHT", line:function(){ return '<b>Lighting</b>: you bring the light'; }, sub:"You're looking down on the scene. The gold ring is your subject, the arrow is you. This one's a recipe: a key light, a fill, then a frame.",
         target:'#rlPanel', info:true},
       {ch:"TIME", line:function(){ return 'Make it <b>night</b>'; }, sub:"Lights show best when the daylight's gone.",
         target:'#rlPanel .rl-times', nodim:true, done:function(){ return RL.dusk<=0.05; }},
-      {ch:"KEY", line:function(){ return 'Add a <b>key light</b>: try the Fresnel'; }, sub:"It lands beside your subject, aimed at it.",
-        target:'#rlPanel .rl-fx', nodim:true, done:function(){ return RL.lights.length>=1; }},
-      {ch:"MOVE", line:function(){ return '<b>Drag the light</b> somewhere new'; }, sub:"Behind the subject for a rim, low for drama, high for daylight.",
-        target:'#rlPlanUI .rlp-l', nodim:true, place:"low", start:function(){ CO.s.m=RL.moved||0; }, done:function(){ return (RL.moved||0)>CO.s.m; }},
-      {ch:"FILL", line:function(){ return 'Add a <b>second light</b>'; }, sub:"An LED panel is soft fill. A torch is a hard little beam.",
-        target:'#rlPanel .rl-fx', nodim:true, done:function(){ return RL.lights.length>=2; }},
-      {ch:"LOOK", line:function(){ return 'See it <b>through your eyes</b>'; }, sub:"",
-        target:'#rlPanel .rl-seg', nodim:true, done:function(){ return RL.view==="eye"; }},
-      {ch:"SHOOT", line:function(){ return '<b>Raise the camera and shoot</b>: '+coK("P"); }, sub:"Your lights stay on. Night means slow shutters, so meter carefully.",
+      {ch:"KEY", line:function(){ return 'Add the <b>Fresnel</b>'; }, sub:"A hard, warm spot. It lands beside your subject, aimed at it.",
+        target:'#rlPanel .rl-fx [data-rl-fx="fresnel"]', nodim:true, start:function(){ CO.s.n0=RL.lights.length; }, done:function(){ return RL.lights.length>CO.s.n0; }},
+      {ch:"KEY", line:function(){ return '<b>Drag it to the gold spot</b>'; }, sub:"Front and to the left of your subject, a little closer than it landed. That's the classic key position.",
+        target:'#rlPlanUI .rlp-l', nodim:true, place:"low", start:function(){ RL.spots=[{i:RL.lights.length-1, a:-60, d:1.3, n:"KEY HERE"}]; rlPlanUI(); }, done:function(){ return rlAtSpot(RL.lights[RL.spots[0].i],RL.spots[0]); }},
+      {ch:"KEY", line:function(){ return 'Set it: <b>beam 50°, power 20, colour 4500 K, height 1.0 m</b>'; }, sub:"The gold bands on the sliders show where. Wider beam, more punch, a little cooler, and lower, so the light rakes across the stump.",
+        target:'#rlPanel .rl-card', nodim:true, place:"low", start:function(){ RL.sel=RL.spots[0].i; RL.want={}; RL.want[RL.sel]={cone:50, power:20, k:4500, h:1.0}; rlPanel(); }, done:function(){ return rlWantAll(RL.spots[0].i); },
+        bar:function(){ var i=RL.spots[0].i, W=RL.want&&RL.want[i]; if(!W) return 0; var ks=Object.keys(W); return ks.filter(function(k){ return rlWantHit(i,k); }).length/ks.length; }},
+      {ch:"FILL", line:function(){ return 'Now add an <b>LED panel</b>'; }, sub:"Big and soft. It fills the shadows the key leaves.",
+        target:'#rlPanel .rl-fx [data-rl-fx="led"]', nodim:true, start:function(){ CO.s.n1=RL.lights.length; }, done:function(){ return RL.lights.length>CO.s.n1; }},
+      {ch:"FILL", line:function(){ return '<b>Drag it to its gold spot</b>, opposite the Fresnel'; }, sub:"Key one side, fill the other, so the stump has shape.",
+        target:'#rlPlanUI .rlp-l', nodim:true, place:"low", start:function(){ RL.spots=[{i:RL.spots[0].i, a:-60, d:1.3, n:"KEY"}, {i:RL.lights.length-1, a:150, d:1.8, n:"FILL HERE"}]; rlPlanUI(); }, done:function(){ return rlAtSpot(RL.lights[RL.spots[1].i],RL.spots[1]); }},
+      {ch:"FILL", line:function(){ return 'Set it: <b>power 14, height 1.8 m</b>'; }, sub:"A bit more power than it came with, and up high, so it's gentle and even.",
+        target:'#rlPanel .rl-card', nodim:true, place:"low", start:function(){ RL.sel=RL.spots[1].i; RL.want={}; RL.want[RL.sel]={power:14, h:1.8}; rlPanel(); }, done:function(){ return rlWantAll(RL.spots[1].i); },
+        bar:function(){ var i=RL.spots[1].i, W=RL.want&&RL.want[i]; if(!W) return 0; var ks=Object.keys(W); return ks.filter(function(k){ return rlWantHit(i,k); }).length/ks.length; }},
+      {ch:"LOOK", line:function(){ return 'See it <b>through your eyes</b>'; }, sub:"Walk round. Shadows fall where you put them.",
+        target:'#rlPanel .rl-seg', nodim:true, start:function(){ RL.spots=null; RL.want=null; rlPlanUI(); rlPanel(); }, done:function(){ return RL.view==="eye"; }},
+      {ch:"SHOOT", line:function(){ return '<b>Raise the camera and shoot</b>: '+coK("P"); }, sub:"Both lights on, at night. Slow shutters now, so meter carefully.",
         target:'#rlPanel .rl-done', nodim:true, away:true, start:function(){ CO.s.n=photos.length; }, done:function(){ return photos.length>CO.s.n; }}]},
-    artist:{where:function(){ return coRoom("research"); }, steps:[
-      {ch:"CHOOSE", line:function(){ return 'Open <b>See all the photos</b> on the pack you culled'; }, sub:"Every photograph by this photographer, at its real shape.",
+    /* golden hour: back into the kit, the Lighting tile glows, Golden hour glows, tweak something, then the last frame */
+    golden:{where:function(){ return loaded&&!App.is("hub")&&!(typeof st!=="undefined"&&st.open); }, steps:[
+      {ch:"TIME", line:function(){ return 'One more: <b>'+coK("Space")+', then Lighting</b>'; }, sub:"The best light of the day is about to happen.",
+        target:'#navActs [data-nav-act="kit"]', kit:"lights", nodim:true, done:function(){ return !!RL.ui; }},
+      {ch:"TIME", line:function(){ return 'Press <b>Golden hour</b>'; }, sub:"Low sun, long shadows, everything warm.",
+        target:'#rlPanel [data-rl-time="golden"]', nodim:true, prep:function(){ document.body.classList.add("co-golden"); }, done:function(){ return rlTimeIs("golden"); }},
+      {ch:"TWEAK", line:function(){ return '<b>Move the sun</b>, or turn a light up or down'; }, sub:"Sun from behind the stump for a rim of light, or from the side for texture. Make it yours.",
+        target:'#rlPanel .rl-sun', nodim:true, place:"low", prep:function(){ document.body.classList.remove("co-golden"); }, start:function(){ CO.s.g=JSON.stringify([RL.sunAz,RL.sunEl,RL.exp,RL.lights.map(function(L){ return [L.on,L.power,L.k,L.h,L.cone]; })]); },
+        done:function(){ return JSON.stringify([RL.sunAz,RL.sunEl,RL.exp,RL.lights.map(function(L){ return [L.on,L.power,L.k,L.h,L.cone]; })])!==CO.s.g; }},
+      {ch:"SHOOT", line:function(){ return '<b>Raise the camera and take the frame</b>: '+coK("P"); }, sub:"This is the one.",
+        target:'#rlPanel .rl-done', nodim:true, away:true, start:function(){ CO.s.n=photos.length; }, done:function(){ return photos.length>CO.s.n; }}]},
+    artist:{where:function(){ return coRoom("research")||coRoom("workshop"); }, steps:[
+      {ch:"CHOOSE", line:function(){ return 'Open <b>See all the photos</b>'; }, sub:"The library: every photograph from every photographer, with a folder for each down the side.",
         target:function(){ return document.querySelector('#st-research [data-rs-act="all"]')||document.querySelector('#st-research [data-rs-act="cull"]'); }, done:function(){ return rs.view==="all"; }},
-      {ch:"CHOOSE", line:function(){ return 'Choose <b>'+rsAmNeed()+' photographs</b> that show how they see'; }, sub:"Look for what keeps coming back: the light, the colour, where they stand, what they leave out.",
+      {ch:"CHOOSE", line:function(){ return 'Choose <b>'+rsAmNeed()+' photographs</b> that show a way of seeing'; }, sub:"This photographer, or a mix from the folders on the left. Look for what keeps coming back: the light, the colour, where they stand, what they leave out.",
         target:'#st-research .rs-mgrid', nodim:true, place:"bottom", done:function(){ return rs.view==="all"&&(rs.am||[]).length>=rsAmNeed(); }, bar:function(){ return (rs.am||[]).length/Math.max(1,rsAmNeed()); }},
-      {ch:"PAGE", line:function(){ return '<b>Make the page</b>'; }, sub:"It lands in your workbook with room to write what you noticed.",
-        target:'#st-research [data-rs-act="amake"]', away:true, start:function(){ CO.s.m=rs.sent||0; }, done:function(){ return (rs.sent||0)>CO.s.m; }}]},
+      {ch:"PAGE", line:function(){ return '<b>Make the page</b>'; }, sub:"Add more first if you like, up to twelve. It lands in your workbook with room to write what you noticed.",
+        target:'#st-research [data-rs-act="amake"]', start:function(){ CO.s.m=rs.sent||0; }, done:function(){ return (rs.sent||0)>CO.s.m; }},
+      {ch:"PAGE", line:function(){ return 'Try a <b>black page</b>'; }, sub:"Page colour, on the right. Photographs often sit better on black. Your call.",
+        target:'#st-workshop [data-bd-bg="black"]', nodim:true, done:function(){ var pg=coWs(); return !!pg&&(pg.bg==="black"||pg.bg==="charcoal"); }},
+      {ch:"PAGE", line:function(){ return '<b>Drag a photograph</b> somewhere new'; }, sub:"They're yours to arrange. Make one bigger, overlap two, leave space.",
+        target:'#st-workshop .bd-sheet', nodim:true, place:"low", start:function(){ var pg=coWs(); CO.s.pos=pg?pg.items.filter(function(x){ return x.t==="photo"; }).map(function(x){ return x.x+","+x.y+","+x.w; }).join("|"):""; },
+        done:function(){ var pg=coWs(); return !!pg&&pg.items.filter(function(x){ return x.t==="photo"; }).map(function(x){ return x.x+","+x.y+","+x.w; }).join("|")!==CO.s.pos; }},
+      {ch:"PAGE", line:function(){ return 'Add more from the tray if you want, then press <b>Finished</b>'; }, sub:"Take your time. The page is done when you say it is.",
+        target:'#wsDone', nodim:true, away:true, done:function(){ var pg=coWs(); return !!(pg&&pg.done); }}]},
     library:{where:function(){ return coRoom("select"); }, steps:[
       {ch:"YOURS", line:function(){ return 'Make a <b>folder</b> for your own project: + NEW'; }, sub:"A shoot, a theme, a series. Whatever you're working on.",
         target:'#st-select [data-lib-new]', start:function(){ CO.s.p=(st.projects||[]).length; }, done:function(){ return LIB.naming==="new"||(st.projects||[]).length>CO.s.p; }},
@@ -326,7 +362,7 @@
     CO.tour=tour; CO.on=true; CO.done=false; CO.skipped=0; if(Q.tours[tour]&&(Q.tourStep[tour]||0)>=coLen(tour)) Q.tourStep[tour]=0; CO.i=Q.tourStep[tour]||0; CO.look=0; CO.walked=0; CO.lx=null; CO.seen=-1; coEnter(); coLoop(); }
   function coMultiOff(){ Array.prototype.forEach.call(document.querySelectorAll('.co-multi,.co-float'),function(e){ e.classList.remove('co-multi','co-float'); }); }
   function coEnter(){ coUnmark(); coMultiOff(); if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); if(typeof cbRender==="function") cbRender(); } var s=coSteps()[CO.i]; CO.s={}; CO.keys={}; CO.t0=performance.now(); CO.seen=-1; CO.lockTo=s&&s.info?CO.t0+READ_MS:0; if(s&&s.start) s.start(); CO.html=""; }
-  function coStop(){ coMultiOff(); if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); } setTimeout(function(){ if(typeof chMarkers==="function") chMarkers(); },0); coUnmark(); if(CO.tgt){ CO.tgt.classList.remove("co-target"); CO.tgt=null; } CO.on=false; document.body.removeAttribute("data-co-kit"); document.body.classList.remove("co-lens"); cancelAnimationFrame(CO.raf); var e=$("coCard"), r=$("coRing"); if(e) e.classList.remove("show","media"); if(r) r.classList.remove("show"); document.body.classList.remove("co-on","co-dial"); }
+  function coStop(){ coMultiOff(); document.body.classList.remove("co-golden"); if(typeof RL!=="undefined"&&(RL.spots||RL.want)){ RL.spots=null; RL.want=null; if(typeof rlPlanUI==="function"){ rlPlanUI(); rlPanel(); } } if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); } setTimeout(function(){ if(typeof chMarkers==="function") chMarkers(); },0); coUnmark(); if(CO.tgt){ CO.tgt.classList.remove("co-target"); CO.tgt=null; } CO.on=false; document.body.removeAttribute("data-co-kit"); document.body.classList.remove("co-lens"); cancelAnimationFrame(CO.raf); var e=$("coCard"), r=$("coRing"); if(e) e.classList.remove("show","media"); if(r) r.classList.remove("show"); document.body.classList.remove("co-on","co-dial"); }
   /* SKIP moves past one prompt, not the whole tour: one click on the first step used to throw the warm-up away. Skip all is offered once you've skipped a step */
   function coSkipStep(){ if(!CO.on||CO.ticking) return; CO.skipped=(CO.skipped||0)+1; coUnmark(); CO.i++; Q.tourStep[CO.tour]=CO.i; qSave(); if(CO.i>=coSteps().length) coFinish(false); else coEnter(); }
   function coFinish(skipped){ CO.done=true; Q.tourStep[CO.tour]=coSteps().length; Q.tours[CO.tour]=true; qSave(); coStop();
@@ -399,4 +435,4 @@
   document.addEventListener("click",function(e){ if(!CO.on) return; var s=coSteps()[CO.i]; if(s&&s.click&&e.target.closest&&e.target.closest(s.click)) CO.s.ok=true; }, true);
   document.addEventListener("keydown",function(e){ if(!CO.on) return; var m={KeyW:"W",KeyA:"A",KeyS:"S",KeyD:"D",KeyQ:"Q",KeyE:"E",KeyP:"P",KeyB:"B",Space:"SPACE",Digit2:"2",Backslash:"\\",Escape:"ESC",Enter:"ENTER",KeyC:"C"}[e.code]; if(m) CO.keys[m]=true; }, true);
   if(/[?&]dev/.test(location.search)) window.__co={ state:function(){ var s=coSteps()[CO.i]; return {on:CO.on, tour:CO.tour, done:CO.done, i:CO.i, n:coSteps().length, ch:s&&s.ch, shown:!!document.querySelector("#coCard.show"), ed:edState?{i:edState.i, a:edState.aspect, cx:+edState.cx.toFixed(3), cy:+edState.cy.toFixed(3)}:null}; }, skip:function(){ coFinish(true); },
-    start:coStart, next:function(){ CO.s.ok=true; }, go:function(){ if(CO.on&&!CO.ticking) coTicked(); }, clip:function(kind,cv,ms){ coMediaDraw(kind,cv,ms); }, qclip:function(kind,cv,ms){ qClipDraw(kind,cv,ms); }, qmorph:qMorphOpen, nudge:function(o){ if(o.look) CO.look+=o.look; if(o.walk) CO.walked+=o.walk; if(o.keys) o.keys.forEach(function(k){ CO.keys[k]=true; }); } };
+    start:coStart, stop:coStop, next:function(){ CO.s.ok=true; }, go:function(){ if(CO.on&&!CO.ticking) coTicked(); }, clip:function(kind,cv,ms){ coMediaDraw(kind,cv,ms); }, qclip:function(kind,cv,ms){ qClipDraw(kind,cv,ms); }, qmorph:qMorphOpen, nudge:function(o){ if(o.look) CO.look+=o.look; if(o.walk) CO.walked+=o.walk; if(o.keys) o.keys.forEach(function(k){ CO.keys[k]=true; }); } };

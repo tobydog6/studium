@@ -335,20 +335,29 @@
     ["eCancel"].forEach(function(id){ var b=$(id); if(!b) return; b.addEventListener("click",function(ev){ if(!st.open) return; ev.stopImmediatePropagation(); stRoom("select"); },true); });
     var gx=$("gxBack"); if(gx) gx.addEventListener("click",function(ev){ if(!st.open) return; ev.stopImmediatePropagation(); $("galleryshow").classList.add("hidden"); document.body.classList.remove("st-legacy"); stRoom("gallery"); },true); })();
 
-  // ---- Compare pages: a little Done button beside the sentence box, live once there are eight words ----
+  // ---- Finished: a glowing button on the pages a quest asks for. Compare pages need an eight-word sentence; artist model pages need
+  //      their photos. Nothing counts until it's pressed, so nobody gets hurried off a page, and once pressed it leaves. ----
   (function wsDoneWire(){ var btn=null, MIN=8;
     function words(s){ return String(s||"").trim().split(/\s+/).filter(Boolean).length; }
-    function tick(){ var show=false, k=-1, it=null;
-      if(st.open&&st.room==="workshop"&&typeof wsB!=="undefined"){ var pg=wsB.page(); if(pg&&pg.tpl==="compare") pg.items.forEach(function(x,j){ if(k<0&&x.t==="text"&&x.sentence){ k=j; it=x; } }); }
-      var el=k>=0?document.querySelector('#st-workshop .bd-sheet [data-bd="'+k+'"]'):null, r=el?el.getBoundingClientRect():null;
+    function pageKind(pg){ return !pg?null:pg.tpl==="compare"?"compare":(pg.tpl==="artist"||pg.tpl==="research")?"artist":null; }
+    function tick(){ var show=false, pg=null, kind=null, anchor=null, n=0, ok=false;
+      if(st.open&&st.room==="workshop"&&typeof wsB!=="undefined"){ pg=wsB.page(); kind=pageKind(pg); }
+      if(kind==="compare"){ var k=-1, it=null; pg.items.forEach(function(x,j){ if(k<0&&x.t==="text"&&x.sentence){ k=j; it=x; } }); anchor=k>=0?document.querySelector('#st-workshop .bd-sheet [data-bd="'+k+'"]'):null; n=it?words(it.text):0; ok=n>=MIN; }
+      else if(kind==="artist"){ anchor=document.querySelector('#st-workshop .bd-sheet'); n=pg.items.filter(function(x){ return x.t==="photo"; }).length; ok=n>=1; }
+      var r=anchor?anchor.getBoundingClientRect():null;
       if(r&&r.width>4&&r.bottom>0&&r.top<innerHeight){ show=true;
         if(!btn){ btn=document.createElement("button"); btn.id="wsDone"; btn.className="ws-done"; document.body.appendChild(btn);
-          btn.addEventListener("click",function(e){ e.stopPropagation(); var pg=wsB.page(), t=pg.items.filter(function(x){ return x.t==="text"&&x.sentence; })[0]; if(!t||words(t.text)<MIN) return;
-            pg.done=true; if(typeof qFlag==="function") qFlag("compared"); try{ if(typeof wsB.save==="function") wsB.save(); }catch(er){} btn.classList.add("ok"); toast("Done. That's your comparison in the workbook."); if(typeof qTick==="function") qTick(); }); }
-        var n=words(it.text), done=!!wsB.page().done, ok=n>=MIN;
-        btn.disabled=!ok||done; btn.classList.toggle("ok",done);
-        btn.innerHTML=done?'✓ DONE':ok?'DONE ›':'DONE <small>'+n+' / '+MIN+' WORDS</small>';
-        var x=Math.min(innerWidth-btn.offsetWidth-12, r.right+12), y=r.bottom-btn.offsetHeight; if(x<r.right+4){ x=r.right-btn.offsetWidth; y=r.bottom+10; }
+          btn.addEventListener("click",function(e){ e.stopPropagation(); var pg2=wsB.page(), kd=pageKind(pg2); if(!pg2||pg2.done) return;
+            if(kd==="compare"){ var t=pg2.items.filter(function(x){ return x.t==="text"&&x.sentence; })[0]; if(!t||words(t.text)<MIN) return; }
+            pg2.done=true; if(kd==="compare"&&typeof qFlag==="function") qFlag("compared"); try{ if(typeof wsB.save==="function") wsB.save(); }catch(er){} btn.classList.add("ok");
+            toast(kd==="compare"?"Finished. That's your comparison, in the workbook.":"Finished. Your artist model page is in the workbook."); if(typeof qTick==="function") qTick(); }); }
+        var done=!!pg.done;
+        if(done&&!btn._doneAt) btn._doneAt=Date.now(); if(!done) btn._doneAt=0;
+        if(done&&Date.now()-btn._doneAt>1600) show=false;   /* a finished page doesn't keep a button on it */
+        btn.disabled=!ok||done; btn.classList.toggle("ok",done); btn.classList.toggle("ready",ok&&!done); btn.classList.toggle("count",!ok&&!done);
+        btn.innerHTML=done?'✓ FINISHED':ok?'FINISHED ›':kind==="compare"?'<small>'+n+' / '+MIN+' WORDS</small>':'<small>ADD A PHOTO</small>';
+        var x, y; if(kind==="compare"){ x=Math.min(innerWidth-btn.offsetWidth-12, r.right+12); y=r.bottom-btn.offsetHeight; if(x<r.right+4){ x=r.right-btn.offsetWidth; y=r.bottom+10; } }
+        else { x=r.right-btn.offsetWidth-14; y=r.bottom+14; if(y+btn.offsetHeight>innerHeight-8) y=r.bottom-btn.offsetHeight-14; }
         btn.style.left=x+"px"; btn.style.top=Math.max(8,y)+"px"; }
       if(btn) btn.classList.toggle("show",show); }
     setInterval(tick, 200); })();

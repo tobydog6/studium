@@ -184,7 +184,7 @@
   function achHas(key){ return !!achS().earned[key]; }
   function achPid(p){ if(!p) return null; var i=photos.indexOf(p); return i>=0?stId(i):null; }
   function achEarn(a, lv, p, quiet){ var key=a.id+(lv?":"+lv:""); if(achHas(key)) return false;
-    achS().earned[key]={t:Date.now(), pid:achPid(p)}; if(!quiet){ ACHU.queue.push({id:a.id, lv:lv}); achSound(); } return true; }
+    achS().earned[key]={t:Date.now(), pid:achPid(p)}; if(!quiet) ACHU.queue.push({id:a.id, lv:lv}); return true; }
   function achLevel(id){ var a=ACH_BY[id]; if(!a) return 0; if(!a.tiers&&!a.tier) return achHas(id)?1:0; for(var lv=3;lv>=1;lv--) if(achHas(id+":"+lv)) return lv; return 0; }
   function achKeyOf(id){ var lv=achLevel(id); var a=ACH_BY[id]; return a.tier?id+":"+lv:id; }
   // a new frame: the shot checks against this frame, then everything else
@@ -216,20 +216,22 @@
       +'<div class="ach-tx"><span class="k">ACHIEVEMENT'+(lv?' · '+ACH_TIER[lv].toUpperCase():'')+(a.frame==="gold"?' · GOLD':'')+'</span><b class="t">'+qEsc(a.name)+'</b><p>'+qEsc(a.learn)+'</p>'
       +(rare!=null?'<span class="ach-rare">'+rare+'% of your class has this</span>':'')
       +'<div class="ach-acts"><button class="gd-skip" data-ach="show" data-ach-id="'+id+'">'+(sh?'On your profile ✓':'Show on my profile')+'</button><button class="gd-skip" data-ach="pin" data-ach-id="'+id+'" data-ach-lv="'+lv+'"'+(url?'':' disabled')+'>Pin to workbook</button><button class="gd-go" data-ach="close">NICE ›</button></div></div></div>'; }
-  function achCardTick(){ var el=gdEl("achCard","ach-card"), vf=typeof viewfinderOn!=="undefined"&&viewfinderOn;
-    if(!ACHU.card&&ACHU.queue.length&&!QU.done){ ACHU.card=ACHU.queue.shift(); ACHU.full=false; ACHU.t=Date.now(); var a=ACH_BY[ACHU.card.id], url=achPrintUrl(a.tier?a.id+":"+ACHU.card.lv:a.id);
-      el.innerHTML='<button class="ach-mini" data-ach="open"><span class="th '+achTierCls(a,ACHU.card.lv)+'">'+(url?'<img src="'+url+'" alt="">':'')+'<i class="dev"></i></span><span class="tx"><span class="k">ACHIEVEMENT'+(ACHU.card.lv?' · '+ACH_TIER[ACHU.card.lv].toUpperCase():'')+'</span><b>'+qEsc(a.name)+'</b></span></button>';
-      el.className="ach-card show"; }
+  /* the unlock: one big flash, centred, that develops in and leaves by itself about two and a half seconds later. Nothing to click,
+     the camera stays up, the pointer stays locked. The wall (quest board › Achievements) has the full card with its buttons. */
+  var ACH_FLASH_MS=2600;
+  function achFlashHtml(id, lv){ var a=ACH_BY[id], key=a.tier?id+":"+lv:id, url=achPrintUrl(key);
+    return '<div class="ach-flash"><i class="ach-ring"></i><div class="ach-print '+achTierCls(a,lv)+'"><div class="pp">'+(url?'<img src="'+url+'" alt="">':'<span class="nophoto">'+qEsc(a.name)+'</span>')+'<i class="dev"></i></div></div>'
+      +'<div class="ach-tx"><span class="k">ACHIEVEMENT'+(lv?' · '+ACH_TIER[lv].toUpperCase():'')+(a.frame==="gold"?' · GOLD':'')+'</span><b class="t">'+qEsc(a.name)+'</b><p>'+qEsc(a.learn)+'</p></div></div>'; }
+  function achCardTick(){ var el=gdEl("achCard","ach-card");
+    if(!ACHU.card&&ACHU.queue.length&&!QU.done&&!(typeof coActive==="function"&&coActive())){ ACHU.card=ACHU.queue.shift(); ACHU.full=false; ACHU.t=Date.now(); achSound();
+      el.innerHTML=achFlashHtml(ACHU.card.id, ACHU.card.lv); el.className="ach-card show big flash"; }
     if(!ACHU.card){ el.classList.remove("show"); return; }
-    var age=Date.now()-ACHU.t;
-    if(!ACHU.full&&!vf&&age>1400&&!(typeof coActive==="function"&&coActive())) achOpenFull();
-    if(!ACHU.full&&vf&&age>6000) achNext();
-    if(ACHU.full&&!ACHU.card.wall&&!ACHU.hover&&Date.now()-ACHU.fullT>9000) achNext(); }   /* it never sits on screen: gone after a few seconds unless you're reading it */
-  function achOpenFull(){ var el=$("achCard"); if(!ACHU.card||!el) return; ACHU.full=true; if(typeof viewfinderOn!=="undefined"&&viewfinderOn) lowerCamera(); if(typeof looking!=="undefined"&&looking){ try{ document.exitPointerLock(); }catch(e){} }
-    el.innerHTML=achFullHtml(ACHU.card.id, ACHU.card.lv, true); el.className="ach-card show big"; ACHU.fullT=Date.now(); }
+    if(!ACHU.card.wall&&Date.now()-ACHU.t>ACH_FLASH_MS) achNext();
+    if(ACHU.full&&ACHU.card.wall&&!ACHU.hover&&Date.now()-ACHU.fullT>12000) achNext(); }
+  function achOpenFull(){ var el=$("achCard"); if(!ACHU.card||!el) return; ACHU.full=true; el.innerHTML=achFullHtml(ACHU.card.id, ACHU.card.lv, true); el.className="ach-card show big"; ACHU.fullT=Date.now(); }
   (function(){ var el=gdEl("achCard","ach-card"); el.addEventListener("mouseenter",function(){ ACHU.hover=true; }); el.addEventListener("mouseleave",function(){ ACHU.hover=false; ACHU.fullT=Date.now()-5000; }); })();
   window.addEventListener("keydown",function(e){ if(e.code==="Escape"&&ACHU.card){ e.preventDefault(); e.stopImmediatePropagation(); achNext(); } },true);
-  function achNext(){ ACHU.card=null; ACHU.full=false; ACHU.hover=false; var el=$("achCard"); if(el){ el.classList.remove("show"); setTimeout(function(){ if(!ACHU.card){ el.classList.remove("big"); el.innerHTML=""; } },500); } }
+  function achNext(){ ACHU.card=null; ACHU.full=false; ACHU.hover=false; var el=$("achCard"); if(el){ el.classList.remove("show"); setTimeout(function(){ if(!ACHU.card){ el.classList.remove("big","flash"); el.innerHTML=""; } },500); } }
   // the wall's own view of one print
   function achShowOne(id){ var lv=achLevel(id); if(!lv) return; var el=gdEl("achCard","ach-card"); ACHU.card={id:id, lv:ACH_BY[id].tier?lv:0, wall:true}; ACHU.full=true; el.innerHTML=achFullHtml(id, ACHU.card.lv, false); el.className="ach-card show big"; }
 

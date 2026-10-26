@@ -1,7 +1,7 @@
 // Edit room profiler: opens one frame in Develop, drags real sliders with the mouse for a few seconds and reports
 // how the preview keeps up. Not a pass/fail test; it prints numbers to compare before and after a change.
 //   node tests/perf-edit.mjs [frame.jpg] [--sliders pExposure,pShadows,pVibrance] [--secs 3] [--html dist/studium-dev.html] [--prof] [--calls]
-//     [--sw2d] software 2D canvases  [--mouse] drag with Playwright's mouse instead of in-page ticks  [--settle ms] wait after opening
+//     [--sw2d] software 2D canvases  [--mouse] drag with Playwright's mouse instead of in-page ticks  [--settle ms] wait after opening  [--noauto] don't load a scene in the background
 // Headless Chromium with SwiftShader, so absolute numbers run slower than a real GPU; compare like with like.
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -25,11 +25,12 @@ if (argv.includes('--calls')) await page.addInitScript(() => { window.__calls = 
   if (d > 2) __calls.push({ n, d, at: (new Error().stack.split('\n')[2] || '').trim().slice(0, 90), w: this.canvas && this.canvas.width, h: this.canvas && this.canvas.height }); return r; }; };
   wrap(CanvasRenderingContext2D.prototype, 'getImageData'); wrap(CanvasRenderingContext2D.prototype, 'putImageData'); wrap(CanvasRenderingContext2D.prototype, 'drawImage');
   if (window.WebGL2RenderingContext) wrap(WebGL2RenderingContext.prototype, 'getBufferSubData'); });
+if (argv.includes('--cpudisplay')) await page.addInitScript(() => { const g = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (t, o) { if (this.id === 'editCanvas' && t === '2d') o = Object.assign({}, o, { willReadFrequently: true }); return g.call(this, t, o); }; });   /* experiment: the Edit room's display canvas on the CPU too */
 const errors = []; page.on('pageerror', (e) => errors.push(String(e)));
 const pct = (a, p) => { if (!a.length) return NaN; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
 const f1 = (v) => (isFinite(v) ? v.toFixed(1) : '-');
 
-await page.goto(pathToFileURL(HTML).href + '?dev&quick');
+await page.goto(pathToFileURL(HTML).href + '?dev&quick' + (argv.includes('--noauto') ? '&noauto' : ''));   /* --noauto: no scene loading behind the Edit room */
 await page.waitForSelector('#tileStudio', { state: 'visible', timeout: 60000 });
 await page.evaluate((u) => window.__cb.addPhoto({ url: u, f: 4, sh: '1/125', iso: 400, mm: 50, body: 'Full-frame DSLR', place: 'The Stump' }), url);
 await page.click('#tileStudio'); await page.waitForTimeout(800);

@@ -8,7 +8,7 @@
   var LA={on:false, t0:0, raf:0, phase:"", fast:false, after:null, el:null, cam:null, hold:false};
   var LA_KEY="studium_launch_seen";
   var LA_ROOMS=[["select","Pick","asset:assets/launch/select.mp4"],["edit","Edit","asset:assets/launch/edit.mp4"],["workbook","Make","asset:assets/launch/workbook.mp4"],["folio","Folio","asset:assets/launch/folio.mp4"],["gallery","Show","asset:assets/launch/gallery.mp4"]];
-  var LA_T={detail:3.2, scan:2.6, shoot:2.55, iris:0.9, crawl:1.0, move:0.5, exit:0.7, spin:4.6, word:2.4};
+  var LA_T={detail:3.2, scan:2.6, shoot:2.55, iris:0.9, crawl:1.0, move:0.5, exit:1.15, spin:4.6, word:2.4};
   function laSeen(){ try{ return localStorage.getItem(LA_KEY)==="1"; }catch(e){ return false; } }
   function laEl(){ var e=$("launch"); if(e) return e; e=document.createElement("div"); e.id="launch";
     var fr='<div class="la-fr still"><img alt=""><i>01A</i></div>'+LA_ROOMS.map(function(m,i){ return '<div class="la-fr"><video muted loop playsinline preload="auto" src="'+m[2]+'"></video><span>'+m[1].toUpperCase()+'</span><i>'+(i<8?"0":"")+(i+2)+'A</i></div>'; }).join("");
@@ -87,7 +87,7 @@
   function laStripPos(t){ var n=1+LA_ROOMS.length, Cw=LA_T.crawl, M=LA_T.move, P=Cw+M, c=0.09/P, end=(n-1)*P;   /* a slow crawl across each frame, then a woosh to the next: never a dead stop */
     var sm=function(w){ return w<=0?0:w>=1?1:w*w*w*(w*(w*6-15)+10); }, dsm=function(w){ return w<=0||w>=1?0:30*w*w*(w-1)*(w-1); };
     if(t<end){ var i=Math.floor(t/P), f=t-i*P, w=(f-Cw)/M, j=1-c*P; return {s:c*t+i*j+j*sm(w), v:c+j*dsm(w)/M, end:false}; }
-    var k=Math.min(1,(t-end)/LA_T.exit); return {s:c*t+(n-1)*(1-c*P)+Math.pow(k,2.2)*1.7, v:c+2.2*Math.pow(k,1.2)*1.7/LA_T.exit, end:k>=1}; }
+    var k=Math.min(1,(t-end)/LA_T.exit); return {s:c*t+(n-1)*(1-c*P)+Math.pow(k,2.6)*1.7, v:c+2.6*Math.pow(k,1.6)*1.7/LA_T.exit, end:k>=1}; }
   function laStrip(t){ var st=LA.el.querySelector(".la-strip"), fr=st.firstElementChild, W=window.innerWidth, fw=fr.offsetWidth, pitch=fw+parseFloat(getComputedStyle(fr).marginRight), p=laStripPos(t);
     st.style.transform="translate3d("+((W-fw)/2-fr.offsetLeft-p.s*pitch)+"px,0,0)"; var b=Math.min(6,((p.v||0)-0.8)*2.2); st.style.filter=b>0.25?"blur("+b.toFixed(1)+"px)":""; return p; }
   // ---- the clock ----

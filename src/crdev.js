@@ -14,10 +14,16 @@
     function s2lx(v){ return v<=0.04045? v/12.92 : Math.pow((v+0.055)/1.055,2.4); }
     function l2sx(v){ return v<=0.0031308? v*12.92 : 1.055*Math.pow(v,1/2.4)-0.055; }
     // Table versions (well under 1e-5 from the exact curves): s2l by value, l2s by the square root of the value.
-    var LN=4096, S2L=new F32(LN+2), L2S=new F32(LN+2);
+    // Over 1 (an exposure push, a lifted shadow) the tables go on to 8 in value and 64 in linear light, past where the exact
+    // Math.pow used to take over: that pow was most of the cost of Exposure and Whites. Above 1 they stay under 1e-7 of exact.
+    var LN=4096, S2L=new F32(LN+2), L2S=new F32(LN+2), XR=8, S2LX=new Float64Array(XR*LN+2), L2SX=new Float64Array(XR*LN+2);
     for(var li=0;li<=LN+1;li++){ var lt=Math.min(li/LN,1); S2L[li]=s2lx(lt); L2S[li]=l2sx(lt*lt); }
-    function s2l(v){ if(v<=0.04045||v>1) return s2lx(v); var x=v*LN, i=x|0; return S2L[i]+(S2L[i+1]-S2L[i])*(x-i); }
-    function l2s(v){ if(v<=0.0031308||v>1) return l2sx(v); var x=Math.sqrt(v)*LN, i=x|0; return L2S[i]+(L2S[i+1]-L2S[i])*(x-i); }
+    for(li=0;li<XR*LN+2;li++){ var lx=li/LN; S2LX[li]=s2lx(lx); L2SX[li]=l2sx(lx*lx); }
+    function s2l(v){ if(v<=0.04045) return v/12.92; var x=v*LN, i=x|0; if(v<=1) return S2L[i]+(S2L[i+1]-S2L[i])*(x-i); if(v<XR) return S2LX[i]+(S2LX[i+1]-S2LX[i])*(x-i); return s2lx(v); }
+    function l2s(v){ if(v<=0.0031308) return v*12.92; var x=Math.sqrt(v)*LN, i=x|0; if(v<=1) return L2S[i]+(L2S[i+1]-L2S[i])*(x-i); if(v<XR*XR) return L2SX[i]+(L2SX[i+1]-L2SX[i])*(x-i); return l2sx(v); }
+    // 2^x by table (to within 4e-9 of Math.pow, which costs ~15x more per pixel); exact outside ±16
+    var E2L=4096, E2R=16, E2T=new Float64Array(2*E2R*E2L+2); for(li=0;li<E2T.length;li++) E2T[li]=Math.pow(2,li/E2L-E2R);
+    function exp2(x){ var t=(x+E2R)*E2L; if(!(t>=0&&t<2*E2R*E2L)) return Math.pow(2,x); var k=t|0; return E2T[k]+(E2T[k+1]-E2T[k])*(t-k); }
     function luma(r,g,b){ return 0.2126*r+0.7152*g+0.0722*b; }
     function clamp(v,a,b){ return v<a?a:v>b?b:v; }
     function smoothstep(e0,e1,x){ var t=clamp((x-e0)/(e1-e0),0,1); return t*t*(3-2*t); }
@@ -48,6 +54,11 @@
       var ma=boxMean(a,sw,sh,rs), mb=boxMean(b,sw,sh,rs), out=new F32(w*h);
       for(var y=0;y<h;y++){ var fy=(y+0.5)/s-0.5; for(var x=0;x<w;x++){ var fx=(x+0.5)/s-0.5; out[y*w+x]=bilinear(ma,sw,sh,fx,fy)*I[y*w+x]+bilinear(mb,sw,sh,fx,fy); } }
       return out; }
+    // the k-th smallest value of v (quickselect on a copy), as quantile() but for a given k
+    function kth(v,k){ var a=new F32(v), lo=0, hi=a.length-1;
+      while(hi>lo){ var piv=a[(lo+hi)>>1], i=lo, j=hi; while(i<=j){ while(a[i]<piv) i++; while(a[j]>piv) j--; if(i<=j){ var t=a[i]; a[i]=a[j]; a[j]=t; i++; j--; } }
+        if(k<=j) hi=j; else if(k>=i) lo=i; else break; }
+      return a[k]; }
     // The q-quantile as a sort would give it (quickselect on a copy).
     function quantile(v,q){ var a=new F32(v), k=Math.round((a.length-1)*q), lo=0, hi=a.length-1;
       while(hi>lo){ var piv=a[(lo+hi)>>1], i=lo, j=hi; while(i<=j){ while(a[i]<piv) i++; while(a[j]>piv) j--; if(i<=j){ var t=a[i]; a[i]=a[j]; a[j]=t; i++; j--; } }
@@ -116,23 +127,36 @@
       for(var y=0;y<sh;y++) for(var x=0;x<sw;x++){ var x0=x*f, y0=y*f, x1=Math.min(x0+f,u.w), y1=Math.min(y0+f,u.h), s=0;
         for(var yy=y0;yy<y1;yy++) for(var xx=x0;xx<x1;xx++) s+=u.v[yy*u.w+xx]; v[y*sw+x]=s/((x1-x0)*(y1-y0)); }
       return {w:sw,h:sh,v:v}; }
-    function guidedUpsample(small,d,full){ var sw=small.w, sh=small.h, r=2, eps=0.01, M=sw*sh, ud=new F32(M), uu=new F32(M), i;
+    // Bilinear sampling of a small plane at (x+0.5)*fx-0.5, (y+0.5)*fy-0.5 for every pixel of a big one, as bilinear()
+    // gives it, with the per-column and per-row parts worked out once per image instead of once per pixel.
+    function bilerpGrid(sw,sh,W,H,fx,fy,ox,oy){ var X0=new Int32Array(W), X1=new Int32Array(W), TX=new Float64Array(W), Y0=new Int32Array(H), Y1=new Int32Array(H), TY=new Float64Array(H), i, v, f0;
+      for(i=0;i<W;i++){ v=clamp((i+0.5)*fx-ox,0,sw-1); f0=Math.floor(v); X0[i]=f0; X1[i]=Math.min(f0+1,sw-1); TX[i]=v-f0; }
+      for(i=0;i<H;i++){ v=clamp((i+0.5)*fy-oy,0,sh-1); f0=Math.floor(v); Y0[i]=f0*sw; Y1[i]=Math.min(f0+1,sh-1)*sw; TY[i]=v-f0; }
+      return {X0:X0,X1:X1,TX:TX,Y0:Y0,Y1:Y1,TY:TY}; }
+    // the guided upsample of d (the change worked out on the small plane) to full size, as a and b planes: change = A*guide + B
+    function guidedUpsample(small,d,full,out){ var sw=small.w, sh=small.h, r=2, eps=0.01, M=sw*sh, ud=new F32(M), uu=new F32(M), i;
       for(i=0;i<M;i++){ ud[i]=small.v[i]*d[i]; uu[i]=small.v[i]*small.v[i]; }
       var mu=boxMean(small.v,sw,sh,r), md=boxMean(d,sw,sh,r), mud=boxMean(ud,sw,sh,r), muu=boxMean(uu,sw,sh,r), a=new F32(M), b=new F32(M);
       for(i=0;i<M;i++){ a[i]=(mud[i]-mu[i]*md[i])/(muu[i]-mu[i]*mu[i]+eps); b[i]=md[i]-a[i]*mu[i]; }
-      var ma=boxMean(a,sw,sh,r), mb=boxMean(b,sw,sh,r), fx=sw/full.w, fy=sh/full.h, out=new F32(full.w*full.h);
-      for(var y=0;y<full.h;y++){ var sy=(y+0.5)*fy-0.5; for(var x=0;x<full.w;x++){ var sx=(x+0.5)*fx-0.5, k=y*full.w+x; out[k]=bilinear(ma,sw,sh,sx,sy)*full.v[k]+bilinear(mb,sw,sh,sx,sy); } }
+      var ma=boxMean(a,sw,sh,r), mb=boxMean(b,sw,sh,r), W=full.w, G=bilerpGrid(sw,sh,W,full.h,sw/W,sh/full.h,0.5,0.5), X0=G.X0, X1=G.X1, TX=G.TX, fv=full.v;
+      for(var y=0;y<full.h;y++){ var r0=G.Y0[y], r1=G.Y1[y], ty=G.TY[y], k=y*W;
+        for(var x=0;x<W;x++,k++){ var x0=X0[x], x1=X1[x], tx=TX[x];
+          var a0=ma[r0+x0], a1=ma[r0+x1], a2=ma[r1+x0], a3=ma[r1+x1], at=a0+(a1-a0)*tx, ab=a2+(a3-a2)*tx;
+          var b0=mb[r0+x0], b1=mb[r0+x1], b2=mb[r1+x0], b3=mb[r1+x1], bt=b0+(b1-b0)*tx, bb=b2+(b3-b2)*tx;
+          out[k]=(at+(ab-at)*ty)*fv[k]+(bt+(bb-bt)*ty); } }
       return out; }
+    var lt64=null, ltCh=null;   /* scratch for localTone (linear RGB, the change plane), kept between previews */
     function localTone(px,w,h,shadows,highlights,workSide,refStep){ if((shadows===0&&highlights===0)||w<2||h<2) return;
-      var FLOOR=1/65536, N=w*h, u={w:w,h:h,v:new F32(N)}, i;
-      for(i=0;i<N;i++){ var j=i*3; u.v[i]=Math.log2(Math.max(luma(s2l(px[j]),s2l(px[j+1]),s2l(px[j+2])),0)+FLOOR); }
+      var FLOOR=1/65536, N=w*h, u={w:w,h:h,v:new F32(N)}, i, j;
+      if(!lt64||lt64.length<N*3) lt64=new Float64Array(N*3); var lin=lt64;   /* each pixel to linear light once, used again at the end */
+      for(i=0,j=0;i<N;i++,j+=3){ var lr=s2l(px[j]), lg=s2l(px[j+1]), lb=s2l(px[j+2]); lin[j]=lr; lin[j+1]=lg; lin[j+2]=lb; u.v[i]=Math.log2(Math.max(luma(lr,lg,lb),0)+FLOOR); }
       var f=Math.max(Math.ceil(Math.max(w,h)/workSide),1), small=f===1?{w:w,h:h,v:new F32(u.v)}:shrink(u,f), o={w:small.w,h:small.h,v:new F32(small.v)};
       if(highlights!==0) o=highlightsPass(o,clamp(highlights,-100,100)/100,refStep);
       if(shadows!==0) o=shadowsPass(o,clamp(shadows,-100,100)/100,refStep);
-      var change;
-      if(f===1){ change=new F32(N); for(i=0;i<N;i++) change[i]=o.v[i]-u.v[i]; }
-      else { var d=new F32(o.v.length); for(i=0;i<d.length;i++) d[i]=o.v[i]-small.v[i]; change=guidedUpsample(small,d,u); }
-      for(i=0;i<N;i++){ var gain=Math.pow(2,change[i]), q=i*3; for(var c=0;c<3;c++) px[q+c]=l2s(s2l(px[q+c])*gain); } }
+      if(!ltCh||ltCh.length<N) ltCh=new F32(N); var change=ltCh;
+      if(f===1){ for(i=0;i<N;i++) change[i]=o.v[i]-u.v[i]; }
+      else { var d=new F32(o.v.length); for(i=0;i<d.length;i++) d[i]=o.v[i]-small.v[i]; guidedUpsample(small,d,u,change); }
+      for(i=0,j=0;i<N;i++,j+=3){ var gain=exp2(change[i]); px[j]=l2s(lin[j]*gain); px[j+1]=l2s(lin[j+1]*gain); px[j+2]=l2s(lin[j+2]*gain); } }
     // ---- Whites and Blacks: measured curves (tables filled in below) ----
     var WB=null;
     function wbCurve(rows,from,x,v){ if(v>=1) return 1; var r=clamp((x-from)/10,0,rows.length-1), i=Math.min(Math.floor(r),rows.length-2), t=r-i;
@@ -140,21 +164,35 @@
       return at(rows[i])*(1-t)+at(rows[i+1])*t; }
     function adapt(table,bp,wp){ function idx(grid,v){ v=clamp(v,grid[0],grid[grid.length-1]); var i=0; while(i<grid.length-2&&v>grid[i+1]) i++; return [i,(v-grid[i])/(grid[i+1]-grid[i])]; }
       var a=idx(WB.BPS,bp), b=idx(WB.WPS,wp), i=a[0], s=a[1], j=b[0], t=b[1]; function row(i){ return table[i][j]*(1-t)+table[i][j+1]*t; } return row(i)*(1-s)+row(i+1)*s; }
-    function lumPoints(px,w,h){ var f=Math.max(Math.ceil(Math.max(w,h)/256),1), sw=Math.ceil(w/f), sh=Math.ceil(h/f), sum=new Float64Array(sw*sh*4);
-      for(var y=0;y<h;y++) for(var x=0;x<w;x++){ var q=(y*w+x)*3, s=(Math.floor(y/f)*sw+Math.floor(x/f))*4; for(var c=0;c<3;c++) sum[s+c]+=clamp(s2l(px[q+c]),0,1); sum[s+3]+=1; }
+    // the linear RGB of every pixel, worked out once for whitesBlacks and its lumPoints (they both need it)
+    function lumPoints(lin,w,h){ var f=Math.max(Math.ceil(Math.max(w,h)/256),1), sw=Math.ceil(w/f), sh=Math.ceil(h/f), sum=new Float64Array(sw*sh*4), CX=new Int32Array(w), x;
+      for(x=0;x<w;x++) CX[x]=Math.floor(x/f)*4;
+      for(var y=0;y<h;y++){ var so=Math.floor(y/f)*sw*4, q=y*w*3; for(x=0;x<w;x++,q+=3){ var s=so+CX[x]; sum[s]+=clamp(lin[q],0,1); sum[s+1]+=clamp(lin[q+1],0,1); sum[s+2]+=clamp(lin[q+2],0,1); sum[s+3]+=1; } }
       var L=[], M=[]; for(var k=0;k<sw*sh;k++){ var n=sum[k*4+3]; if(!n) continue; var r=sum[k*4]/n, g=sum[k*4+1]/n, b=sum[k*4+2]/n; L.push(luma(r,g,b)); M.push(Math.max(r,g,b)); }
       if(!L.length) return [0,1]; return [l2s(quantile(L,0.03)), l2s(quantile(M,0.995))]; }
-    function whitesBlacks(px,w,h,wv,bv){ var P=lumPoints(px,w,h), bp=P[0], wp=P[1];
+    // wbCurve with its row pair picked once per image (it only depends on the slider), not for every pixel: same sums
+    function wbRow(rows,from,x){ var r=clamp((x-from)/10,0,rows.length-1), i=Math.min(Math.floor(r),rows.length-2); return {a:rows[i], b:rows[i+1], t:r-i}; }
+    function wbAt(P,v){ if(v>=1) return 1; var p=Math.max(v,0)*32, j=Math.min(Math.floor(p),31), s=p-j, A=P.a, B=P.b; return (A[j]+(A[j+1]-A[j])*s)*(1-P.t)+(B[j]+(B[j+1]-B[j])*s)*P.t; }
+    var wb64=null;
+    function whitesBlacks(px,w,h,wv,bv){ var N=w*h, i, q;
+      if(!wb64||wb64.length<N*3) wb64=new Float64Array(N*3); var lin=wb64; for(i=0;i<N*3;i++) lin[i]=s2l(px[i]);
+      var P=lumPoints(lin,w,h), bp=P[0], wp=P[1];
       var xw=wv>0?wv*adapt(WB.AW,bp,wp):wv, xb=bv<0?bv*Math.max(adapt(WB.AB,bp,wp),1.2):bv; xw=clamp(xw,-100,270); xb=clamp(xb,-100,100);
       if(xw===0&&xb===0) return;
-      function grey(v){ if(xw!==0) v=wbCurve(WB.WHITES,-100,xw,v); if(xb!==0) v=wbCurve(WB.BLACKS,-100,xb,v); return v; }
-      var per=xw>0||xb<0, N=w*h;
-      for(var i=0;i<N;i++){ var q=i*3, r=s2l(px[q]), g=s2l(px[q+1]), b=s2l(px[q+2]);
-        if(per){ var lin=[r,g,b]; for(var c=0;c<3;c++){ var over=Math.max(lin[c]-1,0); px[q+c]=l2s(s2l(grey(l2s(Math.min(lin[c],1))))+over); } }
-        else { var y=Math.max(luma(r,g,b),0); if(y<=1e-7) continue; var y2=s2l(grey(l2s(Math.min(y,1))))+Math.max(y-1,0), k=y2/y; px[q]=l2s(r*k); px[q+1]=l2s(g*k); px[q+2]=l2s(b*k); } } }
+      var RW=xw!==0?wbRow(WB.WHITES,-100,xw):null, RB=xb!==0?wbRow(WB.BLACKS,-100,xb):null;
+      function grey(v){ if(RW) v=wbAt(RW,v); if(RB) v=wbAt(RB,v); return v; }
+      var per=xw>0||xb<0, WL=16384, F=null;
+      // per channel the curve is one function of the channel's own value: tabulate it once (0..1, under 3e-5 of exact; above 1 exact)
+      if(per){ F=new Float64Array(WL+2); for(i=0;i<=WL+1;i++){ var vv=Math.min(i/WL,1); F[i]=l2s(s2l(grey(l2s(Math.min(s2l(vv),1))))); } }
+      for(i=0,q=0;i<N;i++,q+=3){
+        if(per){ for(var c=0;c<3;c++){ var pv=px[q+c], lc=lin[q+c];
+            if(pv>=0&&pv<=1&&lc<=1){ var xf=pv*WL, xi=xf|0; px[q+c]=F[xi]+(F[xi+1]-F[xi])*(xf-xi); }
+            else { var over=Math.max(lc-1,0); px[q+c]=l2s(s2l(grey(l2s(Math.min(lc,1))))+over); } } }
+        else { var r=lin[q], g=lin[q+1], b=lin[q+2], y=Math.max(luma(r,g,b),0); if(y<=1e-7) continue; var y2=s2l(grey(l2s(Math.min(y,1))))+Math.max(y-1,0), k=y2/y; px[q]=l2s(r*k); px[q+1]=l2s(g*k); px[q+2]=l2s(b*k); } } }
     // ---- dehaze ----
     function dehaze(px,w,h,amount){ var k=Math.max(Math.ceil(Math.max(w,h)/768),1), sw=Math.ceil(w/k), sh=Math.ceil(h/k), M=sw*sh, small=new F32(M*3), cnt=new F32(M), i, c;
-      for(var y=0;y<h;y++) for(var x=0;x<w;x++){ var s=Math.floor(y/k)*sw+Math.floor(x/k), q=(y*w+x)*3; for(c=0;c<3;c++) small[s*3+c]+=clamp(px[q+c],0,1); cnt[s]+=1; }
+      var CX=new Int32Array(w); for(var x=0;x<w;x++) CX[x]=Math.floor(x/k);
+      for(var y=0;y<h;y++){ var so=Math.floor(y/k)*sw, q=y*w*3; for(x=0;x<w;x++,q+=3){ var s=so+CX[x], s3=s*3; small[s3]+=clamp(px[q],0,1); small[s3+1]+=clamp(px[q+1],0,1); small[s3+2]+=clamp(px[q+2],0,1); cnt[s]+=1; } }
       for(i=0;i<M;i++) for(c=0;c<3;c++) small[i*3+c]/=Math.max(cnt[i],1);
       var r=Math.max(Math.floor(Math.max(sw,sh)/60),2);
       function minf(v){ var a=new F32(M), b=new F32(M), x, y, xx, yy, m;
@@ -162,13 +200,17 @@
         for(y=0;y<sh;y++) for(x=0;x<sw;x++){ m=Infinity; for(yy=Math.max(y-r,0);yy<=Math.min(y+r,sh-1);yy++) m=Math.min(m,a[yy*sw+x]); b[y*sw+x]=m; }
         return b; }
       var dc=new F32(M); for(i=0;i<M;i++) dc[i]=Math.min(small[i*3],small[i*3+1],small[i*3+2]); var dark=minf(dc);
-      var idx=new Uint32Array(M); for(i=0;i<M;i++) idx[i]=i; idx.sort(function(a,b){ return dark[b]-dark[a]; });
-      var top=Math.max(Math.floor(M/1000),1), air=[0,0,0]; for(i=0;i<top;i++) for(c=0;c<3;c++) air[c]+=small[idx[i]*3+c]/top; air=air.map(function(v){ return Math.max(v,0.2); });
+      // the airlight: the mean colour of the haziest 0.1% (the cells a stable sort by darkness, high first, puts on top)
+      var top=Math.max(Math.floor(M/1000),1), air=[0,0,0], cut=kth(dark,M-top), sel=[];   /* cut: the smallest value among the top */
+      for(i=0;i<M;i++) if(dark[i]>cut) sel.push(i); for(i=0;i<M&&sel.length<top;i++) if(dark[i]===cut) sel.push(i);
+      sel.sort(function(a,b){ return dark[b]-dark[a]||a-b; }); for(i=0;i<top;i++) for(c=0;c<3;c++) air[c]+=small[sel[i]*3+c]/top; air=air.map(function(v){ return Math.max(v,0.2); });
       var nd=new F32(M); for(i=0;i<M;i++) nd[i]=Math.min(small[i*3]/air[0],small[i*3+1]/air[1],small[i*3+2]/air[2]); var nds=minf(nd);
       var traw=new F32(M), guide=new F32(M); for(i=0;i<M;i++){ traw[i]=1-0.95*nds[i]; guide[i]=luma(small[i*3],small[i*3+1],small[i*3+2]); }
       var t=guided(guide,traw,sw,sh,r*2,1e-3);
-      for(var y2=0;y2<h;y2++) for(var x2=0;x2<w;x2++){ var tv=clamp(bilinear(t,sw,sh,(x2+0.5)/k-0.5,(y2+0.5)/k-0.5),0.1,1), q2=(y2*w+x2)*3;
-        for(c=0;c<3;c++){ var I=px[q2+c], J=(I-air[c])/tv+air[c]; px[q2+c]=amount>=0? I+(J-I)*amount : I+(air[c]-I)*(-amount)*0.5*(1-tv*0.5); } } }
+      var G=bilerpGrid(sw,sh,w,h,1/k,1/k,0.5,0.5), X0=G.X0, X1=G.X1, TX=G.TX;
+      for(var y2=0;y2<h;y2++){ var r0=G.Y0[y2], r1=G.Y1[y2], ty=G.TY[y2], q2=y2*w*3;
+        for(var x2=0;x2<w;x2++,q2+=3){ var x0=X0[x2], x1=X1[x2], tx=TX[x2], ta=t[r0+x0]+(t[r0+x1]-t[r0+x0])*tx, tb=t[r1+x0]+(t[r1+x1]-t[r1+x0])*tx, tv=clamp(ta+(tb-ta)*ty,0.1,1);
+          for(c=0;c<3;c++){ var I=px[q2+c], J=(I-air[c])/tv+air[c]; px[q2+c]=amount>=0? I+(J-I)*amount : I+(air[c]-I)*(-amount)*0.5*(1-tv*0.5); } } } }
     // ---- grain noise ----
     function hashFast(x,y,seed){ var h=Math.imul(x|0,0x27d4eb2d)^Math.imul(y|0,0x165667b1)^Math.imul(seed|0,0x9e3779b1); h=Math.imul(h^(h>>>15),0x85ebca6b); h=Math.imul(h^(h>>>13),0xc2b2ae35); h^=h>>>16; return (h>>>8)/16777216; }
     function vnoise(x,y,seed){ var xi=Math.floor(x), yi=Math.floor(y), tx=x-xi, ty=y-yi, sx=tx*tx*(3-2*tx), sy=ty*ty*(3-2*ty);
@@ -380,7 +422,9 @@
   // Three passes, each shown only if nothing newer is waiting: a draft (≤900 px) while a slider moves, the full
   // preview at the stage's size when it rests, then a sharp pass at the screen's real pixels (retina, and zoomed in).
   var crv={sent:[], busy:false, pend:null, settle:0, last:null, zt:0};
-  function crSrcFor(cr,ow,oh){ var c=document.createElement("canvas"); c.width=ow; c.height=oh; var x=c.getContext("2d"); x.imageSmoothingQuality="high"; x.drawImage(edRC,cr.x,cr.y,cr.w,cr.h,0,0,ow,oh); return x.getImageData(0,0,ow,oh); }
+  // The preview's source pixels stay on CPU canvases (willReadFrequently) from the photo to the worker: reading back a
+  // GPU canvas stalls the page while the GPU catches up (seconds on a weak or software GPU). Only the display canvas is on the GPU.
+  function crSrcFor(cr,ow,oh,from){ var c=document.createElement("canvas"); c.width=ow; c.height=oh; var x=c.getContext("2d",{willReadFrequently:true}); x.imageSmoothingQuality="high"; x.drawImage(from||edRC,cr.x,cr.y,cr.w,cr.h,0,0,ow,oh); return x.getImageData(0,0,ow,oh); }
   // the canvas fills the stage (fitted to the crop); returns css size and the pixel scales for each pass
   function crView(cr){ var stg=$("editStage"), W=stg?stg.clientWidth-28:0, H=stg?stg.clientHeight-28:0;
     var s=(W>40&&H>40)?Math.min(W/cr.w,H/cr.h):Math.min(980/cr.w,980/cr.h); if(!isFinite(s)||s<=0) s=1;
@@ -392,11 +436,11 @@
     if(mode==="hires"&&dw<=Math.round(cr.w*V.fin)*1.1) return;   // the full preview is already sharp enough
     var cv=$("editCanvas"); if(cv){ cv.style.width=V.cw.toFixed(1)+"px"; cv.style.height=V.ch.toFixed(1)+"px"; }
     var key=[edState.i,edState.rot,Math.round(cr.x),Math.round(cr.y),Math.round(cr.w),Math.round(cr.h),dw,dh,edSrc&&edSrc.src.length,edSrc&&edSrc.src.slice(-40),(typeof healHash==="function")?healHash(edState):""].join("|");
-    crv.pend={mode:mode,key:key,cr:cr,ow:ow,oh:oh,dw:dw,dh:dh,p:crParams(edState),orig:edShowOrig}; crPump(); }
+    crv.pend={mode:mode,key:key,cr:cr,ow:ow,oh:oh,dw:dw,dh:dh,p:crParams(edState),orig:edShowOrig,t0:performance.now()}; crPump(); }
   function crZoomed(){ clearTimeout(crv.zt); crv.zt=setTimeout(function(){ if(!crv.pend) crRequest("hires"); },260); }
   function crPump(){ if(crv.busy||!crv.pend) return; var r=crv.pend; crv.pend=null;
-    if(r.orig){ var v0=$("editCanvas"); if(v0.width!==r.ow||v0.height!==r.oh){ v0.width=r.ow; v0.height=r.oh; } var x0=v0.getContext("2d"); x0.imageSmoothingQuality="high"; x0.drawImage((typeof edRC0!=="undefined"&&edRC0)||edRC,r.cr.x,r.cr.y,r.cr.w,r.cr.h,0,0,r.ow,r.oh);
-      try{ var id0=x0.getImageData(0,0,r.ow,r.oh); crv.last={w:r.ow,h:r.oh,data:id0.data}; }catch(e){} crv.shown="orig"; scheduleHist(); return; }
+    if(r.orig){ var v0=$("editCanvas"); if(v0.width!==r.ow||v0.height!==r.oh){ v0.width=r.ow; v0.height=r.oh; }   /* Before: the photo as shot, read off a CPU copy for the histogram, then shown */
+      try{ var id0=crSrcFor(r.cr,r.ow,r.oh,(typeof edRC0!=="undefined"&&edRC0)||edRC); v0.getContext("2d").putImageData(id0,0,0); crv.last={w:r.ow,h:r.oh,data:id0.data}; }catch(e){} crv.shown="orig"; scheduleHist(); return; }
     if(crv.sent.indexOf(r.key)<0){ var im=crSrcFor(r.cr,r.dw,r.dh); crPrev.send({t:"src",key:r.key,w:r.dw,h:r.dh,data:im.data},null,0,[im.data.buffer]); crv.sent.unshift(r.key); crv.sent.length=Math.min(crv.sent.length,3); }
     crv.busy=true; var t0=performance.now(), ps=r.dw/r.cr.w;
     crPrev.send({t:"run",key:r.key,mode:r.mode,p:r.p,opt:r.mode==="draft"?{workSide:320,refStep:0.25,pixelScale:ps}:{workSide:800,pixelScale:ps}},function(res){ crv.busy=false;
@@ -406,13 +450,13 @@
       crv.ms=performance.now()-t0; if(r.mode==="final"&&!crv.pend) crRequest("hires"); crPump(); },0); }
   function crShow(res,r){ var v=$("editCanvas"); if(v.width!==r.ow||v.height!==r.oh){ v.width=r.ow; v.height=r.oh; } var x=v.getContext("2d"), id=new ImageData(res.data,res.w,res.h);
     if(res.w===r.ow&&res.h===r.oh) x.putImageData(id,0,0);
-    else { var t=document.createElement("canvas"); t.width=res.w; t.height=res.h; t.getContext("2d").putImageData(id,0,0); x.imageSmoothingQuality="high"; x.drawImage(t,0,0,r.ow,r.oh); }
-    crv.last={w:res.w,h:res.h,data:res.data}; crv.shown=r.mode; scheduleHist(); }
+    else { var t=crv.scratch||(crv.scratch=document.createElement("canvas")); if(t.width!==res.w||t.height!==res.h){ t.width=res.w; t.height=res.h; } t.getContext("2d").putImageData(id,0,0); x.imageSmoothingQuality="high"; x.drawImage(t,0,0,r.ow,r.oh); }   /* one scratch canvas, not a new one per draft */
+    crv.last={w:res.w,h:res.h,data:res.data}; crv.shown=r.mode; scheduleHist(); if(crv.log) crv.log.push({t:performance.now(),mode:r.mode,w:res.w,h:res.h,ms:performance.now()-r.t0}); }
   // ---- full-resolution renders (leaving a frame, Sync, Make a copy) ----
   function crRotCrop(img,E){ var iw=img.naturalWidth, ih=img.naturalHeight, rot=E.rot||0, rw=(rot%180===0)?iw:ih, rh=(rot%180===0)?ih:iw;
-    var c=document.createElement("canvas"); c.width=rw; c.height=rh; var x=c.getContext("2d"); x.translate(rw/2,rh/2); x.rotate(rot*Math.PI/180); x.drawImage((typeof healSource==="function")?healSource(img,E):img,-iw/2,-ih/2);
+    var c=document.createElement("canvas"); c.width=rw; c.height=rh; var x=c.getContext("2d",{willReadFrequently:true}); x.translate(rw/2,rh/2); x.rotate(rot*Math.PI/180); x.drawImage((typeof healSource==="function")?healSource(img,E):img,-iw/2,-ih/2);
     var cr=cropRectFor(E,rw,rh), ow=Math.max(2,Math.round(cr.w)), oh=Math.max(2,Math.round(cr.h)), o=document.createElement("canvas"); o.width=ow; o.height=oh;
-    var ox=o.getContext("2d"); ox.drawImage(c,cr.x,cr.y,cr.w,cr.h,0,0,ow,oh); return o; }
+    var ox=o.getContext("2d",{willReadFrequently:true}); ox.drawImage(c,cr.x,cr.y,cr.w,cr.h,0,0,ow,oh); return o; }
   function crBake(img,E,cb){ if(!crBakePool) crBakePool=crPool(Math.max(1,Math.min(3,((navigator.hardwareConcurrency||2)-2)||1)));
     var o=crRotCrop(img,E), x=o.getContext("2d"), id; try{ id=x.getImageData(0,0,o.width,o.height); }catch(e){ cb(null); return; }
     crBakePool.send({t:"bake",w:o.width,h:o.height,data:id.data,p:crParams(E),opt:{}},function(r){ if(!r||r.err||!r.data){ if(r&&r.err) console.warn("bake:",r.err); cb(null); return; }

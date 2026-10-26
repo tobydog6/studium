@@ -45,7 +45,7 @@
   // pick the source: try a ring of candidates round the spot, score each by how well its surroundings match the spot's
   // surroundings and how flat its middle is, take the best. Done on a small copy so it is instant.
   function healSmallOf(img){ var key=img.src?img.src.length+img.src.slice(-40):""; if(healSmall.key===key&&healSmall.d) return healSmall.d; var sc=Math.min(1,480/Math.max(img.naturalWidth,img.naturalHeight)), w=Math.max(2,Math.round(img.naturalWidth*sc)), h=Math.max(2,Math.round(img.naturalHeight*sc));
-    var c=document.createElement("canvas"); c.width=w; c.height=h; var x=c.getContext("2d"); x.drawImage(img,0,0,w,h); var d=null; try{ d=x.getImageData(0,0,w,h); }catch(e){} healSmall={key:key,d:d?{w:w,h:h,data:d.data,sc:sc}:null}; return healSmall.d; }
+    var c=document.createElement("canvas"); c.width=w; c.height=h; var x=c.getContext("2d",{willReadFrequently:true}); x.drawImage(img,0,0,w,h); var d=null; try{ d=x.getImageData(0,0,w,h); }catch(e){} healSmall={key:key,d:d?{w:w,h:h,data:d.data,sc:sc}:null}; return healSmall.d; }
   function healPick(st,img){ var sm=healSmallOf(img); if(!sm) return [st.p[0][0],st.p[0][1]]; var iw=sm.w, ih=sm.h, m=Math.min(iw,ih), R=Math.max(st.r*m,1.2), B=healBox(st,iw,ih,R), bx=Math.max(B.x,0), by=Math.max(B.y,0), W=Math.min(B.x+B.w,iw)-bx, H=Math.min(B.y+B.h,ih)-by; if(W<2||H<2) return [st.p[0][0],st.p[0][1]];
     var mk=healMask(st,iw,ih,R,bx,by,W,H), M=mk.M, ring=mk.ring, d=sm.data, ext=Math.hypot(B.w,B.h)/2, best=null, bs=1e18, j, k;
     var rr=0,rg=0,rb=0,rn=0; for(j=0;j<W*H;j++){ if(!ring[j]) continue; k=((by+(j/W|0))*iw+bx+(j%W))*4; rr+=d[k]; rg+=d[k+1]; rb+=d[k+2]; rn++; } if(rn){ rr/=rn; rg/=rn; rb/=rn; }

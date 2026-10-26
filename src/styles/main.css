@@ -2824,7 +2824,8 @@ body.co-lens #bag .lensbtn{border-color:#e3ad57;box-shadow:0 0 22px rgba(227,173
 #launch.p-dark .la-dark{animation:laDarkIn 1.6s ease-out .2s forwards}
 #launch.p-detail .la-dark{opacity:1;animation:laFade .5s ease-out forwards}
 @keyframes laDarkIn{to{opacity:1}}
-/* the shot: the real viewfinder is up underneath; this is the shutter */
+/* the shot: the lens opens as nine blades (launch.js draws them), the real viewfinder is up underneath; then the shutter */
+.la-iris{position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none;z-index:3}
 .la-snap{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:3}
 #launch.snap .la-snap{animation:laSnap .4s ease-out forwards}
 @keyframes laSnap{0%{opacity:0}8%{opacity:1}30%{opacity:1}100%{opacity:0}}
@@ -2836,18 +2837,20 @@ body.co-lens #bag .lensbtn{border-color:#e3ad57;box-shadow:0 0 22px rgba(227,173
 .la-still img{width:100%;height:100%;object-fit:cover;display:block}
 /* the film: a strip of 35 mm, the sprocket holes punched through to the scan behind */
 .la-film{position:absolute;inset:0;display:none;pointer-events:none;overflow:hidden}
+.la-film::before{content:"";position:absolute;left:-10vw;right:-10vw;top:calc(50vh - var(--fh)/2 - var(--rb) - 9vh);height:calc(var(--fh) + var(--rb)*2 + 18vh);background:radial-gradient(ellipse at 50% 50%,rgba(255,132,48,.34) 0%,rgba(228,96,30,.18) 45%,rgba(120,40,10,0) 72%);filter:blur(24px)}   /* the ember glow behind the strip */
 #launch.p-film .la-film{display:block;animation:laFilmIn .5s ease-out both}
 @keyframes laFilmIn{from{opacity:0}to{opacity:1}}
-.la-strip{position:absolute;left:0;top:calc(50vh - var(--fh)/2 - var(--rb));height:calc(var(--fh) + var(--rb)*2);padding:var(--rb) 100vw;box-sizing:border-box;display:flex;will-change:transform;background:linear-gradient(#090908,#090908) center/100% var(--fh) no-repeat;filter:drop-shadow(0 0 30px rgba(0,0,0,.5))}
-.la-strip::before,.la-strip::after{content:"";position:absolute;left:0;right:0;height:var(--rb);background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 475 450'%3E%3Cpath fill='%23090908' fill-rule='evenodd' d='M0 0H475V450H0ZM104 120H371a34 34 0 0 1 34 34V296a34 34 0 0 1-34 34H104a34 34 0 0 1-34-34V154a34 34 0 0 1 34-34Z'/%3E%3C/svg%3E") repeat-x;background-size:calc(var(--rb)*1.0556) var(--rb)}
+.la-strip{position:absolute;left:0;top:calc(50vh - var(--fh)/2 - var(--rb));height:calc(var(--fh) + var(--rb)*2);padding:var(--rb) 100vw;box-sizing:border-box;display:flex;will-change:transform;background:linear-gradient(90deg,#2a1206,#3b1a08 30%,#4a2208 50%,#3b1a08 70%,#2a1206) center/100% var(--fh) no-repeat}
+.la-strip::before,.la-strip::after{content:"";position:absolute;left:0;right:0;height:var(--rb);background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 475 450'%3E%3Cpath fill='%23301407' fill-rule='evenodd' d='M0 0H475V450H0ZM104 120H371a34 34 0 0 1 34 34V296a34 34 0 0 1-34 34H104a34 34 0 0 1-34-34V154a34 34 0 0 1 34-34Z'/%3E%3C/svg%3E") repeat-x;background-size:calc(var(--rb)*1.0556) var(--rb)}
 .la-strip::before{top:0}
 .la-strip::after{bottom:0}
-.la-fr{position:relative;flex:none;width:var(--fw);height:var(--fh);margin-right:3vw;margin-left:1.5vw;background:#15130f;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.9)}
+.la-fr{position:relative;flex:none;width:var(--fw);height:var(--fh);margin-right:3vw;margin-left:1.5vw;background:#1a0c04;border-radius:3px;box-shadow:0 0 0 1px rgba(60,24,6,.9),0 0 28px rgba(255,120,40,.18)}
+.la-fr::after{content:"";position:absolute;inset:0;border-radius:3px;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(255,150,70,0) 52%,rgba(255,130,50,.22) 82%,rgba(255,110,40,.42) 100%),linear-gradient(90deg,rgba(255,120,40,.26),rgba(255,120,40,0) 12%,rgba(255,120,40,0) 88%,rgba(255,120,40,.26));mix-blend-mode:screen}   /* halation: the light bleeding in at the frame edges */
 .la-fr:first-child{margin-left:3vw}
-.la-fr video,.la-fr img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 42%;filter:brightness(.92) saturate(.96);display:block;border-radius:3px}
-.la-fr.still img{filter:none}
-.la-fr span{position:absolute;left:0;right:0;bottom:3vh;text-align:center;font-family:var(--mono);font-size:11px;letter-spacing:.34em;color:var(--accent);text-shadow:0 1px 8px rgba(0,0,0,.9);z-index:1}
-.la-fr i{position:absolute;left:0;bottom:calc(var(--rb)*-1 + .6vh);font-style:normal;font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:#d8742a;opacity:.85;white-space:nowrap;z-index:2}
+.la-fr video,.la-fr img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 42%;filter:brightness(.94) saturate(1.05) sepia(.14);display:block;border-radius:3px}
+.la-fr.still img{filter:saturate(1.05) sepia(.1)}
+.la-fr span{position:absolute;left:2.2vw;top:2.6vh;padding:7px 12px 6px 14px;border-radius:999px;background:rgba(14,8,4,.72);border:1px solid rgba(255,150,70,.35);font-family:var(--mono);font-size:10.5px;letter-spacing:.34em;color:#f0b070;z-index:1;backdrop-filter:blur(6px)}
+.la-fr i{position:absolute;left:0;bottom:calc(var(--rb)*-1 + .6vh);font-style:normal;font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:#f0a060;opacity:.9;text-shadow:0 0 8px rgba(255,140,60,.6);white-space:nowrap;z-index:2}
 .la-fr i::before{content:"STUDIUM 400  ▸  ";opacity:.7}
 /* the wordmark: a mask reveal on the big circle, big, held through the settle, then it lets the scene through */
 .la-word{position:absolute;left:0;right:0;top:50%;transform:translateY(-54%);text-align:center;opacity:0;pointer-events:none;z-index:2}

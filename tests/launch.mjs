@@ -29,14 +29,12 @@ try {
   const t0 = Date.now(); await page.click('#signin [data-si="demo"]');
   await until('dark', 20000); await page.waitForTimeout(1500); await shot('1-dark');
   await until('detail', 400000); console.log('in at', Date.now() - t0, 'ms'); await page.waitForTimeout(3200); await shot('2-detail');
-  await ev(() => __la.go()); await until('shoot', 20000); await page.waitForTimeout(1500); await shot('3-shoot');
-  await page.waitForTimeout(1400); console.log('still:', await ev(() => { const im = document.querySelector('.la-fr.still img'); return im && im.src ? im.src.slice(0, 22) + ' ' + im.src.length : 'none'; }));
-  await ev(() => __la.go()); await until('film', 20000); console.log('film at', Date.now() - t0, 'ms'); await page.waitForTimeout(400); await shot('4-into');
-  await page.waitForTimeout(2200); await shot('5-film');
-  await ev(() => __la.go()); await until('spin', 60000); await page.waitForTimeout(1600); await shot('6-spin');
-  await ev(() => __la.go()); await until('lock', 20000); await page.waitForTimeout(1300); await shot('7-lock');
-  await until('end', 20000); await page.waitForTimeout(600); await shot('8-scene');
-  console.log('end:', await ev(() => ({ state: __cb.state(), log: __la.state().log, launching: document.body.classList.contains('launching'), hud: getComputedStyle(document.getElementById('hud')).visibility, vf: document.getElementById('viewfinder').classList.contains('on') })));
+  await ev(() => __la.go()); await until('shoot', 20000); await page.waitForTimeout(350); await shot('3-iris');
+  await page.waitForTimeout(2800); console.log('still:', await ev(() => { const im = document.querySelector('.la-fr.still img'); return im && im.src ? im.src.slice(0, 22) + ' ' + im.src.length : 'none'; }));
+  await ev(() => __la.go()); await until('film', 20000); console.log('film at', Date.now() - t0, 'ms'); await page.waitForTimeout(1200); await shot('4-film');
+  await ev(() => __la.go()); await until('spin', 60000); await page.waitForTimeout(1800); await shot('5-spin');
+  await ev(() => __la.go()); await until('end', 30000); await page.waitForTimeout(400); await shot('6-scene');
+  console.log('end:', await ev(() => ({ state: __cb.state(), log: __la.state().log, launching: document.body.classList.contains('launching'), hud: getComputedStyle(document.getElementById('hud')).visibility, vf: document.getElementById('viewfinder').classList.contains('on'), pose: __cb.pose(), spawn: (window.SPLAT_SCENES||[])[0].spawn })));
   // second time: the short version
   await ev(() => { __qu.closeAll(); __la.start(); }); await until('dark', 5000); const t1 = Date.now(); await until('end', 30000); console.log('short version took', Date.now() - t1, 'ms');
 } catch (e) { fail = e.message; }

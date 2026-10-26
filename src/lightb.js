@@ -276,8 +276,10 @@
     var aim=new THREE.Mesh(new THREE.SphereGeometry(0.035,16,12), new THREE.MeshBasicMaterial({color:0xe3ad57})); aim.name="aim"; g.add(aim);
     var ring=new THREE.Mesh(new THREE.RingGeometry(0.5,0.54,48), new THREE.MeshBasicMaterial({color:0xe3ad57, side:THREE.DoubleSide, transparent:true, opacity:0.9})); ring.rotation.x=-Math.PI/2; ring.name="ring"; g.add(ring);
     var beamG=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(0,0,1)]); var beam=new THREE.Line(beamG, new THREE.LineDashedMaterial({color:0xe3ad57, dashSize:0.06, gapSize:0.05, transparent:true, opacity:0.7})); beam.name="beam"; g.add(beam);
+    [aim,ring,beam].concat(P.basic?[P.head.children[0]]:[]).forEach(function(o){ o.userData.own=true; }); P.emit.concat(P.surf).forEach(function(m){ m.userData.own=true; });
     g.userData.P=P; g.userData.L=L; g.traverse(function(o){ o.userData.L=L; o.renderOrder=5; }); return g; }
-  function rbDropStand(L){ if(L.stand){ scene.remove(L.stand); L.stand=null; } }   /* geometry is shared with the kit: never dispose it */
+  function rbDropStand(L){ if(!L.stand) return; scene.remove(L.stand);   /* kit geometry is shared between stands: only dispose what this stand made for itself */
+    L.stand.traverse(function(o){ if(o.userData.own){ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); } else if(o.material&&o.material.userData&&o.material.userData.own) o.material.dispose(); }); L.stand=null; }
   var RLB_SURFC={white:0xf0ede6, silver:0xc9ccd2, gold:0xd8ae5c};
   function rbStands(){ if(typeof scene==="undefined"||!scene) return; rbKit(); var S=RL.S, show=RLB.open&&!viewfinderOn;
     RL.lights.forEach(function(L,i){ if(L.stand&&L.stand.userData.fx!==L.fx+"|"+(RLB_KIT?1:0)){ rbDropStand(L); }

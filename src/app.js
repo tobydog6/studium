@@ -567,7 +567,7 @@
       var DT=keepCol&&CH.spec&&CH.spec.detail;
       if(DT){ viewer.cut=DT.cut; mesh.worldModifier=dtCutModifier(DT.cut); mesh.updateGenerator();
         assetBytes(DT.data).then(function(b2){ if(DT.ext!=="stm") return b2; return new Response(new Blob([b2]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer().then(function(raw){ return stmUnpack(raw,"full"); }); }).then(function(b2){ if(!viewer||viewer.mesh!==mesh) return; var dm=new SPARK.SplatMesh({fileBytes:new Uint8Array(b2), fileType:DT.ext==="stm"?FMT.splat:FMT[DT.ext||"sog"], lod:false});   /* stm pieces: every splat, never thinned by the detail setting */
-          dm.quaternion.copy(q); dm.scale.setScalar(SC); scene.add(dm); viewer.detail=dm; if(typeof RL!=="undefined"&&RL.gpu&&RL.gpu.U.on.value>0&&typeof rlDetail==="function") rlDetail(); }).catch(function(e){ console.warn("detail piece", e); }); }
+          dm.quaternion.copy(q); dm.scale.setScalar(SC); scene.add(dm); viewer.detail=dm; if(typeof RL!=="undefined"&&RL.gpu&&RL.gpu.U.on.value>0&&typeof rlDetail==="function") rlDetail(); }).catch(function(e){ console.warn("detail piece", e); if(viewer&&viewer.mesh===mesh){ viewer.cut=null; if(typeof RL!=="undefined"&&RL.gpu&&RL.gpu.U.dcut){ RL.gpu.U.dcut.value.set(0,0,-1,0); mesh.updateVersion(); } else { mesh.worldModifier=null; mesh.updateGenerator(); } } }); }   /* no piece: show the subject from the main scan */
       // Spark says "initialized" before its level-of-detail build has the splats ready: wait for them. Then, because
       // the LoD splats live in a streaming pager that can't be read back, parse the same bytes once more without LoD to
       // get every splat's centre (world space) and opacity: framing, autofocus and lighting read those.

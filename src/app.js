@@ -400,7 +400,7 @@
   function updateCamera(dt){
     basis();
     if(dt>0){
-      var moving=(looking && !menuOpen() && !chHold());
+      var moving=((looking||(typeof rlbWalk==="function"&&rlbWalk())) && !menuOpen() && !chHold());
       var maxV=sceneMaxDim*(0.02+moveScale*1.0); if(moving && (keys["ShiftLeft"]||keys["ShiftRight"])) maxV*=3.0;
       _mv.set(0,0,0);
       if(moving){
@@ -466,7 +466,7 @@
   function renderBackdrop(rt){ fsTarget=rt; try{ renderFrame(0); }finally{ fsTarget=null; } }
   function renderFrame(dt){
     if(typeof CU!=="undefined"&&CU.open&&viewer&&loaded){ try{ if(cuRender()) return; }catch(e){ console.warn("cube",e); cuReset(); } }   // the cube of places takes the whole screen
-    var tgtE=viewfinderOn?(curBody().optical?1:expMult):1, tgtF=viewfinderOn?1:0, tgtV=viewfinderOn?apVig:0.1, tgtG=viewfinderOn?isoGrain:0, tgtD=0;
+    var tgtE=viewfinderOn?(curBody().optical?1:expMult):(typeof rlbEye==="function"?rlbEye():1), tgtF=viewfinderOn?1:0, tgtV=viewfinderOn?apVig:0.1, tgtG=viewfinderOn?isoGrain:0, tgtD=0;
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
     renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
@@ -1047,6 +1047,7 @@
 @@include walk.js@@
 @@include sky.js@@
 @@include relight.js@@
+@@include lightb.js@@
 @@include challenge.js@@
 @@include guardian.js@@
 @@include portal.js@@

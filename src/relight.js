@@ -206,7 +206,7 @@
   function rlDrop(L){ if(L.mk){ scene.remove(L.mk); L.mk.traverse(function(o){ if(o.material) o.material.dispose(); }); L.mk=null; } }
   var rlLastT=0;
   (function rlWatch(t){ requestAnimationFrame(rlWatch); var dt=Math.min(0.05,((t||0)-rlLastT)/1000); rlLastT=t||0;
-    if(RL.ui&&viewfinderOn) rlClose();   // raising the camera puts the lighting away
+    if(RL.ui&&viewfinderOn&&typeof RLB==="undefined") rlClose();   // raising the camera puts the lighting away
     rlVis(); if(!RL.ui||RL.view!=="plan") return;
     var k=typeof keys!=="undefined"?keys:{}, vx=(k.KeyD||k.ArrowRight?1:0)-(k.KeyA||k.ArrowLeft?1:0), vz=(k.KeyS||k.ArrowDown?1:0)-(k.KeyW||k.ArrowUp?1:0);
     if((vx||vz)&&dt>0){ var sp=RL.planExt*RL.planH*0.6*dt; RL.planC.x+=vx*sp; RL.planC.z+=vz*sp; }

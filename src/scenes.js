@@ -1,6 +1,6 @@
 var SPLAT_SCENES=[{id:"stump",name:"The Stump",desc:"An old stump gone to ivy, in a park clearing. Outdoor, overcast, full-detail scan.",up:"ydown",ext:"stm",ground:0.03,spawn:[-1.58,0.88,5.236,-0.15,0.8],   /* start low, in front of the stump, the fence either side and the dead tree behind (x, z, yaw, pitch, eye height) */
  thumb:"asset:assets/scenes/stump-card.webp",data:"asset-b64:assets/scenes/stump-hd.stm",collide:"asset-b64:assets/scenes/stump-collide.bin",sky:"asset:assets/scenes/stump-sky.webp",
- detail:{data:"asset-b64:assets/scenes/stump-subject.stm", ext:"stm", cut:[0.15,-0.12,0.8,-0.3,1.9]},   /* the stump and its ivy, always at full detail (cut with tools/cut_subject.py) */
+ detail:{data:"asset-b64:assets/scenes/stump-subject.stm", ext:"stm", cut:[0.15,-0.12,0.8,0.09,1.9]},   /* the stump and its ivy, always at full detail; starts just above the ground so no disc of sharper ground shows (cut with tools/cut_subject.py) */
 subject:[0.15,-0.12],
 challenges:[
   {id:"stump-fgbg",title:"Foreground and background",brief:"Get low and close so the stump fills the left of the frame and the dead tree stands behind it on the right. A wide lens at f/11 keeps both sharp.",az:-40,dist:0.7,h:0.45,look:[1.81,0.71,-1.43],mm:24,

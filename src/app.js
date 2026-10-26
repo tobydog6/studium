@@ -423,7 +423,7 @@
           if((bx!==camPos.x||bz!==camPos.z)&&Date.now()-_edgeT>1500){ _edgeT=Date.now(); if(typeof achEvent==="function") achEvent("bounds"); } }
       }
     }
-    if(dt>0) wkSettle(dt);
+    if(dt>0&&!(typeof rlbFly==='function'&&rlbFly())) wkSettle(dt);   /* orbiting in Lighting lifts you off your feet until you walk */
     if(dt>0){ ptCross(); wxTick(); }
     camera.up.set(0,1,0); camera.position.copy(camPos);
     camera.lookAt(camPos.x+_fwd.x, camPos.y+_fwd.y, camPos.z+_fwd.z);

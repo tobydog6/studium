@@ -5,6 +5,7 @@
 # shines toward -Y (three's lookAt points +Z at the target). Each fixture is "fx_<id>" with children "<id>_head" (tilts
 # and turns) and, if it has one, "<id>_yoke" (turns only). Both pivot on the origin, which sits on top of the stand.
 # Materials named "Emit" glow in the light's colour at runtime; "Surf" is the reflector's face (white, silver, gold).
+# Modelled after real kit: a Manfrotto-style air-cushioned light stand, a Bowens-mount monolight, a 650 W Fresnel.
 import bpy, bmesh, sys, math
 from mathutils import Vector, Matrix
 
@@ -13,19 +14,26 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 SC = bpy.context.scene
 TAU = math.tau
 
-def mat(name, col, metal=0.0, rough=0.5, emit=False):
+def mat(name, col, metal=0.0, rough=0.5, emit=False, sheen=0.0, coat=0.0):
     m = bpy.data.materials.get(name) or bpy.data.materials.new(name); m.use_nodes = True
     b = m.node_tree.nodes.get('Principled BSDF')
     b.inputs['Base Color'].default_value = (*col, 1); b.inputs['Metallic'].default_value = metal; b.inputs['Roughness'].default_value = rough
     if emit: b.inputs['Emission Color'].default_value = (*col, 1); b.inputs['Emission Strength'].default_value = 1.0
+    if sheen: b.inputs['Sheen Weight'].default_value = sheen; b.inputs['Sheen Roughness'].default_value = 0.5
+    if coat: b.inputs['Coat Weight'].default_value = coat; b.inputs['Coat Roughness'].default_value = 0.15
     return m
 
-M = {'black': mat('Black', (0.018, 0.018, 0.02), 0.5, 0.42), 'alu': mat('Alu', (0.62, 0.62, 0.64), 1.0, 0.32),
-     'fabric': mat('Fabric', (0.012, 0.012, 0.013), 0.0, 0.92), 'rubber': mat('Rubber', (0.01, 0.01, 0.01), 0.0, 0.8),
+M = {'black': mat('Black', (0.022, 0.022, 0.024), 0.0, 0.38, coat=0.35),            # powder-coated steel and plastics
+     'satin': mat('Satin', (0.03, 0.03, 0.032), 0.6, 0.45),                          # anodised black aluminium
+     'alu': mat('Alu', (0.66, 0.66, 0.68), 1.0, 0.28),                                # bare aluminium tube
+     'chrome': mat('Chrome', (0.82, 0.82, 0.84), 1.0, 0.08),
+     'fabric': mat('Fabric', (0.014, 0.014, 0.015), 0.0, 0.95, sheen=0.6),             # softbox nylon
+     'rubber': mat('Rubber', (0.012, 0.012, 0.012), 0.0, 0.85),
      'emit': mat('Emit', (0.95, 0.94, 0.9), 0.0, 0.6, True), 'surf': mat('Surf', (0.8, 0.82, 0.85), 1.0, 0.25),
-     'silver': mat('Silver', (0.8, 0.8, 0.82), 1.0, 0.2), 'white': mat('WhiteIn', (0.9, 0.9, 0.88), 0.0, 0.7),
-     'wax': mat('Wax', (0.86, 0.8, 0.66), 0.0, 0.55), 'brass': mat('Brass', (0.7, 0.55, 0.3), 1.0, 0.35),
-     'green': mat('PostGreen', (0.03, 0.06, 0.05), 0.6, 0.45), 'knob': mat('Knob', (0.05, 0.05, 0.055), 0.2, 0.5)}
+     'silver': mat('Silver', (0.8, 0.8, 0.82), 1.0, 0.2), 'white': mat('WhiteIn', (0.9, 0.9, 0.88), 0.0, 0.7, sheen=0.3),
+     'screen': mat('Screen', (0.02, 0.05, 0.07), 0.0, 0.1, coat=1.0), 'glass': mat('Glass', (0.6, 0.62, 0.6), 0.0, 0.05),
+     'green': mat('PostGreen', (0.03, 0.06, 0.05), 0.6, 0.45), 'knob': mat('Knob', (0.04, 0.04, 0.045), 0.0, 0.55),
+     'red': mat('Accent', (0.5, 0.05, 0.03), 0.0, 0.4, coat=0.5), 'brass': mat('Brass', (0.7, 0.55, 0.3), 1.0, 0.35)}
 
 def link(ob, parent=None):
     SC.collection.objects.link(ob)
@@ -35,18 +43,20 @@ def link(ob, parent=None):
 def empty(name, parent=None, loc=(0, 0, 0)):
     e = bpy.data.objects.new(name, None); e.location = loc; return link(e, parent)
 
-def mesh_ob(name, bm, m, parent=None, smooth=True, bevel=0.0, segs=2):
-    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
-    if smooth:
-        for p in me.polygons: p.use_smooth = True
-    ob = bpy.data.objects.new(name, me); me.materials.append(M[m] if isinstance(m, str) else m); link(ob, parent)
+def finish(ob, smooth=True, bevel=0.0, segs=3):
     if bevel > 0:
-        md = ob.modifiers.new('bev', 'BEVEL'); md.width = bevel; md.segments = segs; md.limit_method = 'ANGLE'
+        md = ob.modifiers.new('bev', 'BEVEL'); md.width = bevel; md.segments = segs; md.limit_method = 'ANGLE'; md.harden_normals = True
     if smooth:
+        for p in ob.data.polygons: p.use_smooth = True
         md = ob.modifiers.new('ws', 'WEIGHTED_NORMAL'); md.keep_sharp = True
     return ob
 
-def cyl(name, r, a, b, m, parent=None, segs=32, r2=None, cap=True, bevel=0.0):
+def mesh_ob(name, bm, m, parent=None, smooth=True, bevel=0.0, segs=3):
+    me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
+    ob = bpy.data.objects.new(name, me); me.materials.append(M[m] if isinstance(m, str) else m); link(ob, parent)
+    return finish(ob, smooth, bevel, segs)
+
+def cyl(name, r, a, b, m, parent=None, segs=40, r2=None, cap=True, bevel=0.0):
     """a cylinder (or cone, with r2) from point a to point b"""
     a, b = Vector(a), Vector(b); d = b - a; L = d.length
     bm = bmesh.new(); bmesh.ops.create_cone(bm, cap_ends=cap, segments=segs, radius1=r, radius2=r if r2 is None else r2, depth=L)
@@ -54,14 +64,27 @@ def cyl(name, r, a, b, m, parent=None, segs=32, r2=None, cap=True, bevel=0.0):
     bmesh.ops.transform(bm, matrix=Matrix.Translation((a + b) / 2) @ q.to_matrix().to_4x4(), verts=bm.verts)
     return mesh_ob(name, bm, m, parent, True, bevel)
 
-def box(name, size, loc, m, parent=None, rot=None, bevel=0.004):
+def knurl(name, r, a, b, m, parent=None, ridges=24):
+    """a knurled knob: alternating radius round the rim"""
+    a, b = Vector(a), Vector(b); d = b - a; L = d.length; n = ridges * 2
+    bm = bmesh.new(); bot = []; top = []
+    for i in range(n):
+        u = i / n * TAU; rr = r * (1.0 if i % 2 == 0 else 0.9)
+        bot.append(bm.verts.new((rr * math.cos(u), rr * math.sin(u), -L / 2))); top.append(bm.verts.new((rr * math.cos(u), rr * math.sin(u), L / 2)))
+    for i in range(n): bm.faces.new((bot[i], bot[(i + 1) % n], top[(i + 1) % n], top[i]))
+    bm.faces.new(top); bm.faces.new(bot[::-1])
+    q = Vector((0, 0, 1)).rotation_difference(d.normalized())
+    bmesh.ops.transform(bm, matrix=Matrix.Translation((a + b) / 2) @ q.to_matrix().to_4x4(), verts=bm.verts)
+    return mesh_ob(name, bm, m, parent, False, 0.002, 2)
+
+def box(name, size, loc, m, parent=None, rot=None, bevel=0.004, segs=3):
     bm = bmesh.new(); bmesh.ops.create_cube(bm, size=1.0)
     bmesh.ops.scale(bm, vec=Vector(size), verts=bm.verts)
     mtx = Matrix.Translation(loc) @ (rot.to_4x4() if rot else Matrix.Identity(4))
     bmesh.ops.transform(bm, matrix=mtx, verts=bm.verts)
-    return mesh_ob(name, bm, m, parent, False, bevel)
+    return mesh_ob(name, bm, m, parent, False, bevel, segs)
 
-def torus(name, R, r, loc, axis, m, parent=None, segs=48, rsegs=10):
+def torus(name, R, r, loc, axis, m, parent=None, segs=56, rsegs=12):
     bm = bmesh.new(); vs = []
     for i in range(segs):
         u = i / segs * TAU
@@ -76,212 +99,244 @@ def torus(name, R, r, loc, axis, m, parent=None, segs=48, rsegs=10):
     bmesh.ops.transform(bm, matrix=Matrix.Translation(loc) @ q.to_matrix().to_4x4(), verts=bm.verts)
     return mesh_ob(name, bm, m, parent)
 
-def lathe(name, prof, m, parent=None, segs=48, axis=(0, -1, 0), loc=(0, 0, 0), close=False):
+def lathe(name, prof, m, parent=None, segs=56, axis=(0, -1, 0), loc=(0, 0, 0), thick=0.003):
     """spin a (radius, along) profile round an axis"""
     bm = bmesh.new(); rings = []
     for i in range(segs):
-        u = i / segs * TAU; ring = []
-        for (r, h) in prof: ring.append(bm.verts.new((r * math.cos(u), r * math.sin(u), h)))
-        rings.append(ring)
+        u = i / segs * TAU; rings.append([bm.verts.new((r * math.cos(u), r * math.sin(u), h)) for (r, h) in prof])
     n = len(prof)
     for i in range(segs):
         A, B = rings[i], rings[(i + 1) % segs]
         for j in range(n - 1): bm.faces.new((A[j], B[j], B[j + 1], A[j + 1]))
-    if close:
-        c = bm.verts.new((0, 0, prof[-1][1])); [bm.faces.new((rings[i][-1], rings[(i + 1) % segs][-1], c)) for i in range(segs)]
     q = Vector((0, 0, 1)).rotation_difference(Vector(axis).normalized())
     bmesh.ops.transform(bm, matrix=Matrix.Translation(loc) @ q.to_matrix().to_4x4(), verts=bm.verts)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     ob = mesh_ob(name, bm, m, parent)
-    md = ob.modifiers.new('solid', 'SOLIDIFY'); md.thickness = 0.003
+    if thick: md = ob.modifiers.new('solid', 'SOLIDIFY'); md.thickness = thick
     return ob
 
-def frustum(name, front, back, y0, y1, m, parent=None, r=0.02):
-    """a softbox shell: rectangle `back` (w, h) at y0 opening to rectangle `front` at y1, no ends"""
-    bm = bmesh.new()
-    def rect(w, h, y):
-        return [bm.verts.new((sx * w / 2, y, sz * h / 2)) for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-    B, F = rect(*back, y0), rect(*front, y1)
-    for i in range(4): bm.faces.new((B[i], B[(i + 1) % 4], F[(i + 1) % 4], F[i]))
+def grid_surface(name, fn, nu, nv, m, parent=None, thick=0.0, closed_u=False):
+    """a surface from fn(u, v) -> Vector, u and v in 0..1"""
+    bm = bmesh.new(); uu = nu if closed_u else nu + 1
+    V = [[bm.verts.new(fn(i / nu, j / nv)) for j in range(nv + 1)] for i in range(uu)]
+    for i in range(nu):
+        i2 = (i + 1) % uu if closed_u else i + 1
+        for j in range(nv): bm.faces.new((V[i][j], V[i2][j], V[i2][j + 1], V[i][j + 1]))
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    ob = mesh_ob(name, bm, m, parent, False)
-    md = ob.modifiers.new('solid', 'SOLIDIFY'); md.thickness = 0.006
-    md = ob.modifiers.new('bev', 'BEVEL'); md.width = r; md.segments = 4; md.limit_method = 'ANGLE'
+    ob = mesh_ob(name, bm, m, parent)
+    if thick: md = ob.modifiers.new('solid', 'SOLIDIFY'); md.thickness = thick
     return ob
 
-def plane(name, w, h, y, m, parent=None):
-    bm = bmesh.new(); vs = [bm.verts.new((sx * w / 2, y, sz * h / 2)) for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-    bm.faces.new(vs[::-1]); return mesh_ob(name, bm, m, parent, False)
+def plane(name, w, h, y, m, parent=None, nx=1, nz=1, bow=0.0):
+    """a w x h panel facing -Y at depth y, optionally bowed toward -Y in the middle (stretched fabric)"""
+    return grid_surface(name, lambda u, v: Vector(((u - 0.5) * w, y - bow * math.sin(math.pi * u) * math.sin(math.pi * v), (v - 0.5) * h)), nx, nz, m, parent)
 
-def disc(name, r, y, m, parent=None, segs=48):
+def disc(name, r, y, m, parent=None, segs=64):
     bm = bmesh.new(); vs = [bm.verts.new((r * math.cos(i / segs * TAU), y, r * math.sin(i / segs * TAU))) for i in range(segs)]
     bm.faces.new(vs); return mesh_ob(name, bm, m, parent, False)
 
-def strobe(p, y0=0.0):
-    """a monolight body behind a modifier: the head of most of the kit"""
-    cyl('strobe', 0.062, (0, y0 + 0.03, 0), (0, y0 + 0.24, 0), 'black', p, bevel=0.006)
-    cyl('strobe_cap', 0.055, (0, y0 + 0.24, 0), (0, y0 + 0.262, 0), 'knob', p, bevel=0.004)
-    torus('strobe_ring', 0.064, 0.006, (0, y0 + 0.035, 0), (0, 1, 0), 'alu', p)
-    box('strobe_handle', (0.014, 0.12, 0.012), (0, y0 + 0.15, 0.078), 'knob', p)
-    for x in (-0.012, 0.012): cyl('strobe_hpost', 0.005, (x, y0 + 0.1, 0.062), (x, y0 + 0.1, 0.078), 'knob', p, segs=10)
+def tknob(name, at, axis, parent):
+    """a T-handle locking knob, the kind on every light stand collar"""
+    at, ax = Vector(at), Vector(axis).normalized()
+    cyl(name + '_stem', 0.005, at, at + ax * 0.03, 'chrome', parent, segs=16)
+    side = ax.cross(Vector((0, 0, 1))); side = side.normalized() if side.length > 1e-4 else Vector((1, 0, 0))
+    c = at + ax * 0.034; box(name + '_bar', (0.012, 0.012, 0.012), c, 'knob', parent, bevel=0.004)
+    cyl(name + '_wing', 0.007, c - side * 0.022, c + side * 0.022, 'knob', parent, segs=16, bevel=0.003)
 
-def bracket(p, drop=0.12):
-    """umbrella bracket: turns with the light, sits on the stand's spigot"""
-    box('bracket', (0.05, 0.07, 0.03), (0, 0.06, -0.075), 'black', p)
-    cyl('bracket_sock', 0.017, (0, 0.06, -0.09), (0, 0.06, -drop - 0.02), 'black', p, segs=20, bevel=0.003)
-    cyl('bracket_knob', 0.012, (0.025, 0.06, -0.1), (0.055, 0.06, -0.1), 'knob', p, segs=16, bevel=0.003)
-    cyl('bracket_tilt', 0.014, (-0.04, 0.06, -0.06), (0.04, 0.06, -0.06), 'alu', p, segs=20)
-
-# ---------------- the stand ----------------
+# ---------------- the stand: air-cushioned, three sections ----------------
 st = empty('stand')
 base = empty('stand_base', st)
-cyl('collar', 0.028, (0, 0, 0.5), (0, 0, 0.6), 'black', base, bevel=0.004)
-cyl('lower_tube', 0.017, (0, 0, 0.2), (0, 0, 0.66), 'black', base)
-cyl('lower_cap', 0.022, (0, 0, 0.64), (0, 0, 0.68), 'black', base, bevel=0.003)
-cyl('lock_knob', 0.011, (0.02, 0, 0.66), (0.055, 0, 0.66), 'knob', base, segs=16, bevel=0.003)
-cyl('brace_hub', 0.024, (0, 0, 0.28), (0, 0, 0.33), 'black', base, bevel=0.003)
+cyl('lower_tube', 0.0175, (0, 0, 0.16), (0, 0, 0.7), 'satin', base, segs=32)
+cyl('base_cap', 0.019, (0, 0, 0.145), (0, 0, 0.165), 'black', base, segs=32, bevel=0.003)
+cyl('leg_collar', 0.027, (0, 0, 0.5), (0, 0, 0.6), 'black', base, segs=40, bevel=0.005)
+tknob('leg_lock', (0, 0.026, 0.55), (0, 1, 0), base)
+cyl('brace_hub', 0.024, (0, 0, 0.26), (0, 0, 0.31), 'black', base, segs=40, bevel=0.004)
+tknob('hub_lock', (0, 0.024, 0.285), (0, 1, 0), base)
+cyl('top_collar', 0.022, (0, 0, 0.68), (0, 0, 0.73), 'black', base, segs=40, bevel=0.004)
+tknob('sect_lock', (0.021, 0, 0.705), (1, 0, 0), base)
 for i in range(3):
-    a = i * TAU / 3; c, s = math.cos(a), math.sin(a)
-    foot = Vector((c * 0.46, s * 0.46, 0.015)); top = Vector((c * 0.03, s * 0.03, 0.55))
-    cyl('leg', 0.011, top, foot, 'black', base, segs=14)
-    mid = top.lerp(foot, 0.55); cyl('brace', 0.007, (c * 0.026, s * 0.026, 0.305), mid, 'alu', base, segs=10)
-    cyl('foot', 0.016, foot + Vector((0, 0, -0.012)), foot + Vector((0, 0, 0.012)), 'rubber', base, segs=14, bevel=0.004)
+    a = i * TAU / 3 + math.pi / 2; c, s = math.cos(a), math.sin(a); R = Vector((c, s, 0))
+    hinge = R * 0.03 + Vector((0, 0, 0.56)); foot = R * 0.47 + Vector((0, 0, 0.02))
+    box('leg_hinge', (0.022, 0.03, 0.04), hinge + R * 0.01, 'black', base, rot=Matrix.Rotation(a, 3, 'Z'), bevel=0.003)
+    cyl('leg', 0.0105, hinge, foot, 'satin', base, segs=20)
+    mid = hinge.lerp(foot, 0.52); hub = R * 0.026 + Vector((0, 0, 0.285))
+    d = mid - hub; box('brace', (d.length, 0.012, 0.004), (hub + mid) / 2, 'black', base, rot=Vector((1, 0, 0)).rotation_difference(d.normalized()).to_matrix(), bevel=0.0015)
+    for p in (hub + d * 0.04, mid - d * 0.04): cyl('rivet', 0.0035, p + Vector((0, 0, -0.004)), p + Vector((0, 0, 0.004)), 'chrome', base, segs=12)
+    lathe('foot', [(0.0, 0.0), (0.017, 0.0), (0.019, 0.006), (0.016, 0.022), (0.011, 0.03)], 'rubber', base, segs=24, axis=(0, 0, 1), loc=tuple(foot - Vector((0, 0, 0.02))), thick=0)
 pole = empty('stand_pole', st)
-cyl('pole_tube', 0.012, (0, 0, 0), (0, 0, 1), 'alu', pole, segs=20, cap=True)
+cyl('pole_tube', 0.0135, (0, 0, 0), (0, 0, 1), 'alu', pole, segs=32, cap=True)
 top = empty('stand_top', st)
-cyl('top_collar', 0.016, (0, 0, -0.06), (0, 0, -0.02), 'black', top, bevel=0.003)
-cyl('spigot', 0.008, (0, 0, -0.02), (0, 0, 0.03), 'alu', top, segs=16)
-cyl('top_knob', 0.009, (0.015, 0, -0.04), (0.045, 0, -0.04), 'knob', top, segs=14, bevel=0.002)
+cyl('top2_collar', 0.018, (0, 0, -0.1), (0, 0, -0.06), 'black', top, segs=36, bevel=0.003)
+tknob('top_lock', (0.017, 0, -0.08), (1, 0, 0), top)
+cyl('top3_tube', 0.0105, (0, 0, -0.06), (0, 0, -0.012), 'alu', top, segs=28)
+cyl('spigot_base', 0.012, (0, 0, -0.016), (0, 0, -0.004), 'chrome', top, segs=28, bevel=0.002)
+cyl('spigot', 0.008, (0, 0, -0.004), (0, 0, 0.03), 'chrome', top, segs=24)   # 5/8" stud
 post = empty('street_post', st)
-cyl('post', 0.055, (0, 0, 0), (0, 0, 1), 'green', post, segs=24, r2=0.04)
-cyl('post_flange', 0.12, (0, 0, 0), (0, 0, 0.05), 'green', post, segs=24, r2=0.08, bevel=0.01)
+cyl('post', 0.055, (0, 0, 0), (0, 0, 1), 'green', post, segs=32, r2=0.04)
+lathe('post_base', [(0.13, 0.0), (0.13, 0.03), (0.1, 0.06), (0.075, 0.12), (0.06, 0.2)], 'green', post, segs=40, axis=(0, 0, 1), thick=0)
+
+# ---------------- shared pieces ----------------
+def monolight(p, y0=0.02, front_emit=False):
+    """a Bowens-mount studio flash: body, mount ring, flash tube, modelling lamp, vents, rear screen and dial"""
+    lathe('mono_body', [(0.058, y0 + 0.02), (0.066, y0 + 0.035), (0.068, y0 + 0.12), (0.066, y0 + 0.2), (0.058, y0 + 0.235), (0.0, y0 + 0.24)], 'black', p, segs=56, axis=(0, 1, 0), thick=0)
+    cyl('mount_ring', 0.07, (0, y0 + 0.006, 0), (0, y0 + 0.026, 0), 'satin', p, segs=56, bevel=0.003)
+    for k in range(3):
+        a = k / 3 * TAU + 0.4; box('bowens_lug', (0.02, 0.01, 0.008), (0.071 * math.cos(a), y0 + 0.012, 0.071 * math.sin(a)), 'satin', p, rot=Matrix.Rotation(-a, 3, 'Y'), bevel=0.002)
+    torus('flash_tube', 0.032, 0.0045, (0, y0 + 0.0, 0), (0, 1, 0), 'emit', p, segs=40, rsegs=8)
+    lathe('model_lamp', [(0.0, y0 - 0.035), (0.016, y0 - 0.03), (0.02, y0 - 0.015), (0.014, y0 + 0.005)], 'emit', p, segs=28, axis=(0, 1, 0), thick=0)
+    for k in range(10):
+        a = (k / 10) * math.pi + math.pi * 0.05
+        box('vent', (0.004, 0.06, 0.012), (0.0675 * math.cos(a), y0 + 0.15, 0.0675 * math.sin(a)), 'knob', p, rot=Matrix.Rotation(-a + math.pi / 2, 3, 'Y'), bevel=0.0015, segs=2)
+    box('rear_panel', (0.09, 0.006, 0.07), (0, y0 + 0.243, 0.005), 'satin', p, bevel=0.003)
+    box('screen', (0.05, 0.002, 0.026), (0, y0 + 0.2465, 0.016), 'screen', p, bevel=0.001, segs=1)
+    knurl('dial', 0.011, (0.028, y0 + 0.246, -0.018), (0.028, y0 + 0.256, -0.018), 'knob', p)
+    for x in (-0.018, -0.004, 0.01): cyl('button', 0.004, (x, y0 + 0.246, -0.018), (x, y0 + 0.25, -0.018), 'knob', p, segs=14)
+    cyl('ready_led', 0.0025, (-0.03, y0 + 0.246, 0.016), (-0.03, y0 + 0.248, 0.016), 'red', p, segs=10)
+    box('handle', (0.014, 0.13, 0.012), (0, y0 + 0.14, 0.088), 'knob', p, bevel=0.005)
+    for yy in (0.085, 0.195): cyl('handle_post', 0.005, (0, y0 + yy, 0.066), (0, y0 + yy, 0.084), 'knob', p, segs=12)
+
+def bracket(p, drop=0.12):
+    """the umbrella bracket under a monolight: turns with the light, sits on the stand's spigot"""
+    box('bracket_block', (0.05, 0.07, 0.034), (0, 0.07, -0.08), 'black', p, bevel=0.005)
+    cyl('bracket_sock', 0.017, (0, 0.07, -0.097), (0, 0.07, -drop - 0.02), 'black', p, segs=28, bevel=0.003)
+    knurl('bracket_knob', 0.013, (0.025, 0.07, -0.11), (0.042, 0.07, -0.11), 'knob', p)
+    cyl('tilt_axle', 0.015, (-0.036, 0.07, -0.065), (0.036, 0.07, -0.065), 'satin', p, segs=28, bevel=0.002)
+    cyl('tilt_lever', 0.006, (-0.036, 0.07, -0.065), (-0.07, 0.11, -0.03), 'knob', p, segs=12)
+    cyl('brolly_hole', 0.005, (0, 0.04, -0.065), (0, 0.1, -0.065), 'chrome', p, segs=12)
+
+def speedring(p, w):
+    cyl('speedring', 0.1, (0, -0.002, 0), (0, 0.018, 0), 'satin', p, segs=8, bevel=0.004)
+    for k in range(4):
+        a = k / 4 * TAU + math.pi / 4; cyl('rod_sock', 0.007, (0.085 * math.cos(a), -0.004, 0.085 * math.sin(a)), (0.1 * math.cos(a), -0.012, 0.1 * math.sin(a)), 'chrome', p, segs=10)
+
+def softbox_shell(p, name, w, h, depth, ring=0.17):
+    """fabric pulled over four rods: corners are the rods, the faces between them sag in a little"""
+    yb, yf = -0.01, -depth
+    corners_b = [Vector((sx * ring / 2, yb, sz * ring / 2)) for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    corners_f = [Vector((sx * w / 2, yf, sz * h / 2)) for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+    for i in range(4):
+        b0, b1, f0, f1 = corners_b[i], corners_b[(i + 1) % 4], corners_f[i], corners_f[(i + 1) % 4]
+        def fn(u, v, b0=b0, b1=b1, f0=f0, f1=f1):
+            q = b0.lerp(b1, u).lerp(f0.lerp(f1, u), v)
+            inward = -Vector((q.x, 0, q.z)).normalized() if (q.x or q.z) else Vector()
+            return q + inward * 0.018 * math.sin(math.pi * u) * math.sin(math.pi * v)
+        grid_surface(name + '_side', fn, 12, 10, 'fabric', p, thick=0.004)
+        cyl(name + '_rod', 0.005, b0.lerp(f0, 0.03) * 1.0, f0 * 0.995 + Vector((0, 0.01, 0)), 'fabric', p, segs=10)   # the rod showing through the fabric
+    # the front: a black lip, then the diffuser set back behind it
+    lip = 0.022
+    for (sx, sz, bw, bh) in ((0, 1, w, lip), (0, -1, w, lip), (1, 0, lip, h), (-1, 0, lip, h)):
+        box(name + '_lip', (bw, 0.012, bh), (sx * (w - lip) / 2, yf - 0.002, sz * (h - lip) / 2), 'fabric', p, bevel=0.004)
+    plane(name + '_face', w - lip * 2, h - lip * 2, yf + 0.03, 'emit', p, nx=10, nz=10, bow=-0.008)
 
 # ---------------- the fixtures ----------------
 def fixture(fid):
     f = empty('fx_' + fid); return f, empty(fid + '_head', f), empty(fid + '_yoke', f)
 
-# Fresnel: finned body, stepped lens, barn doors, a yoke round it
+# Fresnel: finned body, stepped lens, four-leaf barn doors on a rotating ring, a yoke round it
 f, h, y = fixture('fresnel')
-cyl('body', 0.1, (0, 0.11, 0), (0, -0.13, 0), 'black', h, segs=40, bevel=0.01)
-for k in range(6): torus('fin', 0.102, 0.006, (0, 0.09 - k * 0.022, 0), (0, 1, 0), 'black', h, rsegs=8)
-torus('bezel', 0.1, 0.014, (0, -0.135, 0), (0, 1, 0), 'black', h)
-disc('lens', 0.088, -0.138, 'emit', h)
-for rr in (0.03, 0.05, 0.07): torus('lens_step', rr, 0.0025, (0, -0.139, 0), (0, 1, 0), 'emit', h, segs=40, rsegs=6)
+lathe('fr_body', [(0.096, -0.12), (0.102, -0.11), (0.104, 0.06), (0.098, 0.1), (0.07, 0.125), (0.0, 0.13)], 'black', h, segs=64, axis=(0, 1, 0), thick=0)
+for k in range(7): torus('fin', 0.104, 0.0055, (0, 0.07 - k * 0.022, 0), (0, 1, 0), 'black', h, rsegs=10)
+for k in range(12):
+    a = k / 12 * math.pi; box('top_vent', (0.004, 0.08, 0.01), (0.09 * math.cos(a), 0.06, 0.09 * math.sin(a) + 0.0), 'knob', h, rot=Matrix.Rotation(-a + math.pi / 2, 3, 'Y'), bevel=0.0015, segs=2)
+torus('bezel', 0.1, 0.013, (0, -0.125, 0), (0, 1, 0), 'black', h)
+torus('door_ring', 0.108, 0.008, (0, -0.142, 0), (0, 1, 0), 'satin', h)
+disc('lens', 0.088, -0.131, 'emit', h)
+for rr in (0.022, 0.038, 0.052, 0.065, 0.077): torus('lens_step', rr, 0.002, (0, -0.132, 0), (0, 1, 0), 'emit', h, segs=48, rsegs=6)
 for side in ('t', 'b', 'l', 'r'):
-    w, ln = (0.2, 0.13) if side in 'tb' else (0.15, 0.11)
-    door = box('door_' + side, (w, ln, 0.003), (0, -ln / 2, 0), 'black', h, bevel=0.0015)
+    w, ln = (0.21, 0.135) if side in 'tb' else (0.15, 0.115)
+    door = box('door_' + side, (w, ln, 0.0025), (0, -ln / 2, 0), 'satin', h, bevel=0.001, segs=2)
+    cyl('hinge_' + side, 0.004, (-w / 2, 0, 0), (w / 2, 0, 0), 'satin', door, segs=12)
     sgn = 1 if side in 'tr' else -1
-    if side in 'tb': door.rotation_euler = (math.radians(-28 * sgn), 0, 0); door.location = (0, -0.15, 0.108 * sgn)
-    else:
-        door.rotation_euler = (0, math.radians(90), math.radians(28 * sgn)); door.location = (0.108 * sgn, -0.15, 0)
-cyl('rear', 0.08, (0, 0.11, 0), (0, 0.13, 0), 'black', h, bevel=0.005)
-for x in (-0.125, 0.125): box('yoke_arm', (0.012, 0.05, 0.19), (x, 0, -0.04), 'black', y); cyl('yoke_knob', 0.016, (x, 0, 0), (x * 1.12, 0, 0), 'knob', y, segs=18, bevel=0.003)
-box('yoke_bar', (0.262, 0.05, 0.014), (0, 0, -0.135), 'black', y)
-cyl('yoke_sock', 0.017, (0, 0, -0.14), (0, 0, -0.18), 'black', y, segs=20)
+    if side in 'tb': door.rotation_euler = (math.radians(-30 * sgn), 0, 0); door.location = (0, -0.147, 0.112 * sgn)
+    else: door.rotation_euler = (0, math.radians(90), math.radians(30 * sgn)); door.location = (0.112 * sgn, -0.147, 0)
+knurl('focus_knob', 0.016, (0, 0.13, -0.05), (0, 0.15, -0.05), 'knob', h)
+box('fr_handle', (0.016, 0.1, 0.014), (0, 0.02, 0.122), 'knob', h, bevel=0.006)
+for yy in (-0.02, 0.06): cyl('fr_hpost', 0.005, (0, yy, 0.104), (0, yy, 0.118), 'knob', h, segs=12)
+cyl('fr_cable', 0.006, (0.0, 0.13, -0.08), (0.0, 0.2, -0.25), 'rubber', h, segs=12)
+for x in (-0.124, 0.124):
+    box('yoke_arm', (0.012, 0.045, 0.2), (x, 0, -0.045), 'black', y, bevel=0.004)
+    knurl('yoke_knob', 0.019, (x, 0, 0), (x * 1.16, 0, 0), 'knob', y)
+box('yoke_bar', (0.26, 0.045, 0.014), (0, 0, -0.145), 'black', y, bevel=0.004)
+cyl('yoke_sock', 0.017, (0, 0, -0.15), (0, 0, -0.19), 'black', y, segs=28, bevel=0.003)
 
-# Speedlight on a cold-shoe bracket
+# Speedlight on a cold-shoe umbrella bracket
 f, h, y = fixture('speed')
-box('flash_body', (0.07, 0.042, 0.105), (0, 0.01, -0.04), 'black', h, bevel=0.006)
-box('flash_head', (0.08, 0.06, 0.046), (0, -0.01, 0.035), 'black', h, bevel=0.006)
-plane('flash_face', 0.066, 0.034, -0.0405, 'emit', h).location = (0, 0, 0.035)
-box('flash_screen', (0.05, 0.002, 0.04), (0, 0.032, -0.05), 'knob', h, bevel=0.001)
+box('flash_body', (0.072, 0.045, 0.1), (0, 0.012, -0.04), 'black', h, bevel=0.01)
+box('flash_neck', (0.05, 0.035, 0.02), (0, 0.008, 0.016), 'black', h, bevel=0.006)
+box('flash_head', (0.082, 0.062, 0.048), (0, -0.006, 0.048), 'black', h, bevel=0.009)
+plane('flash_face', 0.068, 0.034, -0.0375, 'emit', h).location = (0, 0, 0.048)
+box('af_panel', (0.04, 0.003, 0.018), (0, -0.0105, -0.02), 'red', h, bevel=0.002)
+box('flash_lcd', (0.05, 0.002, 0.03), (0, 0.035, -0.035), 'screen', h, bevel=0.001, segs=1)
+for x in (-0.02, 0.0, 0.02): cyl('fbutton', 0.004, (x, 0.035, -0.072), (x, 0.038, -0.072), 'knob', h, segs=12)
+box('shoe', (0.03, 0.02, 0.012), (0, 0.012, -0.095), 'satin', h, bevel=0.002)
 bracket(y, 0.1)
 
-# Softbox 90 x 65
+# Softbox 90 x 65 on a monolight
 f, h, y = fixture('softbox')
-strobe(h, 0.02)
-box('speedring', (0.2, 0.025, 0.2), (0, 0.0, 0), 'black', h, bevel=0.006)
-frustum('softbox_shell', (0.9, 0.65), (0.16, 0.16), -0.01, -0.48, 'fabric', h, 0.012)
-plane('softbox_face', 0.87, 0.62, -0.47, 'emit', h)
-for sx in (-1, 1):
-    for sz in (-1, 1): cyl('rod', 0.004, (sx * 0.08, -0.01, sz * 0.08), (sx * 0.45, -0.48, sz * 0.325), 'alu', h, segs=8)
+monolight(h, 0.02); speedring(h, 0.9); softbox_shell(h, 'sb', 0.9, 0.65, 0.46)
 bracket(y)
 
 # Stripbox 30 x 110
 f, h, y = fixture('strip')
-strobe(h, 0.02)
-box('speedring', (0.2, 0.025, 0.2), (0, 0.0, 0), 'black', h, bevel=0.006)
-frustum('strip_shell', (0.3, 1.1), (0.16, 0.16), -0.01, -0.32, 'fabric', h, 0.01)
-plane('strip_face', 0.28, 1.08, -0.31, 'emit', h)
+monolight(h, 0.02); speedring(h, 0.3); softbox_shell(h, 'st', 0.3, 1.1, 0.32, ring=0.15)
 bracket(y)
 
-# Shoot-through umbrella
+# Shoot-through umbrella: 16 panels that sag between their ribs
 f, h, y = fixture('umbrella')
-strobe(h, 0.02)
-cyl('shaft', 0.004, (0, 0.3, 0), (0, -0.6, 0), 'alu', h, segs=10)
-R, D = 0.5, 0.22
-prof = [(R * i / 16, 0.58 - D * (i / 16) ** 2) for i in range(17)]
-lathe('canopy', prof, 'emit', h, segs=24, axis=(0, -1, 0))
-for k in range(24):
-    a = k / 24 * TAU
-    pts = [Vector((r * math.cos(a), hh, r * math.sin(a))) for r, hh in [(R * i / 8, -0.58 + D * (i / 8) ** 2 + 0.004) for i in range(9)]]
-    for i in range(8): cyl('rib', 0.0025, pts[i], pts[i + 1], 'black', h, segs=6, cap=False)
+monolight(h, 0.02)
+R, D, NR = 0.52, 0.2, 16
+def canopy(u, v):
+    a = u * TAU; r = R * v; ph = (u * NR) % 1.0
+    sag = 0.016 * math.sin(math.pi * ph) * v ** 1.5
+    return Vector((r * math.cos(a) * (1 - 0.02 * math.sin(math.pi * ph) * v), -(0.6 - D * v * v) + sag, r * math.sin(a) * (1 - 0.02 * math.sin(math.pi * ph) * v)))
+grid_surface('canopy', canopy, NR * 6, 14, 'emit', h, thick=0.002, closed_u=True)
+cyl('shaft', 0.004, (0, 0.32, 0), (0, -0.62, 0), 'chrome', h, segs=12)
+cyl('shaft_grip', 0.008, (0, 0.3, 0), (0, 0.38, 0), 'rubber', h, segs=16, bevel=0.002)
+cyl('crown', 0.012, (0, -0.585, 0), (0, -0.62, 0), 'black', h, segs=16, bevel=0.003)
+for k in range(NR):
+    u = k / NR; pts = [canopy(u, i / 10) + Vector((0, 0.006, 0)) for i in range(11)]   # ribs sit inside, on the strobe's side
+    for i in range(10): cyl('rib', 0.003, pts[i] - (pts[i + 1] - pts[i]) * 0.08, pts[i + 1], 'black', h, segs=8)
+    cyl('rib_tip', 0.004, pts[10], pts[10] + (pts[10] - pts[9]).normalized() * 0.018, 'black', h, segs=10, bevel=0.001)
 bracket(y)
 
-# Beauty dish
-f, h, y = fixture('dish')
-strobe(h, 0.02)
-lathe('dish_out', [(0.07, 0.0), (0.16, 0.035), (0.23, 0.08), (0.27, 0.13), (0.275, 0.14)], 'silver', h, axis=(0, -1, 0))
-lathe('dish_in', [(0.069, 0.004), (0.158, 0.038), (0.227, 0.082), (0.266, 0.13)], 'white', h, axis=(0, -1, 0))
-torus('dish_lip', 0.272, 0.006, (0, -0.14, 0), (0, 1, 0), 'silver', h)
-disc('dish_glow', 0.12, -0.03, 'emit', h)
-cyl('deflector', 0.07, (0, -0.09, 0), (0, -0.096, 0), 'silver', h, segs=40, bevel=0.002)
-for k in range(3):
-    a = k / 3 * TAU; cyl('defl_rod', 0.002, (0.03 * math.cos(a), -0.02, 0.03 * math.sin(a)), (0.06 * math.cos(a), -0.09, 0.06 * math.sin(a)), 'alu', h, segs=6)
-bracket(y)
-
-# 5-in-1 reflector on a holder arm (face is "Surf")
+# 5-in-1 reflector on a holder arm (the face is "Surf"): a little ripple, a sprung rim
 f, h, y = fixture('reflector')
-disc('refl_face', 0.39, 0.0, 'surf', h, segs=64).modifiers.new('s', 'SOLIDIFY').thickness = 0.002
-torus('refl_rim', 0.395, 0.007, (0, 0, 0), (0, 1, 0), 'black', h, segs=64)
-cyl('refl_arm', 0.008, (0, 0.02, -0.39), (0, 0.02, 0.39), 'alu', h, segs=12)
-box('refl_clamp', (0.04, 0.03, 0.05), (0, 0.03, -0.39), 'black', h)
-box('refl_clamp2', (0.04, 0.03, 0.05), (0, 0.03, 0.39), 'black', h)
-cyl('refl_sock', 0.017, (0, 0.03, -0.42), (0, 0.03, -0.46), 'black', y, segs=20)
-cyl('refl_drop', 0.008, (0, 0.03, -0.46), (0, 0.03, -0.52), 'alu', y, segs=12)
-
-# Black flag on a grip arm
-f, h, y = fixture('flag')
-plane('flag_cloth', 0.6, 0.9, 0.0, 'fabric', h).modifiers.new('s', 'SOLIDIFY').thickness = 0.004
-for (a, b) in [((-0.3, 0, -0.45), (0.3, 0, -0.45)), ((0.3, 0, -0.45), (0.3, 0, 0.45)), ((0.3, 0, 0.45), (-0.3, 0, 0.45)), ((-0.3, 0, 0.45), (-0.3, 0, -0.45))]:
-    cyl('flag_frame', 0.006, a, b, 'alu', h, segs=10)
-cyl('flag_pin', 0.006, (-0.3, 0, -0.45), (-0.3, 0, -0.55), 'alu', h, segs=10)
-cyl('grip_head', 0.03, (-0.33, 0, -0.56), (-0.27, 0, -0.56), 'black', h, segs=24, bevel=0.004)
-cyl('grip_arm', 0.009, (-0.3, 0, -0.56), (0, 0, -0.56), 'alu', h, segs=12)
+grid_surface('refl_face', lambda u, v: Vector((0.39 * v * math.cos(u * TAU), 0.004 * math.sin(u * TAU * 5) * v * v + 0.002 * math.sin(u * TAU * 13 + 1) * v, 0.39 * v * math.sin(u * TAU))), 72, 12, 'surf', h, thick=0.002, closed_u=True)
+torus('refl_rim', 0.394, 0.006, (0, 0, 0), (0, 1, 0), 'fabric', h, segs=72)
+cyl('refl_arm', 0.008, (0, 0.025, -0.42), (0, 0.025, 0.42), 'alu', h, segs=16)
+for zz in (-0.395, 0.395): box('refl_clip', (0.04, 0.03, 0.045), (0, 0.022, zz), 'black', h, bevel=0.005); knurl('refl_clipknob', 0.009, (0.02, 0.022, zz), (0.034, 0.022, zz), 'knob', h)
+cyl('refl_sock', 0.017, (0, 0.03, -0.43), (0, 0.03, -0.47), 'black', y, segs=28, bevel=0.003)
+box('refl_swivel', (0.04, 0.04, 0.04), (0, 0.03, -0.45), 'black', y, bevel=0.006)
+cyl('refl_drop', 0.0085, (0, 0.03, -0.47), (0, 0.03, -0.53), 'alu', y, segs=16)
 
 # Bare bulb in a clamp socket
 f, h, y = fixture('bare')
-# an A-shape bulb: round at the bottom, narrowing to the neck
-bulb_prof = [(0.04 * math.sin(math.pi * k / 16), -0.045 - 0.035 * math.cos(math.pi * k / 16)) for k in range(0, 12)] + [(0.04 * math.sin(math.pi * 11 / 16) * (1 - u / 6) , -0.045 - 0.035 * math.cos(math.pi * 11 / 16) + 0.006 * u) for u in range(1, 7)]
-lathe('bulb', [(0.0, -0.08)] + bulb_prof[1:] + [(0.015, -0.004)], 'emit', h, segs=40, axis=(0, 0, 1))
-cyl('socket', 0.02, (0, 0, 0.0), (0, 0, 0.07), 'black', h, segs=24, bevel=0.003)
-cyl('socket_ring', 0.023, (0, 0, 0.0), (0, 0, 0.012), 'brass', h, segs=24)
-box('clamp', (0.03, 0.03, 0.05), (0, 0, 0.085), 'black', y)
-cyl('clamp_sock', 0.017, (0, 0, 0.1), (0, 0, 0.06), 'black', y, segs=20)
-
-# Candle on a dish (the origin is the flame)
-f, h, y = fixture('candle')
-lathe('flame', [(0.0, 0.03), (0.006, 0.02), (0.009, 0.005), (0.007, -0.008), (0.0, -0.012)], 'emit', h, segs=16, axis=(0, 0, 1))
-cyl('wick', 0.0012, (0, 0, -0.022), (0, 0, -0.008), 'rubber', h, segs=6)
-cyl('wax', 0.022, (0, 0, -0.145), (0, 0, -0.02), 'wax', h, segs=32, bevel=0.003)
-lathe('holder', [(0.0, -0.152), (0.05, -0.152), (0.058, -0.145), (0.06, -0.14)], 'brass', h, segs=40, axis=(0, 0, 1))
-cyl('holder_cup', 0.026, (0, 0, -0.15), (0, 0, -0.125), 'brass', h, segs=32, cap=False)
+bulb_prof = [(0.04 * math.sin(math.pi * k / 16), -0.045 - 0.035 * math.cos(math.pi * k / 16)) for k in range(0, 12)] + [(0.04 * math.sin(math.pi * 11 / 16) * (1 - u / 6), -0.045 - 0.035 * math.cos(math.pi * 11 / 16) + 0.006 * u) for u in range(1, 7)]
+lathe('bulb', [(0.0, -0.08)] + bulb_prof[1:], 'emit', h, segs=48, axis=(0, 0, 1), thick=0)
+for k in range(4): torus('thread', 0.0145, 0.0018, (0, 0, 0.002 + k * 0.004), (0, 0, 1), 'chrome', h, segs=28, rsegs=6)
+cyl('socket', 0.02, (0, 0, 0.016), (0, 0, 0.075), 'black', h, segs=32, bevel=0.003)
+cyl('socket_ring', 0.023, (0, 0, 0.014), (0, 0, 0.024), 'brass', h, segs=32, bevel=0.001)
+box('clamp', (0.03, 0.03, 0.05), (0, 0, 0.1), 'black', y, bevel=0.005)
+cyl('clamp_sock', 0.017, (0, 0, 0.075), (0, 0, 0.06), 'black', y, segs=24)
 
 # Streetlight: a post-top lantern (the origin is the lamp)
 f, h, y = fixture('sodium')
 cyl('lamp_glass', 0.13, (0, 0, -0.12), (0, 0, 0.1), 'emit', h, segs=8, r2=0.16)
 cyl('lamp_hat', 0.2, (0, 0, 0.1), (0, 0, 0.24), 'green', h, segs=8, r2=0.02, bevel=0.005)
+cyl('lamp_finial', 0.012, (0, 0, 0.24), (0, 0, 0.29), 'green', h, segs=12, r2=0.004)
 cyl('lamp_base', 0.13, (0, 0, -0.16), (0, 0, -0.12), 'green', h, segs=8, bevel=0.004)
 for k in range(8):
-    a = (k + 0.5) / 8 * TAU; cyl('lamp_bar', 0.006, (0.135 * math.cos(a), 0.135 * math.sin(a), -0.12), (0.165 * math.cos(a), 0.165 * math.sin(a), 0.1), 'green', h, segs=6)
-cyl('lamp_neck', 0.05, (0, 0, -0.3), (0, 0, -0.16), 'green', y, segs=16, r2=0.07)
+    a = (k + 0.5) / 8 * TAU; cyl('lamp_bar', 0.006, (0.135 * math.cos(a), 0.135 * math.sin(a), -0.12), (0.165 * math.cos(a), 0.165 * math.sin(a), 0.1), 'green', h, segs=8)
+cyl('lamp_neck', 0.05, (0, 0, -0.3), (0, 0, -0.16), 'green', y, segs=24, r2=0.07)
 
 # RGB tube on a clamp (the origin is the middle of the tube)
 f, h, y = fixture('rgb')
-cyl('tube', 0.018, (0, 0, -0.5), (0, 0, 0.5), 'emit', h, segs=20)
-for zz in (-0.52, 0.52): cyl('tube_cap', 0.021, (0, 0, zz - 0.025), (0, 0, zz + 0.025), 'black', h, segs=20, bevel=0.004)
-box('tube_clamp', (0.05, 0.03, 0.04), (0, 0.03, 0), 'black', y)
-cyl('tube_arm', 0.008, (0, 0.045, 0), (0, 0.045, -0.06), 'alu', y, segs=12)
+cyl('tube', 0.018, (0, 0, -0.5), (0, 0, 0.5), 'emit', h, segs=28)
+for zz in (-0.52, 0.52): cyl('tube_cap', 0.021, (0, 0, zz - 0.025), (0, 0, zz + 0.025), 'black', h, segs=28, bevel=0.005)
+box('tube_controls', (0.03, 0.012, 0.05), (0, 0.02, -0.5), 'black', h, bevel=0.003)
+box('tube_clamp', (0.05, 0.03, 0.045), (0, 0.035, 0), 'black', y, bevel=0.005)
+knurl('tube_knob', 0.01, (0.025, 0.035, 0), (0.04, 0.035, 0), 'knob', y)
+cyl('tube_arm', 0.0085, (0, 0.045, 0), (0, 0.045, -0.06), 'alu', y, segs=16)
 
 # ---------------- export ----------------
 bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', export_apply=True, export_yup=True, export_texcoords=False,

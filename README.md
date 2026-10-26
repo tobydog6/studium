@@ -89,11 +89,12 @@ lives inside it.
 
 ## News
 
-- **26 Oct 2026, later.** An opening: a short glow while the scan loads, then straight in close on the stump in slow
-  motion. The camera comes up, racks focus onto the bark and shoots; that still is the first frame of a strip of film, the
-  rooms gliding past full screen, slowly, then a speed ramp until they streak. The strip flies off onto the scan already in
-  a wide fast spin that slows onto the starting spot, and the wordmark lands. Click or any key skips; after the first time
-  it is the three-second version.
+- **26 Oct 2026, later.** An opening: dark for a beat while the scan loads, then straight in close on the stump in slow
+  motion, from the shallow-depth gold frame's own viewpoint. The viewfinder comes up on the 85 wide open, racks focus
+  onto the bark and fires; the still shrinks into the first frame of a strip of 35 mm film, the rooms following it frame
+  by frame with the scan drifting behind the sprocket holes. The strip slides off, the scan goes round in one big circle
+  as the wordmark lands, and the camera settles on the starting spot. Click or any key skips; after the first time it is
+  the three-second version.
 
 - **26 Oct 2026.** Quests are a board of rows of three, each row opening when the one above is done, and every quest has a
   page with a live clip of what it looks like. The lighting quest is a recipe with gold spots in the plan and setting bands

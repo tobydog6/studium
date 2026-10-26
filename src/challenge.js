@@ -43,7 +43,7 @@
     chMarkers(); chFramesBtn(); }
   function chAlign(P){ var dp=P.E.clone().sub(camPos), hz=Math.hypot(dp.x,dp.z), dy=dp.y, ang=Math.acos(Math.max(-1,Math.min(1,P.d.dot(_fwd))))*180/Math.PI;
     return {hz:hz, dy:dy, ang:ang, ok:hz<0.3&&Math.abs(dy)<0.2&&ang<6}; }
-  function chOff(){ return CH.hidden||(typeof coHidesFrames==="function"&&coHidesFrames()); }
+  function chOff(){ return CH.hidden||(typeof LA!=="undefined"&&LA.on)||(typeof coHidesFrames==="function"&&coHidesFrames()); }   /* the opening shows the place, not the frames */
   // HIDE FRAMES in the top bar: the gold frames and their markers go, until you bring them back (remembered)
   try{ CH.hidden=localStorage.getItem("studium_frames_off")==="1"; }catch(e){}
   function chSetHidden(on){ CH.hidden=!!on; try{ localStorage.setItem("studium_frames_off",on?"1":"0"); }catch(e){} chFramesBtn(); chMarkers(); }
@@ -119,7 +119,7 @@
     if(Math.abs((+el.style.opacity||0)-v)>0.004) el.style.opacity=v.toFixed(3); }
   // The card (and the title) only appear once a frame starts drawing you in. They stay while you work near it,
   // and go when you walk off or finish it.
-  function chTick(dt){ if(!loaded) return; if(!CH.pads.length){ chMarkers(); return; }   /* no frames here, but the subject ring still needs placing each frame */
+  function chTick(dt){ if(!loaded) return; if(typeof LA!=="undefined"&&LA.on){ CH.wasOff=false; chMarkers(); return; }   /* the opening drives the camera; it is not the unlock */ if(!CH.pads.length){ chMarkers(); return; }   /* no frames here, but the subject ring still needs placing each frame */
     var off=chOff(); if(off){ CH.wasOff=true; if(CH.active>=0){ CH.active=-1; chCard(null); } chMarkers(); return; }
     if(CH.wasOff){ CH.wasOff=false; CH.pads.forEach(function(P){ P.vis=0; });   // the warm-up's done: the frames fade in
       var f=$("chFlash"); if(f){ f.innerHTML='<span>UNLOCKED</span><b>The gold frames are out</b>'; f.classList.remove("show"); void f.offsetWidth; f.classList.add("show"); }

@@ -89,6 +89,10 @@ lives inside it.
 
 ## News
 
+- **26 Oct 2026, later.** An opening: a glow, the cube spinning out of it while the scan loads behind, a dive into the cube, an
+  orbit of the stump with a speed ramp, then the rooms slide in as cards (the first is the live scan, the rest are recordings
+  from inside each room) and settle into the hub. Click or any key skips; after the first time it is the three-second version.
+
 - **26 Oct 2026.** Quests are a board of rows of three, each row opening when the one above is done, and every quest has a
   page with a live clip of what it looks like. The lighting quest is a recipe with gold spots in the plan and setting bands
   on the sliders, then golden hour. Achievements are a two-second flash. The research library holds every photographer.

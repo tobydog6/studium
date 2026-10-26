@@ -35,7 +35,7 @@ function assetBuf(rel) { if (_bufs[rel]) return _bufs[rel]; const f = join(ROOT,
 const PART = 8 * 1024 * 1024, BIG = 4 * 1024 * 1024;   // web build: files over 4 MB ship as 8 MB pieces
 if (WEB) { rmSync(WEBDIR, { recursive: true, force: true }); mkdirSync(join(WEBDIR, 'assets'), { recursive: true }); }
 
-const MIME = { '.woff2': 'font/woff2', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg' };
+const MIME = { '.woff2': 'font/woff2', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4' };
 const stripNl = (s) => (s.endsWith('\n') ? s.slice(0, -1) : s);
 
 function resolveAssets(text) {

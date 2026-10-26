@@ -122,7 +122,7 @@
     if(a==="teacher"){ return openTeacher("plan"); } }
   function siAskName(){ var s=$("signin"); s.querySelector(".si-code").classList.add("hidden"); s.querySelector(".si-name").classList.remove("hidden");
     var c=lsDB.classes[siPending]; s.querySelector(".si-help").textContent="Joining "+c.name+(c.teacher?" with "+c.teacher:"")+"."; setTimeout(function(){ $("siName").focus(); },30); }
-  function siDone(){ var s=$("signin"); s.classList.add("hidden"); s.querySelector(".si-help").textContent="Your teacher has it on the board. You only need it once."; showHub(); }
+  function siDone(){ var s=$("signin"); s.classList.add("hidden"); s.querySelector(".si-help").textContent="Your teacher has it on the board. You only need it once."; if(typeof launchStart==="function"&&!(lsWho()||{}).demo) launchStart(); else showHub(); }   /* the demo starts its own opening */
   (function wireSignIn(){ var s=$("signin"); if(!s) return;
     s.addEventListener("click",function(e){ var b=e.target.closest("[data-si]"); if(b) siAct(b.getAttribute("data-si")); });
     $("siCode").addEventListener("keydown",function(e){ e.stopPropagation(); if(e.key==="Enter") siAct("join"); });

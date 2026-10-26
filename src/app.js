@@ -1061,6 +1061,7 @@
 @@include coach.js@@
 @@include questui.js@@
 @@include achieve.js@@
+@@include launch.js@@
   function toggleGrid(){ grid.classList.toggle("hidden"); var s=$("mGrid"); if(s)s.classList.toggle("on",!grid.classList.contains("hidden")); }
 
   // ---- wire: landing ----

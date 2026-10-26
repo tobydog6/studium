@@ -216,7 +216,8 @@
 
   // ---- the hub and the nav bar follow the tracked quest ----
   function qHubRender(h){ if(!qMode()||qPlanLive()) return; var x=Q.tracked&&qGet(Q.tracked), p=x&&qProgress(x.id);
-    h.querySelector(".h6-eb").textContent=x?"YOUR FOCUS":"CHOOSE YOUR FOCUS";
+    var wel=typeof LA!=="undefined"&&LA.welcome&&Date.now()-LA.welcome<20000;
+    h.querySelector(".h6-eb").textContent=(wel?"WELCOME TO STUDIUM · ":"")+(x?"YOUR FOCUS":"CHOOSE YOUR FOCUS");
     h.querySelector(".h6-h").textContent=(x?x.title:"What's your focus today?")+(x?".":"");
     h.querySelector(".h6-words").textContent=x?x.blurb:"Open your quests and pick one. You can switch any time.";
     var cta=h.querySelector(".h6-cta"); cta.innerHTML=(x?"CARRY ON":"YOUR QUESTS")+' <kbd>↵</kbd>';
@@ -236,7 +237,7 @@
   /* seamless: when the step you're on needs a tour you haven't done, it starts by itself (foundations, and the whole demo) */
   QU.auto={};
   var Q_NOAUTO=/[?&]noauto/.test(location.search);   /* scripted tests drive the tours themselves */
-  function qAutoTour(){ if(Q_NOAUTO||QU.moments.length) return; var id=Q.tracked, x=id&&qGet(id); if(!x||!(qDemo()||x.type==="foundation")) return;
+  function qAutoTour(){ if(Q_NOAUTO||QU.moments.length||(typeof LA!=="undefined"&&LA.on)) return; var id=Q.tracked, x=id&&qGet(id); if(!x||!(qDemo()||x.type==="foundation")) return;
     if(QU.pick||QU.log||QU.done||qPlanLive()||(typeof CO!=="undefined"&&CO.on)||(typeof viewfinderOn!=="undefined"&&viewfinderOn)) return;
     if(App.is("hub")||App.is("signin")||App.is("landing")||App.is("teacher")) return; if(typeof ACHU!=="undefined"&&ACHU.full) return;
     var nx=qNextStep(id); if(!nx||!nx.tour||coTourDone(nx.tour)) return; var k=id+":"+nx.tour; if(QU.auto[k]) return; QU.auto[k]=1; qHow(); }
@@ -285,7 +286,7 @@
     Q=qLoad(); Q.t0=Date.now(); Q.lastFocusAsk=qToday(); qTrack("d1"); qSave(); QU.flashUntil=Date.now()+10000; READ_MS=Math.min(READ_MS,2000);
     QU.moments=[]; QU.seen={}; QU.hubAsked=false; if(typeof __qu!=="undefined"&&window.__qu) window.__qu.closeAll(); else { qPickClose(); qLogClose(); qDoneClose(); }
     if(typeof CO!=="undefined"&&CO.on) coStop(); if(typeof RL!=="undefined"&&RL.ui) rlClose();
-    lsGo("shoot"); if(loaded&&typeof chAttach==="function") chAttach(); }
+    if(typeof launchStart==="function") launchStart(); else lsGo("shoot"); if(loaded&&typeof chAttach==="function") chAttach(); }
   function qDemoRestart(){ qPickClose(); qLogClose(); qDoneClose(); qDemoStart(); toast("Fresh demo. Over to the next person."); }
   /* leaving the demo for a real sign-in: reload so the real session and quests come back exactly as saved */
   var qSetWhoBase=lsSetWho; lsSetWho=function(w){ var was=qDemo(); qSetWhoBase(w); if(was&&!(w&&w.demo)){ wipeWorkspace(); try{ localStorage.setItem(LS_KEY, JSON.stringify(lsDB)); }catch(e){} var u=location.href.replace(/([?&])demo(=[^&#]*)?(&|$)/,function(m,a,b,c){ return c?a:""; }); if(u===location.href) location.reload(); else location.replace(u); } };   /* drop ?demo so it doesn't start again */

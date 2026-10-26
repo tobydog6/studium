@@ -28,7 +28,7 @@ try {
   await page.goto(BASE + '?dev&noauto&lahold'); await page.waitForSelector('#signin [data-si="demo"]', { state: 'visible', timeout: 90000 });
   const t0 = Date.now(); await page.click('#signin [data-si="demo"]');
   await until('dark', 20000); await page.waitForTimeout(1500); await shot('1-dark');
-  await until('detail', 400000); console.log('in at', Date.now() - t0, 'ms'); await page.waitForTimeout(3200); await shot('2-detail');
+  await until('detail', 400000); console.log('in at', Date.now() - t0, 'ms'); await page.waitForTimeout(700); await shot('2-scan'); console.log('scan:', await ev(() => !!__la.state().scan)); await page.waitForTimeout(2600); await shot('2-detail');
   await ev(() => __la.go()); await until('shoot', 20000); await page.waitForTimeout(350); await shot('3-iris');
   await page.waitForTimeout(2800); console.log('still:', await ev(() => { const im = document.querySelector('.la-fr.still img'); return im && im.src ? im.src.slice(0, 22) + ' ' + im.src.length : 'none'; }));
   await ev(() => __la.go()); await until('film', 20000); console.log('film at', Date.now() - t0, 'ms'); await page.waitForTimeout(1200); await shot('4-film');

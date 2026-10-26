@@ -12,7 +12,7 @@
   function laSeen(){ try{ return localStorage.getItem(LA_KEY)==="1"; }catch(e){ return false; } }
   function laEl(){ var e=$("launch"); if(e) return e; e=document.createElement("div"); e.id="launch";
     var fr='<div class="la-fr still"><img alt=""><em>1</em><i>1</i><u>E26</u></div>'+LA_ROOMS.map(function(m,i){ return '<div class="la-fr"><video muted loop playsinline preload="auto" src="'+m[2]+'"></video><span>'+m[1].toUpperCase()+'</span><em>'+(i+2)+'</em><i>'+(i+2)+'</i><u>E26</u></div>'; }).join("");
-    e.innerHTML='<div class="la-dark"><b>Studium</b></div><div class="la-film"><div class="la-strip">'+fr+'</div></div><div class="la-still"><img alt=""></div><div class="la-iris"></div><div class="la-snap"></div>'
+    e.innerHTML='<div class="la-dark"><b>Studium</b></div><div class="la-film"><div class="la-strip">'+fr+'<i class="la-sh t"></i><i class="la-sh b"></i><i class="la-dm"></i></div></div><div class="la-still"><img alt=""></div><div class="la-iris"></div><div class="la-snap"></div>'
       +'<div class="la-word"><span class="la-kick">WELCOME TO</span><b>'+"Studium".split("").map(function(c,i){ return '<i style="--n:'+i+'">'+c+'</i>'; }).join("")+'</b><em></em><span class="la-tag">A PHOTOGRAPHY STUDIO YOU WALK INTO</span></div><div class="la-skip">CLICK TO SKIP</div>';
     document.body.appendChild(e);
     e.addEventListener("pointerdown",function(ev){ ev.stopPropagation(); laSkip(); });

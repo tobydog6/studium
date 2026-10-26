@@ -14,7 +14,7 @@ const OUT = join(ROOT, 'assets', 'launch'); mkdirSync(OUT, { recursive: true });
 const TMP = join(ROOT, 'tests', 'out', 'launch'); rmSync(TMP, { recursive: true, force: true }); mkdirSync(TMP, { recursive: true });
 const FIX = join(ROOT, 'tests', 'fixtures');
 const frames = readdirSync(FIX).filter((f) => f.endsWith('.jpg')).sort().map((f) => 'data:image/jpeg;base64,' + readFileSync(join(FIX, f)).toString('base64'));
-const W = 1600, H = 1000, FPS = 12, SEC = 3.2;
+const W = 1600, H = 1000, FPS = 15, SEC = 5;   /* full-res frames: the opening shows these full screen */
 const meta = [[2.8, '1/250', 200, 35], [8, '1/125', 400, 24], [4, '1/500', 200, 85], [5.6, '1/160', 400, 50], [11, '1/60', 800, 24], [2, '1/1000', 100, 85], [5.6, '1/250', 200, 50], [16, '1/30', 400, 35]];
 
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
@@ -31,19 +31,19 @@ await page.click('#tileStudio'); await page.waitForTimeout(900);
 
 // record: run `act(i)` between frames, so the clip shows a hand at work
 async function record(name, crop, act) { const n = Math.round(FPS * SEC); const dir = join(TMP, name); mkdirSync(dir, { recursive: true });
-  for (let i = 0; i < n; i++) { await act(i, n); await page.screenshot({ path: join(dir, `f${String(i).padStart(3, '0')}.jpg`), type: 'jpeg', quality: 90, clip: crop }); }
-  execSync(`ffmpeg -v error -y -framerate ${FPS} -i ${dir}/f%03d.jpg -vf "scale=540:-2" -c:v libx264 -preset slow -crf 26 -pix_fmt yuv420p -movflags +faststart ${OUT}/${name}.mp4`);
+  for (let i = 0; i < n; i++) { await act(i, n); await page.screenshot({ path: join(dir, `f${String(i).padStart(3, '0')}.jpg`), type: 'jpeg', quality: 90, clip: crop, timeout: 180000 }); }
+  execSync(`ffmpeg -v error -y -framerate ${FPS} -i ${dir}/f%03d.jpg -vf "scale=1280:-2" -c:v libx264 -preset slow -crf 21 -pix_fmt yuv420p -movflags +faststart ${OUT}/${name}.mp4`);
   console.log('  ' + name + '.mp4'); }
 const lerp = (a, b, k) => a + (b - a) * k, ease = (k) => k * k * (3 - 2 * k);
 
 // Select: picks, then stepping through the sheet
 for (const i of [0, 1, 3, 4, 5]) { await page.click(`[data-st-frame="${i}"]`); await key('KeyP', 60); }
 await page.click('[data-st-frame="7"]'); await key('KeyX', 60); await page.click('[data-st-frame="0"]'); await page.waitForTimeout(400);
-await record('select', { x: 0, y: 0, width: 1100, height: H }, async (i) => { if (i % 6 === 5) await key('ArrowRight', 60); else await page.waitForTimeout(60); });
+await record('select', { x: 0, y: 0, width: W, height: H }, async (i) => { if (i % 12 === 11) await key('ArrowRight', 60); else await page.waitForTimeout(60); });
 
 // Edit: the light sliders moving
 await page.click('[data-st-frame="3"]'); await key('Enter', 2500);
-await record('edit', { x: 500, y: 0, width: 1100, height: H }, async (i, n) => { const k = ease(i / (n - 1)); await slide('pExposure', Math.round(lerp(-10, 35, k))); await slide('pShadows', Math.round(lerp(0, 50, k))); await slide('pVibrance', Math.round(lerp(0, 30, k))); await page.waitForTimeout(90); });
+await record('edit', { x: 0, y: 0, width: W, height: H }, async (i, n) => { const k = ease(i / (n - 1)); await slide('pExposure', Math.round(lerp(-10, 35, k))); await slide('pShadows', Math.round(lerp(0, 50, k))); await slide('pVibrance', Math.round(lerp(0, 30, k))); await page.waitForTimeout(90); });
 await page.click('#eSave').catch(async () => { await page.click('#eCancel'); }); await page.waitForTimeout(1200);
 
 // Workbook: a Compare page, a photo dragged across it
@@ -53,7 +53,7 @@ await page.dragAndDrop('#st-workshop .lib-grid [data-bd-pic="1"]', '#st-workshop
 await page.dragAndDrop('#st-workshop .lib-grid [data-bd-pic="3"]', '#st-workshop .bd-it.sl').catch(() => {}); await page.waitForTimeout(300);
 { const ph = await page.$$('#st-workshop .bd-it.ph'); const b = ph.length ? await ph[ph.length - 1].boundingBox() : null;
   if (b) { await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await page.mouse.down(); }
-  await record('workbook', { x: 300, y: 0, width: 1100, height: H }, async (i, n) => { if (b) { const k = ease(Math.min(1, i / (n - 8))); await page.mouse.move(b.x + b.width / 2 + 120 * k, b.y + b.height / 2 + 90 * k, { steps: 2 }); } await page.waitForTimeout(60); });
+  await record('workbook', { x: 0, y: 0, width: W, height: H }, async (i, n) => { if (b) { const k = ease(Math.min(1, i / (n - 8))); await page.mouse.move(b.x + b.width / 2 + 120 * k, b.y + b.height / 2 + 90 * k, { steps: 2 }); } await page.waitForTimeout(60); });
   if (b) await page.mouse.up(); }
 
 // Folio: a third filling itself, then Shuffle
@@ -61,13 +61,13 @@ await page.click('[data-st-room="folio"]'); await page.waitForTimeout(900);
 { const zooms = await page.$$eval('#st-folio [data-bd-zoom]', (n) => n.map((e) => e.getAttribute('data-bd-zoom')).filter((z) => z !== '-1'));
   await page.hover('#st-folio .bd-sheet'); await page.click(`#st-folio [data-bd-zoom="${zooms[0]}"]`); await page.waitForTimeout(400);
   const pics = [3, 0, 4, 1, 5, 2];
-  await record('folio', { x: 250, y: 0, width: 1100, height: H }, async (i) => { if (i % 5 === 2 && pics.length) { await page.click(`#st-folio .lib-grid [data-bd-pic="${pics.shift()}"]`).catch(() => {}); } else if (i % 11 === 10) { await page.click('#st-folio [data-bd-act="shuffle"]').catch(() => {}); } await page.waitForTimeout(80); }); }
+  await record('folio', { x: 0, y: 0, width: W, height: H }, async (i) => { if (i % 9 === 4 && pics.length) { await page.click(`#st-folio .lib-grid [data-bd-pic="${pics.shift()}"]`).catch(() => {}); } else if (i % 23 === 22) { await page.click('#st-folio [data-bd-act="shuffle"]').catch(() => {}); } await page.waitForTimeout(80); }); }
 
 // Gallery: the hang, looking along the wall
 await page.click('[data-st-room="gallery"]'); await page.waitForTimeout(1500);
 { const g = await page.$('#st-gallery .ga-room, #st-gallery .gx-room, #st-gallery'); const b = await g.boundingBox();
   await page.mouse.move(b.x + b.width * 0.6, b.y + b.height * 0.5); await page.mouse.down();
-  await record('gallery', { x: 150, y: 0, width: 1300, height: H }, async (i, n) => { const k = ease(i / (n - 1)); await page.mouse.move(b.x + b.width * lerp(0.6, 0.35, k), b.y + b.height * 0.5, { steps: 2 }); await page.waitForTimeout(60); });
+  await record('gallery', { x: 0, y: 0, width: W, height: H }, async (i, n) => { const k = ease(i / (n - 1)); await page.mouse.move(b.x + b.width * lerp(0.6, 0.35, k), b.y + b.height * 0.5, { steps: 2 }); await page.waitForTimeout(60); });
   await page.mouse.up(); }
 
 await browser.close();

@@ -44,7 +44,8 @@
   function qTile(x){ var s=qStatus(x.id), p=qProgress(x.id), lock=qLockReason(x), tr=Q.tracked===x.id, sug=!tr&&!lock&&s!=="done"&&(qSuggest()||{}).id===x.id, mins=x.mins?x.mins+" MIN":"";
     var dots=qSteps(x.id).map(function(c){ return '<i class="'+(c.ok?'ok':'')+'"></i>'; }).join("");
     var word=tr?"TRACKING":s==="done"?"DONE":s==="active"?"IN PROGRESS":lock?"LOCKED":sug?"SUGGESTED":"";
-    return '<button class="q-tile s-'+s+(tr?' tr':'')+(sug?' sug':'')+'"'+(lock?' disabled':' data-q-see="'+x.id+'"')+'>'
+    var tst=qClipKind(x)==="lighting";   /* testing: jump straight into the lighting rig, even while it's locked */
+    return '<button class="q-tile s-'+s+(tr?' tr':'')+(sug?' sug':'')+'"'+(lock?(tst?' aria-disabled="true"':' disabled'):' data-q-see="'+x.id+'"')+'>'+(tst?'<span class="q-test" data-q-test="'+x.id+'" title="Testing: skip ahead to the lighting rig">TEST</span>':'')
       +'<span class="q-tk">'+qPillarChip(x)+(mins?'<em>'+mins+'</em>':'')+'</span>'
       +'<b>'+qEsc(x.title)+'</b><p>'+qEsc(lock||x.blurb)+'</p>'
       +'<span class="q-tf"><span class="q-dots">'+dots+'</span><span class="q-tw">'+(s==="done"?'✓ ':'')+word+(s!=="done"&&!lock&&qState(x.id)?' · '+p.done+' / '+p.of:'')+'</span></span>'
@@ -66,6 +67,10 @@
   function qPickOpen(){ qBoardOpen("q"); }
   function qPickClose(){ qLogClose(); }
   function qLogOpen(){ qBoardOpen(); }
+  /* testing: close the board, put the gold frames away and open the lighting rig in the scene */
+  function qTestLighting(){ qLogClose(); if(typeof CO!=="undefined"&&CO.on) coStop(); try{ localStorage.setItem("studium_lighttour","1"); }catch(e){}
+    if(!loaded||!App.is("scene")) qGoDest("scene"); var t0=Date.now();
+    (function w(){ if(loaded&&App.is("scene")&&!menuOpen()){ if(typeof chSetHidden==="function") chSetHidden(true); if(typeof rlOpen==="function"&&!RL.ui) rlOpen(); return; } if(Date.now()-t0<30000) setTimeout(w,300); })(); }
   function qLogClose(){ var el=$("qLog"); if(el) el.classList.remove("show"); QU.log=false; QU.pick=false; qHud(); if(typeof qMorphHide==="function") qMorphHide(); }
 
   // ---- the tracked quest card (the HUD) ----
@@ -201,7 +206,9 @@
     else { qcImg(g,0,0,W,H); qcTag(g,"QUEST"); } }
 
   // ---- clicks ----
-  document.addEventListener("click",function(e){ var t=e.target.closest&&e.target.closest("[data-q],[data-q-pick],[data-q-open],[data-q-track],[data-q-see]"); if(!t) return; e.stopPropagation();
+  document.addEventListener("click",function(e){ var t=e.target.closest&&e.target.closest("[data-q],[data-q-pick],[data-q-open],[data-q-track],[data-q-see],[data-q-test]"); if(!t) return; e.stopPropagation();
+    if(t.closest(".q-tile[aria-disabled]")&&!e.target.closest("[data-q-test]")) return;
+    if(e.target.closest("[data-q-test]")){ qTestLighting(); return; }
     if(t.hasAttribute("data-q-see")){ qMorphOpen(t.getAttribute("data-q-see"), t.classList.contains("q-tile")?t:t.closest(".q-tile")||t); return; }
     if(t.hasAttribute("data-q-pick")){ var id=t.getAttribute("data-q-pick"); qMorphHide(); qPickClose(); qLogClose(); qDoneClose(); if(qTrack(id)){ qFlash(8000); QU.seen[id]=qSteps(id).map(function(s){ return s.ok; }); qGoQuest(id); } return; }
     if(t.hasAttribute("data-q-open")){ var k=t.getAttribute("data-q-open"); QU.open[k]=!QU.open[k]; qLogOpen(); return; }

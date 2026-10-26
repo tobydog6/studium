@@ -24,7 +24,7 @@
     dish:{n:"Beauty dish", g:"soften", d:"Crisp but kind", kind:1, R:0.27, k:5500, power:10, h:1.8, cone:110},
     reflector:{n:"Reflector", g:"shape", d:"Bounces light back in", kind:3, R:0.4, k:5500, power:0, h:0.9, cone:160, surf:"silver"},
     flag:{n:"Black flag", g:"shape", d:"Takes light away", kind:2, R:0.45, k:5500, power:0, h:1.2},
-    candle:{n:"Candle", g:"practical", d:"Low and orange", kind:0, R:0.02, k:1900, power:0.7, h:0.3},
+    candle:{n:"Candle", g:"practical", d:"Low and orange", kind:0, R:0.02, k:1900, power:0.7, h:0.16},
     sodium:{n:"Streetlight", g:"practical", d:"Sodium, overhead", kind:1, R:0.15, k:2000, power:18, h:4, cone:120, gel:"#ffb050"},
     rgb:{n:"RGB tube", g:"practical", d:"Any colour", kind:0, R:0.12, k:6500, power:3.2, h:1, gel:"#ff3df0"}};
   var RLB_GROUPS=[["light","Lights"],["soften","Soft lights"],["shape","Shape the light"],["practical","Practicals"]];
@@ -109,18 +109,18 @@
     /* one ray through the grid: how much light gets through */
     "float rbRay(sampler3D GS, sampler3D GB, vec3 o, vec3 inv, vec3 so, vec3 sinv, float cs, vec3 p, vec3 d, float dist){ float acc=0.0; float st=max(cs*0.9, dist/56.0);",
     "  bool lft=false; for(int i=0;i<56;i++){ float t=cs*1.2+float(i)*st; if(t>dist) break; float v=rbTauS(GB,GS,p+d*t,o,inv,so,sinv); if(v<0.0) break;",
-    "    if(!lft){ if(v<0.04||t>cs*7.0) lft=true; else continue; }",   /* first leave the surface this splat sits on, then count what's in the way */
+    "    if(!lft){ if(v<0.04||t>cs*3.5) lft=true; else continue; }",   /* first leave the surface this splat sits on, then count what's in the way */
     "    acc+=v*st/cs; if(acc>5.0) break; }",
     "  return exp(-acc); }",
     /* a light with a size: four rays to points across its face, so big lights give soft-edged shadows and small ones hard */
     "float rbVis(sampler3D GS, sampler3D GB, vec3 o, vec3 inv, vec3 so, vec3 sinv, float cs, float cb, vec3 p0, vec3 L, float R, vec3 n){ vec3 p=p0+n*(dot(n,L-p0)>0.0?1.0:-1.0)*cs; vec3 d0=L-p; float dist=length(d0); if(dist<cs*3.0) return 1.0; d0/=dist;",
     "  if(R<cs*0.8) return rbRay(GS,GB,o,inv,so,sinv,cs,p,d0,dist-cs);",
-    "  vec3 tu=normalize(cross(d0, abs(d0.y)<0.9?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0))); vec3 tv=cross(d0,tu); float a0=fract(sin(dot(p0,vec3(12.9898,78.233,37.719)))*43758.5453)*6.2831853; float v=0.0;",
+    "  vec3 tu=normalize(cross(d0, abs(d0.y)<0.9?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0))); vec3 tv=cross(d0,tu); float a0=0.7853982; float v=0.0;",
     "  for(int j=0;j<4;j++){ float a=a0+float(j)*1.5707963; vec3 Lj=L+(tu*cos(a)+tv*sin(a))*R*0.7; vec3 dj=Lj-p; float lj=length(dj); v+=rbRay(GS,GB,o,inv,so,sinv,cs,p,dj/lj,lj-cs); }",
     "  return v*0.25; }",
     "float rbVisD(sampler3D GS, sampler3D GB, vec3 o, vec3 inv, vec3 so, vec3 sinv, float cs, float cb, vec3 p0, vec3 d, float ang, vec3 n){ vec3 p=p0+n*(dot(n,d)>0.0?1.0:-1.0)*cs; float acc=0.0; float st=cs*1.1;",
     "  bool lft=false; float t=cs*1.2; for(int i=0;i<120;i++){ t+=st; float v=rbTauS(GB,GS,p+d*t,o,inv,so,sinv); if(v<0.0) break; st*=1.02;",
-    "    if(!lft){ if(v<0.04||t>cs*7.0) lft=true; else continue; } acc+=v*st/cs; if(acc>5.0) break; }",
+    "    if(!lft){ if(v<0.04||t>cs*3.5) lft=true; else continue; } acc+=v*st/cs; if(acc>5.0) break; }",
     "  return exp(-acc); }"].join("\n");
 
   function rbInstall(){ if(RLB.gpu&&RLB.gpu.mesh===viewer.mesh) return; var D=SPARK.dyno, U={}, mesh=viewer.mesh, STM;
@@ -149,16 +149,16 @@
           "  float o1=max(rbTau("+i.gb+",c+n*"+i.cb+"*2.0,"+i.go+","+i.ginv+"),0.0); float ao=clamp(exp(-o1*0.8),0.3,1.0);",
           "  vec3 V=normalize("+i.cam+"-c); vec3 base=pow(max("+o+".rgba.rgb,vec3(0.0)),vec3(2.2));",
           "  vec3 A="+i.amb+"*ao; vec3 Lt=A; vec3 Ls=vec3(0.0);",
-          "  if("+i.sunOn+">0.5){ float sl=max(dot(n,"+i.sunDir+"),0.0); float ss=sl*f+0.42*(1.0-f); if(ss>0.002){ if("+i.shad+">0.5) ss*=rbVisD"+G+",c,"+i.sunDir+","+i.sunAng+",n); Lt+=ss*"+i.sunCol+"; Ls+=pow(max(dot(n,normalize("+i.sunDir+"+V)),0.0),40.0)*0.15*f*ss*"+i.sunCol+"; } }",
+          "  if("+i.sunOn+">0.5){ float sl=max(dot(n,"+i.sunDir+"),0.0); float ss=sl*(0.6+0.4*f)+0.12*(1.0-f); if(ss>0.002){ if("+i.shad+">0.5) ss*=rbVisD"+G+",c,"+i.sunDir+","+i.sunAng+",n); Lt+=ss*"+i.sunCol+"; Ls+=pow(max(dot(n,normalize("+i.sunDir+"+V+1e-4)),0.0),40.0)*0.05*f*f*ss*"+i.sunCol+"*min(dot(base,vec3(0.33)),0.5)*2.0; } }",
           "  for(int m=0;m<"+RLB_MAX+";m++){ if(m>="+i.nl+") break;",
           "    vec4 la=texelFetch("+i.lt+",ivec2(0,m),0), lb=texelFetch("+i.lt+",ivec2(1,m),0), le=texelFetch("+i.lt+",ivec2(2,m),0), lf=texelFetch("+i.lt+",ivec2(3,m),0);",
           "    vec3 l=la.xyz-c; float r2=dot(l,l); float d=max(sqrt(r2),1e-5); vec3 Ld=l/d; float R=la.w; float kind=lb.a;",
           "    float E=1.0/(r2*"+i.is2+"+R*R*"+i.is2+"+0.0004);",
           "    if(kind>0.5 && kind<1.5){ float ca=dot(-Ld,le.xyz); float cf=smoothstep(le.w,lf.x,ca); if(cf<=0.0) continue; E*=cf; }",
-          "    float wr=clamp(R/d,0.0,1.0)*0.75; float lam=clamp((dot(n,Ld)+wr)/(1.0+wr),0.0,1.0); float sh=lam*f+(0.32+0.3*wr)*(1.0-f);",
+          "    float wr=clamp(R/d,0.0,1.0)*0.75; float lam=clamp((dot(n,Ld)+wr)/(1.0+wr),0.0,1.0); float sh=lam*(0.6+0.4*f)+(0.12+0.2*wr)*(1.0-f);",
           "    if(kind>1.5){ float fr=clamp(R*R/(2.0*(r2+R*R))*(0.4+sh)*2.6,0.0,0.85); Lt-=A*fr; continue; }",   /* a flag blocks part of the sky's fill */
           "    if("+i.shad+">0.5 && sh>0.002) sh*=rbVis"+G+",c,la.xyz,R,n);",
-          "    vec3 li=sh*E*lb.rgb; Lt+=li; Ls+=pow(max(dot(n,normalize(Ld+V)),0.0),mix(48.0,10.0,clamp(R/d*2.0,0.0,1.0)))*0.16*f*li; }",
+          "    vec3 li=sh*E*lb.rgb*mix(1.0,ao,0.6); Lt+=li; Ls+=pow(max(dot(n,normalize(Ld+V+1e-4)),0.0),mix(48.0,10.0,clamp(R/d*2.0,0.0,1.0)))*0.05*f*f*li*min(dot(base,vec3(0.33)),0.5)*2.0; }",
           "  vec3 x=base*max(Lt,vec3(0.0))+Ls;",
           "  vec3 sx=mix(x, 0.8+0.2*(vec3(1.0)-exp(-(x-0.8)/0.2)), step(vec3(0.8),x));",   /* a soft shoulder: no hard clip on hot spots */
           "  "+o+".rgba.rgb=pow(sx,vec3(1.0/2.2));",
@@ -253,34 +253,51 @@
   /* ---- stands in the scene ---- */
   var _rbMat={};
   function rbM(c,o){ var k=c+"|"+(o||1); if(!_rbMat[k]) _rbMat[k]=new THREE.MeshBasicMaterial({color:c, transparent:(o||1)<1, opacity:o||1, depthWrite:(o||1)>=1}); return _rbMat[k]; }
-  function rbStandFor(L){ var g=new THREE.Group(), head=new THREE.Group(), S=1, F=RLB_FX[L.fx]||{};
-    var pole=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.012,1,8), rbM(0x8d8678)); pole.name="pole"; g.add(pole);
-    for(var i=0;i<3;i++){ var leg=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,0.42,6), rbM(0x6f695d)); var a=i*Math.PI*2/3; leg.position.set(Math.sin(a)*0.15,0.1,Math.cos(a)*0.15); leg.rotation.set(Math.cos(a)*0.85,0,-Math.sin(a)*0.85); leg.name="leg"; g.add(leg); }
-    var face=0xfff4e0, body=0x2a251d, m;
-    if(L.fx==="softbox"){ m=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.62,0.3), rbM(body)); m.position.z=-0.15; head.add(m); m=new THREE.Mesh(new THREE.PlaneGeometry(0.86,0.58), rbM(face)); m.position.z=0.005; m.name="face"; head.add(m); }
-    else if(L.fx==="strip"){ m=new THREE.Mesh(new THREE.BoxGeometry(0.3,1.1,0.25), rbM(body)); m.position.z=-0.13; head.add(m); m=new THREE.Mesh(new THREE.PlaneGeometry(0.26,1.06), rbM(face)); m.position.z=0.005; m.name="face"; head.add(m); }
-    else if(L.fx==="umbrella"){ m=new THREE.Mesh(new THREE.ConeGeometry(0.55,0.35,16,1,true), rbM(0xe8e2d6)); m.rotation.x=-Math.PI/2; m.position.z=-0.12; m.material.side=THREE.DoubleSide; m.name="face"; head.add(m); }
-    else if(L.fx==="dish"){ m=new THREE.Mesh(new THREE.CylinderGeometry(0.27,0.12,0.16,20,1,true), rbM(0xd8d2c6)); m.rotation.x=Math.PI/2; m.material.side=THREE.DoubleSide; head.add(m); m=new THREE.Mesh(new THREE.CircleGeometry(0.08,12), rbM(face)); m.position.z=-0.04; m.name="face"; head.add(m); }
-    else if(L.fx==="reflector"){ var sc=L.surf==="gold"?0xd8b060:L.surf==="white"?0xf2efe8:0xc8ccd2; m=new THREE.Mesh(new THREE.CircleGeometry(0.4,28), rbM(sc)); m.material=new THREE.MeshBasicMaterial({color:sc, side:THREE.DoubleSide}); m.name="face"; head.add(m); }
-    else if(L.fx==="flag"){ m=new THREE.Mesh(new THREE.PlaneGeometry(0.6,0.9), new THREE.MeshBasicMaterial({color:0x0b0a09, side:THREE.DoubleSide})); m.name="face"; head.add(m); }
-    else if(L.fx==="fresnel"||L.fx==="speed"||L.fx==="sodium"){ var r=L.fx==="speed"?0.05:0.11; m=new THREE.Mesh(new THREE.CylinderGeometry(r,r*1.1,L.fx==="speed"?0.12:0.26,16), rbM(body)); m.rotation.x=Math.PI/2; m.position.z=-0.12; head.add(m); m=new THREE.Mesh(new THREE.CircleGeometry(r*0.9,16), rbM(face)); m.position.z=0.012; m.name="face"; head.add(m); }
-    else { m=new THREE.Mesh(new THREE.SphereGeometry(L.fx==="candle"?0.025:L.fx==="rgb"?0.05:0.06,14,10), rbM(face)); m.name="face"; head.add(m); if(L.fx==="rgb"){ m.scale.set(1,8,1); } }
-    var aim=new THREE.Mesh(new THREE.SphereGeometry(0.035,12,8), rbM(0xe3ad57)); aim.name="aim"; g.add(aim);
-    var ring=new THREE.Mesh(new THREE.RingGeometry(0.22,0.26,32), new THREE.MeshBasicMaterial({color:0xe3ad57, side:THREE.DoubleSide, transparent:true, opacity:0.9})); ring.rotation.x=-Math.PI/2; ring.name="ring"; g.add(ring);
+  /* the kit, modelled in Blender (tools/build_kit.py): loaded once, then each light gets its own copy */
+  var RLB_KIT=null, RLB_KITP=null;
+  var RLB_MOUNT={fresnel:0.18, speed:0.12, softbox:0.14, strip:0.14, umbrella:0.14, dish:0.14, reflector:0.52, flag:0.56, bare:0.085, rgb:0.06, sodium:0.3, candle:0};   /* how far below the light its stand stops */
+  function rbKit(){ if(RLB_KIT||RLB_KITP||typeof GLTFLoader==="undefined"||typeof assetBytes!=="function") return;
+    RLB_KITP=assetBytes("asset-b64:assets/kit/lightkit.glb").then(function(ab){ new GLTFLoader().parse(ab,"",function(g){ RLB_KIT=g.scene;
+      /* shiny metal needs something to reflect: a soft studio room, used by the kit's materials only (never the scene background) */
+      var env=null; try{ if(typeof RoomEnvironment!=="undefined"){ var pm=new THREE.PMREMGenerator(renderer); env=pm.fromScene(new RoomEnvironment(),0.04).texture; pm.dispose(); } }catch(e){ env=null; }
+      RLB_KIT.traverse(function(o){ if(o.isMesh&&o.material){ if(env){ o.material.envMap=env; o.material.envMapIntensity=0.55; } else o.material.metalness=Math.min(o.material.metalness,0.3); } }); RL.lights.forEach(rbDropStand); rbStands(); }, function(e){ console.warn("lighting kit",e); }); }).catch(function(e){ console.warn("lighting kit",e); }); }
+  function rbKitPart(n){ var o=RLB_KIT&&RLB_KIT.getObjectByName(n); return o?o.clone(true):null; }
+  function rbKitLights(){ if(!scene||scene.userData.rbLit) return; scene.userData.rbLit=true;   /* only the kit's own materials take light; splats don't */
+    scene.add(new THREE.HemisphereLight(0xfff1de,0x2a251e,1.6)); var d=new THREE.DirectionalLight(0xffffff,1.5); d.position.set(2,4,3); scene.add(d); }
+  function rbStandFor(L){ var g=new THREE.Group(), P={emit:[], surf:[]};
+    if(RLB_KIT){ rbKitLights();
+      ["stand_base","stand_pole","stand_top","street_post"].forEach(function(n){ var o=rbKitPart(n); if(o){ o.position.set(0,0,0); g.add(o); P[n]=o; } });
+      var fx=rbKitPart("fx_"+L.fx); if(fx){ fx.position.set(0,0,0); g.add(fx); P.fx=fx; P.head=fx.getObjectByName(L.fx+"_head"); P.yoke=fx.getObjectByName(L.fx+"_yoke"); }
+      g.traverse(function(o){ if(!o.isMesh) return; var mn=o.material&&o.material.name;
+        if(mn==="Emit"){ o.material=new THREE.MeshStandardMaterial({color:0x101010, emissive:0xffffff, roughness:0.6, side:THREE.DoubleSide}); P.emit.push(o.material); }
+        else if(mn==="Surf"){ o.material=o.material.clone(); P.surf.push(o.material); }
+        else if(o.material&&o.material.side!==THREE.DoubleSide&&/Fabric|WhiteIn|Silver/.test(mn||"")){ o.material=o.material.clone(); o.material.side=THREE.DoubleSide; } }); }
+    else { var hd=new THREE.Group(); hd.add(new THREE.Mesh(new THREE.SphereGeometry(0.05,16,12), new THREE.MeshBasicMaterial({color:0xfff4e0}))); g.add(hd); P.head=hd; P.fx=hd; P.basic=hd.children[0].material; }
+    var aim=new THREE.Mesh(new THREE.SphereGeometry(0.035,16,12), new THREE.MeshBasicMaterial({color:0xe3ad57})); aim.name="aim"; g.add(aim);
+    var ring=new THREE.Mesh(new THREE.RingGeometry(0.5,0.54,48), new THREE.MeshBasicMaterial({color:0xe3ad57, side:THREE.DoubleSide, transparent:true, opacity:0.9})); ring.rotation.x=-Math.PI/2; ring.name="ring"; g.add(ring);
     var beamG=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(0,0,1)]); var beam=new THREE.Line(beamG, new THREE.LineDashedMaterial({color:0xe3ad57, dashSize:0.06, gapSize:0.05, transparent:true, opacity:0.7})); beam.name="beam"; g.add(beam);
-    head.name="head"; g.add(head); g.userData.L=L; g.traverse(function(o){ o.userData.L=L; o.renderOrder=5; }); return g; }
-  function rbDropStand(L){ if(L.stand){ scene.remove(L.stand); L.stand.traverse(function(o){ if(o.geometry) o.geometry.dispose(); }); L.stand=null; } }
-  function rbStands(){ if(typeof scene==="undefined"||!scene) return; var S=RL.S, show=RLB.open&&!viewfinderOn;
-    RL.lights.forEach(function(L,i){ if(L.stand&&L.stand.userData.fx!==L.fx+"|"+(L.surf||"")){ rbDropStand(L); }
-      if(!L.stand){ L.stand=rbStandFor(L); L.stand.userData.fx=L.fx+"|"+(L.surf||""); scene.add(L.stand); }
-      var st=L.stand, top=(L.y-L.g)/S; st.visible=show; st.position.set(L.x,L.g,L.z); st.scale.setScalar(S);
-      var pole=st.getObjectByName("pole"); pole.scale.y=Math.max(0.05,top); pole.position.y=top/2;
-      var head=st.getObjectByName("head"); head.position.set(0,top,0); head.lookAt(new THREE.Vector3(L.x+L.dir[0],L.y+L.dir[1],L.z+L.dir[2]));
-      var face=head.getObjectByName("face"); if(face&&face.material&&L.kind!==2&&L.kind!==3){ var c=L.on?rlHex(rlLightRGB(L)):"#3a3630"; face.material=rbM(c); }
-      var aim=st.getObjectByName("aim"), ad=0.42; aim.position.set(L.dir[0]*ad/1, top+L.dir[1]*ad, L.dir[2]*ad); aim.visible=i===RLB.sel&&L.kind!==0;
+    g.userData.P=P; g.userData.L=L; g.traverse(function(o){ o.userData.L=L; o.renderOrder=5; }); return g; }
+  function rbDropStand(L){ if(L.stand){ scene.remove(L.stand); L.stand=null; } }   /* geometry is shared with the kit: never dispose it */
+  var RLB_SURFC={white:0xf0ede6, silver:0xc9ccd2, gold:0xd8ae5c};
+  function rbStands(){ if(typeof scene==="undefined"||!scene) return; rbKit(); var S=RL.S, show=RLB.open&&!viewfinderOn;
+    RL.lights.forEach(function(L,i){ if(L.stand&&L.stand.userData.fx!==L.fx+"|"+(RLB_KIT?1:0)){ rbDropStand(L); }
+      if(!L.stand){ L.stand=rbStandFor(L); L.stand.userData.fx=L.fx+"|"+(RLB_KIT?1:0); scene.add(L.stand); }
+      var st=L.stand, P=st.userData.P, top=(L.y-L.g)/S; st.visible=show; st.position.set(L.x,L.g,L.z); st.scale.setScalar(S);
+      var ts=top-(RLB_MOUNT[L.fx]||0), tri=L.fx!=="candle"&&L.fx!=="sodium", k=Math.min(1,Math.max(0.15,ts/0.75));
+      if(P.stand_base){ P.stand_base.visible=P.stand_pole.visible=P.stand_top.visible=tri; P.stand_base.scale.setScalar(k);
+        P.stand_pole.position.y=0.66*k; P.stand_pole.scale.y=Math.max(0.001,ts-0.03-0.66*k); P.stand_pole.visible=tri&&ts-0.03>0.66*k; P.stand_top.position.y=ts-0.03; }
+      if(P.street_post){ P.street_post.visible=L.fx==="sodium"; P.street_post.scale.y=Math.max(0.01,ts); }
+      if(P.fx) P.fx.position.y=top;
+      var yaw=Math.atan2(L.dir[0],L.dir[2]), pitch=-Math.asin(Math.max(-1,Math.min(1,L.dir[1]))), turns=L.kind!==0||L.fx==="rgb";
+      if(P.yoke) P.yoke.rotation.set(0,turns?yaw:0,0);
+      if(P.head){ if(L.kind!==0) P.head.rotation.set(pitch,yaw,0,"YXZ"); else P.head.rotation.set(0,turns?yaw:0,0); }
+      var c=rlLightRGB(L), m=Math.max(c[0],c[1],c[2],1e-4), on=L.on?1:0.04;
+      P.emit.forEach(function(mt){ mt.emissive.setRGB(c[0]/m*on,c[1]/m*on,c[2]/m*on); });
+      P.surf.forEach(function(mt){ mt.color.setHex(RLB_SURFC[L.surf||"silver"]); mt.metalness=L.surf==="white"?0:1; mt.roughness=L.surf==="white"?0.8:0.3; });
+      if(P.basic) P.basic.color.setRGB(c[0]/m*on,c[1]/m*on,c[2]/m*on);
+      var aim=st.getObjectByName("aim"), ad=0.55; aim.position.set(L.dir[0]*ad, top+L.dir[1]*ad, L.dir[2]*ad); aim.visible=i===RLB.sel&&L.kind!==0;
       st.getObjectByName("ring").visible=i===RLB.sel; st.getObjectByName("ring").position.y=0.01;
-      var beam=st.getObjectByName("beam"); beam.visible=i===RLB.sel&&L.aimT&&L.kind!==0; if(beam.visible){ var p=beam.geometry.attributes.position; p.setXYZ(0,0,top,0); p.setXYZ(1,(L.aimT.x-L.x)/S,(L.aimT.y-L.g)/S,(L.aimT.z-L.z)/S); p.needsUpdate=true; beam.computeLineDistances(); }
-      st.traverse(function(o){ if(o.name==="leg"||o.name==="pole") o.visible=L.fx!=="candle"; }); }); }
+      var beam=st.getObjectByName("beam"); beam.visible=!!(i===RLB.sel&&L.aimT&&L.kind!==0); if(beam.visible){ var p=beam.geometry.attributes.position; p.setXYZ(0,0,top,0); p.setXYZ(1,(L.aimT.x-L.x)/S,(L.aimT.y-L.g)/S,(L.aimT.z-L.z)/S); p.needsUpdate=true; beam.computeLineDistances(); } }); }
 
   /* ---- pointer: drag a stand to move it, drag its gold dot to aim, scroll on it to raise, right-drag to look ---- */
   var _rbRay=new THREE.Raycaster(), _rbPl=new THREE.Plane(new THREE.Vector3(0,1,0),0);
@@ -486,11 +503,13 @@
     behind:function(){ var T=rbTarget(), L=RL.lights[0], out=[], self=this; var dx=T.x-L.x, dz=T.z-L.z, d=Math.hypot(dx,dz); dx/=d; dz/=d;
       [0.3,0.5,0.7,0.9,1.2,1.6].forEach(function(f){ var x=T.x+dx*f*RL.S, z=T.z+dz*f*RL.S, y=rlGround(x,z)+0.02; out.push(f+':'+self.vis({x:x,y:y,z:z})); }); return out.join('  '); },
     vis:function(q){ RLB.probe=q; return this.lit().mean; },
-    lit:function(){ var G=RLB.gridS, a=G.cpu, cs=G.cell, T=rbTarget(), P=RL.P, N=RL.N, L=RL.lights[0], tot=0, sum=0, hist=[0,0,0,0,0], tb=[0,0,0,0,0,0];
-      function ray(px,py,pz,dx,dy,dz,dist){ var acc=0, out=false, st=Math.max(cs*0.9,dist/56); for(var i=0;i<56;i++){ var t=cs*1.2+i*st; if(t>dist) break; var x=((px+dx*t-G.x0)/cs)|0, y=((py+dy*t-G.y0)/cs)|0, z=((pz+dz*t-G.z0)/cs)|0; if(x<0||y<0||z<0||x>=G.nx||y>=G.ny||z>=G.nz) break; var vv=Math.max(a[(z*G.ny+y)*G.nx+x]-0.06,0); if(!out){ if(vv<0.04||t>cs*7) out=true; else continue; } acc+=vv*st/cs; if(acc>1&&!ray.t){ ray.t=t; } if(acc>5) break; } return Math.exp(-acc); }
-      if(RLB.probe){ var q=RLB.probe; RLB.probe=null; var lx0=L.x-q.x, ly0=L.y-q.y, lz0=L.z-q.z, ld0=Math.hypot(lx0,ly0,lz0); return {mean:+ray(q.x,q.y+cs,q.z,lx0/ld0,ly0/ld0,lz0/ld0,ld0-cs).toFixed(3)}; }
-      for(var k=0;k<N;k+=3){ var x=P[k*3], y=P[k*3+1], z=P[k*3+2], hx=x-T.x, hz=z-T.z, hd=Math.hypot(hx,hz); if(hd>0.6*RL.S||y<T.y-0.4*RL.S) continue;
-        var lx=L.x-x, ly=L.y-y, lz=L.z-z, ld=Math.hypot(lx,ly,lz); lx/=ld; ly/=ld; lz/=ld; if((hx*lx+hz*lz)/(hd||1)<0.3) continue;   /* the side that faces the light */
-        var nx_=hx/(hd||1), nz_=hz/(hd||1), px=x+nx_*cs*(RLB.off||1), pz=z+nz_*cs*(RLB.off||1); ray.t=0; var v=ray(px,y,pz,lx,ly,lz,ld-cs); if(ray.t) tb[Math.min(5,(ray.t/0.1)|0)]++; tot++; sum+=v; hist[Math.min(4,(v*5)|0)]++; }
-      return {n:tot, mean:+(sum/Math.max(tot,1)).toFixed(3), hist:hist, blockedAt10cm:tb}; }, clear:rlNatural, ready:function(){ return RLB.built&&!RLB.dirty; }, solar:rbSolar, marks:rbMarks,
+    lit:function(){ var G=RLB.gridS, a=G.cpu, cs=G.cell, T=rbTarget(), P=RL.P, N=RL.N, L=RL.lights[0], SK=RLB.skip||3.5, DI=RLB.dIn||99;
+      function at(x,y,z){ var i=((x-G.x0)/cs)|0, j=((y-G.y0)/cs)|0, k=((z-G.z0)/cs)|0; if(i<0||j<0||k<0||i>=G.nx||j>=G.ny||k>=G.nz) return -1; return Math.max(a[(k*G.ny+j)*G.nx+i]-0.06,0); }
+      function ray(px,py,pz,dx,dy,dz,dist,v0){ var acc=0, out=v0>DI, st=Math.max(cs*0.9,dist/56); for(var i=0;i<56;i++){ var t=cs*1.2+i*st; if(t>dist) break; var vv=at(px+dx*t,py+dy*t,pz+dz*t); if(vv<0) break; if(!out){ if(vv<0.04||t>cs*SK) out=true; else continue; } acc+=vv*st/cs; if(acc>5) break; } return Math.exp(-acc); }
+      if(RLB.probe){ var q=RLB.probe; RLB.probe=null; var lx0=L.x-q.x, ly0=L.y-q.y, lz0=L.z-q.z, ld0=Math.hypot(lx0,ly0,lz0); return {mean:+ray(q.x,q.y+cs,q.z,lx0/ld0,ly0/ld0,lz0/ld0,ld0-cs,0).toFixed(3)}; }
+      var R={front:[0,0], back:[0,0], inner:[0,0]};
+      for(var k=0;k<N;k+=2){ var x=P[k*3], y=P[k*3+1], z=P[k*3+2], hx=x-T.x, hz=z-T.z, hd=Math.hypot(hx,hz); if(hd>0.6*RL.S||y<T.y-0.35*RL.S||y>T.y+0.3*RL.S) continue;
+        var lx=L.x-x, ly=L.y-y, lz=L.z-z, ld=Math.hypot(lx,ly,lz); lx/=ld; ly/=ld; lz/=ld; var fr=(hx*lx+hz*lz)/(hd||1), v0=at(x,y,z), cat=hd<0.18*RL.S?"inner":fr>0.4?"front":fr<-0.4?"back":null; if(!cat) continue;
+        var sg=fr>=0?1:-1, nx_=hx/(hd||1)*sg, nz_=hz/(hd||1)*sg; var v=ray(x+nx_*cs,y,z+nz_*cs,lx,ly,lz,ld-cs,v0); R[cat][0]+=v; R[cat][1]++; }
+      var o={}; for(var c in R) o[c]=+(R[c][0]/Math.max(R[c][1],1)).toFixed(3)+" (n"+R[c][1]+")"; return o; }, clear:rlNatural, ready:function(){ return RLB.built&&!RLB.dirty; }, solar:rbSolar, marks:rbMarks,
     state:function(){ return {open:RLB.open, sun:RLB.sunMode, el:RLB.el, n:RL.lights.length, eye:RLB.eye, cs:RLB.gridS&&RLB.gridS.cell, cb:RL.grid&&RL.grid.cell, dims:RLB.gridS&&[RLB.gridS.nx,RLB.gridS.ny,RLB.gridS.nz], roles:RLB.roles, ratio:rbRatio(RLB.roles||{})}; } };

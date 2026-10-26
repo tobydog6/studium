@@ -2674,6 +2674,7 @@ body.cube-open #hud,body.cube-open .q-hud,body.cube-open #viewfinder,body.cube-o
 .q-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:12px}
 .q-tile{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:168px;padding:16px 18px 14px;border-radius:14px;border:1px solid rgba(var(--bone-rgb),.14);background:#1a1712;color:var(--text);text-align:left;cursor:pointer;font:inherit;transition:border-color .15s,background-color .15s,transform .18s,box-shadow .18s}
 .q-tile:hover{border-color:var(--accent);background:#211c14;transform:translateY(-2px);box-shadow:0 14px 34px rgba(0,0,0,.35)}
+.q-tile .q-test{position:absolute;top:10px;right:10px;z-index:2;font-family:var(--mono);font-size:9.5px;letter-spacing:.16em;padding:3px 8px;border-radius:5px;background:var(--accent);color:var(--accent-ink);cursor:pointer;opacity:1}.q-tile .q-test:hover{filter:brightness(1.1)}.q-tile[aria-disabled]{cursor:default}.q-tile[aria-disabled]>*:not(.q-test){opacity:.42}.q-tile[aria-disabled]:hover{transform:none;border-color:rgba(var(--bone-rgb),.14);background:#1a1712;box-shadow:none}
 .q-tile:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .q-tile.sug{border-color:rgba(var(--gold-rgb),.55);background:linear-gradient(180deg,rgba(var(--gold-rgb),.1),#1a1712 70%)}
 .q-tile.tr{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 0 28px rgba(var(--gold-rgb),.25)}

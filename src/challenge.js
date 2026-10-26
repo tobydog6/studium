@@ -43,7 +43,7 @@
     chMarkers(); chFramesBtn(); }
   function chAlign(P){ var dp=P.E.clone().sub(camPos), hz=Math.hypot(dp.x,dp.z), dy=dp.y, ang=Math.acos(Math.max(-1,Math.min(1,P.d.dot(_fwd))))*180/Math.PI;
     return {hz:hz, dy:dy, ang:ang, ok:hz<0.3&&Math.abs(dy)<0.2&&ang<6}; }
-  function chOff(){ return CH.hidden||(typeof LA!=="undefined"&&LA.on)||(typeof coHidesFrames==="function"&&coHidesFrames()); }   /* the opening shows the place, not the frames */
+  function chOff(){ return CH.hidden||(typeof LA!=="undefined"&&(LA.on||(LA.welcome&&Date.now()-LA.welcome<LA_T.word*1000+400)))||(typeof coHidesFrames==="function"&&coHidesFrames()); }   /* the opening shows the place, not the frames */
   // HIDE FRAMES in the top bar: the gold frames and their markers go, until you bring them back (remembered)
   try{ CH.hidden=localStorage.getItem("studium_frames_off")==="1"; }catch(e){}
   function chSetHidden(on){ CH.hidden=!!on; try{ localStorage.setItem("studium_frames_off",on?"1":"0"); }catch(e){} chFramesBtn(); chMarkers(); }

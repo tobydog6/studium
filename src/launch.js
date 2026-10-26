@@ -8,11 +8,11 @@
   var LA={on:false, t0:0, raf:0, phase:"", fast:false, after:null, el:null, cam:null, hold:false};
   var LA_KEY="studium_launch_seen";
   var LA_ROOMS=[["select","Pick","asset:assets/launch/select.mp4"],["edit","Edit","asset:assets/launch/edit.mp4"],["workbook","Make","asset:assets/launch/workbook.mp4"],["folio","Folio","asset:assets/launch/folio.mp4"],["gallery","Show","asset:assets/launch/gallery.mp4"]];
-  var LA_T={detail:3.0, shoot:2.8, iris:0.85, dwell:1.05, move:0.55, exit:0.6, spin:4.6, word:2.4};
+  var LA_T={detail:3.0, shoot:2.8, iris:0.9, per:1.55, ebb:0.84, exit:0.7, spin:4.6, word:2.4};
   function laSeen(){ try{ return localStorage.getItem(LA_KEY)==="1"; }catch(e){ return false; } }
   function laEl(){ var e=$("launch"); if(e) return e; e=document.createElement("div"); e.id="launch";
     var fr='<div class="la-fr still"><img alt=""><i>01A</i></div>'+LA_ROOMS.map(function(m,i){ return '<div class="la-fr"><video muted loop playsinline preload="auto" src="'+m[2]+'"></video><span>'+m[1].toUpperCase()+'</span><i>'+(i<8?"0":"")+(i+2)+'A</i></div>'; }).join("");
-    e.innerHTML='<div class="la-dark"><b>Studium</b></div><div class="la-film"><div class="la-strip">'+fr+'</div></div><div class="la-still"><img alt=""></div><canvas class="la-iris"></canvas><div class="la-snap"></div>'
+    e.innerHTML='<div class="la-dark"><b>Studium</b></div><div class="la-film"><div class="la-strip">'+fr+'</div></div><div class="la-still"><img alt=""></div><div class="la-iris"></div><div class="la-snap"></div>'
       +'<div class="la-word"><span class="la-kick">WELCOME TO</span><b>'+"Studium".split("").map(function(c,i){ return '<i style="--n:'+i+'">'+c+'</i>'; }).join("")+'</b><em></em><span class="la-tag">A PHOTOGRAPHY STUDIO YOU WALK INTO</span></div><div class="la-skip">CLICK TO SKIP</div>';
     document.body.appendChild(e);
     e.addEventListener("pointerdown",function(ev){ ev.stopPropagation(); laSkip(); });
@@ -56,11 +56,8 @@
   function laLockStart(){ laSpinStart(); LA.quick=true; }   /* a skip: the same landing, just the short way round */
   // ---- the shot: the real viewfinder comes up on the 85 wide open, racks focus onto the bark, and fires ----
   function laVfOn(){ if(LA.vf) return; LA.vf=true; LA.ap=apIdx; LA.lens=lensIdx; apIdx=0; var b=curBody(), li=b.lenses.indexOf(85); if(li>=0) selectLens(li); computeCam(); setFocus(0.95); try{ raiseCamera(); }catch(e){} afPending=false; LA.fovTo=camera.fov; LA.fovFrom=24; }
-  function laIris(u){ var cv=LA.el.querySelector(".la-iris"), W=window.innerWidth, H=window.innerHeight; if(cv.width!==W||cv.height!==H){ cv.width=W; cv.height=H; } var g=cv.getContext("2d");
-    if(u>=1){ cv.style.display="none"; if(camera){ camera.fov=LA.fovTo; camera.updateProjectionMatrix(); } return; } cv.style.display="block";
-    var k=1-Math.pow(1-u,3), R=Math.hypot(W,H)*0.56*k+2, n=9, cx=W/2, cy=H/2; g.clearRect(0,0,W,H); g.fillStyle="#070605"; g.fillRect(0,0,W,H);
-    g.globalCompositeOperation="destination-out"; g.beginPath(); for(var i=0;i<=n;i++){ var a=i/n*Math.PI*2-Math.PI/2+k*0.9; g[i?"lineTo":"moveTo"](cx+Math.cos(a)*R, cy+Math.sin(a)*R); } g.closePath(); g.fill();
-    g.globalCompositeOperation="source-over"; g.strokeStyle="rgba(227,173,87,"+(0.5*(1-k))+")"; g.lineWidth=1.5; g.stroke();   /* nine blades opening, a thread of gold on the edge */
+  function laIris(u){ var cv=LA.el.querySelector(".la-iris"); if(u>=1){ cv.style.opacity=0; if(camera){ camera.fov=LA.fovTo; camera.updateProjectionMatrix(); } return; }
+    var k=1-Math.pow(1-u,2.4); cv.style.opacity=1; cv.style.setProperty("--o",(1-k).toFixed(3)); cv.style.setProperty("--r",(28+62*k).toFixed(1)+"%");   /* a soft dark edge that eases open as the lens comes up */
     if(camera){ camera.fov=LA.fovFrom+(LA.fovTo-LA.fovFrom)*k; camera.updateProjectionMatrix(); } }
   function laVfOff(){ if(!LA.vf) return; LA.vf=false; try{ lowerCamera(); }catch(e){} if(LA.ap!=null){ apIdx=LA.ap; computeCam(); } if(LA.lens!=null) selectLens(LA.lens); afPending=false; var el=$("vfAF"); if(el) el.classList.remove("hunt","ok"); }
   function laFocusTarget(){ var r=LA.cam?LA.cam.r:2.2; return Math.max(0,Math.min(1,Math.log(Math.max(0.3,r-0.15)/0.3)/Math.log(60))); }   /* focusMetres() = 0.3·60^f */
@@ -72,11 +69,11 @@
     LA.el.classList.add("snap"); if(typeof shutterSound==="function"){ try{ shutterSound(); }catch(e){} }
     setTimeout(function(){ laVfOff(); LA.el.classList.add("held"); laDrift(0); },130); }   /* behind the black: the lens goes down and the scan jumps wide, the still covers it */
   // ---- the film: frame by frame, easing to rest on each ----
-  function laStripPos(t){ var n=1+LA_ROOMS.length, D=LA_T.dwell, M=LA_T.move, per=D+M, i=Math.floor(t/per), f=t-i*per;
-    if(i>=n-1){ var tt=t-(n-1)*per-D; if(tt<0) return {s:n-1, end:false}; var k=tt/LA_T.exit; return {s:n-1+Math.pow(Math.min(1,k),1.8)*1.6, end:k>=1}; }   /* off it goes */
-    var w=f<D?0:(f-D)/M, k=w<=0?0:1-Math.pow(2,-9*w); return {s:i+k, v:w<=0||w>=1?0:9*Math.LN2*Math.pow(2,-9*w)/M, end:false}; }   /* a woosh: off fast, gliding to rest */
+  function laStripPos(t){ var n=1+LA_ROOMS.length, P=LA_T.per, A=LA_T.ebb, end=(n-1)*P;   /* a steady drift that slows through each frame and gathers between: never a full stop */
+    if(t<end){ var ph=2*Math.PI*t/P; return {s:t/P-A*Math.sin(ph)/(2*Math.PI), v:(1-A*Math.cos(ph))/P, end:false}; }
+    var k=Math.min(1,(t-end)/LA_T.exit); return {s:n-1+(1-A)/P*(t-end)+Math.pow(k,2.2)*1.7, v:(1-A)/P+2.2*Math.pow(k,1.2)*1.7/LA_T.exit, end:k>=1}; }   /* then away */
   function laStrip(t){ var st=LA.el.querySelector(".la-strip"), fr=st.firstElementChild, W=window.innerWidth, fw=fr.offsetWidth, pitch=fw+parseFloat(getComputedStyle(fr).marginRight), p=laStripPos(t);
-    st.style.transform="translate3d("+((W-fw)/2-fr.offsetLeft-p.s*pitch)+"px,0,0)"; var b=Math.min(5,(p.v||0)*0.55); st.style.filter=b>0.25?"blur("+b.toFixed(1)+"px)":""; return p; }
+    st.style.transform="translate3d("+((W-fw)/2-fr.offsetLeft-p.s*pitch)+"px,0,0)"; var b=Math.min(5,((p.v||0)-0.9)*3); st.style.filter=b>0.25?"blur("+b.toFixed(1)+"px)":""; return p; }
   // ---- the clock ----
   function laTick(now){ if(!LA.on) return; LA.raf=requestAnimationFrame(laTick); var t=(now-LA.t0)/1000, p=LA.phase, pt=(now-(LA.pt||LA.t0))/1000, e=LA.el;
     if(p==="dark"){ if(t>2.5&&!LA.skipAsked){ LA.skipAsked=true; e.classList.add("skip"); }
@@ -89,10 +86,10 @@
       if(pt>LA_T.shoot&&!laHeld()){ laPhase("film"); e.classList.add("held"); Array.prototype.forEach.call(e.querySelectorAll("video"),function(v){ try{ v.currentTime=0; v.play(); }catch(x){} }); } return; }
     if(p==="film"){ laDrift(pt); var q=laStrip(pt); if(q.end&&!laHeld()) laSpinStart(); return; }
     if(p==="spin"){ var su=Math.min(1,pt/(LA.quick?1.6:LA_T.spin)); laSpin(su); if(su>=1&&(LA.quick||!laHeld())) laEnd(); return; } }
-  function laEnd(){ if(!LA.on) return; LA.on=false; cancelAnimationFrame(LA.raf); var e=LA.el; LA.welcome=Date.now(); laVfOff();
+  function laEnd(){ if(!LA.on) return; LA.on=false; cancelAnimationFrame(LA.raf); var e=LA.el; LA.welcome=Date.now(); laVfOff(); (CH.pads||[]).forEach(function(P){ P.vis=0; });   /* the gold frames fade in once the wordmark has gone */
     if(loaded){ hubShow("hud"); App.go("scene"); if(typeof updatePrompt==="function") updatePrompt(); } else showHub();
     if(e){ e.className="on out"; setTimeout(function(){ e.className=""; document.body.classList.remove("launching"); },LA_T.word*1000); } else document.body.classList.remove("launching");
-    var cv=e&&e.querySelector(".la-iris"); if(cv) cv.style.display="none";
+    var cv=e&&e.querySelector(".la-iris"); if(cv) cv.style.opacity=0;
     if(LA.after) LA.after(); }
   LA.hold=/[?&]lahold/.test(location.search);
   if(/[?&]dev/.test(location.search)) window.__la={ start:launchStart, skip:laSkip, go:function(){ LA.wait=false; LA.pass=!LA.held; }, state:function(){ return {on:LA.on, phase:LA.phase, fast:LA.fast, loaded:loaded, log:LA.log||[]}; }, reset:function(){ try{ localStorage.removeItem(LA_KEY); }catch(e){} } };

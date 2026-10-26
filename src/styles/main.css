@@ -2808,53 +2808,38 @@ body.co-lens #bag .lensbtn{border-color:#e3ad57;box-shadow:0 0 22px rgba(227,173
 .co-card.media.side .co-line{font-size:21px}
 .co-card.media.side .co-sub{font-size:13.5px}
 
-/* ---- the opening (launch.js): glow, the cube spinning out of it, the dive, the orbit, the rooms sliding in ---- */
+/* ---- the opening (launch.js): a glow while the scan loads, then in close and slow, the ramp, the rooms gliding in, the settle ---- */
 #launch{position:fixed;inset:0;z-index:1200;display:none;background:#0c0b0a;overflow:hidden;font-family:var(--sans);color:var(--text);cursor:default}
 #launch.on{display:block}
-#launch.p-dive{animation:laClear .9s ease-in forwards}
-#launch.p-orbit,#launch.p-strips{background:transparent}
-#launch.p-orbit::before,#launch.p-strips::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 55%,rgba(0,0,0,.55) 100%);transition:background .8s}
-#launch.p-strips::before{background:rgba(12,11,10,.45)}
+#launch.p-detail{animation:laClear 1.1s ease-in forwards}
+#launch.p-ramp,#launch.p-cards,#launch.p-lock,#launch.out{background:transparent}
+#launch.p-detail::before,#launch.p-ramp::before,#launch.p-cards::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 50%,rgba(0,0,0,.6) 100%)}
+#launch.p-lock::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 50%,rgba(0,0,0,.6) 100%);animation:laFade 1.2s ease-out forwards}
 @keyframes laClear{from{background:#0c0b0a}to{background:rgba(12,11,10,0)}}
+@keyframes laFade{to{opacity:0}}
 .la-glow{position:absolute;left:50%;top:50%;width:60vmin;height:60vmin;transform:translate(-50%,-50%) scale(.2);border-radius:50%;background:radial-gradient(circle,rgba(255,214,150,.9) 0%,rgba(227,173,87,.35) 22%,rgba(227,173,87,0) 62%);filter:blur(8px);opacity:0}
-#launch.p-glow .la-glow{animation:laGlow 1.4s ease-out forwards}
-#launch.p-cube .la-glow{opacity:.9;transform:translate(-50%,-50%) scale(1);animation:laBreathe 2.6s ease-in-out infinite}
-#launch.p-dive .la-glow{animation:laGlowOut .5s ease-out forwards}
+#launch.p-glow .la-glow{animation:laGlow 1.4s ease-out forwards,laBreathe 2.6s ease-in-out 1.4s infinite}
+#launch.p-detail .la-glow{opacity:.9;animation:laGlowOut .8s ease-out forwards}
+#launch.p-ramp .la-glow,#launch.p-cards .la-glow,#launch.p-lock .la-glow{display:none}
 @keyframes laGlow{0%{opacity:0;transform:translate(-50%,-50%) scale(.1)}40%{opacity:.6}100%{opacity:.9;transform:translate(-50%,-50%) scale(1)}}
 @keyframes laBreathe{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.12)}}
-@keyframes laGlowOut{to{opacity:0;transform:translate(-50%,-50%) scale(2.2)}}
-.la-cube{position:absolute;left:50%;top:50%;width:0;height:0;perspective:1100px;opacity:0}
-#launch.p-cube .la-cube{opacity:1;animation:laCubeIn .9s cubic-bezier(.2,.8,.2,1) both}
-#launch.p-dive .la-cube{opacity:1;animation:laDive .95s cubic-bezier(.7,0,.9,.3) forwards}
-#launch.p-orbit .la-cube,#launch.p-strips .la-cube{display:none}
-@keyframes laCubeIn{from{transform:scale(0) rotate(-40deg)}to{transform:scale(1) rotate(0)}}
-@keyframes laDive{0%{transform:scale(1)}70%{opacity:1}100%{transform:scale(22);opacity:0}}
-.la-c{position:absolute;left:-90px;top:-90px;width:180px;height:180px;transform-style:preserve-3d;animation:laSpin 7s linear infinite}
-#launch.p-dive .la-c{animation:laSpinStop 1s cubic-bezier(.2,.8,.2,1) forwards}
-@keyframes laSpin{from{transform:rotateX(-22deg) rotateY(0)}to{transform:rotateX(-22deg) rotateY(360deg)}}
-@keyframes laSpinStop{to{transform:rotateX(0) rotateY(0)}}
-.la-c .f{position:absolute;inset:0;background-size:cover;background-position:50% 50%;border:1.5px solid rgba(227,173,87,.85);box-shadow:inset 0 0 0 1px rgba(0,0,0,.6),0 0 40px rgba(227,173,87,.18);backface-visibility:hidden}
-.la-c .f::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(12,11,10,.25),rgba(12,11,10,.6))}
-.la-c .front{transform:translateZ(90px)}.la-c .back{transform:rotateY(180deg) translateZ(90px)}.la-c .left{transform:rotateY(-90deg) translateZ(90px)}.la-c .right{transform:rotateY(90deg) translateZ(90px)}.la-c .top{transform:rotateX(90deg) translateZ(90px)}.la-c .bottom{transform:rotateX(-90deg) translateZ(90px)}
-.la-strips{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:clamp(10px,1.4vw,22px);padding:0 4vw 6vh;pointer-events:none;opacity:0}
-#launch.p-strips .la-strips{opacity:1}
-#launch.out .la-strips{opacity:1;animation:laOut .6s ease-in forwards}
-@keyframes laOut{to{opacity:0;transform:translateY(6vh) scale(.98)}}
-.la-col{position:relative;flex:none;width:min(15vw,230px);aspect-ratio:4/5;border-radius:12px;border:1px solid rgba(227,173,87,.35);background:#15130f;overflow:visible;box-shadow:0 30px 60px -20px rgba(0,0,0,.8);transform:translateX(-120vw) rotate(-4deg)}
-#launch.p-strips .la-col{animation:laCol .75s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--i)*120ms)}
-@keyframes laCol{to{transform:none}}
-.la-col video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 45%;border-radius:11px;filter:brightness(.9) saturate(.95)}
-.la-col.live{background:transparent;border-color:rgba(227,173,87,.9);box-shadow:0 0 0 1px rgba(0,0,0,.5),0 0 40px rgba(227,173,87,.25)}
-.la-col.live::before{content:"";position:absolute;left:50%;top:50%;width:14px;height:14px;border-radius:50%;border:1.5px solid rgba(244,241,234,.9);transform:translate(-50%,-50%)}
-.la-col span{position:absolute;left:0;right:0;top:calc(100% + 14px);text-align:center;font-family:var(--mono);font-size:10.5px;letter-spacing:.3em;color:var(--accent);text-shadow:0 1px 8px rgba(0,0,0,.9)}
-#launch.out{background:transparent}
-#launch.out::before{display:none}
+@keyframes laGlowOut{to{opacity:0;transform:translate(-50%,-50%) scale(3)}}
+/* the panels: full screen, each gliding in from the left and stopping a strip further left than the one before */
+.la-pans{position:absolute;inset:0;pointer-events:none;--s:16.6667%}
+.la-pan{position:absolute;inset:0;transform:translateX(-102%);background:#15130f;box-shadow:10px 0 40px rgba(0,0,0,.55);overflow:hidden}
+#launch.p-cards .la-pan{animation:laPan .9s cubic-bezier(.2,.8,.2,1) forwards;animation-delay:calc(var(--i)*260ms)}
+#launch.p-lock .la-pan,#launch.out .la-pan{transform:translateX(calc(-100% + var(--k)*var(--s)));animation:laPanOut .7s ease-in forwards;animation-delay:calc((4 - var(--i))*60ms)}
+@keyframes laPan{to{transform:translateX(calc(-100% + var(--k)*var(--s)))}}
+@keyframes laPanOut{to{transform:translateX(calc(-100% + var(--k)*var(--s))) translateY(-6vh);opacity:0}}
+.la-pan video{position:absolute;top:0;left:calc(50% - var(--s)/2);width:100%;height:100%;object-fit:cover;object-position:50% 45%;filter:brightness(.88) saturate(.95)}   /* the middle of each recording lands in its visible strip */
+.la-pan::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(12,11,10,.75) 0%,rgba(12,11,10,0) 30%,rgba(12,11,10,0) 60%,rgba(12,11,10,.8) 100%)}
+.la-pan span{position:absolute;right:0;width:var(--s);bottom:9vh;text-align:center;font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--accent);text-shadow:0 1px 8px rgba(0,0,0,.9);z-index:1}
 .la-word{position:absolute;left:0;right:0;top:9vh;text-align:center;opacity:0;pointer-events:none;z-index:2}
 .la-word b{display:block;font-family:var(--serif);font-weight:400;font-size:64px;letter-spacing:-.01em;text-shadow:0 2px 24px rgba(0,0,0,.8)}
 .la-word span{display:block;margin-top:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.3em;color:var(--accent);text-shadow:0 1px 8px rgba(0,0,0,.8)}
-#launch.p-strips .la-word{animation:coSoft .9s cubic-bezier(.2,.7,.2,1) .5s both}
+#launch.p-cards .la-word{animation:coSoft .9s cubic-bezier(.2,.7,.2,1) .9s both}
+#launch.p-lock .la-word,#launch.out .la-word{opacity:1;animation:laFade .5s ease-out forwards}
 .la-skip{position:absolute;right:28px;bottom:24px;font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;color:var(--ink-4);opacity:0;transition:opacity .4s}
 #launch.skip .la-skip{opacity:1}
-#launch.out .la-skip,#launch.out .la-word{opacity:0;transition:opacity .2s}
+#launch.p-lock .la-skip,#launch.out .la-skip{opacity:0}
 body.launching #loader,body.launching #hud,body.launching #navTop,body.launching #navActs,body.launching #prompt,body.launching .q-hud,body.launching #chCard,body.launching #chGlow,body.launching #chFlash,body.launching #chMarks,body.launching #chTitle,body.launching #vfToast,body.launching #coCard,body.launching #coRing,body.launching #toast,body.launching .ach-card,body.launching #tutorial,body.launching #fadeover{visibility:hidden!important}
-@media (prefers-reduced-motion:reduce){.la-c{animation-duration:30s}}

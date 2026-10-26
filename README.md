@@ -89,9 +89,10 @@ lives inside it.
 
 ## News
 
-- **26 Oct 2026, later.** An opening: a glow, the cube spinning out of it while the scan loads behind, a dive into the cube, an
-  orbit of the stump with a speed ramp, then the rooms slide in as cards (the first is the live scan, the rest are recordings
-  from inside each room) and settle into the hub. Click or any key skips; after the first time it is the three-second version.
+- **26 Oct 2026, later.** An opening: a glow while the scan loads, then straight in close on the stump in slow motion, a
+  speed ramp up and round, the rooms gliding in from off screen as full-screen recordings that stack into strips while the
+  scan keeps turning behind them, then the camera settles on the starting spot. Click or any key skips; after the first
+  time it is the three-second version.
 
 - **26 Oct 2026.** Quests are a board of rows of three, each row opening when the one above is done, and every quest has a
   page with a live clip of what it looks like. The lighting quest is a recipe with gold spots in the plan and setting bands

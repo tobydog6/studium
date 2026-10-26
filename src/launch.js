@@ -1,47 +1,60 @@
   // ================= LAUNCH: the opening =================
-  // Dark. A small glow, the cube spins out of it while the scan loads behind, you fly into the cube and you're in the scene,
-  // orbiting the stump with a speed ramp, then the rooms slide in as columns (the first one is the live scan, the rest are
-  // recordings of moving around inside each room), and they settle into the hub. Any click or key skips to the end.
-  // After the first time it's the short version: glow, cube, in. The whole thing waits for the scan, never the other way round.
-  var LA={on:false, t0:0, raf:0, phase:"", fast:false, after:null, el:null, orbit:null, strips:0};
+  // Dark, a small glow while the scan loads. Then straight in: close on the stump in slow motion, the camera creeping round the
+  // detail, then a speed ramp up and out and round. The rooms glide in from off screen as full-screen panels (recordings of
+  // moving around inside each room), each stopping a little further left so they stack into strips, the scan still turning
+  // behind them. They fade, and the camera settles onto the starting spot. Any click or key skips to the end. After the first
+  // time it's the short version: glow, in, settle. The whole thing waits for the scan, never the other way round.
+  var LA={on:false, t0:0, raf:0, phase:"", fast:false, after:null, el:null, cam:null, hold:false};
   var LA_KEY="studium_launch_seen";
-  var LA_ROOMS=[["shoot","Shoot",null],["select","Pick","asset:assets/launch/select.mp4"],["edit","Edit","asset:assets/launch/edit.mp4"],["workbook","Make","asset:assets/launch/workbook.mp4"],["folio","Folio","asset:assets/launch/folio.mp4"],["gallery","Show","asset:assets/launch/gallery.mp4"]];
+  var LA_ROOMS=[["select","Pick","asset:assets/launch/select.mp4"],["edit","Edit","asset:assets/launch/edit.mp4"],["workbook","Make","asset:assets/launch/workbook.mp4"],["folio","Folio","asset:assets/launch/folio.mp4"],["gallery","Show","asset:assets/launch/gallery.mp4"]];
+  var LA_T={detail:2.8, ramp:2.2, cards:3.6, lock:1.4};
   function laSeen(){ try{ return localStorage.getItem(LA_KEY)==="1"; }catch(e){ return false; } }
-  function laEl(){ var e=$("launch"); if(e) return e; e=document.createElement("div"); e.id="launch"; var sc=(window.SPLAT_SCENES||[])[0], th=sc&&sc.thumb?sc.thumb:"";
-    var faces=["front","back","left","right","top","bottom"].map(function(f){ return '<i class="f '+f+'"'+(th?' style="background-image:url('+th+')"':'')+'></i>'; }).join("");
-    e.innerHTML='<div class="la-glow"></div><div class="la-cube"><div class="la-c">'+faces+'</div></div>'
-      +'<div class="la-strips">'+LA_ROOMS.map(function(r,i){ return '<div class="la-col'+(r[2]?'':' live')+'" style="--i:'+i+'">'+(r[2]?'<video muted loop playsinline preload="auto" src="'+r[2]+'"></video>':'')+'<span>'+r[1].toUpperCase()+'</span></div>'; }).join("")+'</div>'
-      +'<div class="la-skip">CLICK TO SKIP</div><div class="la-word"><b>Studium</b><span>A PHOTOGRAPHY STUDIO YOU WALK INTO</span></div>';
+  function laEl(){ var e=$("launch"); if(e) return e; e=document.createElement("div"); e.id="launch"; var n=LA_ROOMS.length;
+    e.innerHTML='<div class="la-glow"></div><div class="la-pans">'+LA_ROOMS.map(function(r,i){ return '<div class="la-pan" style="--i:'+i+';--k:'+(n-i)+'"><video muted loop playsinline preload="auto" src="'+r[2]+'"></video><span>'+r[1].toUpperCase()+'</span></div>'; }).join("")+'</div>'
+      +'<div class="la-word"><b>Studium</b><span>A PHOTOGRAPHY STUDIO YOU WALK INTO</span></div><div class="la-skip">CLICK TO SKIP</div>';
     document.body.appendChild(e);
     e.addEventListener("pointerdown",function(ev){ ev.stopPropagation(); laSkip(); });
     window.addEventListener("keydown",function(ev){ if(!LA.on) return; ev.stopImmediatePropagation(); ev.preventDefault(); if(!ev.repeat) laSkip(); },true);
     window.addEventListener("keyup",function(ev){ if(LA.on) ev.stopImmediatePropagation(); },true);
     return e; }
-  function laPhase(p){ if(LA.phase===p) return; LA.phase=p; LA.pt=performance.now(); LA.log=(LA.log||[]).concat([p]); LA.held=false; if(LA.el){ LA.el.className="on p-"+p; } }
-  function laHeld(){ if(!LA.hold) return false; if(!LA.held){ LA.held=true; LA.wait=true; } return LA.wait; }   /* tests: ?lahold parks each phase until __la.go() */
-  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.fast=laSeen(); LA.t0=performance.now(); LA.orbit=null; LA.skipAsked=false;
+  function laPhase(p){ if(LA.phase===p) return; LA.phase=p; LA.pt=performance.now(); LA.log=(LA.log||[]).concat([p]); LA.held=false; if(LA.el){ LA.el.className="on p-"+p+(LA.skipAsked?" skip":""); } }
+  function laHeld(){ if(!LA.hold) return false; if(!LA.held){ LA.held=true; LA.wait=true; } return LA.wait; }   /* tests: ?lahold parks a phase until __la.go() */
+  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.fast=laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[];
     var e=laEl(); LA.el=e; document.body.classList.add("launching"); laPhase("glow");
     ["hub","landing","studio","punctum","signin","teacher"].forEach(hubHide);
     if(!loaded){ var sc=(window.SPLAT_SCENES||[])[0]; if(sc){ App.go("landing"); loadBundled(sc); } }   /* the scan loads behind the glow */
     try{ localStorage.setItem(LA_KEY,"1"); }catch(x){}
     cancelAnimationFrame(LA.raf); LA.raf=requestAnimationFrame(laTick); }
-  function laSkip(){ if(!LA.on) return; if(LA.phase==="orbit"||LA.phase==="strips"){ laEnd(); return; } LA.fast=true;   /* before the scene is in, skipping just drops the long bits */
-    if(LA.phase==="glow"&&performance.now()-LA.t0<400) return; }
-  /* the camera's path: start wide behind the subject's shoulder, close in while circling 1.6 turns, slow then fast */
-  function laOrbitInit(){ var S=(CH.spec&&CH.spec.subject)||[0,0], a0=Math.atan2(camPos.x-S[0], camPos.z-S[1]);
-    LA.orbit={S:S, a0:a0, gy:wkGround(S[0],S[1]), walk:!!(WK.col&&WK.mode==="walk")}; laOrbitAt(0); }
-  function laOrbitAt(u){ var O=LA.orbit; if(!O) return; var s=Math.pow(u,2.4), a=O.a0+s*Math.PI*1.6, r=4.2-1.5*s, x=O.S[0]+Math.sin(a)*r, z=O.S[1]+Math.cos(a)*r, eye=1.7-0.5*s;
-    _vel.set(0,0,0); camPos.x=x; camPos.z=z; var g=O.walk?wkGround(x,z):O.gy; if(O.walk) WK.eye=eye; camPos.y=g+eye;
-    var ty=O.gy+0.45; yaw=Math.atan2(x-O.S[0], z-O.S[1]); pitch=Math.atan2(ty-camPos.y, r); if(typeof basis==="function") basis(); }
+  function laSkip(){ if(!LA.on) return; if(LA.phase==="glow"){ LA.fast=true; return; }   /* before the scan is in, skipping just drops the long bits */
+    if(LA.phase!=="lock") laLockStart(); }
+  // ---- the camera ----
+  function laSubject(){ return (CH.spec&&CH.spec.subject)||[0,0]; }
+  function laPlace(a,r,eye){ var S=laSubject(), x=S[0]+Math.sin(a)*r, z=S[1]+Math.cos(a)*r, gy=wkGround(S[0],S[1]), walk=!!(WK.col&&WK.mode==="walk");
+    _vel.set(0,0,0); camPos.x=x; camPos.z=z; var g=walk?wkGround(x,z):gy; if(walk) WK.eye=eye; camPos.y=g+eye;
+    var ty=gy+0.4; yaw=Math.atan2(x-S[0], z-S[1]); pitch=Math.atan2(ty-camPos.y, r); if(typeof basis==="function") basis(); LA.cam={a:a, r:r, eye:eye}; }
+  function laCamInit(){ var S=laSubject(), a0=Math.atan2(camPos.x-S[0], camPos.z-S[1])+0.6; laPlace(a0, 1.25, 0.75); LA.a0=a0; }
+  var laE=function(u){ return u<0?0:u>1?1:u*u*(3-2*u); };
+  function laDetail(u){ laPlace(LA.a0+u*0.28, 1.25-0.08*u, 0.75-0.06*u); }                                 /* slow motion: a creep round the bark */
+  function laRamp(u){ var s=Math.pow(u,2.2); laPlace(LA.a0+0.28+s*Math.PI*1.35, 1.17+2.9*s, 0.69+1.15*s); }   /* then up, out and round, fast */
+  function laDrift(u){ var A=LA.a0+0.28+Math.PI*1.35; laPlace(A+u*0.5, 4.07, 1.84); }                        /* under the panels it keeps turning, gently */
+  function laLockStart(){ var sp=CH.spec&&CH.spec.spawn; laPhase("lock"); LA.from={x:camPos.x, y:camPos.y, z:camPos.z, yaw:yaw, pitch:pitch, eye:WK.eye};
+    if(sp){ var walk=!!(WK.col&&WK.mode==="walk"), eye=sp[4]||1.65; LA.to={x:sp[0], z:sp[1], yaw:sp[2]||0, pitch:sp[3]||-0.1, eye:eye, y:(walk?wkGround(sp[0],sp[1]):camPos.y)+eye}; }
+    else LA.to={x:camPos.x, y:camPos.y, z:camPos.z, yaw:yaw, pitch:pitch, eye:WK.eye};
+    Array.prototype.forEach.call(LA.el.querySelectorAll("video"),function(v){ try{ v.pause(); }catch(x){} }); }
+  function laLock(u){ var F=LA.from, T=LA.to, k=laE(u), dy=T.yaw-F.yaw; dy=Math.atan2(Math.sin(dy),Math.cos(dy));
+    _vel.set(0,0,0); camPos.x=F.x+(T.x-F.x)*k; camPos.z=F.z+(T.z-F.z)*k; camPos.y=F.y+(T.y-F.y)*k; if(WK.col&&WK.mode==="walk") WK.eye=F.eye+(T.eye-F.eye)*k;
+    yaw=F.yaw+dy*k; pitch=F.pitch+(T.pitch-F.pitch)*k; if(typeof basis==="function") basis(); }
+  // ---- the clock ----
   function laTick(now){ if(!LA.on) return; LA.raf=requestAnimationFrame(laTick); var t=(now-LA.t0)/1000, p=LA.phase, pt=(now-(LA.pt||LA.t0))/1000, e=LA.el;
-    if(p==="glow"){ if(t>(LA.fast?0.7:1.3)) laPhase("cube"); return; }
-    if(p==="cube"){ if(loaded&&pt>(LA.fast?1.4:2.2)){ laOrbitInit(); if(typeof updateCamera==="function") updateCamera(0); laPhase("dive"); } if(t>2.5&&!LA.skipAsked){ LA.skipAsked=true; e.classList.add("skip"); } return; }
-    if(p==="dive"){ if(pt>0.95){ if(LA.fast){ laEnd(); return; } laPhase("orbit"); } return; }
-    if(p==="orbit"){ var u=Math.min(1,pt/3.2); laOrbitAt(u); if(u>=1&&laHeld()) return; if(u>=1){ laPhase("strips"); LA.strips=performance.now(); Array.prototype.forEach.call(e.querySelectorAll("video"),function(v){ try{ v.currentTime=0; v.play(); }catch(x){} }); } return; }
-    if(p==="strips"){ laOrbitAt(1); if(pt>3.0&&!laHeld()) laEnd(); return; } }
+    if(p==="glow"){ if(t>2.5&&!LA.skipAsked){ LA.skipAsked=true; e.classList.add("skip"); }
+      if(loaded&&t>(LA.fast?0.9:1.6)){ laCamInit(); if(typeof updateCamera==="function") updateCamera(0); if(LA.fast){ laLockStart(); return; } laPhase("detail"); } return; }
+    if(p==="detail"){ laDetail(Math.min(1,pt/LA_T.detail)); if(pt>LA_T.detail&&!laHeld()) laPhase("ramp"); return; }
+    if(p==="ramp"){ laRamp(Math.min(1,pt/LA_T.ramp)); if(pt>LA_T.ramp){ laPhase("cards"); Array.prototype.forEach.call(e.querySelectorAll("video"),function(v){ try{ v.currentTime=0; v.play(); }catch(x){} }); } return; }
+    if(p==="cards"){ laDrift(Math.min(1,pt/LA_T.cards)); if(pt>LA_T.cards&&!laHeld()) laLockStart(); return; }
+    if(p==="lock"){ laLock(Math.min(1,pt/LA_T.lock)); if(pt>LA_T.lock) laEnd(); return; } }
   function laEnd(){ if(!LA.on) return; LA.on=false; cancelAnimationFrame(LA.raf); var e=LA.el; LA.welcome=Date.now();
-    showHub(); if(e){ e.className="on out"; Array.prototype.forEach.call(e.querySelectorAll("video"),function(v){ try{ v.pause(); }catch(x){} }); setTimeout(function(){ e.className=""; document.body.classList.remove("launching"); },700); }
-    else document.body.classList.remove("launching");
+    if(loaded){ hubShow("hud"); App.go("scene"); if(typeof updatePrompt==="function") updatePrompt(); } else showHub();
+    if(e){ e.className="on out"; setTimeout(function(){ e.className=""; document.body.classList.remove("launching"); },500); } else document.body.classList.remove("launching");
     if(LA.after) LA.after(); }
   LA.hold=/[?&]lahold/.test(location.search);
   if(/[?&]dev/.test(location.search)) window.__la={ start:launchStart, skip:laSkip, go:function(){ LA.wait=false; }, state:function(){ return {on:LA.on, phase:LA.phase, fast:LA.fast, loaded:loaded, log:LA.log||[]}; }, reset:function(){ try{ localStorage.removeItem(LA_KEY); }catch(e){} } };

@@ -65,8 +65,8 @@
   function qTile(x){ var s=qStatus(x.id), p=qProgress(x.id), lock=qLockReason(x), tr=Q.tracked===x.id, sug=!tr&&!lock&&s!=="done"&&(qSuggest()||{}).id===x.id, mins=x.mins?x.mins+" MIN":"";
     var dots=qSteps(x.id).map(function(c){ return '<i class="'+(c.ok?'ok':'')+'"></i>'; }).join("");
     var word=tr?"TRACKING":s==="done"?"DONE":s==="active"?"IN PROGRESS":lock?"LOCKED":sug?"SUGGESTED":"";
-    var tst=qClipKind(x)==="lighting";   /* testing: jump straight into the lighting rig, even while it's locked */
-    return '<button class="q-tile s-'+s+(tr?' tr':'')+(sug?' sug':'')+'"'+(lock&&!x.try?(tst?' aria-disabled="true"':' disabled'):' data-q-see="'+x.id+'"')+'>'+(tst?'<span class="q-test" data-q-test="'+x.id+'" title="Testing: skip ahead to the lighting rig">TEST</span>':'')
+    var tst=qClipKind(x)==="lighting"||x.go==="folio";   /* testing: jump straight into the lighting rig or the folio tour, even while it's locked */
+    return '<button class="q-tile s-'+s+(tr?' tr':'')+(sug?' sug':'')+'"'+(lock&&!x.try?(tst?' aria-disabled="true"':' disabled'):' data-q-see="'+x.id+'"')+'>'+(tst?'<span class="q-test" data-q-test="'+x.id+'" title="'+(x.go==="folio"?'Testing: straight into the folio tour, with your photos on the board':'Testing: skip ahead to the lighting rig')+'">TEST</span>':'')
       +'<span class="q-tk">'+qPillarChip(x)+(mins?'<em>'+mins+'</em>':'')+'</span>'
       +'<b>'+qEsc(x.title)+'</b><p>'+qEsc(lock&&!x.try?lock:x.blurb)+'</p>'
       +(x.try&&s!=="done"?'<span class="q-trychip" data-q-try="'+x.id+'" title="Open it now">TRY NOW ›</span>':'')+(s==="done"?'<span class="q-trychip q-rpchip" data-q-replay="'+x.id+'" title="Walk through its steps again">↻ REPLAY</span>':'')+'<span class="q-tf"><span class="q-dots">'+dots+'</span><span class="q-tw">'+(s==="done"?'✓ ':'')+word+(s!=="done"&&!lock&&qState(x.id)?' · '+p.done+' / '+p.of:'')+'</span></span>'
@@ -93,6 +93,11 @@
     if(!loaded||!App.is("scene")) qGoDest("scene"); var t0=Date.now();
     (function w(){ if(loaded&&App.is("scene")&&!menuOpen()){ if(typeof CH!=="undefined"){ CH.hidden=true; if(typeof chFramesBtn==="function") chFramesBtn(); if(typeof chMarkers==="function") chMarkers(); }   /* frames away for this session only */
       if(typeof rlOpen==="function"&&!RL.ui) rlOpen(); setTimeout(function(){ if(RL.ui&&typeof coStart==="function") coStart("lightrig"); },600); return; }   /* straight into the lighting tour from the top */ if(Date.now()-t0<180000) setTimeout(w,400); })(); }
+  /* testing the folio workflow: a few photos on the board if it's empty, then the folio tour from the top (print sheets at the end) */
+  function qTestFolio(){ qLogClose(); if(typeof CO!=="undefined"&&CO.on) coStop(); if(viewfinderOn) lowerCamera(); if(!photos.length){ toast("Take a few photos first, then test the folio."); return; }
+    var d=foB.doc_(), pg=d.pages[Math.max(0,Math.min(d.pages.length-1,d.cur||0))], have=pg.items.filter(function(it){ return it.t==="photo"&&!it.hidden; }).length;
+    if(!have){ var keys=["0.0","0.0","0.0","0.1","0.1","1.0","1.0","2.0"]; for(var i=0;i<Math.min(keys.length,photos.length);i++) pg.items.push({id:bdUid(), t:"photo", pid:stId(i), sec:keys[i], x:20, y:20, w:180}); st.foBoard=d; saveSession(); }
+    Q.tourStep.folio=0; Q.tours.folio=false; openStudio("folio"); setTimeout(function(){ try{ foB.render(); }catch(er){} if(typeof coStart==="function") coStart("folio",true); },700); }
   function qLogClose(){ var el=$("qLog"); if(el) el.classList.remove("show"); QU.log=false; QU.pick=false; qHud(); if(typeof qMorphHide==="function") qMorphHide(); }
 
   // ---- the tracked quest card (the HUD) ----
@@ -241,7 +246,7 @@
   // ---- clicks ----
   document.addEventListener("click",function(e){ var t=e.target.closest&&e.target.closest("[data-q],[data-q-pick],[data-q-open],[data-q-track],[data-q-see],[data-q-test],[data-q-try],[data-q-replay]"); if(!t) return; e.stopPropagation();
     if(t.closest(".q-tile[aria-disabled]")&&!e.target.closest("[data-q-test]")) return;
-    if(e.target.closest("[data-q-test]")){ qTestLighting(); return; }
+    if(e.target.closest("[data-q-test]")){ var qt=qGet(e.target.closest("[data-q-test]").getAttribute("data-q-test")); if(qt&&qt.go==="folio") qTestFolio(); else qTestLighting(); return; }
     var rp=e.target.closest("[data-q-replay]"); if(rp){ qReplay(rp.getAttribute("data-q-replay")); return; }
     if(t.hasAttribute("data-q-try")){ var xt=qGet(t.getAttribute("data-q-try")); qMorphHide(); qPickClose(); qLogClose(); qDoneClose(); if(xt) qGoDest(xt.go); return; }
     if(t.hasAttribute("data-q-see")){ qMorphOpen(t.getAttribute("data-q-see"), t.classList.contains("q-tile")?t:t.closest(".q-tile")||t); return; }

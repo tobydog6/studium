@@ -51,7 +51,7 @@
   var SD={ctx:null, out:null, nb:null, verb:null, seq:null, amb:null, drone:null};
   function sdWire(c){ if(SD.ctx===c) return c; SD.ctx=c; SD.seq=null; SD.amb=null;
     var comp=c.createDynamicsCompressor(); comp.threshold.value=-16; comp.ratio.value=3; comp.attack.value=0.004; comp.release.value=0.2; comp.connect(c.destination);
-    SD.out=c.createGain(); SD.out.gain.value=1.0; SD.out.connect(comp);
+    SD.out=c.createGain(); SD.out.gain.value=SD.off?1.0:Math.max(sfxVol(),0.0001); SD.out.connect(comp);
     var sr=c.sampleRate, len=sr*2, b=c.createBuffer(2,len,sr), ch, i, d; for(ch=0;ch<2;ch++){ d=b.getChannelData(ch); for(i=0;i<len;i++) d[i]=Math.random()*2-1; } SD.nb=b;
     var rl=Math.floor(sr*2.6), ir=c.createBuffer(2,rl,sr); for(ch=0;ch<2;ch++){ d=ir.getChannelData(ch); for(i=0;i<rl;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/rl,3.4); }   /* a soft dark room */
     SD.verb=c.createConvolver(); SD.verb.buffer=ir; var vl=c.createBiquadFilter(); vl.type="lowpass"; vl.frequency.value=4200; var vg=c.createGain(); vg.gain.value=0.32; SD.verb.connect(vl); vl.connect(vg); vg.connect(SD.out); return c; }

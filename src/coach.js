@@ -408,7 +408,7 @@
     coRender(s); }
   function coTicked(){ CO.ticking=true; var e=coEl(); e.classList.add("ok"); setTimeout(function(){ CO.ticking=false; e.classList.remove("ok"); CO.i++; Q.tourStep[CO.tour]=CO.i; qSave();
       if(CO.i>=coSteps().length){ coFinish(false); return; } coEnter(); }, 600); }
-  function coRender(s){ var e=coEl(), ring=$("coRing"), steps=coSteps();
+  function coRender(s){ var e=coEl(), ring=$("coRing"), steps=coSteps(); if(CO.sndStep!==s){ CO.sndStep=s; sfx("tour"); }
     var chs=[], prev=null; steps.forEach(function(x,i){ if(x.ch!==prev){ chs.push({ch:x.ch, first:i}); prev=x.ch; } });
     var inCh=steps.filter(function(x){ return x.ch===s.ch; }), k=inCh.indexOf(s);
     // a nudge when the step needs something open first

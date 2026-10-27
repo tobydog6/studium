@@ -445,7 +445,7 @@
   // autofocus: the nearest splat on the line through the middle of the frame, like a camera's centre AF point
   // the AF point covers a small cone (about 3 degrees wide) so handheld sway can't slip it between splats; it takes the
   // nearest solid-ish thing in it, ignoring the odd stray splat (it wants a few hits close together)
-  function autoFocus(say){ var P=viewer&&viewer.P, A=viewer&&viewer.A; if(!P) return; var f=new THREE.Vector3(); camera.getWorldDirection(f); var o=camera.position, N=P.length/3, sc=sceneScale(), mt=0.25*sc, ts=[];
+  function autoFocus(say){ var P=viewer&&viewer.P, A=viewer&&viewer.A; if(!P) return; sfx("focus"); var f=new THREE.Vector3(); camera.getWorldDirection(f); var o=camera.position, N=P.length/3, sc=sceneScale(), mt=0.25*sc, ts=[];
     for(var i=0;i<N;i++){ if(A&&A[i]<0.12) continue; var vx=P[i*3]-o.x, vy=P[i*3+1]-o.y, vz=P[i*3+2]-o.z, t=vx*f.x+vy*f.y+vz*f.z; if(t<mt) continue; var p2=vx*vx+vy*vy+vz*vz-t*t, lim=t*0.026+0.01*sc; if(p2<lim*lim) ts.push(t); }
     ts.sort(function(a,b){ return a-b; }); var k=Math.min(ts.length-1, 4);
     if(ts.length<3){ afHunt(1, say?"Focused at infinity":""); return; }   // only sky or far-off haze in the middle: like a real lens, focus far
@@ -756,7 +756,7 @@
   function endTutorial(){ var e=$("tutorial"); if(e) e.classList.add("hidden"); setTutSeen(); }
 
   // ---- viewfinder + photos ----
-  function raiseCamera(){ if(!loaded) return; if(soundOn){ try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); shutterLoad(); }catch(e){} } App.note("viewfinder"); afPending=true; viewfinderOn=true; viewfinder.classList.add("on"); updateCrosshair(); updatePrompt(); computeCam(); applyFinder(); drawComp(); }
+  function raiseCamera(){ if(!loaded) return; if(soundOn){ try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); shutterLoad(); }catch(e){} } App.note("viewfinder"); sfx("raise"); afPending=true; viewfinderOn=true; viewfinder.classList.add("on"); updateCrosshair(); updatePrompt(); computeCam(); applyFinder(); drawComp(); }
   function lowerCamera(){ if(App.state==="viewfinder") App.note("scene"); var was=viewfinderOn; viewfinderOn=false; viewfinder.classList.remove("on"); updateCrosshair(); updatePrompt(); applyFinder(); if(was) computeCam(); }
   // ---- composition / framing guides (in-frame, teach composition in any scene) ----
   var COMP=["off","thirds","phi","center","diagonal","grid"], compIdx=1;
@@ -774,7 +774,7 @@
     if(typeof vfRenderChips==="function") vfRenderChips(); }
   function cycleComp(){ compIdx=(compIdx+1)%COMP.length; drawComp(); }
   // ---- capture flourish: the shot flies to the photo counter ----
-  function captureFX(url){ try{
+  function captureFX(url){ sfx("roll",{delay:0.3}); try{
     var frame=$("vfFrame"); if(!frame) return; var fr=frame.getBoundingClientRect();
     var target=$("photoCount"), tg=target?target.getBoundingClientRect():{left:innerWidth-46,top:16,width:24,height:24};
     var img=$("captureFly"); if(!img){ img=document.createElement("img"); img.id="captureFly"; document.body.appendChild(img); }
@@ -800,7 +800,7 @@
       if(audioCtx.state==="suspended") audioCtx.resume();
       shutterLoad();
       var buf=shutterBufs[shutterNext%2]||shutterBufs[(shutterNext+1)%2]; shutterNext++;
-      if(buf){ var s=audioCtx.createBufferSource(); s.buffer=buf; s.playbackRate.value=0.98+Math.random()*0.04; var g=audioCtx.createGain(); g.gain.value=0.8; s.connect(g); g.connect(audioCtx.destination); s.start(); return; }
+      if(buf){ var s=audioCtx.createBufferSource(); s.buffer=buf; s.playbackRate.value=0.98+Math.random()*0.04; var g=audioCtx.createGain(); g.gain.value=0.8*sfxVol(); s.connect(g); g.connect(audioCtx.destination); s.start(); sfx("shutterAir"); return; }
       // not decoded yet (the very first press): a quick synthetic slap
       var sr=audioCtx.sampleRate, len=Math.floor(sr*0.05), nb=audioCtx.createBuffer(1,len,sr), d=nb.getChannelData(0);
       for(var i=0;i<len;i++){ var e=1-i/len; d[i]=(Math.random()*2-1)*e*e; }
@@ -1027,6 +1027,7 @@
   function openMenu(){ App.note("bag"); suiteFrom="scene"; if(looking) document.exitPointerLock(); lowerCamera(); syncMenu(); show(menu); if(menu){ menu.classList.remove("flipin"); void menu.offsetWidth; menu.classList.add("flipin"); } updatePrompt(); }
   function closeMenu(){ hide(menu); if(App.state==="bag") App.note("scene"); updatePrompt(); }
   function toggleMenu(){ if(!menu.classList.contains("hidden")) closeMenu(); else openMenu(); }
+@@include sound.js@@
 @@include back.js@@
 @@include finder.js@@
 @@include bag.js@@
@@ -1111,7 +1112,7 @@
   $("mSens").addEventListener("input",function(){ sens=0.0006+(+this.value)*0.00004; $("mSensVal").textContent=this.value; });
   $("mInvert").onclick=function(){ invertY=!invertY; this.classList.toggle("on",invertY); };
   $("mBounds").onclick=function(){ boundsOn=!boundsOn; this.classList.toggle("on",boundsOn); };
-  $("mSound").onclick=function(){ soundOn=!soundOn; this.classList.toggle("on",soundOn); };
+  $("mSound").onclick=function(){ soundOn=!soundOn; if(soundOn&&!SFX.lv) SFX.lv=2; this.classList.toggle("on",soundOn); sfxApplyVol(); };
   $("lkBloom").addEventListener("input",function(){ gBloom=(+this.value)/100; $("lkBloomV").textContent=this.value+"%"; clearLookPreset(); });
   $("lkDof").addEventListener("input",function(){ gDof=(+this.value)/100; $("lkDofV").textContent=this.value+"%"; clearLookPreset(); });
   $("lkWarm").addEventListener("input",function(){ gWarm=(+this.value)/100; $("lkWarmV").textContent=this.value; clearLookPreset(); });
@@ -1177,7 +1178,7 @@
     window.addEventListener("keydown",function(e){ if(!editor || editor.classList.contains("hidden")) return; var mod=e.ctrlKey||e.metaKey;
       if(mod && (e.key==="z"||e.key==="Z")){ e.preventDefault(); if(e.shiftKey) edRedo(); else edUndo(); return; }
       if(mod && (e.key==="y"||e.key==="Y")){ e.preventDefault(); edRedo(); return; }
-      if(e.key==="\\"){ e.preventDefault(); edToggleBefore(); return; }
+      if(e.key==="\\"){ e.preventDefault(); edToggleBefore(); sfx("beforeAfter"); return; }
       if(e.key==="0"){ e.preventDefault(); edResetView(); return; }
       if(e.key==="+"||e.key==="="){ e.preventDefault(); edZoomBy(1.25); return; }
       if(e.key==="-"||e.key==="_"){ e.preventDefault(); edZoomBy(0.8); return; }

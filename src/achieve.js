@@ -204,8 +204,7 @@
     else if(k==="cull") s.ev.culls.push(v);
     if(achSweep(false)) qSave(); }
   function achCountAll(){ return ACH.filter(function(a){ return achLevel(a.id)>0; }).length; }
-  function achSound(){ if(typeof soundOn!=="undefined"&&!soundOn) return; try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); var c=audioCtx, t=c.currentTime;
-      [659.25,987.77].forEach(function(f,i){ var o=c.createOscillator(), g=c.createGain(); o.type="sine"; o.frequency.value=f; g.gain.setValueAtTime(0,t+i*0.09); g.gain.linearRampToValueAtTime(0.06,t+i*0.09+0.02); g.gain.exponentialRampToValueAtTime(0.0008,t+i*0.09+0.9); o.connect(g); g.connect(c.destination); o.start(t+i*0.09); o.stop(t+i*0.09+1); }); }catch(e){} }
+  function achSound(){ sfx("ach"); }
 
   // ---- the unlock card: small while the viewfinder's up, the full print when it's down or clicked ----
   function achPrintUrl(key){ var e=achS().earned[key]; if(!e) return null; var i=stById(e.pid); return i>=0?photos[i].url:null; }

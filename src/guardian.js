@@ -19,7 +19,7 @@
   // keep the camera inside the circle (slides along the edge); the walk map's own obstacles still apply
   function bndClamp(){ if(!BND.on||!boundsOn) return false; var dx=camPos.x-BND.cx, dz=camPos.z-BND.cz, d=Math.hypot(dx,dz), lim=BND.r-0.15; if(d<=lim) return false;
     camPos.x=BND.cx+dx/d*lim; camPos.z=BND.cz+dz/d*lim; var vr=(_vel.x*dx+_vel.z*dz)/d; if(vr>0){ _vel.x-=dx/d*vr; _vel.z-=dz/d*vr; } return true; }
-  function bndRender(dt){ if(!BND.on||!BND.mesh||viewfinderOn&&CH.capturing) return; var d=Math.hypot(camPos.x-BND.cx,camPos.z-BND.cz); if(BND.r-d>2.4) return;   /* nowhere near it: draw nothing */
+  function bndRender(dt){ if(!BND.on||!BND.mesh||viewfinderOn&&CH.capturing) return; var d=Math.hypot(camPos.x-BND.cx,camPos.z-BND.cz); var edge=BND.r-d; if(edge>1.8) BND.snd=false; else if(edge<1.0&&!BND.snd){ BND.snd=true; sfx("bounds"); } if(edge>2.4) return;   /* nowhere near it: draw nothing */
     var u=BND.mesh.material.uniforms; u.eye.value.copy(camPos); u.t.value+=dt||0.016;
     var ac=renderer.autoClear; renderer.autoClear=false; renderer.render(BND.mesh, camera); renderer.autoClear=ac; }
   if(/[?&]dev/.test(location.search)) window.__bnd={ state:function(){ return {on:BND.on, r:BND.r, d:BND.on?Math.hypot(camPos.x-BND.cx,camPos.z-BND.cz):null}; } };

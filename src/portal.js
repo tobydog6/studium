@@ -131,13 +131,7 @@
         PT.cool=performance.now()+1500; ptSound(true, true); ptClose(); if(typeof achEvent==="function") achEvent("portal"); } }
     PT.prev.copy(camPos); }
   // a rising shimmer to open, a falling one to close, a whoosh going through
-  function ptSound(up, through){ if(typeof soundOn!=="undefined"&&!soundOn) return; try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); var c=audioCtx, t=c.currentTime, len=through?0.8:1.2;
-      var b=c.createBuffer(1,Math.round(c.sampleRate*len),c.sampleRate), d=b.getChannelData(0); for(var i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.pow(Math.sin(Math.PI*i/d.length),2);
-      var src=c.createBufferSource(); src.buffer=b; var f=c.createBiquadFilter(); f.type="bandpass"; f.Q.value=through?1.0:4.0;
-      f.frequency.setValueAtTime(up?400:2600,t); f.frequency.exponentialRampToValueAtTime(up?2800:350,t+len*0.8);
-      var g=c.createGain(); g.gain.value=through?0.18:0.1; src.connect(f); f.connect(g); g.connect(c.destination); src.start(t);
-      if(!through) [1318.5,1975.5,2637].forEach(function(fq,j){ var o=c.createOscillator(), gg=c.createGain(); o.type="sine"; o.frequency.value=up?fq:fq*0.75; var t1=t+j*0.07+(up?0.15:0);
-        gg.gain.setValueAtTime(0,t1); gg.gain.linearRampToValueAtTime(0.025,t1+0.03); gg.gain.exponentialRampToValueAtTime(0.0005,t1+0.9); o.connect(gg); gg.connect(c.destination); o.start(t1); o.stop(t1+1); }); }catch(e){} }
+  function ptSound(up, through){ sfx(through||up?"portal":"back"); }
 
   if(/[?&]dev/.test(location.search)) window.__pt={ state:function(){ return {on:PT.on, state:PT.state, open:+PT.open.toFixed(2), live:PT.live, o:PT.o&&PT.o.position.toArray().map(function(v){ return +v.toFixed(2); }), far:PT.far&&PT.far.position.toArray().map(function(v){ return +v.toFixed(2); })}; },
     toggle:ptToggle, open:ptOpen, close:ptClose,

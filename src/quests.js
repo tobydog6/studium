@@ -188,17 +188,17 @@
     return x.steps.map(function(st0,i){ var ok=!!done||!!(s&&s.stepDone[i]); if(!ok&&s){ try{ ok=!!st0.check(s); }catch(e){ ok=false; } if(ok) s.stepDone[i]=true; }
       var now=null; if(!ok&&st0.now&&s){ try{ now=st0.now(s); }catch(e){} } return {t:st0.t, ok:ok, now:now, tour:st0.tour||null, go:st0.go||x.go}; }); }
   function qProgress(id){ var st=qSteps(id); return {done:st.filter(function(s){ return s.ok; }).length, of:st.length}; }
-  function qTrack(id){ var x=qGet(id); if(!x||qLockReason(x)) return false; if(!Q.quests[id]) Q.quests[id]={started:Date.now(), base:{photos:photos.length, t:Date.now()}, done:null, stepDone:{}};
+  function qTrack(id){ var x=qGet(id); if(!x||qLockReason(x)) return false; if(Q.tracked!==id) sfx("qPick"); if(!Q.quests[id]) Q.quests[id]={started:Date.now(), base:{photos:photos.length, t:Date.now()}, done:null, stepDone:{}};
     Q.tracked=id; qSave(); if(typeof qUI==="function") qUI(); return true; }
   // once a second-ish: tick the tracked quest (and any started one) and finish what's finished
   var Q_EVENTS=[];
   function qOn(fn){ Q_EVENTS.push(fn); }
   function qEmit(kind,data){ Q_EVENTS.forEach(function(fn){ try{ fn(kind,data); }catch(e){ console.warn("quest event",e); } }); }
-  function qTick(){ var changed=false;
+  function qTick(){ var changed=false, snd=null;
     Object.keys(Q.quests).forEach(function(id){ var s=Q.quests[id], x=qGet(id); if(!x||s.done) return;
       var before=Object.keys(s.stepDone).length, st=qSteps(id), after=Object.keys(s.stepDone).length;
-      if(after>before){ changed=true; qEmit("step",{id:id, steps:st}); }
-      if(st.every(function(t){ return t.ok; })){ s.done=Date.now(); changed=true; qEmit("complete",{id:id});
+      if(after>before){ changed=true; snd=snd||"qStep"; qEmit("step",{id:id, steps:st}); }
+      if(st.every(function(t){ return t.ok; })){ s.done=Date.now(); changed=true; snd="qDone"; qEmit("complete",{id:id});
         if(x.type==="foundation"&&qFoundations().every(function(f){ return qIsDone(f.id); })&&!Q.boardOpen){ Q.boardOpen=Date.now(); qEmit("board",{}); }
         if(Q.tracked===id) Q.tracked=null; } });
     /* a teacher can tick a foundation off outright, so the board can also open here */
@@ -206,7 +206,7 @@
     if(Q.tracked&&qIsDone(Q.tracked)){ Q.tracked=null; changed=true; }
     /* the demo's board rule: every board quest, in whatever order you choose, and it's finished */
     var fin=qSet().finish; if(fin&&!Q.finished&&qAll().filter(function(x){ return x.type==="main"&&qIsDone(x.id); }).length>=fin){ Q.finished=Date.now(); changed=true; qEmit("finish",{}); }
-    if(changed) qSave(); return changed; }
+    if(snd) sfx(snd); if(changed) qSave(); return changed; }
 
   // ---- hooks the rest of Studium calls ----
   function qTourDone(id){ Q.tours[id]=true; Q.tourStep[id]=coLen(id); qSave(); }

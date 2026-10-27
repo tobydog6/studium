@@ -7,6 +7,7 @@ const OPTS = { board:{ A:'Magnetic rows', B:'Free layout' }, marker:{ A:'Mat', B
 const LABEL = { board:'Sequence board', marker:'Pair marker' };
 const pick = { board:'B', marker:'A' };
 const HOST=(()=>{ try{ return window.parent!==window&&window.parent.LT_BRIDGE||null; }catch(e){ return null; } })();
+function SFX(id){ try{ if(HOST&&HOST.sfx) HOST.sfx(id); }catch(e){} }
 if(!HOST) try{ const s=JSON.parse(localStorage.getItem('lt_pick7')||'null'); if(s) Object.keys(pick).forEach(k=>{ if(s[k]&&OPTS[k][s[k]]) pick[k]=s[k]; }); }catch(e){}
 const TOP=78;
 const F={ lift:0.55, tiltK:0.10, maxTilt:0.32, k:170, c:13, follow:20, jitter:0.05, sag:0.035 };
@@ -370,7 +371,7 @@ function freeSpot(g){ const w=groupWidth(g), h=groupHeight(g), cx=wallFocusX(), 
     const d=(x-cx)*(x-cx)+(y-cy)*(y-cy)*2; if(d<bd){ bd=d; best={ x, y }; } }
   return best||{ x:cx, y:cy }; }
 function wallFocusX(){ if(!wallGroups.length) return -2; return wallGroups.reduce((a,g)=>a+g.x,0)/wallGroups.length; }
-function pinGroup(members, note, kind, at, silent){
+function pinGroup(members, note, kind, at, silent){ if(!silent) SFX('pin');
   members.forEach(p=>{ removeFromBoard(p); if(p.rejected) unreject(p); });
   const g={ id:++wgN, members:members.slice(), note:note?{ why:new Set(note.why), text:note.text||'' }:null, kind, date:new Date().toLocaleDateString('en-NZ',{ day:'numeric', month:'short' }), x:0, y:0 };
   members.forEach(p=>{ p.wg=g; p.inspT=0; });
@@ -531,7 +532,7 @@ canvas.addEventListener('wheel', e=>{ e.preventDefault(); setNDC(e); closeCtx();
   ['bTable','bBoard'].forEach(id=>$(id).classList.remove('on'));
 },{ passive:false });
 
-function startDrag(p){ pushUndo(); hideActs(); drag.p=p; p.order=++orderN; drag.wx=p.x; drag.wz=p.z; drag.pileYaw=p.onBoard||p.rejected?(Math.random()-0.5)*0.4:p.yawT;
+function startDrag(p){ SFX('lift'); pushUndo(); hideActs(); drag.p=p; p.order=++orderN; drag.wx=p.x; drag.wz=p.z; drag.pileYaw=p.onBoard||p.rejected?(Math.random()-0.5)*0.4:p.yawT;
   if(p.rejected) unreject(p);
   const was=p.onBoard; removeFromBoard(p); if(was) layoutBoard(null); canvas.style.cursor='grabbing'; updateChains(false); }
 function inScanner(x,z){ return Math.abs(x-SC.x)<SC.w/2+0.2 && Math.abs(z-SC.z)<SC.d/2+0.2; }
@@ -545,12 +546,12 @@ function updatePreview(){ const p=drag.p; let pv=null; drag.target=null;
   if(pv){ p.yawT=0; ghost.visible=true; ghost.position.set(pv.x,BOARD_Y+0.003,pv.z); ghost.scale.set(pv.w+0.08,pv.h+0.08,1); }
   else { p.yawT=drag.pileYaw; ghost.visible=false; } }
 function endDrag(){ const p=drag.p, pv=drag.preview, tg=drag.target; ghost.visible=false; drag.p=null; drag.preview=null; drag.target=null;
-  if(pv){ if(pv.free) placeFree(p,pv.x,pv.z); else { placeOnBoard(p,pv.row,pv.index); p.tx=pv.x; p.tz=pv.z; } tourEv('board'); }
-  else if(tg==='binder'){ p.x=drag.wx; p.z=drag.wz; fileBack(p); return; }
-  else if(tg==='box'){ p.x=drag.wx; p.z=drag.wz; reject(p); return; }
-  else if(tg==='scan'){ p.x=drag.wx; p.z=drag.wz; undoStack.pop(); copyPrint(p); return; }
+  if(pv){ SFX('drop'); if(pv.free) placeFree(p,pv.x,pv.z); else { placeOnBoard(p,pv.row,pv.index); p.tx=pv.x; p.tz=pv.z; } tourEv('board'); }
+  else if(tg==='binder'){ SFX('binder'); p.x=drag.wx; p.z=drag.wz; fileBack(p); return; }
+  else if(tg==='box'){ SFX('reject'); p.x=drag.wx; p.z=drag.wz; reject(p); return; }
+  else if(tg==='scan'){ SFX('drop'); p.x=drag.wx; p.z=drag.wz; undoStack.pop(); copyPrint(p); return; }
   else if(tg==='wall'){ p.tx=drag.wx; p.tz=drag.wz; pinGroup([p], null, 'single'); return; }
-  else { p.tx=drag.wx; p.tz=drag.wz; p.yawT=drag.pileYaw+(Math.random()-0.5)*F.jitter; }
+  else { SFX('drop'); p.tx=drag.wx; p.tz=drag.wz; p.yawT=drag.pileYaw+(Math.random()-0.5)*F.jitter; }
   layoutBoard(null); restack(); updateChains(true); saveAll(); }
 
 /* ================= inspect ================= */
@@ -850,7 +851,7 @@ function binderHit(e){ setNDC(e); ray.setFromCamera(ndc,camera); return ray.inte
 function importImage(img){ const c=borderCanvas(img,1600,null); const k=Math.min(1,900/Math.max(c.width,c.height)), s=document.createElement('canvas'); s.width=c.width*k; s.height=c.height*k; s.getContext('2d').drawImage(c,0,0,s.width,s.height);
   const it=libAdd(c,'own',img.width<img.height?2.35:2.2,null,s.toDataURL('image/jpeg',0.84)); it.name='Imported'; it.place='Uploads'; saveAll(); drawBinderCover(); return it; }
 function pullOut(ids){ if(!ids.length) return; prepare(ids,()=>pullOutNow(ids.filter(id=>{ const it=libById(id); return it&&it.canvas; }))); }
-function pullOutNow(ids){ if(!ids.length) return; pushUndo(); if(cam.view==='wall') focus('table'); binderBump=0.06;
+function pullOutNow(ids){ if(!ids.length) return; SFX('binder'); pushUndo(); if(cam.view==='wall') focus('table'); binderBump=0.06;
   ids.forEach((id,i)=>{ const p=ensurePrint(id); if(!p) return; p.order=++orderN; p.x=p.tx=BINDER.x+(Math.random()-0.5)*0.8; p.z=p.tz=BINDER.z-0.3; p.y=BINDER.h+0.2+i*0.02; p.vy=2.5; p.yaw=p.yawT=BINDER.rot+(Math.random()-0.5)*0.2; p.base=BINDER.h; p.locked=true;
     setTimeout(()=>{ p.locked=false; toPile(p); restack(); }, 120+i*70); });
   setTimeout(()=>{ restack(); drawBinderCover(); saveAll(); }, 160+ids.length*70); tourEv('pull');
@@ -924,7 +925,7 @@ function scanFrame(dt){ const top=scanner.userData.top, open=-1.95;
   if(SCAN.busy){ SCAN.t+=dt/1.35; const t=SCAN.t;
     if(t>-0.5&&t<1.12) lidT=0;
     scanBar.visible=t>=0&&t<=1; if(scanBar.visible){ scanBar.position.x=GLASS.x-GLASS.w/2+t*GLASS.w; leak=0.55+0.25*Math.sin(t*30); }
-    if(t>-0.05&&!SCAN.lcd1){ SCAN.lcd1=true; drawLCD('SCANNING'); }
+    if(t>-0.05&&!SCAN.lcd1){ SCAN.lcd1=true; drawLCD('SCANNING'); SFX('copier'); }
     if(t>1&&!SCAN.made){ SCAN.made=true; drawLCD('PRINTING'); const p=SCAN.p, src=libById(p.id);
       const nth=library.filter(i=>(i.copyOf||i.id)===(src.copyOf||src.id)).length+1, base=(src.copyOf?libById(src.copyOf):src)||src;
       const it=libAdd(src.canvas, src.kind, src.long, null, src.data); it.copyOf=src.copyOf||src.id; it.place=src.place; it.url=src.url; it.sample=src.sample; it.name=(base.name||'Print')+' · '+(nth===2?'2nd':nth===3?'3rd':nth+'th');

@@ -54,14 +54,14 @@
     cbBuildBody(); cbLayout(); cbOpen=true; cbReview=photos.length-1; if(activeBrief>=0) cbBriefSel=activeBrief+1;
     clearTimeout(cbHideT); el.classList.remove("hidden","cb-out"); void el.offsetWidth; el.classList.add("cb-in");
     App.go("back"); computeCam(); cbRender(); updatePrompt(); }
-  function closeBack(toViewfinder){ if(!cbOpen) return; var el=$("camback"); cbOpen=false;
+  function closeBack(toViewfinder){ if(!cbOpen) return; var el=$("camback"); cbOpen=false; sfx("kitClose");
     var nm=document.getElementById("cbName"); if(nm && document.activeElement===nm) nm.blur();
     el.classList.remove("cb-in"); el.classList.add("cb-out"); clearTimeout(cbHideT); cbHideT=setTimeout(function(){ el.classList.add("hidden"); el.classList.remove("cb-out"); },220);
     App.go("scene");
     if(toViewfinder!==false){ try{ renderer.domElement.requestPointerLock(); }catch(e){} if(cbWasVF) raiseCamera(); }
     updatePrompt(); }
   function toggleBack(){ if(cbOpen) closeBack(); else openBack(); }
-  function cbSetTab(t){ if(CB_TABS.some(function(x){ return x[0]===t; })){ cbTab=t; cbPress(t); cbRender(); } }
+  function cbSetTab(t){ if(CB_TABS.some(function(x){ return x[0]===t; })){ if(cbTab!==t) sfx("tab"); cbTab=t; cbPress(t); cbRender(); } }
   function cbCycleTab(d){ var i=0; CB_TABS.forEach(function(x,j){ if(x[0]===cbTab) i=j; }); cbSetTab(CB_TABS[(i+d+CB_TABS.length)%CB_TABS.length][0]); }
 
   // ---- the exposure the meter reads, in plain words ----
@@ -138,8 +138,8 @@
         return '<span class="r'+(x.ok?' ok':'')+(j===next?' next':'')+'"><i>'+(x.ok?'✓':'')+'</i><em>'+cbEsc(x.label.replace(/[:(].*$/,""))+'</em>'+chip+'<b>'+cbEsc(x.now||"")+'</b></span>'; }).join("")
       +(all?'<span class="go">ALL SET · SPACE, THEN SHOOT</span>':'')+'</div>'; }
   function cbShootStep(d){ var r=cbShootRows()[cbRow]; var i=Math.max(0,Math.min(r.vals.length-1,r.idx+d)); if(i===r.idx) return;
-    if(r.key==="sh") shIdx=i; else if(r.key==="ap") apIdx=i; else isoIdx=i; computeCam(); cbRender(); }
-  function cbShootSet(key,i){ if(key==="sh") shIdx=i; else if(key==="ap") apIdx=i; else isoIdx=i;
+    sfx("detent"); if(r.key==="sh") shIdx=i; else if(r.key==="ap") apIdx=i; else isoIdx=i; computeCam(); cbRender(); }
+  function cbShootSet(key,i){ sfx("detent"); if(key==="sh") shIdx=i; else if(key==="ap") apIdx=i; else isoIdx=i;
     cbRow=key==="sh"?0:key==="ap"?1:2; computeCam(); cbRender(); }
 
   // ---- 02 REVIEW: the latest frames, a real histogram, ratings and picks ----
@@ -195,7 +195,7 @@
     {k:"move",  g:"HANDLING", label:"Move speed",         val:Math.round(moveScale*100), bar:moveScale},
     {k:"invert",g:"HANDLING", label:"Invert look",        val:invertY?"ON":"OFF", on:invertY},
     {k:"bounds",g:"HANDLING", label:"Stay inside the scan",val:boundsOn?"ON":"OFF", on:boundsOn},
-    {k:"sound", g:"HANDLING", label:"Shutter sound",      val:soundOn?"ON":"OFF", on:soundOn},
+    {k:"sound", g:"HANDLING", label:"Sound",              val:sfxLevelName(), on:soundOn},
     {k:"grid",  g:"HANDLING", label:"Grid while walking", val:grid.classList.contains("hidden")?"OFF":"ON", on:!grid.classList.contains("hidden")},
     {k:"walk",  g:"HANDLING", label:"Getting about",      val:WK.mode==="walk"?"WALK":"FLY", on:WK.mode==="walk"},
     {k:"detail",g:"HANDLING", label:"Scan detail",        val:(DETAIL[sceneDetail]||DETAIL.full).label, on:sceneDetail!=="light"},
@@ -213,11 +213,12 @@
     return cbChrome('<span class="cb-saved"></span><span>SAVED</span>', cbEsc((studentName||"Not signed in").toUpperCase()), "↑ ↓ CHOOSE · ← → CHANGE · ↵ DO", '<div class="cb-setup">'+html+'</div>'); }
   function cbSetupChange(d, enter){ var r=cbSetupRows()[cbSetupRow]; if(!r) return;
     if(r.k==="name"){ var nm=$("cbName"); if(nm){ nm.focus(); nm.select(); } return; }
+    if(r.k==="look"||r.k==="move") sfx("detent"); else if(r.k!=="recentre"&&r.k!=="photos"&&r.k!=="leave"&&r.k!=="sound") sfx("toggle");
     if(r.k==="look"){ var v=Math.max(1,Math.min(100,cbLookVal()+d*4)); sens=0.0006+v*0.00004; }
     else if(r.k==="move"){ moveScale=Math.max(0.01,Math.min(1,Math.round(moveScale*100+d*4)/100)); }
     else if(r.k==="invert") invertY=!invertY;
     else if(r.k==="bounds") boundsOn=!boundsOn;
-    else if(r.k==="sound") soundOn=!soundOn;
+    else if(r.k==="sound"){ sfxLevelStep(d, !!enter); sfx("toggle"); }
     else if(r.k==="grid") toggleGrid();
     else if(r.k==="upscale"){ upOn=!upOn; try{ localStorage.setItem("studium_upscale",upOn?"on":"off"); }catch(e){} setScale(dynTop()); toast(upOn?"Upscaling on: drawn smaller, sharpened back up. Smoother on slower computers.":"Upscaling off: every pixel drawn in full."); }
     else if(r.k==="walk"){ wkSetMode(WK.mode==="walk"?"fly":"walk"); toast(WK.mode==="walk"?"Walking: feet on the ground. Q and E crouch and stand tall.":"Flying: Q and E go down and up. You still can't go through things."); }

@@ -93,7 +93,7 @@
   /* if anything goes wrong, put everything back: no cube, all the controls showing */
   function cuReset(){ CU.open=false; CU.phase=""; CU.dive=null; if(CU.grp) CU.grp.position.set(0,0,0); cuUI(false); document.body.classList.remove("cube-open"); }
   function cuClose(){ if(!CU.open) return; CU.phase="closing"; CU.t0=performance.now(); cuUI(false); ptSoundSafe(false); }
-  function ptSoundSafe(up){ if(typeof ptSound==="function") ptSound(up); }
+  function ptSoundSafe(up){ sfx(up?"views":"back"); }
 
   // ---- drawing: the cube in the dark, each face showing its place ----
   function cuRender(){ var now=performance.now(), t=(now-CU.t0)/1000;

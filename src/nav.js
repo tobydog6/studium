@@ -63,10 +63,10 @@
       +'<div class="kit-foot"><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> or click to choose</span><span><kbd>Space</kbd> or <kbd>Esc</kbd> back to the scene</span></div></div>';
     kitMark(); }
   function kitMark(){ Array.prototype.forEach.call(document.querySelectorAll("#kitMenu .kit-card"),function(c,i){ c.classList.toggle("on", i===KIT.sel); }); }
-  function kitOpen(){ if(!loaded||(typeof st!=="undefined"&&st.open)) return; if(looking) document.exitPointerLock(); KIT.open=true; KIT.sel=0; kitRender(); }
-  function kitClose(){ KIT.open=false; kitRender(); }
+  function kitOpen(){ if(!loaded||(typeof st!=="undefined"&&st.open)) return; if(looking) document.exitPointerLock(); KIT.open=true; KIT.sel=0; kitRender(); sfx("kitOpen"); }
+  function kitClose(){ if(KIT.open) sfx("kitClose"); KIT.open=false; kitRender(); }
   function kitToggle(){ if(KIT.open) kitClose(); else kitOpen(); }
-  function kitGo(a){ kitClose();
+  function kitGo(a){ KIT.open=false; kitRender(); sfx("select");
     if(a==="back") openBack(); else if(a==="bag") openBag();
     else if(a==="studio"&&typeof openStudio==="function"){ if(looking) document.exitPointerLock(); openStudio("select"); }
     else if(a==="lights"&&typeof rlOpen==="function"){ if(!RL.ui) rlOpen(); }

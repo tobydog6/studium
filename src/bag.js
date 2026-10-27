@@ -87,7 +87,8 @@
     bgLater(function(){ bgSet({instant:true, lens:id, inPhase:"start"}); },520);
     bgLater(function(){ bgSet({instant:false, inPhase:"near"}); },550);
     bgLater(function(){ bgSet({inPhase:"twist"}); },830);
-    bgLater(function(){ bgSet({inPhase:"seat", glint:true, thunk:true}); bagClick.sound&&bagClick.sound(); },1130);
+    bgLater(function(){ bgSet({inPhase:"seat", glint:true, thunk:true}); },1130);
+    bgLater(function(){ bagClick.sound&&bagClick.sound(); },650);   /* the cue leads in, so its seat click lands at 1130 */
     bgLater(function(){ bgSet({thunk:false}); },1200);
     bgLater(function(){ bgSet({inPhase:null, prev:null, outPhase:null}); },1260);
     bgLater(function(){ bgSet({glint:false, busy:false}); if(then) then(); },1460); }
@@ -176,10 +177,7 @@
     if(t.hasAttribute("data-bg-body")) return bagPickBody(t.getAttribute("data-bg-body"));
     if(t.hasAttribute("data-bg-lens")){ if(bg.stage!=="lens") return; var id=t.getAttribute("data-bg-lens"); bgKit().forEach(function(l,i){ if(l.id===id) bg.cursor=i; }); return bagSwap(id); }
     var a=t.getAttribute("data-bg"); if(a==="lens") bagOpenLens(); else if(a==="done") bagDone(); else if(a==="cancel") bagCancel(); }
-  bagClick.sound=function(){ if(!soundOn) return; try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-    var sr=audioCtx.sampleRate, n=Math.floor(sr*0.03), b=audioCtx.createBuffer(1,n,sr), d=b.getChannelData(0); for(var i=0;i<n;i++){ var q=1-i/n; d[i]=(Math.random()*2-1)*q*q*q; }
-    var s=audioCtx.createBufferSource(); s.buffer=b; var g=audioCtx.createGain(); g.gain.value=0.22; var f=audioCtx.createBiquadFilter(); f.type="lowpass"; f.frequency.value=1400;
-    s.connect(f); f.connect(g); g.connect(audioCtx.destination); s.start(); }catch(e){} };
+  bagClick.sound=function(){ sfx("bagSeat"); };
   function bagKey(e){ var c=e.code; e.preventDefault();
     if(bg.stage==="choose"){ var ids=BAG_BODIES.filter(function(b){ return b.id; }).map(function(b){ return b.id; }), i=ids.indexOf(bg.body);
       if(c==="ArrowRight"||c==="ArrowDown") bagPickBody(ids[(i+1)%ids.length]); else if(c==="ArrowLeft"||c==="ArrowUp") bagPickBody(ids[(i+ids.length-1)%ids.length]);

@@ -2835,6 +2835,8 @@ body.co-lens #bag .lensbtn{border-color:#e3ad57;box-shadow:0 0 22px rgba(227,173
 #launch.held .la-still{display:block}
 #launch.p-film .la-still{inset:calc(50vh - var(--fh)/2) calc(50vw - var(--fw)/2);animation:laFade .01s linear 1s forwards}
 #launch.p-spin .la-still,#launch.p-lock .la-still,#launch.out .la-still{display:none}
+#launch.nofilm.p-spin .la-still{display:block;animation:laStillOut .9s cubic-bezier(.4,0,.2,1) both}
+@keyframes laStillOut{from{opacity:1;transform:none;filter:none}to{opacity:0;transform:scale(1.08);filter:blur(10px)}}
 .la-still img,.la-still canvas{width:100%;height:100%;object-fit:cover;display:block}
 /* the film: a strip of 35 mm, the sprocket holes punched through to the scan behind */
 .la-film{position:absolute;inset:0;display:none;pointer-events:none;overflow:hidden}

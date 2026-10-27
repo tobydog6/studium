@@ -31,7 +31,7 @@ try {
   await until('detail', 400000); console.log('in at', Date.now() - t0, 'ms'); await page.waitForTimeout(700); await shot('2-scan'); console.log('scan:', await ev(() => !!__la.state().scan)); await page.waitForTimeout(2600); await shot('2-detail');
   await ev(() => __la.go()); await until('shoot', 20000); await page.waitForTimeout(350); await shot('3-iris');
   await page.waitForTimeout(2800); const still = await ev(() => { const c = document.querySelector('.la-fr.still canvas'); return c && c.width > 2 ? c.toDataURL('image/jpeg', 0.85) : 'none'; }); if (still.startsWith('data:')) writeFileSync(join(OUT, 'launch-still.jpg'), Buffer.from(still.split(',')[1], 'base64')); console.log('still:', still.length);
-  await ev(() => __la.go()); await until('film', 20000); console.log('film at', Date.now() - t0, 'ms'); await page.waitForTimeout(1200); await shot('4-film');
+  await ev(() => __la.go()); await until(process.env.FILM ? 'film' : 'spin', 20000); console.log('film at', Date.now() - t0, 'ms'); await page.waitForTimeout(1200); await shot('4-film');
   await ev(() => __la.go()); await until('spin', 60000); await page.waitForTimeout(1800); await shot('5-spin');
   await ev(() => __la.go()); await until('end', 30000); await page.waitForTimeout(400); await shot('6-scene');
   await page.waitForTimeout(2800); await shot('7-welcome'); console.log('welcome card:', await ev(() => __la.wel()));

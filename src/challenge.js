@@ -80,12 +80,12 @@
      into the shallow depth of field one and its card says what you're after. Any move key skips straight there */
   function chIntroStart(){ if(!CH.pads.length) return; if(viewfinderOn&&typeof toggleViewfinder==="function") toggleViewfinder();   /* lower the camera so the frames can be seen */
     var S=CH.spec.subject||[0,0], a0=Math.atan2(camPos.x-S[0], camPos.z-S[1]), r=Math.max(3.4, Math.min(5, Math.hypot(camPos.x-S[0], camPos.z-S[1])));
-    var walk=!!(WK.col&&WK.mode==="walk"); sfx("chIntro"); CH.intro={t:0, dur:7, a0:a0, r:r, S:S, y0:walk?WK.eye:camPos.y, walk:walk, gy:wkGround(S[0],S[1])}; CH.pull=-1; CH.locked=false; }
+    var walk=!!(WK.col&&WK.mode==="walk"); CH.introSnd=sfx("chIntro"); CH.intro={t:0, dur:7, a0:a0, r:r, S:S, y0:walk?WK.eye:camPos.y, walk:walk, gy:wkGround(S[0],S[1])}; CH.pull=-1; CH.locked=false; }
   function chIntroTick(dt){ var I=CH.intro; I.t+=dt; var held=CH_MOVE&&Object.keys(CH_MOVE).some(function(k){ return keys[k]; });
     var u=Math.min(1,I.t/I.dur), s=u*u*(3-2*u), a=I.a0+s*Math.PI*1.75, x=I.S[0]+Math.sin(a)*I.r, z=I.S[1]+Math.cos(a)*I.r, eye=1.75+0.35*Math.sin(u*Math.PI);
     _vel.set(0,0,0); camPos.x=x; camPos.z=z; if(I.walk) WK.eye=eye; else camPos.y=I.gy+eye;
     var ty=I.gy+0.45, cy=(I.walk?wkGround(x,z):I.gy)+eye; yaw=Math.atan2(x-I.S[0], z-I.S[1]); pitch=Math.atan2(ty-cy, I.r);
-    if(u>=1||held){ CH.intro=null; var k=-1; CH.pads.forEach(function(P,i){ if(k<0&&/dof/.test(P.c.id)&&!CH.done[P.c.id]) k=i; }); if(k<0) CH.pads.forEach(function(P,i){ if(k<0&&!CH.done[P.c.id]) k=i; });
+    if(u>=1||held){ CH.intro=null; if(held&&CH.introSnd){ try{ CH.introSnd.gain.setTargetAtTime(0.0001,SFX.ctx.currentTime,0.15); }catch(e){} } CH.introSnd=null; var k=-1; CH.pads.forEach(function(P,i){ if(k<0&&/dof/.test(P.c.id)&&!CH.done[P.c.id]) k=i; }); if(k<0) CH.pads.forEach(function(P,i){ if(k<0&&!CH.done[P.c.id]) k=i; });
       if(k>=0){ CH.cool=-1; chGrab(k); } } }
   function chHold(){ return CH.pull>=0&&(!CH.locked||performance.now()-CH.lockT<CH_GRACE); }
   function chLetGo(){ if(CH.pull>=0) CH.cool=CH.pull; CH.pull=-1; CH.locked=false; }

@@ -473,9 +473,8 @@
     Array.prototype.forEach.call(tl.querySelectorAll("[data-rb-day],[data-rb=scan]"),function(b){ var k=b.getAttribute("data-rb-day"); b.classList.toggle("on", k?RLB.sunMode&&RLB.day===k:!RLB.sunMode); });
     var pl=tl.querySelector("[data-rb=play]"); if(pl){ pl.classList.toggle("on",!!RLB.play); pl.textContent=RLB.play?"Pause":"Run through the day"; } }
   function rbTimeAt(e){ var tr=document.querySelector("#rbDay .rb-track"); if(!tr) return; var r=tr.getBoundingClientRect(), t=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
-    var m0=RLB.mins; RLB.mins=Math.round((RLB_T0+t*(RLB_T1-RLB_T0))/5)*5; RLB.play=false;
-    if(m0!=null&&Math.floor(m0/60)!==Math.floor(RLB.mins/60)) sfx("lTime");
-    if(m0!=null&&rbPhase(rbSolar(RLB.mins).el)==="golden"&&rbPhase(rbSolar(m0).el)!=="golden") sfx("lGolden"); if(!RLB.sunMode) rbSunOn(); rbDirty(); rbTimeline(); rbPanel(false); }
+    var m0=RLB.sunMode?RLB.mins:null; RLB.mins=Math.round((RLB_T0+t*(RLB_T1-RLB_T0))/5)*5; RLB.play=false;
+    if(m0!=null){ if(rbPhase(rbSolar(RLB.mins).el)==="golden"&&rbPhase(rbSolar(m0).el)!=="golden") sfx("lGolden"); else if(Math.floor(m0/60)!==Math.floor(RLB.mins/60)) sfx("lTime"); } if(!RLB.sunMode) rbSunOn(); rbDirty(); rbTimeline(); rbPanel(false); }
 
   /* ---- the panel and the kit strip: the editing window's own parts ---- */
   var RLB_THUMB={softbox:"asset:assets/kit/thumbs/softbox.webp", strip:"asset:assets/kit/thumbs/strip.webp", umbrella:"asset:assets/kit/thumbs/umbrella.webp", fresnel:"asset:assets/kit/thumbs/fresnel.webp",

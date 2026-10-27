@@ -107,7 +107,7 @@
   var SFX_GAIN={ach:0.75};   /* per-cue trims Sam asked for: the achievement a touch quieter */
   function sfx(id, o){ var cue=SFX_CUES[id]; if(!cue||!soundOn) return; if(navigator.userActivation&&!navigator.userActivation.hasBeenActive) return;   /* nothing before the first click, or it all plays late in a burst */ var now=performance.now(); if(SFX.at[id]&&now-SFX.at[id]<(SFX_GAP[id]||30)) return;
     SFX.at[id]=now; if(id!=="hover") SFX.last=now;
-    var c=sfxCtx(); if(!c) return; try{ var b=sxBus(typeof cue[0]==="number"?cue[0]:SFX_SEND[cue[0]]); if(SFX_GAIN[id]) b.gain.value=SFX_GAIN[id]; var t=c.currentTime+0.005+((o&&o.delay)||0); cue[1](b,t,o); setTimeout(function(){ try{ b.disconnect(); }catch(e){} },(((o&&o.delay)||0)+6)*1000); }catch(e){} }
+    var c=sfxCtx(); if(!c) return; try{ var b=sxBus(typeof cue[0]==="number"?cue[0]:SFX_SEND[cue[0]]); if(SFX_GAIN[id]) b.gain.value=SFX_GAIN[id]; var t=c.currentTime+0.005+((o&&o.delay)||0); cue[1](b,t,o); setTimeout(function(){ try{ b.disconnect(); }catch(e){} },(((o&&o.delay)||0)+8)*1000); return b; }catch(e){} }
   window.studiumSfx=sfx;
 
   // ---- scene ambience: soft air and the odd bird under a scan (Sam's pick, "Birds and air"); weather.js drives it with the scene's on/off ----

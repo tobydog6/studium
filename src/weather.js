@@ -2,10 +2,10 @@
   // Rain is its own little splat cloud (Spark sorts it in with the scan, so drops pass in front of and behind things
   // properly). Each drop is a thin splat stretched along the way it falls, and the stretch is how far a drop falls while
   // the shutter is open: 1/1000 freezes beads in the air, 1/30 drags them into streaks. That's the lesson.
-  // Wind, fog and wet ground are one Spark object modifier on the scan: leafy, small green splats sway; flat upward
+  // Wind, fog and wet ground are one Spark object modifier on the scan: trees bend from the root and leaves flutter; flat upward
   // surfaces darken and catch a sheen; everything fades to grey with distance in fog; rain or fog greys the light.
-  var WE={rain:0, wind:0, fog:0, mesh:null, U:null, scanU:null, scanMeshes:[], t0:performance.now(), lastCam:null, dirty:true, snd:null, sndT:0};
-  var WE_LV=["Off","Light","Heavy"], WE_DROPS=26000, WE_SPLASH=3200;
+  var WE={field:null, rain:0, wind:0, fog:0, mesh:null, U:null, scanU:null, scanMeshes:[], t0:performance.now(), lastCam:null, dirty:true, snd:null, sndT:0};
+  var WE_LV=["Off","Light","Heavy"], WE_DROPS=18000, WE_SPLASH=2000;
   var WE_ITEMS=[["rain","Rain","5"],["wind","Wind","6"],["fog","Fog","7"]];
   var WE_ICON={
     rain:'<svg viewBox="0 0 24 24"><path d="M7 14.5a4 4 0 0 1 .4-8 5 5 0 0 1 9.6 1.3 3.4 3.4 0 0 1-.6 6.7Z"/><path d="M8.5 17.5l-1 2.5M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5"/></svg>',
@@ -47,7 +47,8 @@
           /* fade at the sides of the box so drops never pop in, and thin out the light rain */
           "  vec2 e=min(p.xz-org.xz, org.xz+"+i.box+".xz-p.xz)/("+i.box+".xz*0.18); float edge=clamp(min(e.x,e.y),0.0,1.0);",
           "  float top=clamp(("+i.gy+"+"+i.box+".y-p.y)/("+i.box+".y*0.2),0.0,1.0);",
-          "  a=(h<"+i.amt+")?"+i.al+"*edge*top:0.0;",
+          "  float near=smoothstep(0.45*"+i.S+",1.3*"+i.S+",length(p-"+i.cam+"));",   /* nothing smears right across the lens, and far less to draw */
+          "  a=(h<"+i.amt+")?"+i.al+"*edge*top*near:0.0;",
           "  vec3 d=normalize(-"+i.vel+"); "+o+".center=p; "+o+".quaternion=weFromY(d);",
           "  "+o+".scales=vec3("+i.th+", max("+i.len+"*0.25,"+i.th+"*1.4), "+i.th+");",
           "} else {",
@@ -63,34 +64,84 @@
       return {gsplat:dd.outputs.gsplat}; });
     mesh.objectModifier=mod; mesh.updateGenerator(); mesh.frustumCulled=false; WE.mesh=mesh; WE.U=U; }
 
+  // ---- what bends in the wind: a map of the scan, worked out once from its own splats ----
+  // A 3D grid over the place. Each cell says how much it bends (trees: nothing at the root, more and more up the trunk
+  // into the canopy, so a whole tree leans together) and how much it flutters (leaves and grass). Solid things stay put:
+  // a cell inside a wall, a fence post, the stump or the ground is dense across a wide neighbourhood, while a branch is a
+  // thin thing with air all round it. Leafiness comes from each splat's colour (green over red and blue).
+  function weBlur(a, nx, ny, nz, r){ a=a.slice(); if(r<1) return a; var b=new Float32Array(a.length), st=[1,nx,nx*ny], ln=[nx,ny,nz], d, x, y, z;
+    for(d=0;d<3;d++){ var s=st[d], L=ln[d], w=1/(2*r+1), o=[nx,ny,nz]; o[d]=1;
+      for(z=0;z<o[2];z++) for(y=0;y<o[1];y++) for(x=0;x<o[0];x++){ var base=(z*ny+y)*nx+x, acc=0, k;
+        for(k=-r;k<=r;k++){ var q=Math.max(0,Math.min(L-1,k)); acc+=a[base+q*s]; }
+        for(k=0;k<L;k++){ b[base+k*s]=acc*w; var qa=Math.min(L-1,k+r+1), qr=Math.max(0,k-r); acc+=a[base+qa*s]-a[base+qr*s]; } }
+      var t=a; a=b; b=t; }
+    return a; }
+  function wePct(arr, p){ var v=[], st=Math.max(1,Math.floor(arr.length/200000)); for(var i=0;i<arr.length;i+=st) if(arr[i]>0) v.push(arr[i]); if(!v.length) return 1; v.sort(function(a,b){ return a-b; }); return v[Math.floor(v.length*p)]||1; }
+  function weField(){ var P=viewer&&viewer.P; if(!P) return null; if(WE.field&&WE.field.P===P) return WE.field;
+    var A=viewer.A, G=viewer.Gr, N=P.length/3, S=weS(), i, ax;
+    /* the box: almost everything (the treeline at the edge is what should move most), not the walls' tight 2 to 98% */
+    var lo=[0,0,0], hi=[0,0,0];
+    for(ax=0;ax<3;ax++){ var v=[], st=Math.max(1,Math.floor(N/150000)); for(i=0;i<N;i+=st) v.push(P[i*3+ax]); v.sort(function(a,b){ return a-b; }); lo[ax]=v[Math.floor(v.length*0.004)]; hi[ax]=v[Math.floor(v.length*0.996)]; }
+    var pad=0.4*S; for(ax=0;ax<3;ax++){ lo[ax]-=pad; hi[ax]+=pad; }
+    var ex=hi[0]-lo[0], ey=hi[1]-lo[1], ez=hi[2]-lo[2], cell=Math.max(Math.cbrt(ex*ey*ez/1.6e6), Math.max(ex,ey,ez)/256, 0.08*S);
+    var nx=Math.max(2,Math.ceil(ex/cell)), ny=Math.max(2,Math.ceil(ey/cell)), nz=Math.max(2,Math.ceil(ez/cell)), M=nx*ny*nz, occ=new Float32Array(M), grn=new Float32Array(M);
+    for(i=0;i<N;i++){ var a=A?A[i]:1; if(a<0.05) continue; var gx=((P[i*3]-lo[0])/cell)|0, gy=((P[i*3+1]-lo[1])/cell)|0, gz=((P[i*3+2]-lo[2])/cell)|0;
+      if(gx<0||gy<0||gz<0||gx>=nx||gy>=ny||gz>=nz) continue; var c=(gz*ny+gy)*nx+gx; occ[c]+=a; if(G) grn[c]+=a*G[i]/255; }
+    var occL=weBlur(occ,nx,ny,nz,1), grnL=weBlur(grn,nx,ny,nz,1), occW=weBlur(occ,nx,ny,nz,Math.max(2,Math.round(0.6*S/cell)));
+    var mL=wePct(occL,0.85), mW=wePct(occW,0.85), out=new Uint8Array(M*4), x, y, z;
+    for(z=0;z<nz;z++) for(x=0;x<nx;x++){ var wx=lo[0]+(x+0.5)*cell, wz=lo[2]+(z+0.5)*cell, g=WK.col&&typeof wkGround==="function"?wkGround(wx,wz):NaN;
+      if(!(g>-1e8&&g<1e8)){ g=lo[1]+pad; for(y=0;y<ny;y++){ if(occL[(z*ny+y)*nx+x]>0.15*mL){ g=lo[1]+(y+0.5)*cell; break; } } }   /* no walk map: the lowest solid thing in the column is the ground */
+      for(y=0;y<ny;y++){ var ci=(z*ny+y)*nx+x, h=(lo[1]+(y+0.5)*cell-g)/S;
+        var solidW=Math.min(1,occW[ci]/mW), solidL=Math.min(1,occL[ci]/mL), gf=occL[ci]>1e-6?grnL[ci]/occL[ci]:0;
+        var hf=Math.pow(Math.max(0,Math.min(1,(h-0.45)/8)),1.35);   /* rooted: nothing at the ground, most at the top of a tall tree */
+        var bend=hf*(1-0.9*Math.pow(solidW,1.4));
+        var leafy=Math.max(0,Math.min(1,(gf-0.07)/0.3)), nearG=h<0.6?1:0;
+        var flut=leafy*(1-0.65*solidL)*(nearG?0.8:1)+0.35*hf*(1-solidL);   /* leaves and grass, and a little for bare twigs up high */
+        if(h<0.03) flut*=0.2;
+        out[ci*4]=Math.round(Math.max(0,Math.min(1,bend))*255); out[ci*4+1]=Math.round(Math.max(0,Math.min(1,flut))*255); } }
+    var tex=new THREE.Data3DTexture(out,nx,ny,nz); tex.format=THREE.RGBAFormat; tex.type=THREE.UnsignedByteType; tex.minFilter=tex.magFilter=THREE.LinearFilter;
+    tex.wrapS=tex.wrapT=tex.wrapR=THREE.ClampToEdgeWrapping; tex.unpackAlignment=1; tex.needsUpdate=true;
+    if(WE.field&&WE.field.tex) try{ WE.field.tex.dispose(); }catch(e){}
+    WE.field={P:P, tex:tex, o:new THREE.Vector3(lo[0],lo[1],lo[2]), inv:new THREE.Vector3(1/(nx*cell),1/(ny*cell),1/(nz*cell))}; return WE.field; }
+
   // ---- wind, wet and fog on the scan ----
   function weScanMod(){ var D=SPARK.dyno, U=WE.scanU;
-    if(!U){ U=WE.scanU={}; U.on=D.dynoFloat(0); U.t=D.dynoFloat(0); U.wind=D.dynoVec3(new THREE.Vector3()); U.wet=D.dynoFloat(0); U.fog=D.dynoFloat(0); U.ovc=D.dynoFloat(0);
-      U.cam=D.dynoVec3(new THREE.Vector3()); U.q=D.dynoVec4(new THREE.Vector4(0,0,0,1)); U.s=D.dynoFloat(1); U.gy=D.dynoFloat(0); U.S=D.dynoFloat(1); U.fc=D.dynoVec3(new THREE.Vector3(0.7,0.72,0.74)); }
-    var types={gsplat:D.Gsplat, on:"float", t:"float", wind:"vec3", wet:"float", fog:"float", ovc:"float", cam:"vec3", q:"vec4", s:"float", gy:"float", S:"float", fc:"vec3"};
+    if(!U){ U=WE.scanU={}; var dummy=new THREE.Data3DTexture(new Uint8Array(4),1,1,1); dummy.format=THREE.RGBAFormat; dummy.type=THREE.UnsignedByteType; dummy.needsUpdate=true;
+      U.on=D.dynoFloat(0); U.t=D.dynoFloat(0); U.wind=D.dynoVec3(new THREE.Vector3()); U.wet=D.dynoFloat(0); U.fog=D.dynoFloat(0); U.ovc=D.dynoFloat(0);
+      U.cam=D.dynoVec3(new THREE.Vector3()); U.q=D.dynoVec4(new THREE.Vector4(0,0,0,1)); U.s=D.dynoFloat(1); U.S=D.dynoFloat(1); U.fc=D.dynoVec3(new THREE.Vector3(0.7,0.72,0.74));
+      U.fok=D.dynoFloat(0); U.dbg=D.dynoFloat(0); U.fld=D.dynoSampler3D(dummy); U.fo=D.dynoVec3(new THREE.Vector3()); U.finv=D.dynoVec3(new THREE.Vector3(1,1,1)); }
+    var types={gsplat:D.Gsplat, on:"float", t:"float", wind:"vec3", wet:"float", fog:"float", ovc:"float", cam:"vec3", q:"vec4", s:"float", S:"float", fc:"vec3", fok:"float", dbg:"float", fld:"sampler3D", fo:"vec3", finv:"vec3"};
     return D.dynoBlock({gsplat:D.Gsplat},{gsplat:D.Gsplat},function(io){ var ins={gsplat:io.gsplat}; for(var k in U) ins[k]=U[k];
-      var dd=D.dyno({inTypes:types, outTypes:{gsplat:D.Gsplat}, inputs:ins, globals:function(){ return [WE_GLSL]; },
+      var dd=D.dyno({inTypes:types, outTypes:{gsplat:D.Gsplat}, inputs:ins, globals:function(){ return ["precision highp sampler3D;", WE_GLSL]; },
         statements:function(c){ var i=c.inputs, o=c.outputs.gsplat; return [
           o+" = "+i.gsplat+";",
           "if("+i.on+">0.5 && isGsplatActive("+o+".flags)){",
           "  vec3 cw=weRot("+i.q+", "+o+".center*"+i.s+"); vec3 col="+o+".rgba.rgb; vec3 sc=abs("+o+".scales)*"+i.s+";",
           "  float mx=max(sc.x,max(sc.y,sc.z)), mn=min(sc.x,min(sc.y,sc.z)), md=sc.x+sc.y+sc.z-mn-mx;",
-          /* wind: green, small splats (leaves and grass) sway; bark, stone and soil stay put */
-          "  float wl=length("+i.wind+");",
-          "  if(wl>0.0){ float gr=clamp((col.g-max(col.r,col.b))*6.0+0.15*step(col.b,col.g)*step(col.r,col.g*1.15),0.0,1.0);",
-          "    float sm=1.0-smoothstep(0.015*"+i.S+",0.09*"+i.S+",mx); float up=clamp((cw.y-"+i.gy+")/"+i.S+",0.0,3.0);",
-          "    float w=gr*sm*clamp(0.3+up*0.55,0.3,1.6);",
-          "    if(w>0.001){ float ph=dot(cw.xz,vec2(0.9,1.3))/"+i.S+"; float gust=0.55+0.45*sin("+i.t+"*0.55+cw.x*0.17/"+i.S+")*sin("+i.t+"*0.23+1.0);",
-          "      float sw=sin("+i.t+"*2.4+ph*3.1)*0.65+sin("+i.t+"*4.1+ph*5.3)*0.35;",
-          "      vec3 dw="+i.wind+"*(0.35+0.65*sw)*gust*w*0.022*"+i.S+"; dw.y=-abs(dw.x+dw.z)*0.15;",
+          "  float ws=length("+i.wind+");",
+          "  if(ws>0.0 && "+i.fok+">0.5){ vec3 uv=(cw-"+i.fo+")*"+i.finv+";",
+          "    if(all(greaterThanEqual(uv,vec3(0.0)))&&all(lessThanEqual(uv,vec3(1.0)))){ vec2 fl=texture("+i.fld+",uv).rg; float S="+i.S+";",
+          "      vec3 wd="+i.wind+"/ws; vec3 pp=vec3(-wd.z,0.0,wd.x); float tt="+i.t+";",
+          /* gusts roll across the place downwind, so neighbouring trees move together, then the next ones */
+          "      float ph=dot(cw.xz,wd.xz)/(7.0*S)-tt*0.32; float g1=sin(ph*6.2832), g2=sin(ph*14.1+1.7+cw.x*0.07/S+cw.z*0.05/S);",
+          "      float gust=clamp(0.55+0.3*g1+0.15*g2,0.0,1.0);",
+          "      float lean=0.4+0.6*gust; float rock=sin(tt*0.95+dot(cw.xz,vec2(0.11,0.17))/S)*0.35+sin(tt*1.7+cw.z*0.23/S)*0.15;",
+          "      float Ab=fl.r*ws*0.42*S; vec3 dw=wd*Ab*(lean+rock*0.6)+pp*Ab*0.22*sin(tt*0.8+cw.x*0.3/S);",
+          "      dw.y-=0.18*Ab*lean*fl.r;",   /* a bent tree drops its top a little */
+          /* flutter: each splat on its own quick little path, harder in a gust */
+          "      if(fl.g>0.004){ float h1=weH(dot("+o+".center,vec3(12.7,31.1,7.4))), h2=weH(h1*91.7+3.1), h3=weH(h2*57.3+1.9);",
+          "        vec3 rd=normalize(vec3(h1-0.5,(h2-0.5)*0.6,h3-0.5)+wd*0.3); float fr=5.0+5.0*h1;",
+          "        float fa=fl.g*ws*(0.008+0.022*gust)*S*(1.0-smoothstep(0.03*S,0.25*S,mx));",
+          "        dw+=rd*fa*sin(tt*fr+h2*6.2832)+wd*fl.g*ws*0.012*S*gust; }",
+          "      if("+i.dbg+">0.5) col=vec3(fl.r,fl.g,0.15);",   /* dev: see the map, red bends and green flutters */
           "      "+o+".center+=weRotInv("+i.q+",dw)/"+i.s+"; } }",
           /* wet: flat surfaces facing up go dark and rich, and catch the sky at a low angle */
           "  if("+i.wet+">0.0){ int k=(sc.x<=sc.y&&sc.x<=sc.z)?0:((sc.y<=sc.z)?1:2); vec3 ax=k==0?vec3(1.0,0.0,0.0):(k==1?vec3(0.0,1.0,0.0):vec3(0.0,0.0,1.0));",
-          "    vec3 n=normalize(weRot("+i.q+",weRot("+o+".quaternion,ax))); float fl=clamp(1.0-mn/max(md,1e-6)*1.4,0.0,1.0);",
-          "    float upf=smoothstep(0.45,0.9,abs(n.y))*fl; float wk="+i.wet+"*(0.35+0.65*upf);",
+          "    vec3 n=normalize(weRot("+i.q+",weRot("+o+".quaternion,ax))); float fl2=clamp(1.0-mn/max(md,1e-6)*1.4,0.0,1.0);",
+          "    float upf=smoothstep(0.45,0.9,abs(n.y))*fl2; float wk="+i.wet+"*(0.35+0.65*upf);",
           "    float lum=dot(col,vec3(0.299,0.587,0.114)); vec3 rich=pow(max(col,vec3(0.0)),vec3(1.45))*0.92; rich=mix(vec3(dot(rich,vec3(0.299,0.587,0.114))),rich,1.18);",
           "    col=mix(col,rich,wk*0.9);",
-          "    vec3 V=normalize("+i.cam+"-cw); float fr=pow(1.0-abs(dot(n,V)),4.0); col+=vec3(0.62,0.66,0.7)*fr*upf*"+i.wet+"*0.32*(0.4+lum); }",
+          "    vec3 V=normalize("+i.cam+"-cw); float fr2=pow(1.0-abs(dot(n,V)),4.0); col+=vec3(0.62,0.66,0.7)*fr2*upf*"+i.wet+"*0.32*(0.4+lum); }",
           "  col*=mix(vec3(1.0),vec3(0.84,0.87,0.92),"+i.ovc+");",
           "  if("+i.fog+">0.0){ float d=length(cw-"+i.cam+")/"+i.S+"; float ff=1.0-exp(-d*"+i.fog+"); col=mix(col,"+i.fc+",ff*0.94); }",
           "  "+o+".rgba.rgb=clamp(col,0.0,1.0);",
@@ -99,25 +150,28 @@
   function weHook(m){ if(!m||WE.scanMeshes.indexOf(m)>=0) return; try{ m.objectModifier=weScanMod(); m.updateGenerator(); WE.scanMeshes.push(m); }catch(e){ console.warn("weather hook",e); } }
 
   // ---- every frame, before the scene draws ----
+  // The scan is only rebuilt when it has to be: every frame while the wind blows (it moves), otherwise only when you've
+  // walked far enough for the fog or the wet sheen to change. Rain on its own never touches the scan per frame.
   function weTick(dt){ if(!viewer||!loaded||!scene||typeof SPARK==="undefined") return;
     var S=weS(), gy=weGround(), t=(performance.now()-WE.t0)/1000, any=weAny();
     WE.scanMeshes=WE.scanMeshes.filter(function(m){ return m===viewer.mesh||m===viewer.detail; });
     if(any||WE.scanMeshes.length){ weHook(viewer.mesh); if(viewer.detail) weHook(viewer.detail); }
     var U=WE.scanU, wd=weWindDir(), ra=weAmt(WE.rain), wa=weAmt(WE.wind), fa=weAmt(WE.fog);
     if(U){ var wasOn=U.on.value>0.5; U.on.value=any?1:0; U.t.value=t;
-      var wstr=wa+ra*0.35; U.wind.value.set(wd[0]*wstr,0,wd[1]*wstr); U.wet.value=Math.min(1,ra*1.1); U.fog.value=fa?0.035+fa*0.11:0; U.ovc.value=Math.min(1,ra*0.85+fa*0.6);
-      U.cam.value.copy(camera.position); U.gy.value=gy; U.S.value=S;
-      var m0=viewer.mesh; U.q.value.set(m0.quaternion.x,m0.quaternion.y,m0.quaternion.z,m0.quaternion.w); U.s.value=m0.scale.x||1;
-      var moved=!WE.lastCam||WE.lastCam.distanceToSquared(camera.position)>1e-6*S*S;
-      if(any&&(wstr>0||moved||WE.dirty)||(wasOn&&!any)){ WE.scanMeshes.forEach(function(m){ m.updateVersion(); }); }
-      WE.lastCam=(WE.lastCam||new THREE.Vector3()).copy(camera.position); }
+      if(wa>0&&U.fok.value<0.5){ var F=null; try{ F=weField(); }catch(e){ console.warn("wind field",e); } if(F){ U.fld.value=F.tex; U.fo.value.copy(F.o); U.finv.value.copy(F.inv); U.fok.value=1; WE.dirty=true; } }
+      if(WE.field&&viewer.P!==WE.field.P){ U.fok.value=0; }
+      U.wind.value.set(wd[0]*wa,0,wd[1]*wa); U.wet.value=Math.min(1,ra*1.1); U.fog.value=fa?0.035+fa*0.11:0; U.ovc.value=Math.min(1,ra*0.85+fa*0.6);
+      U.S.value=S; var m0=viewer.mesh; U.q.value.set(m0.quaternion.x,m0.quaternion.y,m0.quaternion.z,m0.quaternion.w); U.s.value=m0.scale.x||1;
+      var far=!WE.lastCam||WE.lastCam.distanceToSquared(camera.position)>0.0625*S*S;   /* a quarter of a metre */
+      if(any&&(wa>0||far||WE.dirty)||(wasOn&&!any)){ if(far||WE.dirty||!WE.lastCam){ U.cam.value.copy(camera.position); WE.lastCam=(WE.lastCam||new THREE.Vector3()).copy(camera.position); }
+        WE.scanMeshes.forEach(function(m){ m.updateVersion(); }); } }
     /* the rain */
     if(ra>0&&!WE.mesh){ try{ weRainBuild(); }catch(e){ console.warn("rain",e); WE.rain=0; ra=0; } }
     if(WE.mesh){ if(WE.mesh.parent!==scene){ if(WE.mesh.parent) WE.mesh.parent.remove(WE.mesh); scene.add(WE.mesh); }
       WE.mesh.visible=ra>0;
-      if(ra>0){ var R=WE.U, fall=8.5*S, wv=(wa*3.2+ra*0.8)*S, sh=weShutter(), lit=1;
+      if(ra>0){ var R=WE.U, fall=8.5*S, wv=(wa*3.2+0.35)*S, sh=weShutter(), lit=1;
         if(typeof RL!=="undefined"&&RL.on&&typeof rlTimeIs==="function"){ lit=rlTimeIs("night")?0.25:rlTimeIs("blue")?0.45:rlTimeIs("golden")?0.85:1; }
-        R.t.value=t; R.amt.value=ra; R.cam.value.copy(camera.position); R.gy.value=gy; R.box.value.set(14*S,7*S,14*S);
+        R.t.value=t; R.amt.value=ra; R.cam.value.copy(camera.position); R.gy.value=gy; R.box.value.set(11*S,6*S,11*S);
         R.vel.value.set(wd[0]*wv,-fall,wd[1]*wv); var spd=Math.hypot(fall,wv), th=0.0024*S, L=Math.max(th*4, spd*sh);
         R.len.value=L; R.th.value=th; R.al.value=0.7*Math.max(0.14,Math.min(1,Math.sqrt(0.012*S/L)))*(WE.rain===2?1:0.85); R.S.value=S; R.lit.value=lit;
         WE.mesh.updateVersion(); } }
@@ -147,4 +201,4 @@
     var t=s.querySelector(".kit-wx-s"); if(t) t.textContent=weSummary(); }
   document.addEventListener("click",function(e){ var b=e.target.closest&&e.target.closest("#kitMenu [data-we]"); if(!b) return; e.preventDefault(); e.stopPropagation(); weCycle(b.getAttribute("data-we")); }, true);
   window.addEventListener("keydown",function(e){ if(typeof KIT==="undefined"||!KIT.open) return; var n={Digit5:"rain",Digit6:"wind",Digit7:"fog"}[e.code]; if(!n) return; e.preventDefault(); e.stopImmediatePropagation(); weCycle(n); }, true);
-  if(/[?&]dev/.test(location.search)) window.__we={ set:function(o){ for(var k in o) if(k in WE) WE[k]=o[k]; WE.dirty=true; }, state:weState };
+  if(/[?&]dev/.test(location.search)) window.__we={ set:function(o){ for(var k in o) if(k in WE) WE[k]=o[k]; WE.dirty=true; }, state:weState, map:function(on){ if(WE.scanU){ WE.scanU.dbg.value=on?1:0; WE.dirty=true; } }, field:function(){ var f=weField(); return f?{o:f.o.toArray(), inv:f.inv.toArray(), size:[f.tex.image.width,f.tex.image.height,f.tex.image.depth]}:null; } };

@@ -573,9 +573,10 @@
       // get every splat's centre (world space) and opacity: framing, autofocus and lighting read those.
       return mesh.initialized.then(function(){ return new Promise(function(res,rej){ var t0=performance.now(); (function poll(){ if(mesh.numSplats>0) return res(); if(performance.now()-t0>180000) return rej(new Error("the scan never finished loading")); setTimeout(poll,100); })(); }); })
         .then(function(){ var ps=new SPARK.PackedSplats({fileBytes:new Uint8Array(ab), fileType:format}); return ps.initialized; })
-        .then(function(ps){ mesh.updateMatrixWorld(true); var n=ps.numSplats, P=new Float32Array(n*3), A=new Float32Array(n), v=new THREE.Vector3();
-          ps.forEachSplat(function(i,c,sc,qq,op){ v.copy(c).applyQuaternion(q).multiplyScalar(SC); P[i*3]=v.x; P[i*3+1]=v.y; P[i*3+2]=v.z; A[i]=op; });
-          try{ ps.dispose(); }catch(e){} viewer.P=P; viewer.A=A; viewer.q=q.clone(); });
+        .then(function(ps){ mesh.updateMatrixWorld(true); var n=ps.numSplats, P=new Float32Array(n*3), A=new Float32Array(n), Gr=new Uint8Array(n), v=new THREE.Vector3();
+          ps.forEachSplat(function(i,c,sc,qq,op,co){ v.copy(c).applyQuaternion(q).multiplyScalar(SC); P[i*3]=v.x; P[i*3+1]=v.y; P[i*3+2]=v.z; A[i]=op;
+            if(co){ var gd=co.g-Math.max(co.r,co.b); Gr[i]=Math.max(0,Math.min(255,Math.round((gd*5+(co.g>=co.r&&co.g>=co.b?0.12:0))*255))); } });   /* how leafy each splat looks: the wind reads it */
+          try{ ps.dispose(); }catch(e){} viewer.P=P; viewer.A=A; viewer.Gr=Gr; viewer.q=q.clone(); });
     }).then(function(){
       frameScene(); if(typeof wxArrival==="function"&&wxArrival()){} else if(keepCol&&CH.spec&&CH.spec.spawn){ var sp=CH.spec.spawn; if(sp[4]&&WK.mode==="walk") WK.eye=sp[4]; camPos.set(sp[0], WK.col?wkGround(sp[0],sp[1])+WK.eye:camPos.y, sp[1]); yaw=sp[2]||0; pitch=sp[3]||-0.1; }   // a scene can say where to stand first
       chAttach(); loaded=true; updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();

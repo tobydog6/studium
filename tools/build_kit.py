@@ -23,9 +23,9 @@ def mat(name, col, metal=0.0, rough=0.5, emit=False, sheen=0.0, coat=0.0):
     if coat: b.inputs['Coat Weight'].default_value = coat; b.inputs['Coat Roughness'].default_value = 0.15
     return m
 
-M = {'black': mat('Black', (0.022, 0.022, 0.024), 0.0, 0.38, coat=0.35),            # powder-coated steel and plastics
-     'satin': mat('Satin', (0.03, 0.03, 0.032), 0.6, 0.45),                          # anodised black aluminium
-     'alu': mat('Alu', (0.66, 0.66, 0.68), 1.0, 0.28),                                # bare aluminium tube
+M = {'black': mat('Black', (0.045, 0.045, 0.048), 0.0, 0.36, coat=0.35),            # powder-coated steel and plastics: dark grey, not ink
+     'satin': mat('Satin', (0.07, 0.07, 0.075), 0.6, 0.42),                          # anodised dark aluminium
+     'alu': mat('Alu', (0.7, 0.7, 0.72), 1.0, 0.34),                                  # brushed aluminium
      'chrome': mat('Chrome', (0.82, 0.82, 0.84), 1.0, 0.08),
      'fabric': mat('Fabric', (0.014, 0.014, 0.015), 0.0, 0.95, sheen=0.6),             # softbox nylon
      'rubber': mat('Rubber', (0.012, 0.012, 0.012), 0.0, 0.85),
@@ -146,7 +146,7 @@ def tknob(name, at, axis, parent):
 # ---------------- the stand: air-cushioned, three sections ----------------
 st = empty('stand')
 base = empty('stand_base', st)
-cyl('lower_tube', 0.0175, (0, 0, 0.16), (0, 0, 0.7), 'satin', base, segs=32)
+cyl('lower_tube', 0.0175, (0, 0, 0.16), (0, 0, 0.7), 'alu', base, segs=32)
 cyl('base_cap', 0.019, (0, 0, 0.145), (0, 0, 0.165), 'black', base, segs=32, bevel=0.003)
 cyl('leg_collar', 0.027, (0, 0, 0.5), (0, 0, 0.6), 'black', base, segs=40, bevel=0.005)
 tknob('leg_lock', (0, 0.026, 0.55), (0, 1, 0), base)
@@ -158,9 +158,9 @@ for i in range(3):
     a = i * TAU / 3 + math.pi / 2; c, s = math.cos(a), math.sin(a); R = Vector((c, s, 0))
     hinge = R * 0.03 + Vector((0, 0, 0.56)); foot = R * 0.47 + Vector((0, 0, 0.02))
     box('leg_hinge', (0.022, 0.03, 0.04), hinge + R * 0.01, 'black', base, rot=Matrix.Rotation(a, 3, 'Z'), bevel=0.003)
-    cyl('leg', 0.0105, hinge, foot, 'satin', base, segs=20)
+    cyl('leg', 0.0105, hinge, foot, 'alu', base, segs=20)   # brushed aluminium legs, dark joints
     mid = hinge.lerp(foot, 0.52); hub = R * 0.026 + Vector((0, 0, 0.285))
-    d = mid - hub; box('brace', (d.length, 0.012, 0.004), (hub + mid) / 2, 'black', base, rot=Vector((1, 0, 0)).rotation_difference(d.normalized()).to_matrix(), bevel=0.0015)
+    d = mid - hub; box('brace', (d.length, 0.012, 0.004), (hub + mid) / 2, 'alu', base, rot=Vector((1, 0, 0)).rotation_difference(d.normalized()).to_matrix(), bevel=0.0015)
     for p in (hub + d * 0.04, mid - d * 0.04): cyl('rivet', 0.0035, p + Vector((0, 0, -0.004)), p + Vector((0, 0, 0.004)), 'chrome', base, segs=12)
     lathe('foot', [(0.0, 0.0), (0.017, 0.0), (0.019, 0.006), (0.016, 0.022), (0.011, 0.03)], 'rubber', base, segs=24, axis=(0, 0, 1), loc=tuple(foot - Vector((0, 0, 0.02))), thick=0)
 pole = empty('stand_pole', st)
@@ -294,7 +294,7 @@ cyl('shaft', 0.004, (0, 0.32, 0), (0, -0.62, 0), 'chrome', h, segs=12)
 cyl('shaft_grip', 0.008, (0, 0.3, 0), (0, 0.38, 0), 'rubber', h, segs=16, bevel=0.002)
 cyl('crown', 0.012, (0, -0.585, 0), (0, -0.62, 0), 'black', h, segs=16, bevel=0.003)
 for k in range(NR):
-    u = k / NR; pts = [canopy(u, i / 10) + Vector((0, 0.006, 0)) for i in range(11)]   # ribs sit inside, on the strobe's side
+    u = k / NR; pts = [canopy(u, i / 10) + Vector((0, 0.016, 0)) for i in range(11)]   # ribs sit inside, on the strobe's side, clear of the fabric
     for i in range(10): cyl('rib', 0.003, pts[i] - (pts[i + 1] - pts[i]) * 0.08, pts[i + 1], 'black', h, segs=8)
     cyl('rib_tip', 0.004, pts[10], pts[10] + (pts[10] - pts[9]).normalized() * 0.018, 'black', h, segs=10, bevel=0.001)
 bracket(y)

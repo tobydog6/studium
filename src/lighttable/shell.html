@@ -159,8 +159,8 @@ body.ready .load{ opacity:0; }
 
 /* binder */
 #bd{ position:fixed; inset:0; z-index:8; display:grid; grid-template-rows:auto 1fr auto; justify-items:center; align-items:center; gap:10px; opacity:0; pointer-events:none; transition:opacity .3s;
-  padding:calc(14px + env(safe-area-inset-top,0px)) max(16px, env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px));
-  --bw:min(1040px, calc(94vw - 150px), calc((100vh - 170px) * 1.55)); }
+  padding:calc(14px + env(safe-area-inset-top,0px)) max(16px, env(safe-area-inset-right,0px)) calc(64px + env(safe-area-inset-bottom,0px)) max(16px, env(safe-area-inset-left,0px));
+  --bw:min(1040px, calc(94vw - 170px), calc((100vh - 230px) * 1.55)); }
 #bd.on{ opacity:1; pointer-events:auto; }
 .bd-backdrop{ position:absolute; inset:0; background:rgba(8,7,6,.82); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
 .bd-top,.bd-bottom,.bd-book{ position:relative; }
@@ -179,7 +179,7 @@ body.ready .load{ opacity:0; }
 .bd-spine{ background:linear-gradient(90deg,#0d0c0b,#262320 45%,#262320 55%,#0d0c0b); position:relative; }
 .bd-spine::before{ content:""; position:absolute; left:3px; right:3px; top:0; bottom:0; background:radial-gradient(circle at 50% 50%, #c9c3b8 0 5px, #77726b 6px, transparent 7px) 0 0/100% 33.33% repeat-y; }
 .bd-page,.bd-leaf .face{ position:relative; overflow:hidden; display:grid; grid-template-rows:auto 1fr; gap:10px; padding:4.5% 5.5%; min-width:0; min-height:0; background:linear-gradient(160deg,#1a1917,#121110 60%,#0f0e0d); }
-.bd-leaf{ position:absolute; top:0; bottom:0; transform-style:preserve-3d; transition:transform .76s cubic-bezier(.45,.05,.25,1); z-index:2; }
+.bd-leaf{ position:absolute; top:0; bottom:0; transform-style:preserve-3d; transition:transform .46s cubic-bezier(.45,.05,.25,1); z-index:4; }
 .bd-leaf.fwd{ left:calc(50% + 14px); right:0; transform-origin:left center; }
 .bd-leaf.back{ left:0; width:calc(50% - 14px); transform-origin:right center; }
 .bd-leaf .face{ position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; }
@@ -202,12 +202,18 @@ body.ready .load{ opacity:0; }
 .pk:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
 /* index tabs down the right edge, one per library folder */
 .bd-tabs{ position:absolute; left:100%; top:16px; bottom:16px; display:flex; flex-direction:column; gap:5px; overflow:auto; padding-right:6px; }
-.tab{ --tc:#8a8478; display:flex; align-items:center; justify-content:space-between; gap:8px; width:136px; flex-shrink:0; height:32px; padding:0 9px 0 12px; border:0; border-left:3px solid var(--tc); border-radius:0 6px 6px 0; background:#24221f; color:var(--faint); font:500 11.5px/1 var(--f-ui); text-align:left; cursor:pointer; transform:translateX(-3px); transition:transform .2s, background .2s, color .2s; box-shadow:2px 3px 8px rgba(0,0,0,.35); }
+.tab{ --tc:#8a8478; display:flex; align-items:center; justify-content:space-between; gap:8px; width:150px; flex-shrink:0; height:36px; padding:0 10px 0 24px; border:0; border-radius:0 7px 7px 0; background:var(--tc); color:#1a1714; font:600 12px/1 var(--f-ui); text-align:left; cursor:pointer; transform:translateX(-14px); transition:transform .22s cubic-bezier(.2,.8,.2,1), filter .2s; box-shadow:2px 3px 8px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.25); filter:saturate(.8) brightness(.82); }
 .tab span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.tab em{ font-style:normal; font:500 10px/1 var(--f-mono); color:var(--dim); }
-.tab:hover{ transform:translateX(0); color:var(--text); }
-.tab.on{ background:var(--page); color:var(--text); transform:translateX(4px); }
-.tab.sub{ width:124px; height:28px; padding-left:20px; font-size:11px; margin-left:12px; }
+.tab em{ font-style:normal; font:600 10px/1 var(--f-mono); color:rgba(26,23,20,.6); background:rgba(255,255,255,.28); border-radius:8px; padding:3px 6px; }
+.tab:hover{ transform:translateX(-6px); filter:none; }
+.tab.on{ transform:translateX(4px); filter:none; box-shadow:4px 4px 12px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.3); }
+.tab.sub{ width:138px; height:30px; font-size:11.5px; margin-left:10px; }
+.bd-book{ --cur:#cfc8ba; }
+#bdR{ box-shadow:inset -4px 0 0 var(--cur); }
+.bd-title i{ color:var(--cur)!important; }
+.bd-edge{ position:absolute; top:0; bottom:0; width:4.5%; border:0; padding:0; background:transparent; cursor:pointer; z-index:3; transition:background .2s; }
+.bd-edge.l{ left:0; } .bd-edge.r{ right:0; }
+.bd-edge:hover{ background:linear-gradient(90deg, rgba(244,241,234,.08), rgba(244,241,234,0)); } .bd-edge.r:hover{ background:linear-gradient(270deg, rgba(244,241,234,.08), rgba(244,241,234,0)); }
 .tab-sep{ font:500 9.5px/1 var(--f-mono); letter-spacing:.16em; text-transform:uppercase; color:var(--dim); padding:10px 0 2px 6px; }
 @media (max-width:720px){ .panel{ width:auto; left:max(14px, env(safe-area-inset-left,0px)); top:auto; bottom:calc(70px + env(safe-area-inset-bottom,0px)); max-height:45vh; overflow:auto; } .help{ display:none; } .mast{ display:none; } #bd{ --bw:calc(100vw - 32px); } .bd-book,.bd-bottom{ margin-right:0; } .bd-tabs{ display:none; } .bd-top{ width:100%; } }
 @media (prefers-reduced-motion:reduce){ *{ transition:none!important; animation:none!important; } }
@@ -237,6 +243,8 @@ body.ready .load{ opacity:0; }
 .co-dots{ display:flex; gap:5px; flex:1; min-width:0; } .co-dots i{ flex:1; max-width:16px; height:3px; border-radius:2px; background:rgba(244,241,234,.12); } .co-dots i.past{ background:#8d6a35; } .co-dots i.on{ background:var(--accent); }
 .co-next{ pointer-events:auto; background:var(--accent); border:0; border-radius:6px; color:#1a140b; font:500 11px/1 var(--f-mono); letter-spacing:.12em; text-transform:uppercase; padding:8px 12px; cursor:pointer; }
 .co-next:hover{ background:#efbd6a; } .co-next[hidden]{ display:none; }
+.sticky-ed{ position:fixed; z-index:9; box-sizing:border-box; border:0; outline:0; resize:none; overflow:hidden; font-family:var(--f-display); font-weight:400; line-height:1.22; box-shadow:0 14px 30px rgba(0,0,0,.35); border-radius:1px; }
+.sticky-ed::placeholder{ color:currentColor; opacity:.4; }
 /* the board-photo tray, opened up big: the print rises out of the tray to the middle of the screen */
 #tr{ position:fixed; inset:0; z-index:8; display:grid; grid-template-rows:auto 1fr auto auto; justify-items:center; align-items:center; gap:12px; opacity:0; pointer-events:none; transition:opacity .3s;
   padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(64px + env(safe-area-inset-bottom,0px)); --pw:min(1080px, 88vw, calc((100vh - 280px) * 1.4142)); }
@@ -316,7 +324,7 @@ body:has(#bd.on) .co-top, body:has(#bd.on) .co-sub, body:has(#bd.on) .co-foot{ d
 <section id="bd" aria-label="Binder"><div class="bd-backdrop"></div>
   <div class="bd-top"><div class="bd-title"><b>Binder</b><i id="bdFolder"></i><span id="bdInfo"></span></div>
     <div class="bd-actions"><button class="btn" id="bdTip" type="button">Tip out this folder</button><label class="btn" for="bdFile">Import photos</label><input type="file" id="bdFile" accept="image/*" multiple hidden><button class="btn" id="bdClose" type="button">Close <kbd>Esc</kbd></button></div></div>
-  <div class="bd-book"><div class="bd-page" id="bdL"></div><div class="bd-spine"></div><div class="bd-page" id="bdR"></div><div class="bd-leaf fwd" id="bdLeaf" hidden><div class="face front"></div><div class="face back"></div></div><div class="bd-tabs" id="bdTabs"></div></div>
+  <div class="bd-book"><div class="bd-page" id="bdL"></div><div class="bd-spine"></div><div class="bd-page" id="bdR"></div><div class="bd-leaf fwd" id="bdLeaf" hidden><div class="face front"></div><div class="face back"></div></div><div class="bd-tabs" id="bdTabs"></div><button class="bd-edge l" data-d="-1" type="button" aria-label="Previous pages"></button><button class="bd-edge r" data-d="1" type="button" aria-label="Next pages"></button></div>
   <div class="bd-bottom"><button class="btn" id="bdPrev" type="button" aria-label="Previous pages">&#8249;</button><span id="bdPage"></span><button class="btn" id="bdNext" type="button" aria-label="Next pages">&#8250;</button><button class="btn" id="bdSelPage" type="button">Pick these pages</button><button class="btn primary" id="bdPull" type="button">Pull out</button></div></section>
 
 <section id="tr" aria-label="Board photos"><div class="tr-backdrop"></div>

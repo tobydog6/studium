@@ -1165,6 +1165,7 @@
 @@include library.js@@
 @@include import.js@@
 @@include board.js@@
+@@include printsheets.js@@
 @@include research.js@@
 @@include nav.js@@
 @@include walk.js@@

@@ -36,7 +36,7 @@ try {
   await page.waitForFunction(() => window.__cb && __cb.state() === 'scene' && window.__q, null, { timeout: 300000, polling: 500 });
   await page.evaluate(() => { try{ __qu.closeAll(); }catch(e){} for(let i=0;i<60;i++){ try{ if(!__co.state().on) break; __co.go(); }catch(e){ break; } } });
   await page.waitForTimeout(2000);
-  await page.evaluate(() => __we.set({rain:2, wind:1, fog:0}));
+  await page.addStyleTag({content:'#laWel{display:none!important}'}); await page.evaluate(() => __we.set({rain:2, wind:1, fog:0}));
   await page.evaluate(() => { const w=document.getElementById('laWel'); if(w) w.remove(); document.querySelector('[data-nav-act="kit"]').click(); }); await page.waitForTimeout(1500); await shot('wx-kit');
   await page.evaluate(() => document.querySelector('#kitMenu [data-we="fog"]').click()); await page.waitForTimeout(600); await shot('wx-kit2'); await page.keyboard.press('Escape');
   await page.evaluate(() => { __cam.raise(); __cam.set({sh:0}); }); await page.waitForTimeout(1500); await shot('wx-1000');

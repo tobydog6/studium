@@ -275,8 +275,8 @@
         target:'#st-gallery .ga-frames:not(.ga-labels):not(.ga-lsizes)', click:'#st-gallery [data-ga-frame]'},
       {ch:"TITLE", line:function(){ return 'Give the <b>title card</b> a style'; }, sub:"Then drag it wherever it reads best. Click it to type the show's name.",
         target:'#st-gallery .ga-labels', start:function(){ CO.s.l=ga.labelStyles||0; }, done:function(){ return (ga.labelStyles||0)>CO.s.l; }},
-      {ch:"TITLE", line:function(){ return '<b>Drag prints</b> along the wall to hang your show'; }, sub:"Try different gaps and orders and see what changes.",
-        target:'#st-gallery .ga-hang', info:true}]},
+      {ch:"YOUR SHOW", line:function(){ return '<b>Your show.</b> Move, swap and rehang anything you like.'; }, sub:"Drag prints around the wall, hang new ones from the library and take some down. Press Finished when you're happy with it.",
+        target:'#st-gallery .ga-wall', nodim:true, finish:true}]},   /* open play: only the Finished button ends the tour */
     research:{where:function(){ return coRoom("research"); }, steps:[
       {ch:"LOOK", line:function(){ return 'In <b>Research</b> you look closely at other photographers'; }, sub:"The moodboard wall is every photograph at once. Each pack below is one photographer or idea. Start with one Culling Game: it's quick.",
         target:'#st-research .rs-shelf', info:true},
@@ -405,7 +405,7 @@
     if(CO.lx!=null&&!(CH.pull>=0)){ var d=Math.hypot(camPos.x-CO.lx,camPos.z-CO.lz); if(d<0.5) CO.walked+=d; } CO.lx=camPos.x; CO.lz=camPos.z;
     var s=coSteps()[CO.i]; if(!s){ coFinish(false); return; }   // each prompt stays up long enough to read (dwell) before it ticks
     if(CO.seen!==CO.i){ CO.seen=CO.i; CO.lockTo=s.info?performance.now()+READ_MS:0; if(s.prep) s.prep(); }   // the read timer starts when the card first shows
-    var isDone=(s.info||s.click||CO.s.pre)?CO.s.ok:s.done();
+    var isDone=(s.info||s.click||s.finish||CO.s.pre)?CO.s.ok:s.done();
     if(!CO.ticking&&performance.now()-CO.t0>(s.info?0:(s.dwell||900))&&isDone){ coTicked(); return; }   // one tick per prompt, however late the timer runs
     coRender(s); }
   function coTicked(){ CO.ticking=true; var e=coEl(); e.classList.add("ok"); setTimeout(function(){ CO.ticking=false; e.classList.remove("ok"); CO.i++; Q.tourStep[CO.tour]=CO.i; qSave();
@@ -425,7 +425,7 @@
       +(s.media&&!pre?'<canvas class="co-media" data-co-media="'+s.media+'"></canvas>':'')
       +'<div class="co-line">'+(pre||s.line())+'</div>'+((pre?'':s.sub)?'<div class="co-sub">'+s.sub+'</div>':'')+(!pre&&CO.s.pre?'<div class="co-sub co-again">You\'ve already done this one. Have another go, or press GOT IT.</div>':'')
       +'<div class="co-foot"><div class="co-dots">'+inCh.map(function(_,j){ return '<i class="'+(j<k?'d':j===k?'c':'')+'"></i>'; }).join("")+'</div>'
-      +((s.info||CO.s.pre)?(performance.now()<CO.lockTo?'<button class="co-next rl" data-co-next disabled style="--rl:'+Math.round(CO.lockTo-performance.now())+'ms">GOT IT ›</button>':'<button class="co-next" data-co-next>GOT IT ›</button>'):'')+'</div>'
+      +(s.finish&&!pre?'<button class="co-next" data-co-next>FINISHED ✓</button>':(s.info||CO.s.pre)?(performance.now()<CO.lockTo?'<button class="co-next rl" data-co-next disabled style="--rl:'+Math.round(CO.lockTo-performance.now())+'ms">GOT IT ›</button>':'<button class="co-next" data-co-next>GOT IT ›</button>'):'')+'</div>'
       +(b!=null?'<div class="co-bar"><b style="width:'+(b*100).toFixed(0)+'%"></b></div>':'');
     if(html!==CO.html){ e.innerHTML=html; CO.html=html; }
     if(CO.riseI!==CO.i||CO.riseT!==CO.tour){ CO.riseI=CO.i; CO.riseT=CO.tour; e.classList.add("rise"); clearTimeout(CO.riseTm); CO.riseTm=setTimeout(function(){ e.classList.remove("rise"); },900); }   /* a new prompt rises in; edits to the same prompt don't */

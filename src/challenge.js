@@ -73,6 +73,7 @@
   function chInPulse(P,m){ var L=Math.hypot(P.d.x,P.d.z)||1, ax=-P.d.x/L, az=-P.d.z/L, dx=camPos.x-P.F.x, dz=camPos.z-P.F.z;
     var n=dx*ax+dz*az, u=Math.abs(dx*-az+dz*ax), k=Math.max(0,Math.min(1,n/CH_REACH));
     return n>-0.25-m&&n<CH_REACH+m&&u<P.w*0.5*(1+CH_SPREAD*k)+0.2+m&&Math.abs(camPos.y-P.F.y)<P.h*0.5+1.3+m; }
+  var CH_INTRO_SETTLE=2500;   /* ms after the opening or welcome card has gone before the gold frames' spin may start */
   var CH_MOVE={KeyW:1,KeyA:1,KeyS:1,KeyD:1,KeyQ:1,KeyE:1,ArrowUp:1,ArrowDown:1,ArrowLeft:1,ArrowRight:1,Space:1}, CH_GRACE=1000;
   CH.glow=0; CH.bloom=0; CH.pt=0; CH.lockT=0;
   document.addEventListener("keydown",function(e){ if(CH_MOVE[e.code]) CH.nudge=true; });
@@ -121,11 +122,14 @@
     if(Math.abs((+el.style.opacity||0)-v)>0.004) el.style.opacity=v.toFixed(3); }
   // The card (and the title) only appear once a frame starts drawing you in. They stay while you work near it,
   // and go when you walk off or finish it.
-  function chTick(dt){ if(!loaded) return; if(typeof LA!=="undefined"&&LA.on){ CH.wasOff=false; chMarkers(); return; }   /* the opening drives the camera; it is not the unlock */ if(!CH.pads.length){ chMarkers(); return; }   /* no frames here, but the subject ring still needs placing each frame */
-    var off=chOff(); if(off){ CH.wasOff=true; if(CH.active>=0){ CH.active=-1; chCard(null); } chMarkers(); return; }
+  function chTick(dt){ if(!loaded) return; if(typeof LA!=="undefined"&&(LA.on||LA.wcard)) CH.openT=performance.now();   /* when the opening (or its welcome card) was last up */
+    if(typeof LA!=="undefined"&&LA.on){ CH.wasOff=false; chMarkers(); return; }   /* the opening drives the camera; it is not the unlock */ if(!CH.pads.length){ chMarkers(); return; }   /* no frames here, but the subject ring still needs placing each frame */
+    var off=chOff(); if(off){ CH.wasOff=true; CH.introAt=0; if(CH.active>=0){ CH.active=-1; chCard(null); } chMarkers(); return; }
     if(CH.wasOff){ CH.wasOff=false; CH.pads.forEach(function(P){ P.vis=0; });   // the warm-up's done: the frames fade in
       var f=$("chFlash"); if(f){ f.innerHTML='<span>READY</span><b>You can try the gold frames now</b>'; f.classList.remove("show"); void f.offsetWidth; f.classList.add("show"); }
-      if(typeof LA!=="undefined"&&LA.noIntro){ LA.noIntro=false; } else chIntroStart(); }   /* after the opening's own big circle, no second orbit: the frames just fade in */
+      if(typeof LA!=="undefined") LA.noIntro=false;
+      CH.introAt=Math.max(performance.now(), (CH.openT||0)+CH_INTRO_SETTLE); }   /* the spin plays when the frames switch on, but never on the heels of the opening: it waits for the opening's circle, wordmark and look to settle */
+    if(CH.introAt&&performance.now()>=CH.introAt){ CH.introAt=0; if(CH.pull<0) chIntroStart(); }   /* already being drawn into a frame: no spin */
     if(CH.intro){ chIntroTick(dt||1/30); chMarkers(); return; }
     chTractor(dt||1/30);
     var f=CH.pull>=0?CH.pull:CH.focus;

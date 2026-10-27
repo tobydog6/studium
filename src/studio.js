@@ -165,8 +165,9 @@
         +s.map(function(pi){ return '<span class="mp'+(bk.pages[pi].tpl==="bleed"?' bl':'')+'" style="width:'+tw+'px;height:'+th+'px">'+bkPageHTML(pi,true)+'</span>'; }).join("")
         +'</span><span class="l">'+bkLabel(s,j,sp)+'</span></button>'; }).join("")+'<button class="bk-add" data-bk-act="add" aria-label="Add a spread" style="height:'+th+'px">+</button>';
     var used={}; bk.pages.forEach(function(pg){ pg.imgs.forEach(function(id){ if(id) used[id]=1; }); });
-    var src=bkSource(); box.querySelector(".bk-tray").innerHTML='<div class="bk-tray-h"><span class="eb">'+(stPicks().length?"YOUR PICKS":"YOUR FRAMES")+'</span><span class="eb">'+src.length+'</span></div>'
-      +src.map(function(i){ var id=stId(i); return '<div class="bk-pic" draggable="true" data-bk-pic="'+i+'"><img src="'+photos[i].url+'" alt="Frame '+(i+1)+'" draggable="false"><span class="m"><span>FRAME '+cbPad(i+1)+'</span>'+(used[id]?'<span class="in">IN BOOK</span>':'')+'</span></div>'; }).join("");
+    var tray=box.querySelector(".bk-tray"); tray.classList.add("st-lib"); libRender(tray, "book");   /* the same library rail as Library, Workbook and Folio */
+    Array.prototype.forEach.call(tray.querySelectorAll("[data-bd-pic]"),function(c){ var i=+c.getAttribute("data-bd-pic"); if(!used[stId(i)]) return; var m=c.querySelector(".m"); if(!m) return;
+      var k=m.querySelector(".pk"); if(k) k.remove(); var t=document.createElement("span"); t.className="in"; t.textContent="IN BOOK"; m.appendChild(t); });
     Array.prototype.forEach.call(box.querySelectorAll("[data-bk-size]"),function(b){ b.classList.toggle("on", b.getAttribute("data-bk-size")===bk.size); });
     var ft=bk.pages[bk.focus].tpl; Array.prototype.forEach.call(box.querySelectorAll("[data-bk-tpl]"),function(b){ b.classList.toggle("on", b.getAttribute("data-bk-tpl")===ft); });
     box.querySelector(".bk-pages").textContent=bk.pages.length; box.querySelector(".bk-tip").textContent=bkTip(cur); }
@@ -187,9 +188,17 @@
   function bkBind(){ if(bk.bound) return; bk.bound=true; var box=$("st-book");
     box.addEventListener("dragstart",function(e){ var p=e.target.closest&&e.target.closest("[data-bk-pic]"); if(!p) return; e.dataTransfer.setData("text/plain","bk:"+p.getAttribute("data-bk-pic")); e.dataTransfer.effectAllowed="copy"; });
     box.addEventListener("dragover",function(e){ if(e.target.closest("[data-bk-page]")){ e.preventDefault(); e.dataTransfer.dropEffect="copy"; } });
-    box.addEventListener("drop",function(e){ var d=e.dataTransfer.getData("text/plain")||""; if(d.slice(0,3)!=="bk:") return; e.preventDefault(); var i=+d.slice(3);
-      var sl=e.target.closest("[data-bk-slot]"), pg=e.target.closest("[data-bk-page]"); bk.sel=null;
-      if(sl){ var q=sl.getAttribute("data-bk-slot").split(":"); bkPlace(i,+q[0],+q[1]); } else if(pg) bkPlace(i,+pg.getAttribute("data-bk-page")); }); }
+    box.addEventListener("drop",function(e){ var d=e.dataTransfer.getData("text/plain")||"", list=d.slice(0,3)==="bk:"?[+d.slice(3)]:libParse(d); if(!list.length) return;
+      var sl=e.target.closest("[data-bk-slot]"), pg=e.target.closest("[data-bk-page]"); if(!sl&&!pg) return; e.preventDefault(); bk.sel=null;
+      if(sl){ var q=sl.getAttribute("data-bk-slot").split(":"); bkPlaceMany(list,+q[0],+q[1]); } else bkPlaceMany(list,+pg.getAttribute("data-bk-page")); }); }
+  /* several frames dropped (a selection or a whole folder): the first goes where it lands, the rest fill the empty slots on that page and the pages after it */
+  function bkPlaceMany(list, pi, s){ if(list.length===1) return bkPlace(list[0], pi, s); var k=0, ids=list.map(stId), last=bk.pages.length-1;
+    if(s!=null) bk.pages[pi].imgs[s]=ids[k++];
+    for(var p=pi;p<last&&k<ids.length;p++){ var pg=bk.pages[p]; if(pg.back) break; var n=bkBoxes(pg.tpl).length;
+      if(!n&&p===pi){ pg.tpl="centre"; n=1; }
+      for(var j=0;j<n&&k<ids.length;j++){ if(stById(pg.imgs[j])<0) pg.imgs[j]=ids[k++]; } }
+    bk.focus=pi; bkSave();
+    if(k<ids.length) toast((ids.length-k)+" frame"+(ids.length-k===1?"":"s")+" didn't fit. Add a spread with + or swap some out."); }
   // export: every spread as one PDF page at 150 dpi, trimmed to the book size
   function bkExport(){ if(!bk.pages.length) return; var sp=bkSpreads(), a=bkMM(), k=150/25.4, PW=Math.round(a[0]*k), PH=Math.round(a[1]*k), cans=[], left=0, started=false; toast("Building your book PDF…"); qFlag("bookPdf");
     sp.forEach(function(s,j){ var cv=document.createElement("canvas"); cv.width=PW*s.length; cv.height=PH; var g=cv.getContext("2d"); g.fillStyle="#f4f1ea"; g.fillRect(0,0,cv.width,cv.height); cans[j]=cv;
@@ -204,7 +213,7 @@
   // The wall render's view is 1100 x 735 (design px); the ceiling is taken as 3.2 m, so 0.1818 px per mm and the
   // floor line at y 658.4. Prints are centred on the 1450 mm eye line, matted and framed, spaced as you set.
   var GA_WALL="asset:assets/gallery/wall-a.webp", GA_G=0.1818, GA_FLOOR=658.4, GA_SIZES=[400,600,900,1200];
-  var ga={frame:"black", gap:250, sizes:{}, pos:{}, title:"", list:null, label:{x:null, y:null, style:"card", size:1}, drag:null, justDragged:false};
+  var ga={frame:"black", gap:250, sizes:{}, pos:{}, title:"", list:null, label:{x:null, y:null, style:"vinyl", size:1}, drag:null, justDragged:false};
   // what's on the wall: your own list once you've added or taken anything down, until then your picks
   function gaPrints(){ if(ga.list) return ga.list.map(stById).filter(function(i){ return i>=0; }); return gaDefault(); }
   function gaListInit(){ if(!ga.list) ga.list=gaDefault().map(stId); }
@@ -253,9 +262,9 @@
         idx.slice(0,8).forEach(function(i,j){ gaAdd(i, {x:(x+j*60)/GA_G, y:(GA_FLOOR-y)/GA_G}); }); });
       var lib0=box.querySelector(".ga-lib"); if(lib0) lib0.addEventListener("click",function(e){ var p=e.target.closest("[data-bd-pic]"); if(!p||e.ctrlKey||e.metaKey||e.shiftKey) return; gaAdd(+p.getAttribute("data-bd-pic")); }); }
     libRender(box.querySelector(".ga-lib"), "gallery");
-    Array.prototype.forEach.call(box.querySelectorAll("[data-ga-label]"),function(b){ b.classList.toggle("on", b.getAttribute("data-ga-label")===(ga.label.style||"card")); });
+    Array.prototype.forEach.call(box.querySelectorAll("[data-ga-label]"),function(b){ b.classList.toggle("on", b.getAttribute("data-ga-label")===(ga.label.style||"vinyl")); });
     Array.prototype.forEach.call(box.querySelectorAll("[data-ga-lsize]"),function(b){ b.classList.toggle("on", +b.getAttribute("data-ga-lsize")===(ga.label.size||1)); });
-    var lb=ga.label||(ga.label={style:"card",size:1}), lxx=lb.x!=null?lb.x*GA_G:lx, lyy=lb.y!=null?GA_FLOOR-lb.y*GA_G:GA_FLOOR-1300*GA_G;
+    var lb=ga.label||(ga.label={style:"vinyl",size:1}), lxx=lb.x!=null?lb.x*GA_G:lx, lyy=lb.y!=null?GA_FLOOR-lb.y*GA_G:GA_FLOOR-1300*GA_G;
     if(lb.style!=="none") html+='<div class="ga-label '+lb.style+' s'+(lb.size||1)+'" style="left:'+lxx.toFixed(1)+'px;top:'+lyy.toFixed(1)+'px" title="Drag to move it"><i class="ga-grip">⠿</i><div class="ga-t" contenteditable="true" data-ph="Title of the show">'+cbEsc(ga.title)+'</div><span>'+cbEsc((studentName||"YOUR NAME").toUpperCase())+'<br>'+new Date().getFullYear()+' · '+L.items.length+' PRINTS</span></div>';
     inner.querySelector(".ga-hang").innerHTML=html; inner.querySelector(".ga-eye").style.top=L.eye+"px";
     var t=inner.querySelector(".ga-t"); if(t){ t.oninput=function(){ ga.title=t.textContent; saveSession(); }; t.onkeydown=function(e){ e.stopPropagation(); if(e.key==="Enter"||e.key==="Escape"){ e.preventDefault(); t.blur(); } }; }
@@ -303,7 +312,8 @@
     if(st.room==="gallery"){ if(c==="KeyF") gaCycleFrame(); else if(c==="ArrowRight"){ ga.gap=Math.min(500,ga.gap+50); gaRender(); } else if(c==="ArrowLeft"){ ga.gap=Math.max(100,ga.gap-50); gaRender(); }
       else if(c==="KeyW"&&photos.length){ openGalleryShow(); document.body.classList.add("st-legacy"); } return true; }
     return true; }
-  function stClick(e){ var t=e.target.closest("[data-bk-slot],[data-bk-pic],[data-bk-spread],[data-bk-size],[data-bk-tpl],[data-bk-act],[data-bk-page],[data-ga-print],[data-ga-frame],[data-ga-act],[data-ga-label],[data-ga-lsize],[data-st-room],[data-st-frame],[data-st-rate],[data-st-act],[data-st-close],[data-st-size],[data-st-hiderej],[data-st-zoom]"); if(!t) return;
+  function stClick(e){ var bp=st.room==="book"&&e.target.closest&&e.target.closest("#st-book [data-bd-pic]"); if(bp){ if(!e.ctrlKey&&!e.metaKey&&!e.shiftKey) bkPlace(+bp.getAttribute("data-bd-pic")); return; }   /* click a frame in the rail: it goes on the page in focus */
+    var t=e.target.closest("[data-bk-slot],[data-bk-pic],[data-bk-spread],[data-bk-size],[data-bk-tpl],[data-bk-act],[data-bk-page],[data-ga-print],[data-ga-frame],[data-ga-act],[data-ga-label],[data-ga-lsize],[data-st-room],[data-st-frame],[data-st-rate],[data-st-act],[data-st-close],[data-st-size],[data-st-hiderej],[data-st-zoom]"); if(!t) return;
     if(t.hasAttribute("data-st-zoom")) return stZoom();
     if(t.hasAttribute("data-st-size")){ st.thumb=t.getAttribute("data-st-size"); return stRenderSelect(); }
     if(t.hasAttribute("data-st-hiderej")){ st.hideRej=!st.hideRej; return stRenderSelect(); }
@@ -362,3 +372,6 @@
         btn.style.left=x+"px"; btn.style.top=Math.max(8,y)+"px"; }
       if(btn) btn.classList.toggle("show",show); }
     setInterval(tick, 200); })();
+  /* ?dev: fill the darkroom with n plain test frames (half picked, two locations) and open a room, for checking layouts headless */
+  if(/[?&]dev/.test(location.search)) window.__st={ fake:function(n){ for(var i=0;i<(n||8);i++){ var c=document.createElement("canvas"); c.width=i%3?600:400; c.height=i%3?400:600; var g=c.getContext("2d"); g.fillStyle="hsl("+(i*40)+",40%,45%)"; g.fillRect(0,0,c.width,c.height);
+      photos.push({url:c.toDataURL("image/jpeg",0.8), pick:i<6, rating:3, place:i<4?"Riverbank":"Studio"}); } return photos.length; }, open:openStudio, room:stRoom, tour:coStart, ga:function(){ return ga; }, bk:function(){ return bk; } };

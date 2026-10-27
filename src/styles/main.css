@@ -1887,6 +1887,8 @@ body.cube-open .ch-marks,body.cube-open .ch-card{display:none}   /* the cube has
 .bd-mini i.text{background:rgba(120,110,95,.45)}
 
 /* ---- library: folders down the left ---- */
+.bk-tray.lib-host{width:212px;display:flex;flex-direction:column;gap:14px;overflow:hidden;-webkit-mask:none;padding-bottom:0}
+.bk-tray .lib-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 .bd-tray.lib-host{width:212px;display:flex;flex-direction:column;gap:14px;overflow:hidden;-webkit-mask:none;padding-bottom:0}
 .lib-list{display:flex;flex-direction:column;gap:1px;flex:none;max-height:46%;overflow-y:auto;scrollbar-width:none}
 .lib-list .eb{display:block;margin:10px 0 5px}.lib-list>.eb:first-child{margin-top:0}

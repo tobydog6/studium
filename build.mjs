@@ -64,12 +64,22 @@ async function buildEngine() {
 }
 
 const engine = await buildEngine();
+// the light table (src/lighttable/): its own three.js bundle and page, shipped as base64 and opened in an iframe by src/lighttable.js
+async function buildLightTable() {
+  const r = await esbuild.build({ entryPoints: [join(ROOT, 'src', 'lighttable', 'main.js')], bundle: true, minify: !process.env.LT_DEBUG, format: 'iife', write: false, logLevel: 'error' });
+  const js = r.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
+  const sh = readFileSync(join(ROOT, 'src', 'lighttable', 'shell.html'), 'utf8'), cut = sh.indexOf('</style>') + 8;
+  const page = '<!doctype html><html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    + sh.slice(0, cut) + '</head><body>' + sh.slice(cut) + '<script>' + js + '</script></body></html>';
+  return Buffer.from(page, 'utf8').toString('base64');
+}
+const lightTable = await buildLightTable();
 const shell = resolveAssets(readFileSync(join(ROOT, 'src', 'index.html'), 'utf8'));   // the page's own head (site icon) can use asset: too
 // Included files may themselves contain @@include lines (e.g. app.js pulls in back.js inside its closure).
 const readSrc = (p) => stripNl(readFileSync(join(ROOT, 'src', p), 'utf8'))
   .replace(/^[ \t]*@@include (\S+)@@$/gm, (_, q) => readSrc(q));
 const html = shell.replace(/^@@include (\S+)@@$/gm, (_, p) =>
-  p === 'engine' ? engine : resolveAssets(readSrc(p)) + (ONLY && p === 'scenes.js' ? `\nSPLAT_SCENES=SPLAT_SCENES.filter(function(s){ return ${JSON.stringify(ONLY)}.indexOf(s.id)>=0; });   /* dev build: --only */` : ''));
+  p === 'engine' ? engine : resolveAssets(readSrc(p)).replace('@@lighttable-b64@@', () => lightTable) + (ONLY && p === 'scenes.js' ? `\nSPLAT_SCENES=SPLAT_SCENES.filter(function(s){ return ${JSON.stringify(ONLY)}.indexOf(s.id)>=0; });   /* dev build: --only */` : ''));
 
 if (/@@include|\basset(-b64)?:[A-Za-z]/.test(html.replace(engine, ''))) throw new Error('Unresolved include or asset token');
 // every inline script must at least parse: a stray comment or quote fails the build, not a student's session

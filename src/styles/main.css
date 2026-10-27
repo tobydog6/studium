@@ -2918,3 +2918,9 @@ body.launching #loader,body.launching #hud,body.launching #navTop,body.launching
 .lw-skip:hover{color:var(--text)}
 body.la-wel-on #prompt,body.la-wel-on #crosshair,body.la-wel-on #navCoach,body.la-wel-on #chMarks{visibility:hidden!important}
 @media (max-width:560px){.lw-card{padding:28px 22px 24px}.lw-card h2{font-size:27px}.lw-steps li{font-size:12px}}
+
+/* Light table room: full bleed under the studio bar, the table draws its own controls */
+#st-table{left:0;right:0;bottom:0;top:72px;display:block;overflow:hidden;background:#0c0b0a}
+#st-table .lt-frame{display:block;width:100%;height:100%;border:0}
+#st-table .lt-err{margin:40px;font:14px/1.5 var(--sans);color:var(--muted)}
+body[data-state="studio.table"] #stHints{display:none}

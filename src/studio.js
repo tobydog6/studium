@@ -2,8 +2,8 @@
   // The darkroom. Rooms in workflow order: Select, Edit, Workbook, Folio, Book, Gallery (Q / E to switch, Esc back
   // to the location). Edit hosts the develop panel under the studio bar; every other room is drawn here, and
   // Gallery's "walk the show" opens the 3D gallery show.
-  var ST_ROOMS=[["research","Research"],["select","Select"],["edit","Edit"],["workshop","Workbook"],["folio","Folio"],["book","Book"],["gallery","Gallery"]];
-  var st={open:false, room:"select", cur:-1, cols:4, wsPages:[], wsBoard:null, foBoard:null, projects:[], thumb:"m", hideRej:false, cmp:-1};
+  var ST_ROOMS=[["research","Research"],["select","Select"],["edit","Edit"],["table","Table"],["workshop","Workbook"],["folio","Folio"],["book","Book"],["gallery","Gallery"]];
+  var st={open:false, room:"select", cur:-1, cols:4, wsPages:[], wsBoard:null, foBoard:null, projects:[], lightTable:null, thumb:"m", hideRej:false, cmp:-1};
 
   function stPencil(seed){   // a loose grease-pencil loop on a superellipse, overshooting where it started
     var cx=107, cy=74, a=102, b=69, n=7, N=54, k0=seed*1.7, pts=[];
@@ -31,23 +31,24 @@
     ["hub","studio","gallery","landing","prompt"].forEach(hubHide);
     st.open=true; if(st.cur<0||st.cur>photos.length-1) st.cur=photos.length-1;
     el.classList.remove("hidden"); stRoom(room||st.room||"select"); updatePrompt(); }
-  function closeStudio(){ if(!st.open) return; if(st.zoom) stZoom(false); stHideLegacy(); st.open=false; $("studioX").classList.add("hidden");
+  function closeStudio(){ if(!st.open) return; if(st.zoom) stZoom(false); ltPause(); stHideLegacy(); st.open=false; $("studioX").classList.add("hidden");
     if(loaded){ hubShow("hud"); App.go("scene"); updatePrompt(); } else showHub(); }
   function stHideLegacy(){ var ed=$("editor"); if(ed&&!ed.classList.contains("hidden")&&typeof devCommit==="function") devCommit(); Object.keys(ST_LEGACY).forEach(function(k){ var e=$(ST_LEGACY[k]); if(e) e.classList.add("hidden"); }); document.body.classList.remove("st-legacy"); }
-  function stRoom(r){ if(r!=="edit"&&typeof devScope!=="undefined") devScope=null; if(st.zoom) stZoom(false); st.room=r; App.go("studio."+r); stHideLegacy();
-    ["research","select","workshop","folio","book","gallery"].forEach(function(k){ var c=$("st-"+k); if(c) c.classList.toggle("hidden", k!==r); });
+  function stRoom(r){ if(r!=="edit"&&typeof devScope!=="undefined") devScope=null; if(st.zoom) stZoom(false); if(st.room==="table"&&r!=="table") ltPause(); st.room=r; App.go("studio."+r); stHideLegacy();
+    ["research","select","table","workshop","folio","book","gallery"].forEach(function(k){ var c=$("st-"+k); if(c) c.classList.toggle("hidden", k!==r); });
     var empty=!photos.length;
     if(ST_LEGACY[r]){ document.body.classList.add("st-legacy");
       if(empty){ document.body.classList.remove("st-legacy"); }
       else if(r==="edit"){ var i=st.cur>=0?st.cur:photos.length-1; openEditor(i); } }
-    $("stEmpty").classList.toggle("hidden", !(empty && r!=="select"&&r!=="research"));
-    stRenderBar(); if(r==="research") rsRender(); else if(r==="select") stRenderSelect(); else if(r==="workshop"){ wsEnsure(); wsB.render(); } else if(r==="folio") foB.render(); else if(r==="book") bkRender(); else if(r==="gallery") gaRender(); }
+    $("stEmpty").classList.toggle("hidden", !(empty && r!=="select"&&r!=="research"&&r!=="table"));
+    stRenderBar(); if(r==="research") rsRender(); else if(r==="select") stRenderSelect(); else if(r==="table") ltOpen(); else if(r==="workshop"){ wsEnsure(); wsB.render(); } else if(r==="folio") foB.render(); else if(r==="book") bkRender(); else if(r==="gallery") gaRender(); }
   function stCycle(d){ var i=0; ST_ROOMS.forEach(function(x,j){ if(x[0]===st.room) i=j; }); stRoom(ST_ROOMS[(i+d+ST_ROOMS.length)%ST_ROOMS.length][0]); }
   function stRenderBar(){ var bar=$("stBar"); if(!bar) return; var places={}; photos.forEach(function(p){ places[stPlaceOf(p)]=1; });
     bar.querySelector(".st-tabs").innerHTML=ST_ROOMS.map(function(r,i){ return '<button class="st-tab'+(r[0]===st.room?' on':'')+'" data-st-room="'+r[0]+'"><span class="n">0'+(i+1)+'</span>'+r[1]+'</button>'; }).join("");
     bar.querySelector(".st-sub").textContent=Object.keys(places).join(", ")+(photos.length?", "+photos.length+" frame"+(photos.length===1?"":"s"):"No frames yet");
     var hints={ select:[["← →","Move"],["P","Pick"],["X","Reject"],["1–5","Rate"],["V","Compare"],["Z","Full screen"],["Enter","Edit this frame"],["Q E","Rooms"]],
       edit:[["\\","Before / after"],["⌘Z","Undo"],["Q E","Rooms"],["Esc","Back to Select"]],
+      table:[["B","Binder"],["Drag","Prints onto the board"],["Right-click","Options"],["Top edge","The wall"],["?","Tour"],["Q E","Rooms"]],
       workshop:[["Drag","Frames onto the page"],["Click","Write in a text box"],["Del","Remove"],["⌘D","Duplicate"],["⌘Z","Undo"],["Q E","Rooms"]],
       folio:[["Drag","Frames or folders into a section"],["⤢","Zoom into a section"],["Drag across","Select several"],["Del","Remove"],["⌘Z","Undo"],["Q E","Rooms"]],
       research:[["Click","Pick photographs for your moodboard"],["Q E","Rooms"]], book:[["← →","Spread"],["Drag","Place a frame"],["Click two","Swap"],["T","Template"],["B","Full bleed"],["Q E","Rooms"]], gallery:[["Click a print","Size"],["← →","Spacing"],["F","Frame"],["W","Walk the show"],["Q E","Rooms"]] }[st.room];

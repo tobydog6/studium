@@ -36,12 +36,10 @@ try {
   await page.waitForFunction(() => window.__cb && __cb.state() === 'scene' && window.__q, null, { timeout: 300000, polling: 500 });
   await page.evaluate(() => { try{ __qu.closeAll(); }catch(e){} for(let i=0;i<60;i++){ try{ if(!__co.state().on) break; __co.go(); }catch(e){ break; } } });
   await page.waitForTimeout(2000);
-  await page.addStyleTag({content:'#laWel{display:none!important}'});
-  await page.evaluate(() => { __we.set({wind:2}); }); await page.waitForTimeout(3000);
-  console.log('field', JSON.stringify(await page.evaluate(() => __we.field())));
-  await page.evaluate(() => __we.map(true)); await page.waitForTimeout(2500); await shot('wx-map');
-  await page.evaluate(() => { const ok=window.__wk; }); 
-  await page.evaluate(() => __we.map(false)); await page.waitForTimeout(1500); await shot('wx-windA'); await page.waitForTimeout(400); await shot('wx-windB');
+  await page.evaluate(() => { __we.set({wind:2}); }); await page.waitForTimeout(2000);
+  const pts = await page.evaluate(() => __we.splats());
+  require('fs').writeFileSync('/tmp/claude-0/-home-claude/98bb4fd7-6edc-5ebf-8beb-d44ae70c0bd2/scratchpad/field.json', JSON.stringify(pts));
+  console.log('points', pts.length);
 } catch (e) { fail = e.message; }
 await browser.close(); server.close();
 if (fail) console.error('FAIL ' + fail);

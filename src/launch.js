@@ -7,11 +7,11 @@
   // to the settle. After the first time it's the short version: dark, in, settle. The whole thing waits for the scan.
   var LA={on:false, t0:0, raf:0, phase:"", fast:false, after:null, el:null, cam:null, hold:false};
   var LA_KEY="studium_launch_seen";
-  var LA_ROOMS=[["select","Pick","asset:assets/launch/select.mp4"],["edit","Edit","asset:assets/launch/edit.mp4"],["workbook","Make","asset:assets/launch/workbook.mp4"],["folio","Folio","asset:assets/launch/folio.mp4"],["gallery","Show","asset:assets/launch/gallery.mp4"]];
-  var LA_T={detail:3.2, scan:2.6, shoot:2.6, iris:0.9, settle:0.95, crawl:1.0, move:0.5, exit:1.15, spin:4.6, word:1.7};
+  var LA_ROOMS=[["select","Pick","asset:assets/launch/select.jpg"],["edit","Edit","asset:assets/launch/edit.jpg"],["workbook","Make","asset:assets/launch/workbook.jpg"],["folio","Folio","asset:assets/launch/folio.jpg"],["gallery","Show","asset:assets/launch/gallery.jpg"]];
+  var LA_T={detail:3.2, scan:2.6, shoot:2.6, iris:0.9, settle:0.95, crawl:1.0, move:0.5, exit:1.05, spin:4.6, word:1.7};
   function laSeen(){ try{ return localStorage.getItem(LA_KEY)==="1"; }catch(e){ return false; } }
   function laEl(){ var e=$("launch"); if(e) return e; e=document.createElement("div"); e.id="launch";
-    var fr='<div class="la-fr still"><canvas></canvas><em>1</em><i>1</i><u>E26</u></div>'+LA_ROOMS.map(function(m,i){ return '<div class="la-fr"><video muted loop playsinline preload="auto" src="'+m[2]+'"></video><span>'+m[1].toUpperCase()+'</span><em>'+(i+2)+'</em><i>'+(i+2)+'</i><u>E26</u></div>'; }).join("");
+    var fr='<div class="la-fr still"><canvas></canvas><em>1</em><i>1</i><u>E26</u></div>'+LA_ROOMS.map(function(m,i){ return '<div class="la-fr"><img alt="" decoding="async" src="'+m[2]+'"><span>'+m[1].toUpperCase()+'</span><em>'+(i+2)+'</em><i>'+(i+2)+'</i><u>E26</u></div>'; }).join("");
     e.innerHTML='<div class="la-dark"><b>Studium</b></div><div class="la-film"><div class="la-strip">'+fr+'<i class="la-sh t"></i><i class="la-sh b"></i><i class="la-dm"></i></div></div><div class="la-still"><canvas></canvas></div><div class="la-iris"></div><div class="la-snap"></div>'
       +'<div class="la-word"><span class="la-kick">WELCOME TO</span><b>'+"Studium".split("").map(function(c,i){ return '<i style="--n:'+i+'">'+c+'</i>'; }).join("")+'</b><em></em><span class="la-tag">A PHOTOGRAPHY STUDIO YOU WALK INTO</span></div><div class="la-skip">CLICK TO SKIP</div>';
     document.body.appendChild(e);
@@ -92,16 +92,42 @@
     sdTone(b,t,96,"sine",0.003,0.2,0.01,0.2,38); sdNoise(b,t,"lowpass",900,0.7,0.002,0.05,0.02,0.2,200);
     if(SD.drone){ sdDroneTo(1,t,0.05); } }
   // the film: the still lands, a projector flutter under it, every frame wound on with a ratchet and a woosh panned across
-  function sdFilm(t){ var b=sdSeq(); if(!b) return; t=t==null?sdNow():t; var n=1+LA_ROOMS.length, P=LA_T.crawl+LA_T.move, S=LA_T.settle, len=S+(n-1)*P+LA_T.exit;
-    sdTone(b,t+S-0.1,130,"sine",0.006,0.09,0.02,0.3,62); sdTick(b,t+S-0.1,900,0.06);
-    var c=SD.ctx, s=c.createBufferSource(), lp=c.createBiquadFilter(), am=c.createGain(), lfo=c.createOscillator(), lg=c.createGain(), g=c.createGain();
-    s.buffer=SD.nb; s.loop=true; lp.type="bandpass"; lp.frequency.value=380; lp.Q.value=0.9; am.gain.value=0.6; lfo.frequency.value=18; lg.gain.value=0.4; lfo.connect(lg); lg.connect(am.gain);
-    sdEnv(g,t+0.2,0.8,0.03,len-1.6,0.6); s.connect(lp); lp.connect(am); am.connect(g); g.connect(b); s.start(t+0.2); lfo.start(t+0.2); s.stop(t+len+0.2); lfo.stop(t+len+0.2);
-    for(var i=0;i<n-1;i++){ var w=t+S+i*P+LA_T.crawl;   /* a slide projector: the gate clicks, the carriage thunks, the next slide drops in */
-      sdTick(b,w-0.03,1900,0.07,0.15); sdTone(b,w-0.02,150,"sine",0.004,0.07,0.02,0.12,80);
-      sdTick(b,w+0.16,1300,0.05,-0.1); sdTone(b,w+0.17,110,"sine",0.004,0.05,0.02,0.16,60);
-      sdNoise(b,w,"lowpass",900,0.6,0.1,0.016,0.05,0.3,400,0.4,-0.4); }
-    var x=t+S+(n-1)*P; sdNoise(b,x-0.2,"bandpass",200,1.1,LA_T.exit+0.5,0.11,0.1,0.5,3200,0.5,-0.6); sdDroneTo(1.5,x,0.9); }
+  // the film: a backing track. 80 bpm, two beats a frame, so every frame lands on a downbeat; felt-piano arpeggios through
+  // a dotted-eighth echo, a warm pad that breathes with the beat, then bass, a soft kick, snaps and a shaker come in as it goes.
+  // A, F#m, D, E, A, D, then E under the exit, resolving to A when the title lands.
+  var SD_CH=[[110,[440,554.37,659.25,880],[220,277.18,329.63]],[92.5,[369.99,440,554.37,739.99],[185,220,277.18]],[73.42,[293.66,369.99,440,587.33],[146.83,185,220]],[82.41,[329.63,415.3,493.88,659.25],[164.81,207.65,246.94]],
+    [110,[440,554.37,659.25,880],[220,277.18,329.63]],[73.42,[293.66,369.99,440,587.33],[146.83,185,220]],[82.41,[329.63,415.3,493.88,659.25],[164.81,207.65,246.94]]];
+  function sdPluck(b,t,f,peak,pan){ var c=SD.ctx, o=c.createOscillator(), o2=c.createOscillator(), lp=c.createBiquadFilter(), g=c.createGain(); o.type="triangle"; o2.type="sine"; o.frequency.value=f; o2.frequency.value=f*2; o2.detune.value=4;
+    lp.type="lowpass"; lp.frequency.setValueAtTime(f*6,t); lp.frequency.exponentialRampToValueAtTime(f*1.5,t+0.35); var g2=c.createGain(); g2.gain.value=0.25;
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+0.006); g.gain.exponentialRampToValueAtTime(0.0001,t+0.75);
+    o.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); sdOut(g,b,pan,null,t,0.8); o.start(t); o2.start(t); o.stop(t+0.8); o2.stop(t+0.8); }
+  function sdKick(b,t,peak){ sdTone(b,t,130,"sine",0.002,peak,0.02,0.22,42); sdTick(b,t,3000,peak*0.12); }
+  function sdSnap(b,t,peak){ sdNoise(b,t,"bandpass",1700,1.6,0.002,peak,0.008,0.12,null,0.1); sdNoise(b,t+0.012,"bandpass",2600,2,0.002,peak*0.6,0.006,0.09,null,-0.1); }
+  function sdFilm(t){ var b0=sdSeq(); if(!b0) return; t=t==null?sdNow():t; var c=SD.ctx, n=1+LA_ROOMS.length, P=LA_T.crawl+LA_T.move, S=LA_T.settle, beat=P/2, e8=beat/2;
+    var first=t+S+LA_T.crawl, t0=first-P, xt=t+S+(n-1)*P, hit=xt+LA_T.exit+0.7;   /* frames land on downbeats; the title lands on the hit */
+    sdTone(b0,t+S-0.1,130,"sine",0.006,0.07,0.02,0.3,62);   /* the still settles into the strip */
+    // the mix: a sidechained pad bus, a dry bus and an echo for the piano
+    var mus=c.createGain(); mus.gain.setValueAtTime(0.0001,t0); mus.gain.exponentialRampToValueAtTime(1,t0+0.6); mus.connect(b0);
+    var dl=c.createDelay(1), fb=c.createGain(), dlp=c.createBiquadFilter(), dw=c.createGain(); dl.delayTime.value=e8*1.5; fb.gain.value=0.32; dlp.type="lowpass"; dlp.frequency.value=3200; dw.gain.value=0.35; dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(dw); dw.connect(mus);
+    var keys=c.createGain(); keys.connect(mus); keys.connect(dl);
+    var pad=c.createGain(); pad.connect(mus);
+    var beats=Math.round((hit-t0)/beat), k, i;
+    for(k=0;k<beats;k++){ var bt=t0+k*beat; pad.gain.setValueAtTime(0.35,bt); pad.gain.linearRampToValueAtTime(1,bt+beat*0.8); }   /* the pad ducks on every beat: the pump */
+    var nCh=Math.round((xt-t0)/P)+1;
+    for(i=0;i<nCh;i++){ var ct=t0+i*P, ch=SD_CH[Math.min(i,SD_CH.length-1)], last=ct+P>xt-0.01, len=last?(hit-ct):P;
+      ch[2].forEach(function(f,j){ var o=c.createOscillator(), o2=c.createOscillator(), lp=c.createBiquadFilter(), g=c.createGain(); o.type="sawtooth"; o2.type="sawtooth"; o.frequency.value=f; o2.frequency.value=f; o.detune.value=-7; o2.detune.value=7;
+        lp.type="lowpass"; lp.frequency.setValueAtTime(700+i*140,ct); lp.Q.value=0.4; g.gain.setValueAtTime(0.0001,ct); g.gain.exponentialRampToValueAtTime(0.012,ct+0.12); g.gain.setValueAtTime(0.012,ct+len-0.12); g.gain.exponentialRampToValueAtTime(0.0001,ct+len+0.05);
+        o.connect(lp); o2.connect(lp); lp.connect(g); sdOut(g,pad,(j-1)*0.35,null,ct,len); o.start(ct); o2.start(ct); o.stop(ct+len+0.1); o2.stop(ct+len+0.1); });
+      var pat=[0,2,3,1,2,3,1,2], steps=last?Math.round(len/e8)-2:4;   /* eighths: four to a frame; the last chord keeps going into the hit */
+      for(k=0;k<steps;k++){ var nt=ct+k*e8, f=ch[1][pat[k%8]]*(k%4===3&&i%2?2:1); sdPluck(keys,nt,f,(k===0?0.1:0.075)*(last?0.85:1),((k%4)-1.5)*0.25); }
+      if(i>=1){ for(k=0;k<2;k++) sdTone(mus,ct+k*beat,ch[0],"sine",0.01,0.055,beat*0.45,0.2); sdTone(mus,ct+k*beat,ch[0]*2,"triangle",0.01,0.02,beat*0.3,0.15); }   /* bass from the second frame */
+      if(i>=2){ for(k=0;k<2;k++) sdKick(mus,ct+k*beat,0.12); }                                  /* a soft kick on the beat from the third */
+      if(i>=3){ sdSnap(mus,ct+beat,0.07); for(k=0;k<8;k++) sdNoise(mus,ct+k*e8/2,"highpass",7000,0.7,0.002,(k%2?0.006:0.011),0.01,0.05); }   /* snaps and a shaker from the fourth */
+    }
+    sdNoise(mus,xt-0.1,"highpass",800,0.7,(hit-xt)-0.05,0.05,0.02,0.04,7000);   /* the exit: a rising wash into the title */
+    for(k=0;k<6;k++) sdSnap(mus,hit-0.75+k*0.125,0.02+k*0.01);                     /* and a little roll */
+    mus.gain.setValueAtTime(1,hit-0.02); mus.gain.exponentialRampToValueAtTime(0.0001,hit+0.6);   /* the band stops; the title chord takes over */
+    sdDroneTo(1.5,xt,0.9); }
   // the big circle: a whoosh round, the sub swelling, then the wordmark lands on a warm A chord with the letters glinting in
   function sdSpin(t,quick){ var b=sdCtx()&&sdBus(0.6); if(!b) return; t=t==null?sdNow():t; SD.big=b; var D=quick?1.6:LA_T.spin, w=t+0.7;
     sdNoise(b,t,"lowpass",300,0.8,D*0.35,0.15,D*0.1,D*0.45,2000,-0.7,0.7); sdNoise(b,t+D*0.15,"bandpass",600,1.4,D*0.3,0.05,0.1,D*0.4,300,0.7,-0.5);   /* round we go */

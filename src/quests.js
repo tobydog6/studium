@@ -76,6 +76,10 @@
      steps:[{t:"6 picks from each of 3 places", go:"select", check:function(){ return qSeries().length>=3; }, now:function(){ return qCount(qSeries().length,3); }},
        {t:"Edit every one of those picks", go:"edit", check:function(){ return qSeries().filter(function(pl){ return qPicks().filter(function(p){ return p.place===pl; }).every(function(p){ return p.edited; }); }).length>=3; }},
        {t:"Make a Before & after page", go:"workshop", check:function(){ return qPages("edit").length>=1; }}]},
+    {id:"m10", type:"main", checkpoint:"cp3", pillar:"drive", title:"Pairs and sequences", blurb:"Live with your frames on the light table: pair them, build series on the wall, string the ideas together, and keep the board in your workbook.", go:"table", page:"sequence", try:true,
+     steps:[{t:"Take the light table tour", tour:"lighttable", go:"table", check:function(){ return qTour("lighttable"); }},
+       {t:"String two series together on the wall", go:"table", check:function(){ return !!Q.flags.ltString; }},
+       {t:"2 sequence boards in your workbook", go:"table", check:function(){ return qPages("sequence").length>=2; }, now:function(){ return qCount(qPages("sequence").length,2); }}]},
     {id:"m8", type:"main", checkpoint:"cp3", pillar:"all", title:"The folio", blurb:"All three A1 panels filled, and each arrangement tried.", go:"folio",
      steps:[{t:"A photo in all 9 sections", go:"folio", check:function(){ return qFolioSecs()>=9; }, now:function(){ return qCount(qFolioSecs(),9); }},
        {t:"Try 2 arrangements on each panel", go:"folio", check:function(){ return qFolioArr()>=3; }, now:function(){ return qCount(qFolioArr(),3)+" panels"; }}]},
@@ -88,7 +92,7 @@
   // ---- the demo: about 30 minutes for someone who's never seen Studium. Three foundations, then all four board quests, in any order. ----
   function qFolioTop(){ var b=typeof st!=="undefined"&&st.foBoard; if(!b||!b.pages) return 0; var n=0; b.pages.forEach(function(pg){ (pg.items||[]).forEach(function(it){ if(it.t==="photo"&&it.sec==="0.0"&&!it.hidden) n++; }); }); return n; }
   /* the board is rows of three: a row opens once the row above it is done. Row 1 keeps its order (each foundation unlocks the next). */
-  QUEST_SETS.demo={ name:"Demo", checkpoints:[], sampleCp:true, finish:6, rows:[{n:"Start here", ids:["d1","d2","d3"]}, {n:"Then choose", ids:["d6","d5","d4"]}, {n:"Make it yours", ids:["d7","d8","d9"]}], quests:[
+  QUEST_SETS.demo={ name:"Demo", checkpoints:[], sampleCp:true, finish:7, rows:[{n:"Start here", ids:["d1","d2","d3"]}, {n:"Then choose", ids:["d6","d5","d4"]}, {n:"Make it yours", ids:["d7","d10","d8","d9"]}], quests:[
     {id:"d1", type:"foundation", order:1, pillar:"craft", mins:8, title:"Step inside", blurb:"Learn to move, shoot and set the camera, then take the three gold-frame shots.", go:"scene",
      steps:[{t:"Do the warm-up", tour:"basics", go:"scene", check:function(){ return qTour("basics"); }},
        {t:"Complete the 3 gold frames", go:"scene", check:function(){ return qChDone()>=3; }, now:function(){ return qCount(qChDone(),3); }}]},
@@ -113,6 +117,10 @@
     {id:"d7", type:"main", pillar:"all", mins:5, title:"The folio", blurb:"Fill the top third of your first A1 panel and try its arrangements.", go:"folio",
      steps:[{t:"Take the folio tour", tour:"folio", go:"folio", check:function(){ return qTour("folio"); }},
        {t:"Fill the top third of panel 1", go:"folio", check:function(){ return qFolioTop()>=3; }, now:function(){ return qCount(qFolioTop(),3)+" photos"; }}]},
+    {id:"d10", type:"main", pillar:"drive", mins:6, title:"Pairs and sequences", blurb:"On the light table, pair your frames, pin two series to the wall, string them together, and send the board to your workbook.", go:"table", page:"sequence", try:true,
+     steps:[{t:"Take the light table tour", tour:"lighttable", go:"table", check:function(){ return qTour("lighttable"); }},
+       {t:"String two series together on the wall", go:"table", check:function(){ return !!Q.flags.ltString; }},
+       {t:"Add a sequence board to your workbook", go:"table", check:function(){ return qPages("sequence").length>=1; }}]},
     {id:"d8", type:"main", pillar:"all", mins:4, title:"Hang a show", blurb:"Choose prints for the gallery wall, lay them out, and give the show a title.", go:"gallery",
      steps:[{t:"Take the gallery tour", tour:"gallery", go:"gallery", check:function(){ return qTour("gallery"); }},
        {t:"Hang 3 prints on the wall", go:"gallery", check:function(){ return qPrints()>=3; }, now:function(){ return qCount(qPrints(),3); }}]},

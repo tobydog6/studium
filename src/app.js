@@ -682,13 +682,13 @@
   /* empty the workspace in memory only (nothing saved is deleted): photos, boards, book, gallery, folio */
   function wipeWorkspace(){ clearTimeout(_saveT); photos.length=0; briefDone={}; if(typeof foItems!=="undefined") foItems=[]; if(typeof pbPages!=="undefined") pbPages=[];
     if(typeof foClearBoard==="function") try{ foClearBoard(); }catch(e){}
-    if(typeof st!=="undefined"){ st.wsBoard=null; st.foBoard=null; st.projects=[]; st.wsPages=[]; if(typeof wsB!=="undefined") wsB.reset(null); if(typeof foB!=="undefined") foB.reset(null); }
+    if(typeof st!=="undefined"){ st.wsBoard=null; st.foBoard=null; st.projects=[]; st.wsPages=[]; st.lightTable=null; if(typeof ltReset==="function") ltReset(); if(typeof wsB!=="undefined") wsB.reset(null); if(typeof foB!=="undefined") foB.reset(null); }
     if(typeof bk!=="undefined") bk.pages=[]; if(typeof ga!=="undefined"){ ga.title=""; ga.list=null; ga.sizes={}; ga.pos={}; }
     refreshCount(); }
   function sessionData(){ return { v:1, savedAt:Date.now(), studentName:studentName, briefDone:briefDone,
     photos:photos.map(function(p){ return {url:p.url,orig:p.orig||null,dev:p.dev||null,id:p.id||null,copy:!!p.copy,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,baked:p.baked||null,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order,challenge:p.challenge||null,lens:p.lens||null,shake:p.shake||0,research:!!p.research,credit:p.credit||null,light:p.light||null,ev:p.ev==null?null:p.ev,cap:p.cap||null}; }),
     quests:(typeof Q!=="undefined"?Q:null),
-    workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), projects:(typeof st!=="undefined"?st.projects:[]), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title,list:ga.list,label:ga.label}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
+    workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), projects:(typeof st!=="undefined"?st.projects:[]), lightTable:(typeof st!=="undefined"?st.lightTable||null:null), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title,list:ga.list,label:ga.label}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
   function saveSessionNow(){ if(!photos.length && !(typeof foItems!=="undefined"&&foItems&&foItems.length)) return; idb(function(db){ if(!db) return; try{ db.transaction("state","readwrite").objectStore("state").put(sessionData(),sessKey()); }catch(e){} }); }
@@ -702,6 +702,7 @@
     if(d.workshop&&d.workshop.length&&typeof st!=="undefined") st.wsPages=d.workshop;
     if(d.book&&d.book.pages&&typeof bk!=="undefined"){ bk.size=d.book.size||"20x25"; bk.pages=d.book.pages; }
     if(d.galleryPrefs&&typeof ga!=="undefined"){ ga.frame=d.galleryPrefs.frame||"black"; ga.gap=d.galleryPrefs.gap||250; ga.sizes=d.galleryPrefs.sizes||{}; ga.pos=d.galleryPrefs.pos||{}; ga.title=d.galleryPrefs.title||""; ga.list=d.galleryPrefs.list||null; ga.label=d.galleryPrefs.label||{x:null,y:null,style:"card",size:1}; }
+    if(typeof st!=="undefined"){ st.lightTable=d.lightTable||null; if(typeof ltReset==="function") ltReset(); }
     if(d.wsBoard&&typeof st!=="undefined"){ st.wsBoard=d.wsBoard; wsB.reset(d.wsBoard); }
     if(d.foBoard&&typeof st!=="undefined"){ st.foBoard=d.foBoard; foB.reset(d.foBoard); }
     if(d.projects&&typeof st!=="undefined") st.projects=d.projects;
@@ -1030,6 +1031,7 @@
 @@include finder.js@@
 @@include bag.js@@
 @@include studio.js@@
+@@include lighttable.js@@
 @@include crtables.js@@
 @@include crdev.js@@
 @@include edpanels.js@@
@@ -1505,7 +1507,7 @@
   if(/[?&]dev/.test(location.search)) window.__dof={ aim:function(y,p){ yaw=y; pitch=p; }, pb:function(){ var P=viewer.P, n=P.length/3, mn=[1e9,1e9,1e9], mx=[-1e9,-1e9,-1e9], md=[[],[],[]]; for(var i=0;i<n;i++) for(var k=0;k<3;k++){ var v=P[i*3+k]; if(v<mn[k]) mn[k]=v; if(v>mx[k]) mx[k]=v; if(i%50===0) md[k].push(v); } md=md.map(function(a){ a.sort(function(x,y){ return x-y; }); return +a[a.length>>1].toFixed(2); }); var f=new THREE.Vector3(); camera.getWorldDirection(f); return {n:n, mn:mn.map(function(v){ return +v.toFixed(1); }), mx:mx.map(function(v){ return +v.toFixed(1); }), med:md, cam:camera.position.toArray().map(function(v){ return +v.toFixed(2); }), dir:f.toArray().map(function(v){ return +v.toFixed(2); }), A0:viewer.A[0], A1:viewer.A[1000]}; }, ap:function(N){ var i=APERTURES.indexOf(N); if(i>=0){ apIdx=i; computeCam(); } }, focus:function(v){ setFocus(v); }, af:function(){ afPending=true; },
     state:function(){ var sp=viewer&&viewer.spark; var mm=viewer&&viewer.mesh; return {af:afPending, np:viewer&&viewer.P?viewer.P.length/3:-1, ps:mm&&mm.packedSplats?mm.packedSplats.numSplats:-1, ms:mm?mm.numSplats:-1, lod:mm&&mm.lodSplats?mm.lodSplats.numSplats:-1, ok:dOK, ready:!!sp, metres:+focusMetres().toFixed(2), N:APERTURES[apIdx], angle:sp?+sp.apertureAngle.toFixed(5):0, focal:sp?+sp.focalDistance.toFixed(2):0}; } };
   if(/[?&]dev/.test(location.search)) window.__ed={ crv:function(){ return crv; }, state:function(){ return edState; }, open:function(i){ st.cur=i; stRoom("edit"); }, pool:function(){ return crPrev; } };   /* Edit room perf hooks (tests/perf-edit.mjs) */
-  if(/[?&]dev/.test(location.search)){ window.__cb={open:openBack, close:closeBack, tab:cbSetTab, state:function(){ return App.state; },
+  if(/[?&]dev/.test(location.search)){ window.__cb={stOpen:function(r){ openStudio(r); }, lt:function(){ return ltFrame; }, open:openBack, close:closeBack, tab:cbSetTab, state:function(){ return App.state; },
     cam:function(){ return {ap:APERTURES[apIdx], sh:SHUTTER_LABELS[shIdx], iso:ISOS[isoIdx], ev:+evStops.toFixed(2), mm:focalMM, body:curBody().id, lens:lensId}; }, bag:function(){ return {open:bg.open, stage:bg.stage, body:bg.body, lens:bg.lens, busy:bg.busy}; }, studio:function(){ var bd=function(B){ var d=B.doc_(); return {cur:d.cur, paper:d.paper, pages:d.pages.map(function(p){ return p.items.map(function(it){ return {t:it.t, i:it.pid?stById(it.pid):-1, x:Math.round(it.x), y:Math.round(it.y), w:Math.round(it.w), h:Math.round(B.hOf(it)), hidden:!!it.hidden, locked:!!it.locked, f:it.f||null, text:it.text||null, sec:it.sec||null, pid:it.pid||null, sz:it.sz||1, ch:it.ch!=null?Math.round(it.ch):null}; }); }), sel:B.selected()}; };
       return {open:st.open, room:st.room, cur:st.cur, ws:bd(wsB), fo:bd(foB), book:{size:bk.size, spread:bk.spread, focus:bk.focus, sel:bk.sel, pages:bk.pages.map(function(p){ return {tpl:p.tpl, imgs:p.imgs.map(stById)}; })}}; }, addPhoto:function(p){ p.t=new Date(); photos.push(p); refreshCount(); }, fill:function(){ return foB.fill_(); }, projects:function(){ return (st.projects||[]).map(function(p){ return {name:p.name, n:p.ids.length}; }); }, open_:function(){ return cbOpen; }, photos:photos, fov:function(){ return camera.fov; }, pose:function(o){ if(o){ if(o.x!=null) camPos.x=o.x; if(o.z!=null) camPos.z=o.z; if(o.yaw!=null) yaw=o.yaw; if(o.pitch!=null) pitch=o.pitch; if(o.eye!=null) WK.eye=o.eye; _vel.set(0,0,0); basis(); } return {x:camPos.x, y:camPos.y, z:camPos.z, yaw:yaw, pitch:pitch, eye:WK.eye}; }, dial:function(){ return vfDial; }, focus:function(){ return focusDist; } }; }
 })();

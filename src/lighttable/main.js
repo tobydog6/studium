@@ -1398,7 +1398,9 @@ function setStand(on, instant){ if(SH.busy) return; STAND.up=on; STAND.dir=on?1:
   if(on){ STAND.t=0; SFX('kitOpen'); setTimeout(()=>SFX('grab'),420); setTimeout(()=>SFX('detent'),700); setTimeout(()=>SFX('raise'),1100); setTimeout(()=>SFX('detent'),2350); }
   else { STAND.t=Math.min(STAND.t,STAND.dur); SFX('kitClose'); }
   saveAll(); }
-function standFrame(dt){ kitLid.rotation.x+=(((STAND.up||STAND.dir)?-1.9:0)-kitLid.rotation.x)*(1-Math.exp(-dt*7)); if(!stand.visible&&STAND.dir===0) return;
+const boardFlash=new THREE.Mesh(new THREE.PlaneGeometry(BW+0.6,BH+0.6), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending }));
+boardFlash.rotation.x=-Math.PI/2; boardFlash.position.set(BX,BOARD_Y+0.12,BZ); boardFlash.renderOrder=12; boardFlash.visible=false; scene.add(boardFlash);
+function standFrame(dt){ if(STAND.boardF>0.003){ boardFlash.visible=true; boardFlash.material.opacity=0.8*STAND.boardF; STAND.boardF*=Math.exp(-dt*(STAND.boardF>0.9?2:9)); } else if(boardFlash.visible){ boardFlash.visible=false; STAND.boardF=0; } kitLid.rotation.x+=(((STAND.up||STAND.dir)?-1.9:0)-kitLid.rotation.x)*(1-Math.exp(-dt*7)); if(!stand.visible&&STAND.dir===0) return;
   if(STAND.dir>0){ STAND.t+=dt; poseStand(Math.min(1,STAND.t/STAND.dur)); if(STAND.t>STAND.dur+1.2){ STAND.dir=0; tourEv('stand'); toast('The copy stand is up. Click the camera to photograph the board.'); } }
   else if(STAND.dir<0){ STAND.t-=dt*1.6; const u=Math.max(0,STAND.t/STAND.dur); poseStand(u); if(u<=0){ STAND.dir=0; stand.visible=false; springs.forEach(m=>m.visible=false); aim.visible=false; } }
   const hot=tourHot()==='shutter', want=STAND.up&&!STAND.dir?(hot?0.55+0.35*Math.sin(performance.now()/220):STAND.hov?0.5:0):0;
@@ -1442,7 +1444,7 @@ function shoot(){ if(!STAND.up||STAND.dir) return; const on=prints.filter(p=>p.o
   if(!on.length){ toast('Put some prints on the board first.'); return; }
   closeNote(); hideActs(); closeCtx();
   try{ if(HOST&&HOST.shutter) HOST.shutter(); else SFX('capture'); }catch(e){}
-  STAND.flashT=0.16; const fl=$('flash'), bl=$('shBlade'); fl.classList.remove('go','shut'); bl.classList.remove('fire'); void fl.offsetWidth; fl.classList.add('shut'); bl.classList.add('fire');   /* the same flash and blade as the camera in the scene */
+  STAND.flashT=0.16;
   const R=shotRect(on), cw=2000, ch=Math.round(2000/1.4142);
   const oc=new THREE.OrthographicCamera(R.x0-BX,R.x1-BX,-(R.z0-BZ),-(R.z1-BZ),1,60); oc.position.set(BX,30,BZ); oc.up.set(0,0,-1); oc.lookAt(BX,0,BZ); oc.updateMatrixWorld(); oc.updateProjectionMatrix();
   const hideL=[ghost,loupeProp,dim,stand,aim,boardGlow,RINGS.board,threads,stickyGroup,...springs], was=hideL.map(o=>o.visible); hideL.forEach(o=>o.visible=false);
@@ -1453,6 +1455,7 @@ function shoot(){ if(!STAND.up||STAND.dir) return; const on=prints.filter(p=>p.o
   renderer.setPixelRatio(pr); resize(); lamp.copy(lampWas); hideL.forEach((o,i)=>o.visible=was[i]); prints.forEach((p,i)=>p.mat.uniforms.uSpec.value.copy(specWas[i]));
   const sm=document.createElement('canvas'); sm.width=1400; sm.height=Math.round(1400/1.4142); sm.getContext('2d').drawImage(shot,0,0,sm.width,sm.height);
   const s={ id:'sh'+Date.now().toString(36), url:sm.toDataURL('image/jpeg',0.8), date:new Date().toISOString(), sent:false, rect:R, lay:HOST?snapLayout(R):null, n:on.length };
+  STAND.boardF=1;   /* the flash lights the board under the camera, not the screen */
   SHOTS.push(s); while(SHOTS.length>8) SHOTS.shift();
   const m=shotMesh(sm); m.rotation.x=0; scene.add(m); m.position.copy(aim.position); m.scale.setScalar(0.25);
   FLY.push({ m, t:0, from:aim.position.clone(), to:tray.localToWorld(V(0,0.12+trayStack.children.length*0.006,0)) });

@@ -197,13 +197,17 @@
   function rbRatioWord(r){ if(r<1.6) return "flat and even"; if(r<2.6) return "soft and open"; if(r<5) return "classic, with shape"; if(r<9) return "moody"; return "dramatic, deep shadows"; }
 
   function rbAim(L,p){ var dx=p.x-L.x, dy=p.y-L.y, dz=p.z-L.z, d=Math.hypot(dx,dy,dz)||1; L.dir=[dx/d,dy/d,dz/d]; L.aimT={x:p.x,y:p.y,z:p.z}; }
-  function rbPlace(L,x,z){ L.h=Math.max(L.h,(RLB_MOUNT[L.fx]||0)+0.15); L.x=x; L.z=z; L.g=rlGround(x,z); L.y=L.g+L.h*RL.S; if(L.aimT) rbAim(L,L.aimT); }
+  /* the lowest each piece can go before it meets its own stand or the ground: a 1.1 m stripbox hangs well below its bracket */
+  var RLB_MINH={strip:0.78, softbox:0.55, umbrella:0.72, reflector:0.68, fresnel:0.36, speed:0.3, bare:0.25, rgb:0.62, sodium:1.2};
+  function rbMinH(fx){ return Math.max(RLB_MINH[fx]||0.3,(RLB_MOUNT[fx]||0)+0.15); }
+  function rbPlace(L,x,z){ L.h=Math.max(L.h,rbMinH(L.fx)); L.x=x; L.z=z; L.g=rlGround(x,z); L.y=L.g+L.h*RL.S; if(L.aimT) rbAim(L,L.aimT); }
   var RLB_SPOTS=[[45,1.5],[-55,1.9],[155,1.6],[-150,1.8],[100,2.2],[-100,2.2],[20,2.6],[-20,2.6]];
   function rbAdd(fx){ if(RL.lights.length>=RLB_MAX){ toast("That's "+RLB_MAX+" pieces of kit, the most for now"); return; }
     var F=RLB_FX[fx]||RLB_FX.softbox, T=rbTarget(), S=RL.S, ax=camPos.x-T.x, az=camPos.z-T.z, al=Math.hypot(ax,az)||1; ax/=al; az/=al;
     var sp=fx==="reflector"?[-70,1.0]:RLB_SPOTS[RL.lights.length%RLB_SPOTS.length];
     var a=sp[0]*Math.PI/180, d=sp[1]*S, ca=Math.cos(a), sa=Math.sin(a);
-    var L={id:RL.nid++, on:true, fx:fx, name:F.n, kind:F.kind, type:F.kind===1?"spot":"bulb", power:F.power, base:F.power, stops:0, k:F.k, gel:F.gel||"#ffffff", R:F.R, cone:F.cone||180, h:F.h, surf:F.surf||null, soft:F.R, dir:[0,-1,0], bounceP:0};
+    var subH=(T.y-rlGround(T.x,T.z))/S, h0=fx==="sodium"?F.h:Math.min(F.h,Math.max(rbMinH(fx),subH+0.55));   /* a low subject gets low lights: just above it, looking down a little */
+    var L={id:RL.nid++, on:true, fx:fx, name:F.n, kind:F.kind, type:F.kind===1?"spot":"bulb", power:F.power, base:F.power, stops:0, k:F.k, gel:F.gel||"#ffffff", R:F.R, cone:F.cone||180, h:h0, surf:F.surf||null, soft:F.R, dir:[0,-1,0], bounceP:0};
     rbPlace(L, T.x+(ax*ca-az*sa)*d, T.z+(ax*sa+az*ca)*d); rbAim(L, fx==="sodium"?{x:L.x,y:L.g,z:L.z}:T);
     RL.lights.push(L); RLB.sel=RL.lights.length-1; RL.placed=(RL.placed||0)+1; RL.on=true; rbStands(); rbPanel(true); rbDirty(); }
   function rbRemove(i){ var L=RL.lights[i]; if(!L) return; rbDropStand(L); RL.lights.splice(i,1); RLB.sel=Math.min(RLB.sel,RL.lights.length-1); rbPanel(true); rbDirty(); }
@@ -273,7 +277,14 @@
   function rbKitSkyRetry(){ var U=scene&&scene.userData, t=typeof SKY!=="undefined"&&SKY.tex; if(!U||!U.rbRoom||!t||!t.image||!t.image.width) return; U.rbRoom=false;
     try{ var pm=new THREE.PMREMGenerator(renderer), m0=t.mapping; t.mapping=THREE.EquirectangularReflectionMapping; var env=pm.fromEquirectangular(t).texture; t.mapping=m0; pm.dispose();
       if(RLB.envTex) RLB.envTex.dispose(); scene.environment=env; RLB.envTex=env; U.rbSky=true; }catch(e){} }
-  function rbKitLevel(){ if(!scene||!scene.userData.rbLit) return; rbKitSkyRetry(); var U=scene.userData, a=rbLum(RLB.sunMode?RLB.amb:[1,1,1]), k=Math.max(0.04,Math.min(1,a*1.25));
+  /* each light on the set lights the other stands too: a pool of point lights that only the kit's materials see */
+  function rbKitLamps(){ var U=scene&&scene.userData; if(!U||!U.rbLit) return; if(!U.rbLamps){ U.rbLamps=[]; for(var i=0;i<RLB_MAX;i++){ var pl=new THREE.PointLight(0xffffff,0,0,2); U.rbLamps.push(pl); scene.add(pl); } }
+    var S=RL.S; U.rbLamps.forEach(function(pl,i){ var L=RL.lights[i]; if(!L||!L.on||L.kind===2||(L.kind===3&&!L.bounce)){ pl.intensity=0; return; }
+      var c=L.kind===3?L.bounce:rbEmitRGB(L), p=L.kind===3?1:L.power, m=Math.max(c[0],c[1],c[2],1e-5);
+      /* a little in front of the face, so the light's own body doesn't catch it */
+      var off=(L.kind===1?Math.min(0.5,(L.R||0.1)+0.08):0.06)*S; pl.position.set(L.x+L.dir[0]*off,L.y+L.dir[1]*off,L.z+L.dir[2]*off);
+      pl.color.setRGB(c[0]/m,c[1]/m,c[2]/m); pl.intensity=Math.min(60,p*m*Math.PI*S*S*0.9); }); }
+  function rbKitLevel(){ if(!scene||!scene.userData.rbLit) return; rbKitSkyRetry(); rbKitLamps(); var U=scene.userData, a=rbLum(RLB.sunMode?RLB.amb:[1,1,1]), k=Math.max(0.04,Math.min(1,a*1.25));
     scene.environmentIntensity=k; U.rbHemi.intensity=(RLB.sunMode?0.6:1.1)*k;
     var sunOn=RLB.sunMode&&RLB.el>-1&&rbLum(RLB.sunLin)>0.002, T=rbTarget();
     U.rbSun.intensity=sunOn?2.4*Math.min(1.5,rbLum(RLB.sunLin)):RLB.sunMode?0:0.9;   /* as scanned: soft overcast light from above */
@@ -296,10 +307,10 @@
     /* where it lands: a reticle on your subject you drag to aim, joined to the light by a faint line */
     var aim=new THREE.Sprite(new THREE.SpriteMaterial({map:rbReticleTex(), transparent:true, depthTest:false, depthWrite:false, sizeAttenuation:false})); aim.scale.set(0.05,0.05,1); aim.name="aim"; aim.renderOrder=12; g.add(aim);
     /* the light you've picked: a fine dial on the ground round its stand */
-    var ring=new THREE.Mesh(new THREE.PlaneGeometry(1.3,1.3), new THREE.MeshBasicMaterial({map:rbRingTex(), transparent:true, depthWrite:false})); ring.rotation.x=-Math.PI/2; ring.name="ring"; ring.raycast=function(){}; g.add(ring);
+    var ring=new THREE.Mesh(new THREE.PlaneGeometry(1.3,1.3), new THREE.MeshBasicMaterial({map:rbRingTex(), alphaTest:0.3, transparent:false, depthWrite:true})); ring.rotation.x=-Math.PI/2; ring.name="ring"; ring.raycast=function(){}; g.add(ring);   /* solid where drawn: splats in front of it (the stump) cover it */
     var beamG=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(0,0,1)]); var beam=new THREE.Line(beamG, new THREE.LineBasicMaterial({color:0xfff1d6, transparent:true, opacity:0.38, depthTest:false})); beam.name="beam"; beam.renderOrder=11; g.add(beam);
     [aim,ring,beam,sh].concat(P.basic?[P.head.children[0]]:[]).forEach(function(o){ o.userData.own=true; }); P.emit.concat(P.surf).forEach(function(m){ m.userData.own=true; });
-    g.userData.P=P; g.userData.L=L; g.traverse(function(o){ o.userData.L=L; o.renderOrder=5; }); return g; }
+    g.userData.P=P; g.userData.L=L; g.traverse(function(o){ o.userData.L=L; o.renderOrder=5; }); ring.renderOrder=-5; return g; }
   function rbDropStand(L){ if(!L.stand) return; scene.remove(L.stand);   /* kit geometry is shared between stands: only dispose what this stand made for itself */
     L.stand.traverse(function(o){ if(o.userData.own){ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); } else if(o.material&&o.material.userData&&o.material.userData.own) o.material.dispose(); }); L.stand=null; }
   var RLB_SURFC={white:0xf0ede6, silver:0xc9ccd2, gold:0xd8ae5c};
@@ -432,10 +443,18 @@
     for(var m=RLB_T0;m<=RLB_T1;m+=30){ var e=rbSolar(m).el; stops.push((e>=20?"#8c96a0":e>=6?"#a8936a":e>=-0.83?"#d0843e":e>=-6?"#7a5578":e>=-10?"#34406e":"#151826")+" "+pct(m)); }
     return "linear-gradient(90deg,"+stops.join(",")+")"; }
   function rbDayLabel(){ if(!RLB.sunMode) return "The scan as it was captured"; var so=rbSolar(RLB.mins); return rbPhaseName(so.el)+" · sun "+Math.round(so.el)+"°"; }
-  function rbTimeline(){ var p=$("rbSide"); if(!p) return; var v=p.querySelector("#rbTimeV"), l=p.querySelector("#rbDayL"), r=p.querySelector('[data-rb-k="time"]');
-    if(v) v.textContent=RLB.sunMode?rbHM(RLB.mins):"–"; if(l) l.textContent=rbDayLabel(); if(r&&document.activeElement!==r) r.value=RLB.mins;
-    Array.prototype.forEach.call(p.querySelectorAll("[data-rb-day],[data-rb=scan]"),function(b){ var k=b.getAttribute("data-rb-day"); b.classList.toggle("on", k?RLB.sunMode&&RLB.day===k:!RLB.sunMode); });
-    var pl=p.querySelector("[data-rb=play]"); if(pl){ pl.classList.toggle("on",!!RLB.play); pl.textContent=RLB.play?"Pause":"Play the day"; } }
+  function rbTimeline(){ var tl=$("rbDay"); if(!tl) return; var M=rbMarks(), pct=function(m){ return ((m-RLB_T0)/(RLB_T1-RLB_T0)*100).toFixed(2)+"%"; };
+    if(tl.getAttribute("data-day")!==RLB.day||!tl.firstChild){ tl.setAttribute("data-day",RLB.day);   /* the track only changes with the day */
+      var marks=[["rise","Sunrise"],["goldPm","Golden hour"],["set","Sunset"]].filter(function(k){ return M[k[0]]!=null; });
+      tl.innerHTML='<div class="rb-dh"><span class="lr-secname">Daylight</span><div class="rb-pills"><button class="lr-pill" data-rb="scan">As scanned</button>'+Object.keys(RLB_DAYS).map(function(k){ return '<button class="lr-pill" data-rb-day="'+k+'">'+RLB_DAYS[k].n+'</button>'; }).join("")+'</div>'
+        +'<b class="rb-now"></b><button class="lr-pill" data-rb="play">Play the day</button></div>'
+        +'<div class="rb-track" style="background:'+rbDayTrack()+'">'+marks.map(function(k){ return '<i style="left:'+pct(M[k[0]])+'"><span'+(k[0]==="goldPm"?' class="lo"':'')+'>'+k[1]+' '+rbHM(M[k[0]])+'</span></i>'; }).join("")+'<em></em></div>'; }
+    tl.classList.toggle("off",!RLB.sunMode); var em=tl.querySelector(".rb-track em"); if(em) em.style.left=pct(RLB.mins);
+    var nw=tl.querySelector(".rb-now"); if(nw) nw.textContent=RLB.sunMode?rbHM(RLB.mins)+' · '+rbDayLabel():rbDayLabel();
+    Array.prototype.forEach.call(tl.querySelectorAll("[data-rb-day],[data-rb=scan]"),function(b){ var k=b.getAttribute("data-rb-day"); b.classList.toggle("on", k?RLB.sunMode&&RLB.day===k:!RLB.sunMode); });
+    var pl=tl.querySelector("[data-rb=play]"); if(pl){ pl.classList.toggle("on",!!RLB.play); pl.textContent=RLB.play?"Pause":"Play the day"; } }
+  function rbTimeAt(e){ var tr=document.querySelector("#rbDay .rb-track"); if(!tr) return; var r=tr.getBoundingClientRect(), t=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+    RLB.mins=Math.round((RLB_T0+t*(RLB_T1-RLB_T0))/5)*5; RLB.play=false; if(!RLB.sunMode) rbSunOn(); rbDirty(); rbTimeline(); rbPanel(false); }
 
   /* ---- the panel and the kit strip: the editing window's own parts ---- */
   var RLB_THUMB={softbox:"asset:assets/kit/thumbs/softbox.webp", strip:"asset:assets/kit/thumbs/strip.webp", umbrella:"asset:assets/kit/thumbs/umbrella.webp", fresnel:"asset:assets/kit/thumbs/fresnel.webp",
@@ -469,13 +488,27 @@
     +"#rbUI .rb-kt:hover img{opacity:1;transform:scale(1.04)}#rbUI .rb-kt:hover{outline-color:rgba(var(--gold-rgb),.7)}"
     +"#rbUI .rb-kt span{font-size:11px;color:var(--ink-2);padding:5px 7px 6px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--sans)}"
     +"#rbBusy{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%);z-index:990;padding:12px 18px;border-radius:10px;background:rgba(15,13,10,.94);font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--accent);display:none}#rbBusy.show{display:block}"
+    +"#rbUI .rb-daybar{position:fixed;top:14px;left:16px;right:"+(RLB_SIDE+16)+"px;z-index:956;max-width:980px;margin:0 auto;padding:10px 14px 22px;border-radius:10px;background:rgba(12,11,10,.9);border:1px solid rgba(var(--bone-rgb),.08);backdrop-filter:blur(6px)}"
+    +"#rbUI .rb-dh{display:flex;align-items:center;gap:12px;margin-bottom:10px}#rbUI .rb-dh .rb-pills{margin:0}#rbUI .rb-dh .lr-secname{flex:none;font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}"
+    +"#rbUI .rb-now{margin-left:auto;font-family:var(--mono);font-size:11px;font-weight:400;color:var(--text);letter-spacing:.06em;white-space:nowrap}"
+    +"#rbUI .rb-track{position:relative;height:22px;border-radius:5px;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.35)}#rbUI .rb-daybar.off .rb-track{opacity:.5}"
+    +"#rbUI .rb-track i{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.4)}#rbUI .rb-track i span{position:absolute;top:3px;left:5px;font-style:normal;font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:rgba(255,255,255,.85);white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}"
+    +"#rbUI .rb-track i span.lo{top:auto;bottom:-16px;left:auto;right:5px;color:var(--ink-4);text-shadow:none}"
+    +"#rbUI .rb-track em{position:absolute;top:-4px;bottom:-4px;width:4px;margin-left:-2px;border-radius:2px;background:#f4efe6;box-shadow:0 0 0 2px rgba(0,0,0,.45),0 0 10px rgba(255,236,200,.5)}#rbUI .rb-daybar.off .rb-track em{display:none}"
+    +"body.rl-open #navTop{opacity:0;pointer-events:none}"
+    +"#rbGhost{position:fixed;z-index:999;width:84px;height:64px;pointer-events:none;transform:translate(-50%,-60%);opacity:.9;filter:drop-shadow(0 6px 14px rgba(0,0,0,.6));display:none}#rbGhost.show{display:block}"
     +"body.rl-open #btnHelp{right:"+(RLB_SIDE+18)+"px!important;bottom:150px!important}";   /* the guide button steps out of the panel's way */
   function rbEls(){ if($("rbUI")) return; var st=document.createElement("style"); st.textContent=RLB_CSS; document.head.appendChild(st);
     var u=document.createElement("div"); u.id="rbUI"; document.body.appendChild(u);
-    u.innerHTML='<aside class="lr-panel" id="rbSide"></aside><div class="dv-bar" id="rbKit"><div class="dv-top"><span class="dv-count">THE KIT</span><span class="dv-help">CLICK A PIECE TO ADD IT · DRAG A STAND TO MOVE IT · DRAG THE RETICLE TO AIM · SCROLL ON A LIGHT TO RAISE IT · DRAG THE GROUND TO ORBIT · RIGHT-CLICK TO SHOOT</span></div><div class="dv-film">'
+    u.innerHTML='<div class="rb-daybar" id="rbDay"></div><aside class="lr-panel" id="rbSide"></aside><div class="dv-bar" id="rbKit"><div class="dv-top"><span class="dv-count">THE KIT</span><span class="dv-help">CLICK OR DRAG A PIECE INTO THE SCENE · DRAG A STAND TO MOVE IT · DRAG THE RETICLE TO AIM · SCROLL ON A LIGHT TO RAISE IT · DRAG THE GROUND TO ORBIT · RIGHT-CLICK TO SHOOT</span></div><div class="dv-film">'
       +RLB_KITORDER.map(function(k){ return '<button class="rb-kt" data-rb-fx="'+k+'" title="'+RLB_FX[k].d+'"><img src="'+RLB_THUMB[k]+'" alt=""><span>'+RLB_FX[k].n+'</span></button>'; }).join("")+'</div></div>';
+    var dbar=u.querySelector("#rbDay"); dbar.addEventListener("pointerdown",function(e){ if(!e.target.closest(".rb-track")) return; e.preventDefault(); RLB.tdrag=true; rbTimeAt(e); try{ dbar.setPointerCapture(e.pointerId); }catch(er){} });
+    dbar.addEventListener("pointermove",function(e){ if(RLB.tdrag) rbTimeAt(e); }); dbar.addEventListener("pointerup",function(){ RLB.tdrag=false; });
     u.addEventListener("input",rbInput); u.addEventListener("click",rbClick); u.addEventListener("change",function(e){ if(e.target&&e.target.type==="range") e.target.blur(); }); u.addEventListener("keydown",function(e){ if(e.code!=="Escape"&&e.target&&/INPUT|SELECT/.test(e.target.tagName)) e.stopPropagation(); });
     u.addEventListener("pointerup",function(){ var ae=document.activeElement; if(ae&&ae.type==="range") setTimeout(function(){ ae.blur(); },0); });   /* let go of a slider and WASD walks again */
+    var gh=document.createElement("img"); gh.id="rbGhost"; gh.alt=""; document.body.appendChild(gh);
+    u.querySelector(".dv-film").addEventListener("pointerdown",function(e){ var t=e.target.closest("[data-rb-fx]"); if(!t||e.button!==0) return; e.preventDefault();
+      RLB.kdrag={fx:t.getAttribute("data-rb-fx"), x:e.clientX, y:e.clientY, moved:false, L:null}; gh.src=RLB_THUMB[RLB.kdrag.fx]||""; });
     var bz=document.createElement("div"); bz.id="rbBusy"; bz.textContent="BUILDING SHADOWS…"; document.body.appendChild(bz); }
   function rbShow(on){ var u=$("rbUI"); if(u) u.classList.toggle("show",!!on&&!viewfinderOn); }
   function rbFmtStops(s){ return (s>0?"+":"")+s.toFixed(1)+" EV"; }
@@ -497,38 +530,42 @@
     h+=rbSec("set","On the set",set,'<span class="rb-cnt">'+RL.lights.length+' / '+RLB_MAX+'</span>');
     if(L){ var b='<div class="rb-facts">'+rbFacts(L,roles[RLB.sel])+'</div>';
       if(L.kind<2) b+=rbRow("stops","Power",L.stops,-4,3,0.5,rbFmtStops(L.stops))+rbRow("k","Colour",L.k,1800,10000,100,Math.round(L.k/100)*100+" K",RLB_KTRK);
-      b+=rbRow("h","Height",L.h,Math.max(0.1,(RLB_MOUNT[L.fx]||0)+0.15),5,0.05,L.h.toFixed(2)+" m");
+      b+=rbRow("h","Height",L.h,rbMinH(L.fx),5,0.05,L.h.toFixed(2)+" m");
       if(L.kind===3) b+='<div class="rb-pills">'+Object.keys(RLB_SURF).map(function(k){ return '<button class="lr-pill'+(L.surf===k?' on':'')+'" data-rb-surf="'+k+'">'+RLB_SURF[k].n+'</button>'; }).join("")+'</div><p class="rb-note">A reflector only bounces what lands on it. Angle it between the light and your subject.</p>';
       if(L.kind<2) b+='<div class="rb-pills">'+RL_GELS.map(function(g){ return '<button class="lr-pill'+(L.gel===g[0]?' on':'')+'" data-rb-gel="'+g[0]+'" style="--g:'+g[0]+'"><i></i>'+(g[1]==="None"?"No gel":g[1])+'</button>'; }).join("")+'</div>';
       if(L.kind!==0) b+='<div class="rb-pills"><button class="lr-pill" data-rb="aimsub">Aim at the subject</button></div>';
       h+=rbSec("light",L.name,b); }
-    var dy='<div class="rb-pills"><button class="lr-pill'+(RLB.sunMode?'':' on')+'" data-rb="scan">As scanned</button>'+Object.keys(RLB_DAYS).map(function(k){ return '<button class="lr-pill'+(RLB.sunMode&&RLB.day===k?' on':'')+'" data-rb-day="'+k+'">'+RLB_DAYS[k].n+'</button>'; }).join("")+'</div>'
-      +rbRow("time","Time",RLB.mins,RLB_T0,RLB_T1,5,RLB.sunMode?rbHM(RLB.mins):"–",rbDayTrack()).replace('<span class="lr-v">','<span class="lr-v" id="rbTimeV">')
-      +'<p class="rb-dayl" id="rbDayL">'+rbDayLabel()+'</p><div class="rb-pills"><button class="lr-pill'+(RLB.play?' on':'')+'" data-rb="play">'+(RLB.play?'Pause':'Play the day')+'</button></div>';
-    h+=rbSec("day","Daylight",dy);
     h+='<div class="rb-foot"><button class="lr-ghost" data-rb="clear">Clear the set</button></div>';
     p.innerHTML=h; var cv=$("rbDiag"); cv.addEventListener("pointerdown",rbDiagDown); cv.addEventListener("pointermove",rbDiagMove); cv.addEventListener("pointerup",function(){ RLB.ddrag=null; }); }
   function rbFacts(L,role){ return (role?role.toUpperCase()+' · ':'')+(L.kind===3?'':Math.round(L.R*200)+' cm across · ')+rbDist(L).toFixed(1)+' m away'+(L.ang!=null?' · '+L.ang+'° round from you':''); }
   function rbInput(e){ var k=e.target.getAttribute("data-rb-k"); if(!k) return; var v=+e.target.value, em=e.target.parentNode.querySelector(".lr-v");
-    if(k==="time"){ RLB.play=false; RLB.mins=v; if(!RLB.sunMode) rbSunOn(); rbDirty(); rbTimeline(); rbPanel(false); return; }
     var L=rbCur(); if(!L) return;
     if(k==="stops"){ L.stops=v; L.power=L.base*Math.pow(2,v); em.textContent=rbFmtStops(v); }
     else if(k==="k"){ L.k=v; em.textContent=Math.round(v/100)*100+" K"; }
     else if(k==="h"){ L.h=v; rbPlace(L,L.x,L.z); em.textContent=L.h.toFixed(2)+" m"; }
     rbStands(); rbDirty(); rbPanel(false); }
+  /* dragging from the kit: the piece follows you over the strip, then stands on the ground under the pointer */
+  window.addEventListener("pointermove",function(e){ var K=RLB.kdrag; if(!K) return; var gh=$("rbGhost");
+    if(!K.moved&&Math.hypot(e.clientX-K.x,e.clientY-K.y)>6) K.moved=true; if(!K.moved) return;
+    var over=e.target===renderer.domElement; gh.classList.toggle("show",!over||!K.L); gh.style.left=e.clientX+"px"; gh.style.top=e.clientY+"px";
+    if(over){ var T=rbTarget(), p=rbOnPlane(e,rlGround(T.x,T.z)); if(!p) return;
+      if(!K.L){ rbAdd(K.fx); K.L=RL.lights[RL.lights.length-1]; if(!K.L||K.L.fx!==K.fx){ K.L=null; return; } }
+      rbPlace(K.L,p.x,p.z); rbAim(K.L,K.fx==="sodium"?{x:p.x,y:rlGround(p.x,p.z),z:p.z}:T); rbStands(); rbPanel(false); rbDirty(); } },true);
+  window.addEventListener("pointerup",function(e){ var K=RLB.kdrag; if(!K) return; RLB.kdrag=null; var gh=$("rbGhost"); if(gh) gh.classList.remove("show");
+    if(K.moved){ RLB.kjust=Date.now(); if(K.L) rbPanel(true); } },true);
   function rbClick(e){ var hd=e.target.closest(".lr-sechdr"); if(hd){ var sec=hd.parentNode, id=sec.getAttribute("data-rb-sec"); sec.classList.toggle("collapsed"); RLB.coll=RLB.coll||{}; RLB.coll[id]=sec.classList.contains("collapsed"); return; }
     var b=e.target.closest("[data-rb],[data-rb-fx],[data-rb-pick],[data-rb-gel],[data-rb-surf],[data-rb-day],[data-rb-on],[data-rb-del]"); if(!b) return; e.stopPropagation(); if(b.tagName==="BUTTON") b.blur(); var L=rbCur();
-    if(b.hasAttribute("data-rb-fx")) return rbAdd(b.getAttribute("data-rb-fx"));
+    if(b.hasAttribute("data-rb-fx")){ if(RLB.kjust&&Date.now()-RLB.kjust<400) return; return rbAdd(b.getAttribute("data-rb-fx")); }   /* a drag already placed it */
     if(b.hasAttribute("data-rb-on")){ var Lo=RL.lights[+b.getAttribute("data-rb-on")]; if(Lo){ Lo.on=!Lo.on; rbStands(); rbDirty(); rbPanel(true); } return; }
     if(b.hasAttribute("data-rb-del")) return rbRemove(+b.getAttribute("data-rb-del"));
     if(b.hasAttribute("data-rb-pick")){ RLB.sel=+b.getAttribute("data-rb-pick"); rbStands(); return rbPanel(true); }
     if(b.hasAttribute("data-rb-gel")){ if(L){ L.gel=b.getAttribute("data-rb-gel"); rbStands(); rbDirty(); rbPanel(true); } return; }
     if(b.hasAttribute("data-rb-surf")){ if(L){ L.surf=b.getAttribute("data-rb-surf"); rbStands(); rbDirty(); rbPanel(true); } return; }
-    if(b.hasAttribute("data-rb-day")){ RLB.day=b.getAttribute("data-rb-day"); if(!RLB.sunMode) rbSunOn(); rbDirty(); rbTimeline(); return rbPanel(true); }
+    if(b.hasAttribute("data-rb-day")){ RLB.day=b.getAttribute("data-rb-day"); if(!RLB.sunMode) rbSunOn(); rbDirty(); rbTimeline(); return rbPanel(false); }
     var a=b.getAttribute("data-rb");
     if(a==="done") return rlClose(); if(a==="clear") return rlNatural(); if(a==="shadows"){ RL.shadows=!RL.shadows; rbDirty(); return rbPanel(true); }
-    if(a==="scan"){ RLB.sunMode=false; RLB.play=false; rbDirty(); return rbPanel(true); }
-    if(a==="play"){ RLB.play=!RLB.play; if(RLB.play&&!RLB.sunMode){ rbSunOn(); RLB.mins=Math.max(RLB.mins,5*60); } return rbPanel(true); }
+    if(a==="scan"){ RLB.sunMode=false; RLB.play=false; rbDirty(); rbTimeline(); return rbPanel(false); }
+    if(a==="play"){ RLB.play=!RLB.play; if(RLB.play&&!RLB.sunMode){ rbSunOn(); RLB.mins=Math.max(RLB.mins,5*60); } return rbTimeline(); }
     if(!L) return;
     if(a==="aimsub"){ rbAim(L,rbTarget()); rbStands(); rbDirty(); rbPanel(false); } }
 
@@ -552,6 +589,9 @@
   (function rbTick(t){ requestAnimationFrame(rbTick); var dt=Math.min(0.1,((t||0)-rbLast)/1000); rbLast=t||0;
     if(RLB.open&&rbAway()){ rlClose(); return; }
     /* smooth edges on the kit: multisample the scene only while stands are out, so shooting costs the same as before */
+    var want=RLB.open&&!viewfinderOn, ox=want?RLB_SIDE/2:0, oy=want?(($("rbKit")||{}).offsetHeight||0)/2-(($("rbDay")||{}).offsetHeight||0)/2-7:0; RLB.vo=RLB.vo||{x:0,y:0};
+    var kx=1-Math.exp(-dt*9); RLB.vo.x+=(ox-RLB.vo.x)*kx; RLB.vo.y+=(oy-RLB.vo.y)*kx; if(Math.abs(RLB.vo.x-ox)<0.5&&Math.abs(RLB.vo.y-oy)<0.5){ RLB.vo.x=ox; RLB.vo.y=oy; }
+    if(RLB.vo.x||RLB.vo.y){ camera.setViewOffset(innerWidth,innerHeight,RLB.vo.x,RLB.vo.y,innerWidth,innerHeight); RLB.voOn=true; } else if(RLB.voOn){ camera.clearViewOffset(); RLB.voOn=false; }   /* the panel and the strip cover the right and the bottom: frame the scene in what's left */
     var msaa=RLB.open&&!viewfinderOn&&RL.lights.length?4:0; if(typeof sceneRT!=="undefined"&&sceneRT.samples!==msaa){ sceneRT.samples=msaa; sceneRT.dispose(); }
     if(RLB.open&&viewfinderOn){ rbShow(false); rbStands(); RLB.hidden=true; } else if(RLB.open&&RLB.hidden){ RLB.hidden=false; if(looking){ try{ document.exitPointerLock(); }catch(er){} } rbShow(true); rbStands(); }
     if(RLB.play&&RLB.open&&dt>0){ RLB.mins+=dt*40; if(RLB.mins>RLB_T1){ RLB.mins=RLB_T0+60; } rbDirty(); if(((t/250)|0)!==RLB.pt){ RLB.pt=(t/250)|0; rbTimeline(); } }

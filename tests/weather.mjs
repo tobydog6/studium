@@ -36,10 +36,10 @@ try {
   await page.waitForFunction(() => window.__cb && __cb.state() === 'scene' && window.__q, null, { timeout: 300000, polling: 500 });
   await page.evaluate(() => { try{ __qu.closeAll(); }catch(e){} for(let i=0;i<60;i++){ try{ if(!__co.state().on) break; __co.go(); }catch(e){ break; } } });
   await page.waitForTimeout(2000);
-  await page.evaluate(() => { __we.set({wind:2}); }); await page.waitForTimeout(2000);
-  const pts = await page.evaluate(() => __we.splats());
-  require('fs').writeFileSync('/tmp/claude-0/-home-claude/98bb4fd7-6edc-5ebf-8beb-d44ae70c0bd2/scratchpad/field.json', JSON.stringify(pts));
-  console.log('points', pts.length);
+  await page.addStyleTag({content:'#laWel,#coCard{display:none!important}'});
+  await page.waitForTimeout(8000);
+  await page.evaluate(() => { __we.set({rain:2}); __cam.raise(); __cam.set({sh:5}); }); await page.waitForTimeout(2500); await shot('wx-30');
+  await page.evaluate(() => { __cam.set({sh:0}); }); await page.waitForTimeout(1500); await shot('wx-1000');
 } catch (e) { fail = e.message; }
 await browser.close(); server.close();
 if (fail) console.error('FAIL ' + fail);

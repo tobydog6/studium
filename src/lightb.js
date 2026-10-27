@@ -246,7 +246,7 @@
     var dm=RLB.gpu.detail; if(dm){ if(dm.__sh!=null){ dm.maxSh=dm.__sh; dm.__sh=null; dm.updateGenerator(); } dm.updateVersion(); }
     if(typeof SKY!=="undefined"&&SKY.mesh){ var su=SKY.mesh.material.uniforms; su.dim.value=1; if(su.tint) su.tint.value.set(1,1,1); } RL.sunPow=0; }
   /* the display's exposure outside the viewfinder (app.js asks): eyes adapt, the camera doesn't */
-  function rlbEye(){ if(!RLB) return 1; if(RLB.eyeLock) return RLB.eyeLock; return RLB.open||RL.on?RLB.eye:1; }
+  function rlbEye(){ if(!RLB) return 1; if(RLB.eyeLock) return RLB.eyeLock; return (RLB.open||RL.on?RLB.eye:1)*(RLB.boost||1); }   /* boost: the default look reads a little brighter to the eye (photos keep the camera's own exposure) */
   function rlbWalk(){ if(!RLB) return false; return RLB.open&&!viewfinderOn; }
 
   /* quests and photos ask which time of day it is */
@@ -619,8 +619,8 @@
     go(); }
   function rlClose(){ if(!RLB||!RLB.open) return; rbGlowSet(null); rbHolo(null); RLB.viewSeen=null; RLB.open=false; RL.ui=false; RLB.look=false; RLB.drag=null; RLB.play=false; document.body.classList.remove("rl-open"); rbShow(false); rbStands(); renderer.domElement.style.cursor=""; }
   function rlToggle(){ if(RLB&&RLB.open) rlClose(); else rlOpen(); }
-  function rlNatural(){ if(!RLB) return; RL.lights.forEach(rbDropStand); RL.lights=[]; RLB.sel=-1; RLB.sunMode=false; RLB.play=false; RL.on=false; rbRestore(); RLB.eye=1; rbPanel(true); rbTimeline(); }
-  function rlForget(){ if(!RLB) return; rlClose(); RL.lights.forEach(rbDropStand); RL.lights=[]; RLB.sel=-1; RLB.sunMode=false; RL.on=false; RL.ready=false; RL.target=null; RLB.built=false;
+  function rlNatural(){ if(!RLB) return; RLB.boost=1; RLB.sat=1; RL.lights.forEach(rbDropStand); RL.lights=[]; RLB.sel=-1; RLB.sunMode=false; RLB.play=false; RL.on=false; rbRestore(); RLB.eye=1; rbPanel(true); rbTimeline(); }
+  function rlForget(){ if(!RLB) return; RLB.boost=1; RLB.sat=1; rlClose(); RL.lights.forEach(rbDropStand); RL.lights=[]; RLB.sel=-1; RLB.sunMode=false; RL.on=false; RL.ready=false; RL.target=null; RLB.built=false;
     if(RL.grid&&RL.grid.tex) RL.grid.tex.dispose(); RL.grid=null; if(RLB.gridS&&RLB.gridS.tex) RLB.gridS.tex.dispose(); RLB.gridS=null; RLB.gpu=null; RL.gpu=null; RLB.eye=1; RLB.north=null;
     if(RLB.spotM){ if(RLB.spotM.parent) RLB.spotM.parent.remove(RLB.spotM); RLB.spotM.traverse(function(o){ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); RLB.spotM=null; } RLB.home=null; RLB.spotNow=null; RLB.frame=null; RLB.viewSeen=null; if(RLB.holo){ RLB.holo.traverse(function(o){ if(o.geometry) o.geometry.dispose(); }); if(RLB.holo.parent) RLB.holo.parent.remove(RLB.holo); RLB.holo=null; } RLB.glowL=null; }   /* a new scan has a new scene */
   function rlVis(){ if(RLB) rbStands(); }
@@ -718,7 +718,7 @@
      left alone if someone has already set their own light */
   function rbDefaultLook(){ if(!loaded||!viewer||!viewer.P||!viewer.mesh||!(CH.spec&&CH.spec.id==="stump")||RLB.sunMode||RL.lights.length) return;
     try{ if(!RL.ready){ RL.P=viewer.P; RL.A=viewer.A; RL.N=RL.P.length/3; RL.S=rlScale(); RL.ready=true; } if(!RL.target) RL.target=rlTarget(); rbInstall();
-      if(!RLB.built){ rlGrid(); rbGridSharp(); RLB.built=true; } RLB.day="today"; RLB.mins=13*60+35; rbSunOn(); rbDirty(); }catch(e){ console.warn("default look",e); } }
+      if(!RLB.built){ rlGrid(); rbGridSharp(); RLB.built=true; } RLB.day="today"; RLB.mins=13*60+35; RLB.boost=1.3; RLB.sat=1.2; rbSunOn(); rbDirty(); }catch(e){ console.warn("default look",e); } }
   if(/[?&]dev/.test(location.search)) window.__rlb={ RLB:RLB, RL:RL, deflook:rbDefaultLook, why:function(){ return {loaded:loaded, P:!!(viewer&&viewer.P), id:CH.spec&&CH.spec.id, sun:RLB.sunMode, lights:RL.lights.length}; }, deflook:rbDefaultLook, why:function(){ return {loaded:loaded, P:!!(viewer&&viewer.P), id:CH.spec&&CH.spec.id, sun:RLB.sunMode, lights:RL.lights.length}; }, open:rlOpen, close:rlClose, add:rbAdd, sel:function(i){ RLB.sel=i; rbStands(); rbPanel(true); },
     time:function(m){ RLB.mins=m; rbSunOn(); rbDirty(); rbTimeline(); }, scan:function(){ RLB.sunMode=false; rbDirty(); rbTimeline(); }, day:function(d){ RLB.day=d; rbDirty(); rbTimeline(); },
     light:function(o){ var L=rbCur(); if(!L) return; for(var k in o) L[k]=o[k]; if(o.stops!=null) L.power=L.base*Math.pow(2,o.stops); if(o.x!=null||o.z!=null||o.h!=null) rbPlace(L,L.x,L.z); if(o.aim) rbAim(L,rbTarget()); rbStands(); rbDirty(); rbPanel(true); },

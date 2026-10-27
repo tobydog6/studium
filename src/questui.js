@@ -68,10 +68,10 @@
   function qPickClose(){ qLogClose(); }
   function qLogOpen(){ qBoardOpen(); }
   /* testing: close the board, put the gold frames away and open the lighting rig in the scene */
-  function qTestLighting(){ qLogClose(); if(typeof CO!=="undefined"&&CO.on) coStop(); if(viewfinderOn) lowerCamera(); try{ localStorage.setItem("studium_lighttour","1"); }catch(e){}
+  function qTestLighting(){ qLogClose(); if(typeof CO!=="undefined"&&CO.on) coStop(); if(viewfinderOn) lowerCamera(); try{ localStorage.setItem("studium_lighttour","1"); }catch(e){} Q.tourStep.lighting=0; Q.tours.lighting=false;
     if(!loaded||!App.is("scene")) qGoDest("scene"); var t0=Date.now();
     (function w(){ if(loaded&&App.is("scene")&&!menuOpen()){ if(typeof CH!=="undefined"){ CH.hidden=true; if(typeof chFramesBtn==="function") chFramesBtn(); if(typeof chMarkers==="function") chMarkers(); }   /* frames away for this session only */
-      if(typeof rlOpen==="function"&&!RL.ui) rlOpen(); return; } if(Date.now()-t0<180000) setTimeout(w,400); })(); }
+      if(typeof rlOpen==="function"&&!RL.ui) rlOpen(); setTimeout(function(){ if(RL.ui&&typeof coStart==="function") coStart("lighting"); },600); return; }   /* straight into the lighting tour from the top */ if(Date.now()-t0<180000) setTimeout(w,400); })(); }
   function qLogClose(){ var el=$("qLog"); if(el) el.classList.remove("show"); QU.log=false; QU.pick=false; qHud(); if(typeof qMorphHide==="function") qMorphHide(); }
 
   // ---- the tracked quest card (the HUD) ----

@@ -228,7 +228,7 @@
     U.on.value=1; U.amb.value.set(amb[0],amb[1],amb[2]); U.cam.value.set(camPos.x,camPos.y,camPos.z); U.is2.value=1/(RL.S*RL.S);
     U.sunOn.value=sunOn?1:0; if(sunOn){ U.sunDir.value.set(RLB.sunDir[0],RLB.sunDir[1],RLB.sunDir[2]); U.sunCol.value.set(RLB.sunLin[0],RLB.sunLin[1],RLB.sunLin[2]); U.sunAng.value=RLB.el<8?0.03:0.012; }
     /* reflectors: work out what lands on each, then it becomes a soft light of that strength */
-    RL.lights.forEach(function(L){ if(L.kind!==3) return; var S=RLB_SURF[L.surf||"silver"], inc=rbIncident({x:L.x,y:L.y,z:L.z}, L.dir), f=S.a*0.5;
+    RL.lights.forEach(function(L){ if(L.kind!==3) return; var S=RLB_SURF[L.surf||"silver"], inc=rbIncident({x:L.x,y:L.y,z:L.z}, L.dir), f=S.a;   /* a silver disc a metre off fills to about 3 : 1, like the real thing */
       L.bounce=[inc[0]*S.c[0]*f, inc[1]*S.c[1]*f, inc[2]*S.c[2]*f]; L.bounceP=rbLum(L.bounce)/Math.max(rbLum(rbEmitRGB(L)),1e-4); });
     var on=RL.lights.filter(function(L){ return L.on&&(L.kind!==3||rbLum(L.bounce||[0,0,0])>1e-4); }), lt=G0.lt.image.data; lt.fill(0);
     on.slice(0,RLB_MAX).forEach(function(L,m){ var c=L.kind===3?L.bounce:rbEmitRGB(L), p=L.kind===3?1:L.power, half=Math.min(L.cone,179)*Math.PI/360, kd=L.kind===3?1:L.kind, o=m*16;
@@ -362,7 +362,7 @@
     ph=Math.max(-0.05,Math.min(1.45,ph)); var nx=T.x+r*Math.cos(ph)*Math.sin(th), nz=T.z+r*Math.cos(ph)*Math.cos(th), ny=T.y+r*Math.sin(ph), gy=rlGround(nx,nz)+0.12*S;
     if(ny<gy) ny=gy; camPos.set(nx,ny,nz);
     if(typeof boundsOn!=="undefined"&&boundsOn){ camPos.x=Math.min(Math.max(camPos.x,boxMin.x),boxMax.x); camPos.y=Math.min(Math.max(camPos.y,boxMin.y),boxMax.y); camPos.z=Math.min(Math.max(camPos.z,boxMin.z),boxMax.z); if(typeof bndClamp==="function") bndClamp(); nx=camPos.x; ny=camPos.y; nz=camPos.z; } var dX=T.x-nx, dY=T.y-ny, dZ=T.z-nz, dl=Math.hypot(dX,dY,dZ)||1;
-    yaw=Math.atan2(-dX,-dZ); pitch=Math.asin(dY/dl); RLB.fly=true; if(typeof _vel!=="undefined") _vel.set(0,0,0); }
+    yaw=Math.atan2(-dX,-dZ); pitch=Math.asin(dY/dl); RLB.fly=true; RLB.orbitAmt=(RLB.orbitAmt||0)+Math.abs(dx)+Math.abs(dy)+(zoom&&zoom!==1?40:0); if(typeof _vel!=="undefined") _vel.set(0,0,0); }
   function rlbFly(){ if(!RLB||!RLB.fly) return false; if(!RLB.open||viewfinderOn){ RLB.fly=false; return false; }
     var k=typeof keys!=="undefined"?keys:{}; if(k.KeyW||k.KeyA||k.KeyS||k.KeyD){ RLB.fly=false; return false; } return true; }   /* walking puts you back on your feet */
   window.addEventListener("pointerdown",function(e){ if(!rbOnCanvas(e)) return; e.stopImmediatePropagation(); e.preventDefault(); var ae=document.activeElement; if(ae&&ae.closest&&ae.closest("#rbUI")) ae.blur();
@@ -497,6 +497,7 @@
     +"#rbUI .rb-track em{position:absolute;top:-4px;bottom:-4px;width:4px;margin-left:-2px;border-radius:2px;background:#f4efe6;box-shadow:0 0 0 2px rgba(0,0,0,.45),0 0 10px rgba(255,236,200,.5)}#rbUI .rb-daybar.off .rb-track em{display:none}"
     +"body.rl-open #navTop{opacity:0;pointer-events:none}"
     +"#rbGhost{position:fixed;z-index:999;width:84px;height:64px;pointer-events:none;transform:translate(-50%,-60%);opacity:.9;filter:drop-shadow(0 6px 14px rgba(0,0,0,.6));display:none}#rbGhost.show{display:block}"
+    +"body.rl-open .co-card:not(.pinned){left:calc((100vw - "+RLB_SIDE+"px)/2);bottom:158px;width:min(560px,calc(100vw - "+(RLB_SIDE+40)+"px))}"   /* the tour card sits over the scene, clear of the kit strip */
     +"body.rl-open #btnHelp{right:"+(RLB_SIDE+18)+"px!important;bottom:150px!important}";   /* the guide button steps out of the panel's way */
   function rbEls(){ if($("rbUI")) return; var st=document.createElement("style"); st.textContent=RLB_CSS; document.head.appendChild(st);
     var u=document.createElement("div"); u.id="rbUI"; document.body.appendChild(u);
@@ -575,7 +576,9 @@
 
     RLB.open=true; RL.ui=true; RL.view="eye"; RL.plan=false; if(!Q.flags.rlOpened) qFlag("rlOpened"); document.body.classList.add("rl-open");
     var go=function(){ if(!RL.target) RL.target=rlTarget(); rbInstall(); if(!RLB.built){ var bz=$("rbBusy"); bz.classList.add("show"); setTimeout(function(){ try{ rlGrid(); rbGridSharp(); }catch(e){ console.warn("lightb grid",e); } RLB.built=true; bz.classList.remove("show"); rbDirty(); },60); } else rbDirty();
-      rbShow(true); rbPanel(true); rbTimeline(); rbStands(); };
+      rbShow(true); rbPanel(true); rbTimeline(); rbStands();
+      /* the first time anyone opens Lighting, the tour starts */
+      if(typeof coStart==="function"&&!(typeof CO!=="undefined"&&CO.on)&&!(Q.tours&&Q.tours.lighting)){ var seen="1"; try{ seen=localStorage.getItem("studium_lighttour"); localStorage.setItem("studium_lighttour","1"); }catch(e){} if(seen!=="1") setTimeout(function(){ if(RLB.open) coStart("lighting"); },500); } };
     go(); }
   function rlClose(){ if(!RLB||!RLB.open) return; RLB.open=false; RL.ui=false; RLB.look=false; RLB.drag=null; RLB.play=false; document.body.classList.remove("rl-open"); rbShow(false); rbStands(); renderer.domElement.style.cursor=""; }
   function rlToggle(){ if(RLB&&RLB.open) rlClose(); else rlOpen(); }
@@ -599,6 +602,21 @@
     else if(RLB.gpu&&RLB.gpu.U.on.value>0){ var cm=RLB.camP; if(!cm||Math.hypot(camPos.x-cm.x,camPos.y-cm.y,camPos.z-cm.z)>0.4*RL.S){ RLB.camP={x:camPos.x,y:camPos.y,z:camPos.z}; if(cm) rbDirty(); } }
     if(RLB.open&&!viewfinderOn) rbDiagDraw(); })();
 
+  /* ---- for the lighting tour: where things are, in words the tour can check ---- */
+  function rbFind(fx){ for(var i=0;i<RL.lights.length;i++) if(RL.lights[i].fx===fx) return RL.lights[i]; return null; }
+  function rbRoleOf(L){ var r=rbRoles(), i=RL.lights.indexOf(L); return i<0?null:r[i]; }
+  function rbAngle(L){ rbRoles(); return L&&L.ang!=null?L.ang:null; }   /* degrees round from you: 0 beside the camera, 180 right behind the subject */
+  function rbSideOf(L){ var T=rbTarget(), cx=camPos.x-T.x, cz=camPos.z-T.z, lx=L.x-T.x, lz=L.z-T.z; return cx*lz-cz*lx>0?1:-1; }   /* which side of you it stands */
+  function rbSunAngle(){ if(!RLB.sunMode) return null; var T=rbTarget(), cx=T.x-camPos.x, cz=T.z-camPos.z, cl=Math.hypot(cx,cz)||1, a=(RLB.az+RLB.north)*Math.PI/180;
+    return Math.round(Math.acos(Math.max(-1,Math.min(1,(cx*Math.sin(a)+cz*Math.cos(a))/cl)))*180/Math.PI); }   /* 0: the sun is behind the subject, shining at you */
+  function rbRatioNow(){ return rbRatio(rbRoles()); }
+  /* a point in the scene the tour can ring: an invisible box kept over it on screen */
+  var _rbAV=new THREE.Vector3();
+  function rbAnchor(p,size){ if(!p||!RLB.open) return null; var a=$("rbAnchor"); if(!a){ a=document.createElement("div"); a.id="rbAnchor"; a.style.cssText="position:fixed;pointer-events:none;z-index:1"; document.body.appendChild(a); }
+    _rbAV.set(p.x,p.y,p.z).project(camera); if(_rbAV.z>1) return null; var sz=size||56, x=(_rbAV.x*0.5+0.5)*innerWidth, y=(-_rbAV.y*0.5+0.5)*innerHeight;
+    a.style.left=(x-sz/2)+"px"; a.style.top=(y-sz/2)+"px"; a.style.width=sz+"px"; a.style.height=sz+"px"; return a; }
+  function rbAnchorLight(L){ return L?rbAnchor({x:L.x,y:L.y,z:L.z},80):null; }
+  function rbAnchorAim(L){ return L&&L.aimT?rbAnchor(L.aimT,40):null; }
   if(/[?&]dev/.test(location.search)) window.__rlb={ RLB:RLB, RL:RL, open:rlOpen, close:rlClose, add:rbAdd, sel:function(i){ RLB.sel=i; rbStands(); rbPanel(true); },
     time:function(m){ RLB.mins=m; rbSunOn(); rbDirty(); rbTimeline(); }, scan:function(){ RLB.sunMode=false; rbDirty(); rbTimeline(); }, day:function(d){ RLB.day=d; rbDirty(); rbTimeline(); },
     light:function(o){ var L=rbCur(); if(!L) return; for(var k in o) L[k]=o[k]; if(o.stops!=null) L.power=L.base*Math.pow(2,o.stops); if(o.x!=null||o.z!=null||o.h!=null) rbPlace(L,L.x,L.z); if(o.aim) rbAim(L,rbTarget()); rbStands(); rbDirty(); rbPanel(true); },

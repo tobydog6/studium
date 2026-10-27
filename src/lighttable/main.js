@@ -640,7 +640,7 @@ function drawBoxBtn(){ if(boxBtn){ boxBtn.el.remove(); tags=tags.filter(t=>t!==b
 function emptyBox(){ if(!rejects.length) return; pushUndo(); const L=rejects.slice(); L.forEach((p,i)=>setTimeout(()=>fileBack(p,true),i*80)); setTimeout(()=>toast('Emptied '+L.length+' back into the binder.','Undo',undo), L.length*80+360); }
 
 /* ================= the shredder: beside the table's front edge, under the reject box. Only the print is shredded; the photo stays in the binder ================= */
-const SHR={ x:BOX.x+0.2, z:H_T/2+2.4, w:3.3, d:2.3, headH:0.55, top:-0.45, binH:2.4 };
+const SHR={ x:BOX.x+0.2, z:H_T/2+2.4, w:3.3, d:2.3, headH:0.55, top:1.5 }; SHR.binH=SHR.top-SHR.headH-(-1.2)-0.02;   /* stands on the floor (y -1.2), cutting head just above the table top */
 const SH={ busy:false, items:[], strips:[], prev:null, pile:0 };
 const shredder=new THREE.Group(); shredder.position.set(SHR.x,0,SHR.z); scene.add(shredder);
 { const std=(c,r,m)=>new THREE.MeshStandardMaterial({ color:c, roughness:r??0.6, metalness:m??0 });
@@ -658,40 +658,55 @@ const shredder=new THREE.Group(); shredder.position.set(SHR.x,0,SHR.z); scene.ad
   const alu=std(0x8d8a85,0.35,0.6), base=new THREE.Mesh(new RoundedBoxGeometry(bw+0.08,0.08,bd+0.08,2,0.02), std(0x1c1a18,0.5)); base.position.y=binBot+0.02; shredder.add(base);
   [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([a,c])=>{ const post=new THREE.Mesh(new THREE.BoxGeometry(0.05,bh,0.05), alu); post.position.set(a*bw/2,by,c*bd/2); shredder.add(post); });   /* thin metal corners frame the glass */
   const shine=new THREE.Mesh(new THREE.PlaneGeometry(0.35,bh*0.9), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.07, depthWrite:false })); shine.position.set(-bw*0.25,by,bd/2+0.02); shine.rotation.z=0.12; shredder.add(shine); }
-function shredStrips(p, s){ const it=libById(p.id); if(!it||!it.canvas) return; if(!SH.tex) SH.tex=new Map();
-  let T=SH.tex.get(p.id); if(!T){ T={ tex:makeTex(it.canvas), n:0 }; SH.tex.set(p.id,T); } const tex=T.tex;
-  const N=12, w=p.w*s, h=p.h*s, sw=Math.min(w/N,0.2);
-  for(let i=0;i<N;i++){ const g=new THREE.PlaneGeometry(sw*0.92,h*0.9); const uv=g.attributes.uv; for(let k=0;k<uv.count;k++) uv.setX(k,(i+uv.getX(k))/N); uv.needsUpdate=true;
-    const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({ map:tex, side:THREE.DoubleSide })); const x=(i/(N-1)-0.5)*Math.min(w,SHR.w-0.9);
-    m.position.set(SHR.x+x, SHR.binTop-h*0.45, SHR.z+(Math.random()-0.5)*0.15); m.rotation.set(0,(Math.random()-0.5)*0.3,(Math.random()-0.5)*0.15); scene.add(m);
-    T.n++; SH.strips.push({ m, id:p.id, vy:0, delay:0.04*i+Math.random()*0.15, rest:false, spin:(Math.random()-0.5)*3, h }); }
-  while(SH.strips.length>360){ const o=SH.strips.shift(); scene.remove(o.m); o.m.geometry.dispose(); o.m.material.dispose(); if(o.rest) SH.pile=Math.max(0,SH.pile-1);
-    const T2=SH.tex.get(o.id); if(T2&&--T2.n<=0){ T2.tex.dispose(); SH.tex.delete(o.id); } } }
+function shredTex(p){ if(!SH.tex) SH.tex=new Map(); let T=SH.tex.get(p.id); if(!T){ const it=libById(p.id); if(!it||!it.canvas) return null; T={ tex:makeTex(it.canvas), n:0 }; SH.tex.set(p.id,T); } return T; }
+function shredRelease(id){ const T=SH.tex&&SH.tex.get(id); if(T&&--T.n<=0){ T.tex.dispose(); SH.tex.delete(id); } }
+/* cut pieces drop out under the head as the print is eaten: each piece is a real slice of the photo, the band that just went through the cutter */
+function shredChunks(it, v0, v1){ const T=shredTex(it.p); if(!T) return; const W=it.p.w*it.s, H=it.p.h*it.s, N=5;
+  for(let i=0;i<N;i++){ const u0=Math.random()*0.9, uw=0.06+Math.random()*0.05, len=Math.max(0.06,(v1-v0)*H);
+    const g=new THREE.PlaneGeometry(uw*W*0.95,len); const uv=g.attributes.uv; for(let k=0;k<uv.count;k++){ uv.setX(k,u0+uv.getX(k)*uw); uv.setY(k,v0+uv.getY(k)*(v1-v0)); } uv.needsUpdate=true;
+    const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({ map:T.tex, side:THREE.DoubleSide })); T.n++;
+    m.position.set(SHR.x+(u0+uw/2-0.5)*Math.min(W,SHR.w-0.6), SHR.binTop-0.08, SHR.z+(Math.random()-0.5)*0.5); m.rotation.set((Math.random()-0.5)*0.4,(Math.random()-0.5)*0.6,(Math.random()-0.5)*0.4); scene.add(m);
+    SH.strips.push({ m, id:it.p.id, vy:-0.3-Math.random()*0.6, vx:(Math.random()-0.5)*0.5, vz:(Math.random()-0.5)*0.4, rest:false, spin:(Math.random()-0.5)*6 }); }
+  while(SH.strips.length>420){ const o=SH.strips.shift(); scene.remove(o.m); o.m.geometry.dispose(); o.m.material.dispose(); if(o.rest) SH.pile=Math.max(0,SH.pile-1); shredRelease(o.id); } }
 function shredAll(){ if(SH.busy||!rejects.length) return; SH.busy=true; pushUndo(); hideActs(); closeCtx();
   if(cam.view==='wall'){ SH.busy=false; focus('table'); SH.busy=true; }
   SH.prev={ tx:cam.tx, ty:cam.ty, tz:cam.tz, dT:cam.dT, pitch:cam.pitch, view:cam.view };
-  cam.tx=SHR.x+1.8; cam.ty=-1.8; cam.tz=SHR.z-0.6; cam.pitch=26; cam.dT=15; SFX('shPan');   /* low and in front, to see into the glass bin */
+  cam.tx=SHR.x+2.2; cam.ty=0.2; cam.tz=SHR.z-0.4; cam.pitch=20; cam.dT=14; SFX('shPan');   /* down the table edge, low and in front: the glass bin in full view */
   shredder.userData.led.material.color.setHex(0xe3ad57);
   const L=rejects.slice(); SH.n=L.length; SH.queue=L.length; SH.ran=false; SH.endT=-1; SH.done=0;
   L.forEach(p=>{ p.locked=true; p.shredding=true; });   /* nothing in the box can be grabbed while it waits its turn */
-  L.forEach((p,i)=>setTimeout(()=>{ SH.queue--; if(!prints.includes(p)) return; unreject(p); removeFromBoard(p); p.order=++orderN; p.yawT=0; p.tx=SHR.x; p.tz=SHR.z; p.base=0.15;
-    SH.items.push({ p, t:0, s:Math.min(1,(SHR.w-0.9)/Math.max(p.w,0.01)), fed:false }); }, 800+i*1100)); }
+  L.forEach((p,i)=>setTimeout(()=>{ SH.queue--; if(!prints.includes(p)) return; unreject(p); removeFromBoard(p); p.order=++orderN;
+    SH.items.push({ p, t:0, s:Math.min(1,(SHR.w-0.8)/Math.max(p.w,0.01)), from:p.group.position.clone(), fromQ:p.group.quaternion.clone(), fed:false, f:1, cut:1, sheet:null }); }, 900+i*2300)); }
 function shredFinish(){ const P=SH.prev; if(P&&cam.view===P.view){ cam.tx=P.tx; cam.ty=P.ty; cam.tz=P.tz; cam.dT=P.dT; cam.pitch=P.pitch; } SH.prev=null; SH.busy=false;
   shredder.userData.led.material.color.setHex(0x63c27a); saveAll();
   toast('Shredded '+SH.done+' print'+(SH.done===1?'':'s')+'. The photos are still in your binder.','Undo',undo); }
+const _shQ=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),Math.PI/2), _shV=new THREE.Vector3();   /* upright, the photo facing the front */
 function shredFrame(dt){
-  for(let i=SH.items.length-1;i>=0;i--){ const it=SH.items[i], p=it.p; it.t+=dt;
-    if(it.t<0.7){ const k=Math.min(1,it.t/0.7); p.group.scale.setScalar(1+(it.s-1)*k); }   /* slides onto the slot, shrinking to fit it */
-    else { if(!it.fed){ it.fed=true; if(!SH.ran){ SH.ran=true; SFX('shRun',{D:SH.n*1.1+0.6}); } shredStrips(p,it.s); }
-      const u=Math.min(1,(it.t-0.7)/0.9); p.group.scale.set(it.s,it.s,it.s*(1-u)); p.base=SHR.top+0.06-u*0.1;   /* pulled down into the slot */
-      if(u>=1){ SH.items.splice(i,1); p.group.scale.setScalar(1); p.shredding=false; removePrint(p); SH.done++; } } }
-  /* the end follows the animation, not a clock: last strip in, a beat to watch them land, then back to the table */
-  if(SH.busy&&SH.queue<=0&&!SH.items.length){ if(SH.endT<0){ SH.endT=0; SFX('shFall'); } SH.endT+=dt; if(SH.endT>2.4) shredFinish(); }
-  const floor=SHR.binBot+0.05;
-  for(const st of SH.strips){ if(st.rest) continue; if(st.delay>0){ st.delay-=dt; continue; }
-    st.vy-=9*dt; st.m.position.y+=st.vy*dt; st.m.rotation.x+=st.spin*dt*0.5; st.m.rotation.z+=st.spin*dt*0.2;
-    const pileY=floor+Math.min(SHR.binH*0.7, SH.pile*0.004);
-    if(st.m.position.y<pileY){ st.m.position.y=pileY+Math.random()*0.05; st.rest=true; st.m.rotation.x=-Math.PI/2+(Math.random()-0.5)*0.9; SH.pile++; } } }
+  for(let i=SH.items.length-1;i>=0;i--){ const it=SH.items[i], p=it.p, H=p.h*it.s; it.t+=dt;
+    if(!it.fed){ /* lift off the box, swing over the edge, turn upright above the slot */
+      const k=Math.min(1,it.t/0.85), e=k*k*(3-2*k);
+      _shV.set(SHR.x, SHR.top+H/2+0.02, SHR.z); const pos=it.from.clone().lerp(_shV,e); pos.y+=Math.sin(Math.PI*e)*1.4;
+      p.shredPose={ pos, q:it.fromQ.clone().slerp(_shQ,e), sc:1+(it.s-1)*e };
+      if(k>=1){ it.fed=true; p.shredPose=null; p.group.visible=false; p.shadow.visible=false; const T=shredTex(p);
+        if(T){ T.n++; const g=new THREE.PlaneGeometry(p.w*it.s,H); it.sheet=new THREE.Mesh(g,new THREE.MeshBasicMaterial({ map:T.tex, side:THREE.DoubleSide })); it.sheet.position.copy(_shV); scene.add(it.sheet); }
+        if(!SH.ran){ SH.ran=true; SFX('shRun',{D:SH.n*2.3+0.4}); } } }
+    else { /* fed down into the cutter: the photo shortens from the bottom, the slot shudders a little */
+      const prev=it.f; it.f=Math.max(0,it.f-dt/1.25*(0.75+0.5*Math.abs(Math.sin(it.t*13))));
+      if(it.sheet){ const hh=Math.max(0.0001,H*it.f), g=it.sheet.geometry, P=g.attributes.position, uv=g.attributes.uv;
+        for(let k=0;k<P.count;k++){ const top=P.getY(k)>0||uv.getY(k)>0.5; P.setY(k,top?hh/2:-hh/2); uv.setY(k,top?1:1-it.f); } P.needsUpdate=true; uv.needsUpdate=true;
+        it.sheet.position.set(SHR.x+(Math.random()-0.5)*0.012, SHR.top+hh/2+0.01, SHR.z); }
+      if(it.cut-it.f>=0.08||it.f<=0){ shredChunks(it, 1-it.cut, 1-it.f); it.cut=it.f; }
+      if(it.f<=0){ SH.items.splice(i,1); if(it.sheet){ scene.remove(it.sheet); it.sheet.geometry.dispose(); it.sheet.material.dispose(); shredRelease(p.id); }
+        p.shredding=false; p.group.visible=true; p.shadow.visible=true; removePrint(p); SH.done++; } } }
+  const floor=SHR.binBot+0.06;
+  for(const st of SH.strips){ if(st.rest) continue;
+    st.vy-=8*dt; st.m.position.y+=st.vy*dt; st.m.position.x+=st.vx*dt; st.m.position.z+=st.vz*dt; st.m.rotation.x+=st.spin*dt; st.m.rotation.z+=st.spin*dt*0.4;
+    const hx=(SHR.w-0.45)/2, hz=(SHR.d-0.45)/2; st.m.position.x=THREE.MathUtils.clamp(st.m.position.x,SHR.x-hx,SHR.x+hx); st.m.position.z=THREE.MathUtils.clamp(st.m.position.z,SHR.z-hz,SHR.z+hz);
+    const pileY=floor+Math.min(SHR.binH*0.75, SH.pile*0.006);
+    if(st.m.position.y<pileY){ st.m.position.y=pileY+Math.random()*0.08; st.rest=true; st.m.rotation.x=-Math.PI/2+(Math.random()-0.5)*1.1; st.m.rotation.z=Math.random()*Math.PI; SH.pile++; } }
+  /* the end follows the animation, not a clock: last piece in, a beat to watch them land, then back to the table */
+  if(SH.busy&&SH.queue<=0&&!SH.items.length){ if(SH.endT<0){ SH.endT=0; SFX('shFall'); } SH.endT+=dt; if(SH.endT>2.4) shredFinish(); } }
+
 const pop=$('notePop');
 function openNote(ch, x, y){ hideActs(); closeCtx(); const k=chainKey(ch); const n=notes.get(k)||{ why:new Set(), text:'' };
   pop.querySelector('h3').textContent=ch.length===2?'What joins these two?':'Why this order?';
@@ -1203,6 +1218,7 @@ function frame(now){
       const fit=Math.max(p.h, p.w/camera.aspect)/0.74, D=fit/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2)))/inspZoom; insPos.copy(camera.position).addScaledVector(vF,D); const q=tq.multiply(qInsp.clone()); dimTarget=0.62*e; dimDist=D+0.6;
       p.group.position.lerpVectors(basePos,insPos,e); p.group.quaternion.copy(baseQ).slerp(q,e);
     } else { p.group.position.copy(basePos); p.group.quaternion.copy(baseQ); }
+    if(p.shredPose){ p.group.position.copy(p.shredPose.pos); p.group.quaternion.copy(p.shredPose.q); p.group.scale.setScalar(p.shredPose.sc); p.shadow.visible=false; }
     const hide=past&&p.wallA>0.5; p.group.visible=!hide;
     p.mat.uniforms.uBow.value=(p.kind==='sheet'?0.006:(p.onBoard||p.wg)?0.004:0.011)+F.sag*Math.min(1,liftH/F.lift)+(p.insp*0.004);
     p.pins.visible=p.wallA>0.98&&p.insp<0.05;

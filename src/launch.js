@@ -14,7 +14,7 @@
   function laEl(){ var e=$("launch"); if(e) return e; e=document.createElement("div"); e.id="launch";
     var fr='<div class="la-fr still"><canvas></canvas><em>1</em><i>1</i><u>E26</u></div>'+LA_ROOMS.map(function(m,i){ return '<div class="la-fr"><img alt="" decoding="async" src="'+m[2]+'"><span>'+m[1].toUpperCase()+'</span><em>'+(i+2)+'</em><i>'+(i+2)+'</i><u>E26</u></div>'; }).join("");
     e.innerHTML='<div class="la-dark"><b>Studium</b></div><div class="la-film"><div class="la-strip">'+fr+'<i class="la-sh t"></i><i class="la-sh b"></i><i class="la-dm"></i></div></div><div class="la-still"><canvas></canvas></div><div class="la-iris"></div><div class="la-snap"></div>'
-      +'<div class="la-word"><span class="la-kick">WELCOME TO</span><b>'+"Studium".split("").map(function(c,i){ return '<i style="--n:'+i+'">'+c+'</i>'; }).join("")+'</b><em></em><span class="la-tag">A PHOTOGRAPHY STUDIO YOU WALK INTO</span></div><div class="la-skip">CLICK TO SKIP</div>';
+      +'<div class="la-word"><span class="la-kick">WELCOME TO</span><b>'+"Studium".split("").map(function(c,i){ return '<i style="--n:'+i+'">'+c+'</i>'; }).join("")+'</b><em></em><span class="la-tag">A PHOTOGRAPHY STUDIO FOR YEARS 11 TO 13</span></div><div class="la-skip">CLICK TO SKIP</div>';
     document.body.appendChild(e);
     e.addEventListener("pointerdown",function(ev){ ev.stopPropagation(); laSkip(); });
     window.addEventListener("keydown",function(ev){ if(!LA.on) return; ev.stopImmediatePropagation(); ev.preventDefault(); if(!ev.repeat) laSkip(); },true);
@@ -272,9 +272,9 @@
   var LA_WEL=[["asset:assets/launch/shoot.jpg","Shoot"],["asset:assets/launch/select.jpg","Pick"],["asset:assets/launch/edit.jpg","Edit"],["asset:assets/launch/workbook.jpg","Make"],["asset:assets/launch/folio.jpg","Folio"],["asset:assets/launch/gallery.jpg","Show"]];
   function laWelOpen(){ var w=$("laWel"); if(!w){ w=document.createElement("div"); w.id="laWel";
       w.innerHTML='<div class="lw-in" role="dialog" aria-labelledby="lwH"><div class="lw-l"><div class="lw-k">WELCOME TO STUDIUM</div>'
-        +'<h2 id="lwH"><span>Step inside.</span><span>Take the shot.</span><span>Make the work.</span></h2>'
-        +'<p>Real places, scanned so you can stand in them with a camera in your hands. Shoot, pick your best frames, edit them, and build them into a folio and a show, the way working photographers do.</p>'
-        +'<p class="lw-first">First, the camera and how to move. A few minutes, then the place is yours.</p>'
+        +'<h2 id="lwH"><span>Walk around a real place and take photos.</span></h2>'
+        +'<p>Real places, scanned so you can stand in them with a camera in your hands. Shoot, pick your best frames, then edit them and put them into a folio and an exhibition, like a real photographer would.</p>'
+        +'<p class="lw-first">First we’ll show you the camera and how to move around. It only takes a few minutes.</p>'
         +'<button class="lw-go" data-lw="go">Show me the camera <kbd>↵</kbd></button></div>'
         +'<div class="lw-table" aria-hidden="true">'+LA_WEL.map(function(x,i){ return '<figure style="--i:'+i+'"><img alt="" decoding="async" src="'+x[0]+'"><figcaption><b>0'+(i+1)+'</b> '+x[1].toUpperCase()+'</figcaption></figure>'; }).join("")+'</div></div>';
       document.body.appendChild(w);

@@ -46,7 +46,7 @@
   function stRenderBar(){ var bar=$("stBar"); if(!bar) return; var places={}; photos.forEach(function(p){ places[stPlaceOf(p)]=1; });
     bar.querySelector(".st-tabs").innerHTML=ST_ROOMS.map(function(r,i){ return '<button class="st-tab'+(r[0]===st.room?' on':'')+'" data-st-room="'+r[0]+'"><span class="n">0'+(i+1)+'</span>'+r[1]+'</button>'; }).join("");
     bar.querySelector(".st-sub").textContent=Object.keys(places).join(", ")+(photos.length?", "+photos.length+" frame"+(photos.length===1?"":"s"):"No frames yet");
-    var hints={ select:[["← →","Move"],["P","Pick"],["X","Reject"],["1–5","Rate"],["V","Compare"],["Z","Full screen"],["Enter","Edit this frame"],["Q E","Rooms"]],
+    var hints={ select:[["← →","Move"],["P","Pick"],["X","Reject"],["1-5","Rate"],["V","Compare"],["Z","Full screen"],["Enter","Edit this frame"],["Q E","Rooms"]],
       edit:[["\\","Before / after"],["⌘Z","Undo"],["Q E","Rooms"],["Esc","Back to Select"]],
       table:[["B","Binder"],["Drag","Prints onto the board"],["Right-click","Options"],["Top edge","The wall"],["?","Tour"],["Q E","Rooms"]],
       workshop:[["Drag","Frames onto the page"],["Click","Write in a text box"],["Del","Remove"],["⌘D","Duplicate"],["⌘Z","Undo"],["Q E","Rooms"]],
@@ -95,7 +95,7 @@
       +'<div class="row2"><button class="st-btn'+(p.pick?' on':'')+'" data-st-act="pick">Pick <span>P</span></button><button class="st-btn'+(p.reject?' on':'')+'" data-st-act="reject">Reject <span>X</span></button><button class="st-btn cmpb'+(ref||st.cmp===st.cur?' on':'')+'" data-st-act="compare" title="'+(ref?'Make this frame the select':st.cmp===st.cur?'Stop comparing':'Hold this frame, then arrow to another to compare')+'">'+(ref?'Swap':'Compare')+' <span>V</span></button><button class="st-btn" data-st-act="edit">Edit <span>↵</span></button><div class="stars">'+stars+'</div></div>'
       +'<div class="brief"><span class="eb">'+(brief?"BRIEF "+cbPad(activeBrief+1)+" · "+cbEsc(brief.t.toUpperCase()):"YOUR FOLIO")+'</span>'
       +'<div class="t"><span>Pick '+(['zero','one','two','three','four','five','six','seven','eight'][target]||target)+' frames for your folio.</span><span class="n">'+Math.min(picks.length,99)+' / '+target+'</span></div><div class="slots">'+slots+'</div></div>'
-      +'<label class="why"><span class="eb">WHY THIS ONE?</span><textarea id="stWhy" rows="3" placeholder="'+(p.pick?"Say what this frame does that the others don’t.":"Pick this frame, then write why it earns a place.")+'">'+cbEsc(p.note||"")+'</textarea></label>'
+      +'<label class="why"><span class="eb">WHY THIS ONE?</span><textarea id="stWhy" rows="3" placeholder="'+(p.pick?"Say what this frame does that the others don’t.":"Pick this frame, then write why you chose it.")+'">'+cbEsc(p.note||"")+'</textarea></label>'
       +'<button class="st-punctum" data-st-act="punctum"><span><b>Send picks to Punctum</b><i>Your class critiques them anonymously</i></span><svg width="8" height="12" viewBox="0 0 8 12" fill="none" stroke="#e3ad57" stroke-width="1.6" aria-hidden="true"><path d="M1.5 1l5 5-5 5"/></svg></button>';
     var w=$("stWhy"); if(w){ w.oninput=function(){ var ph=photos[st.cur]; if(ph){ ph.note=this.value; saveSession(); } }; w.onkeydown=function(e){ e.stopPropagation(); if(e.key==="Escape") this.blur(); }; } }
   function stTogglePick(){ var p=photos[st.cur]; if(!p) return; p.pick=!p.pick; if(p.pick) p.reject=false; saveSession(); stRenderSelect(); }
@@ -136,7 +136,7 @@
     while(k<rest.length&&pages.length<41){ pages.push({tpl:"centre", imgs:[rest[k++]||null]}); pages.push({tpl:"bleed", imgs:[rest[k++]||null]}); }
     pages.push({tpl:"blank", imgs:[], back:true}); bk.pages=pages; bk.spread=1; bk.focus=1; bk.sel=null; }
   function bkSpreads(){ var L=bk.pages.length-1, s=[[0]]; for(var i=1;i<L;i+=2) s.push(i+1<L?[i,i+1]:[i]); s.push([L]); return s; }
-  function bkLabel(s,j,all){ return j===0?"COVER":j===all.length-1?"BACK":(s[0]+1)+(s.length>1?"–"+(s[1]+1):""); }
+  function bkLabel(s,j,all){ return j===0?"COVER":j===all.length-1?"BACK":(s[0]+1)+(s.length>1?"-"+(s[1]+1):""); }
   function bkPageHTML(pi, mini){ var pg=bk.pages[pi], h="";
     bkRects(pi).forEach(function(r){ var p=r.i>=0?photos[r.i]:null, sel=!mini&&bk.sel&&bk.sel[0]===pi&&bk.sel[1]===r.s;
       var sty='left:'+(r.x*100).toFixed(2)+'%;top:'+(r.y*100).toFixed(2)+'%;width:'+(r.w*100).toFixed(2)+'%;height:'+(r.h*100).toFixed(2)+'%';
@@ -146,11 +146,11 @@
         +(sel?'<i class="h tl"></i><i class="h tr"></i><i class="h bl"></i><i class="h br"></i><span class="sz">'+r.mmw+' × '+r.mmh+' MM · '+BK_TPL_NAME[pg.tpl]+'</span>':'')+'</button>'; });
     return h; }
   function bkTip(cur){ var a=bk.pages[cur[0]], b=cur[1]!=null?bk.pages[cur[1]]:null, full=function(p){ return p&&p.imgs.some(function(id){ return stById(id)>=0; }); };
-    if(cur[0]===0) return "The cover is a promise. Choose the frame that sets the mood, not just your best one.";
-    if(a.back) return "The back cover is quiet. Leave it blank, or close on one small frame.";
-    if(b&&full(a)&&full(b)&&a.tpl!==b.tpl) return "The whole place on one side, a close detail on the other. The pair says more than either frame.";
-    if(b&&full(a)&&full(b)) return "Two frames face each other. Ask what the pair says that neither says alone.";
-    if(b&&(full(a)!==full(b))) return "A blank page is a pause. Use it just before a frame you want to land.";
+    if(cur[0]===0) return "Pick a cover frame that sets the mood of the book. It doesn't have to be your best one.";
+    if(a.back) return "You can leave the back cover blank, or put one small frame on it.";
+    if(b&&full(a)&&full(b)&&a.tpl!==b.tpl) return "You have a wide shot facing a close-up. Think about what you get from seeing them together.";
+    if(b&&full(a)&&full(b)) return "These two frames sit side by side. What do they show together that one on its own can't?";
+    if(b&&(full(a)!==full(b))) return "Try a blank page just before a frame you want people to notice.";
     return "Drag a pick onto a page, or press T to try a different template."; }
   function bkRender(){ var box=$("st-book"); if(!box) return; bkEnsure(); bkBind(); if(!bk.pages.length) return;
     var sp=bkSpreads(); bk.spread=Math.max(0,Math.min(sp.length-1,bk.spread)); var cur=sp[bk.spread]; if(cur.indexOf(bk.focus)<0) bk.focus=cur[cur.length>1&&bk.pages[cur[0]].tpl==="blank"?1:0];
@@ -351,7 +351,7 @@
           btn.addEventListener("click",function(e){ e.stopPropagation(); var pg2=wsB.page(), kd=pageKind(pg2); if(!pg2||pg2.done) return;
             if(kd==="compare"){ var t=pg2.items.filter(function(x){ return x.t==="text"&&x.sentence; })[0]; if(!t||words(t.text)<MIN) return; }
             pg2.done=true; if(kd==="compare"&&typeof qFlag==="function") qFlag("compared"); try{ if(typeof wsB.save==="function") wsB.save(); }catch(er){} btn.classList.add("ok");
-            toast(kd==="compare"?"Finished. That's your comparison, in the workbook.":"Finished. Your artist model page is in the workbook."); if(typeof qTick==="function") qTick(); }); }
+            toast(kd==="compare"?"Finished. Your comparison is saved in the workbook.":"Finished. Your artist model page is in the workbook."); if(typeof qTick==="function") qTick(); }); }
         var done=!!pg.done;
         if(done&&!btn._doneAt) btn._doneAt=Date.now(); if(!done) btn._doneAt=0;
         if(done&&Date.now()-btn._doneAt>1600) show=false;   /* a finished page doesn't keep a button on it */

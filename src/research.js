@@ -8,7 +8,7 @@
   // No connection (or no packs yet): a sample pack built in, so the room always works.
   var RS_SB={url:"https://xddjfwoppmuhyagkhalk.supabase.co", key:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGpmd29wcG11aHlhZ2toYWxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNDQ5MzMsImV4cCI6MjEwMTkyMDkzM30.uXmvMIZHbmjj_beQVm3KawhbvwtisAAFB6e-9-D9JBU"};   // the public (anon) key, same as Punctum's
   var RS_PROMPTS=[["note","THE DETAIL","Name the detail, and try to say why it caught you and not something else."],
-    ["prompt3","WHAT IT BRINGS UP","A memory, another image, a feeling..."],["prompt4","HOW IT WAS MADE","Angle, distance, light, framing, timing..."]];
+    ["prompt3","WHAT IT BRINGS UP","Does it remind you of anything?"],["prompt4","HOW IT WAS MADE","Angle, distance, light, framing, timing..."]];
   var RS_SAMPLE={id:"sample", name:"Sample pack · The Stump", links:"", sample:true, imgs:[
     {id:"s1", url:"asset:assets/research/sample-1.jpg"}, {id:"s2", url:"asset:assets/research/sample-2.jpg"}, {id:"s3", url:"asset:assets/research/sample-3.jpg"},
     {id:"s4", url:"asset:assets/research/sample-4.jpg"}, {id:"s5", url:"asset:assets/research/sample-5.jpg"}, {id:"s6", url:"asset:assets/research/sample-6.jpg"}]};
@@ -65,7 +65,7 @@
       items=[{t:"text", role:"title", x:15, y:12, w:390, h:18, text:"Artist model: "+p.name}, {t:"photo", pid:pid, x:f.x, y:f.y, w:f.w, box:box},
         {t:"text", role:"caption", x:15, y:192, w:192, h:14, text:p.name},
         {t:"text", role:"text", x:228, y:38, w:177, h:70, text:n.note?"The detail: "+n.note:"", ph:"Name the detail, and say why it caught you."},
-        {t:"text", role:"text", x:228, y:114, w:177, h:60, text:n.prompt3?"It brings up: "+n.prompt3:"", ph:"A memory, another image, a feeling..."},
+        {t:"text", role:"text", x:228, y:114, w:177, h:60, text:n.prompt3?"It brings up: "+n.prompt3:"", ph:"Does it remind you of anything?"},
         {t:"text", role:"text", x:228, y:180, w:177, h:60, text:n.prompt4?"How it was made: "+n.prompt4:"", ph:"Angle, distance, light, framing, timing..."},
         {t:"text", role:"text", x:15, y:214, w:192, h:68, text:"", ph:"How will you use this in your own photographs?"}];
       if(tap) items.push({t:"line", x:226, y:60, x2:f.x+tap.x*f.w, y2:f.y+tap.y*fh, head:"end", wt:0.6, color:"#e4552e"});
@@ -105,24 +105,24 @@
   function rsEsc(s){ return cbEsc(String(s==null?"":s)); }
   function rsDot(t){ return t?'<i class="rs-dot" style="left:'+(t.x*100).toFixed(2)+'%;top:'+(t.y*100).toFixed(2)+'%"></i>':''; }
   function rsWall(){ var all=rsAll(); if(!all.length) return ""; if(!rs.wall||rs.wall.n!==all.length) rs.wall={n:all.length, imgs:rsShuffle(all).slice(0,24)};
-    return '<section class="rs-hero"><div class="rs-hero-t"><span class="eb">MOODBOARD</span><h2>Every photograph, one wall</h2><p>All the photographs from every pack in one place. Pick the ones you love and they become an A3 moodboard in your workbook.</p><button class="rs-go" data-rs-act="mood">Make your moodboard ›</button></div>'
+    return '<section class="rs-hero"><div class="rs-hero-t"><span class="eb">MOODBOARD</span><h2>All the photographs together</h2><p>All the photographs from every pack in one place. Pick the ones you love and they become an A3 moodboard in your workbook.</p><button class="rs-go" data-rs-act="mood">Make your moodboard ›</button></div>'
       +'<button class="rs-wall" data-rs-act="mood" aria-label="Open the moodboard"><span class="rs-masonry">'+rs.wall.imgs.map(function(im){ return '<img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'; }).join("")+'</span></button></section>'; }
   function rsShelf(){ var h='';
     if(rs.loading&&!rs.packs) return '<div class="rs-head"><span class="eb">RESEARCH</span><h2>Look closely at other photographers</h2></div><div class="rs-none">Loading packs…</div>';
     h+=rsWall()+'<div class="rs-head"><span class="eb">PACKS</span><h2>Look closely at other photographers</h2><p>Each pack is one photographer or idea. Play the Culling Game to choose your top three, then open the library to see every photograph from everyone.</p><button class="rs-go2 rs-libgo" data-rs-act="all">Open the library ›</button></div>';
     var glow=rsFirstCull(), pick=glow?(rs.packs||[])[Math.floor(Math.random()*(rs.packs||[]).length)]:null;
-    if(glow&&pick) h+='<div class="rs-start"><span class="eb">START HERE</span><b>Play one Culling Game</b><span>Two photographs at a time: pick the stronger one. Two minutes, and you will have a top three.</span><button class="rs-go" data-rs-act="cull" data-rs-id="'+rsEsc(pick.id)+'">Play ›</button></div>';
+    if(glow&&pick) h+='<div class="rs-start"><span class="eb">START HERE</span><b>Play one Culling Game</b><span>Two photographs at a time: pick the stronger one. It takes about two minutes, and at the end you have your top three.</span><button class="rs-go" data-rs-act="cull" data-rs-id="'+rsEsc(pick.id)+'">Play ›</button></div>';
     return h+'<div class="rs-shelf'+(glow?' rs-glow':'')+'">'+(rs.packs||[]).map(function(p){ var ln=rsLinks(p.links), d1=rs.done[p.id+":punctum"], d2=rs.done[p.id+":cull"];
       return '<div class="rs-pack" data-rs-pack="'+rsEsc(p.id)+'"><div class="rs-cover">'+p.imgs.slice(0,3).map(function(im){ return '<img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'; }).join("")+'</div>'
         +'<div class="rs-meta"><b>'+rsEsc(p.name)+'</b><span>'+p.imgs.length+' photographs'+(ln.length?' · '+ln.map(function(l){ return '<a href="'+rsEsc(l.url)+'" target="_blank" rel="noopener">'+rsEsc(l.label)+'</a>'; }).join(' · '):'')+'</span></div>'
         +'<div class="rs-acts"><button class="'+(d2?'rs-go2':'rs-go')+'" data-rs-act="cull" data-rs-id="'+rsEsc(p.id)+'">'+(d2?'✓ PLAY AGAIN':'CULLING GAME')+'</button>'+(d2?'<button class="rs-go" data-rs-act="all" data-rs-id="'+rsEsc(p.id)+'">See all the photos ›</button>':'')+'</div></div>'; }).join("")+'</div>'
       +(rs.offline?'<p class="rs-off">Couldn\'t reach your class packs right now, so here\'s what this computer has saved, and a sample pack.</p>':''); }
   function rsRound(top){ var r=rs.round, im=r.imgs[r.k], tp=r.tap[im.id], n=r.notes[im.id]||{}, h=top+'<span class="rs-count">'+(r.k+1)+' / '+r.imgs.length+'</span></div><div class="rs-play"><div class="rs-stage'+(r.step==="tap"&&!tp?' tapping':'')+'"><div class="rs-imgw"><img class="rs-img" src="'+rsEsc(im.url)+'" alt="" draggable="false">'+rsDot(tp)+'</div></div><aside class="rs-side">';
-    if(r.step==="ask") h+='<span class="eb">PUNCTUM</span><h3>Does anything in this photograph prick you?</h3><p class="rs-q">Barthes called it the punctum: the small detail that reaches out and catches you, not the subject everyone sees.</p>'
-      +'<div class="rs-yn"><button class="rs-go" data-rs-act="yes">It pricks me</button><button class="rs-go2" data-rs-act="no">Not this one</button></div>';
-    else h+='<span class="eb">PUNCTUM</span><h3>'+(tp?'Now say why':'Tap the detail')+'</h3>'+(tp?'':'<p class="rs-q">Click right on the thing that caught you.</p>')
+    if(r.step==="ask") h+='<span class="eb">PUNCTUM</span><h3>Does anything in this photograph prick you?</h3><p class="rs-q">Barthes called it the punctum, a small detail that catches your eye and stays with you.</p>'
+      +'<div class="rs-yn"><button class="rs-go" data-rs-act="yes">Yes, something</button><button class="rs-go2" data-rs-act="no">Not this one</button></div>';
+    else h+='<span class="eb">PUNCTUM</span><h3>'+(tp?'Now say why':'Click the detail')+'</h3>'+(tp?'':'<p class="rs-q">Click right on the thing that caught you.</p>')
       +(tp?RS_PROMPTS.map(function(q){ return '<label class="rs-f"><span>'+q[1]+'</span><textarea data-rs-note="'+q[0]+'" placeholder="'+rsEsc(q[2])+'">'+rsEsc(n[q[0]]||"")+'</textarea></label>'; }).join("")
-        +'<div class="rs-yn"><button class="rs-go" data-rs-act="next">'+(r.k+1<r.imgs.length?'Next photograph ›':'Finish ›')+'</button><button class="rs-go2" data-rs-act="retap">Tap again</button></div>':'');
+        +'<div class="rs-yn"><button class="rs-go" data-rs-act="next">'+(r.k+1<r.imgs.length?'Next photograph ›':'Finish ›')+'</button><button class="rs-go2" data-rs-act="retap">Click again</button></div>':'');
     return h+'</aside></div>'; }
   function rsCullHTML(top){ var c=rs.cull, a=c.cand, b=c.top[c.mid], L=c.flip?b:a, R=c.flip?a:b;
     return top+'<span class="rs-count">CULLING · '+c.picks+' PICKS</span></div><div class="rs-cull"><p class="rs-q">Which is the stronger photograph? Go with your gut.</p><div class="rs-ab">'
@@ -141,7 +141,7 @@
     var rail='<aside class="rs-libr"><input class="rs-search" type="search" placeholder="Search artists" value="'+rsEsc(rs.q||"")+'" data-rs-q>'
       +'<button class="rs-libf'+(rs.lib==="*"?' on':'')+'" data-rs-lib="*"><b>All artists</b><em>'+total+'</em></button><span class="eb">ARTISTS</span>'
       +P.map(function(k){ var culled=!!(typeof Q!=="undefined"&&Q.rs&&Q.rs.cull&&Q.rs.cull[k.id]); return '<button class="rs-libf'+(String(k.id)===String(rs.lib)?' on':'')+'" data-rs-lib="'+rsEsc(k.id)+'"><b>'+rsEsc(k.name)+'</b>'+(culled?'<i title="Culled">✓</i>':'')+'<em>'+k.imgs.length+'</em></button>'; }).join("")+'</aside>';
-    var lead=am.length<need?'Choose '+need+' photographs that show a way of seeing. One photographer, or a mix: the folders on the left hold everyone.':am.length<RS_AM_MAX?'That\'s enough for a page. Add more if you like, up to '+RS_AM_MAX+', or make the page.':'That\'s the most a page will take. Make the page.';
+    var lead=am.length<need?'Choose '+need+' photographs you want to learn from. They can be by one photographer or several, and every photographer is in the folders on the left.':am.length<RS_AM_MAX?'That\'s enough for a page. Add more if you like, up to '+RS_AM_MAX+', or make the page.':'That\'s the most a page will take. Make the page.';
     return top+'<span class="rs-count">CHOSEN · '+am.length+' / '+need+(am.length>=need?' · UP TO '+RS_AM_MAX:'')+'</span></div><div class="rs-lib">'+rail+'<div class="rs-libm"><p class="rs-q">'+lead+'</p>'
       +'<div class="rs-mgrid rs-masonry"'+(items.length?'':' style="display:none"')+'>'+items.map(function(e){ var im=e.im, k=am.indexOf(String(im.id)), r=(rs.pack&&e.pack===rs.pack)?ranked.indexOf(String(im.id)):-1;
           return '<button class="rs-mt rs-at'+(k>=0?' on':'')+'" data-rs-act="ampick" data-rs-img="'+rsEsc(im.id)+'"><img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'+(k>=0?'<b>'+(k+1)+'</b>':'')+'<span>'+(r>=0?'YOUR #'+(r+1)+' · ':'')+rsEsc(e.pack.name)+'</span></button>'; }).join("")+'</div><div class="rs-none"'+(items.length?' style="display:none"':'')+'>No photographer called that.</div>' 
@@ -161,7 +161,7 @@
           r.forEach(function(i){ items.push({t:"photo", pid:pids[i], x:x, y:y, w:A[i]*h}); x+=A[i]*h+g; }); y+=h+g; });
         items.push({t:"text", role:"caption", x:15, y:268, w:262, h:14, text:"Photographs: "+names.join(", ")});
         items.push({t:"text", role:"text", x:288, y:34, w:117, h:110, text:"", ph:(names.length>1?"What do these photographs have in common, across the photographers?":"What do these photographs have in common? Light, colour, framing, subject...")});
-        items.push({t:"text", role:"text", x:288, y:152, w:117, h:110, text:"", ph:"How will you use this way of seeing in your own shoot?"});
+        items.push({t:"text", role:"text", x:288, y:152, w:117, h:110, text:"", ph:"What will you try from these in your own shoot?"});
         wsEnsure(); wsB.applyTemplate({id:"artist", name:"Artist model", build:function(){ return {bg:"white", items:items}; }}); rs.sent=(rs.sent||0)+1; rs.am=[]; stRoom("workshop"); }); }
   function rsResults(top){ var res=rs.res, p=rs.pack, h=top+'</div><div class="rs-res">';
     if(res.kind==="punctum"){ var rr=res.round, mine=rr.imgs.filter(function(im){ return rr.struck[im.id]; });
@@ -170,9 +170,9 @@
           return '<div class="rs-tile'+(on?' on':'')+'"><div class="rs-imgw"><img src="'+rsEsc(im.url)+'" alt="" loading="lazy">'+rsDot(rr.tap[im.id])+'</div>'
             +'<div class="rs-tm">'+(k?'<span>'+k.y+' of '+k.n+' caught</span>':'<span></span>')+(on?'<button class="rs-wb" data-rs-act="wb" data-rs-img="'+rsEsc(im.id)+'">INTO WORKBOOK ›</button>':'')+'</div></div>'; }).join("")+'</div>'; }
     else { var ct=res.cls, row=function(im,k){ return im?'<div class="rs-ri"><b>'+(k+1)+'</b><img src="'+rsEsc(im.url)+'" alt=""></div>':''; };
-      h+='<div class="rs-rh"><span class="eb">YOUR TOP THREE</span><h3>Your ranking'+(ct&&ct.n>1?', next to your class':'')+'</h3><p class="rs-q">Where you and your class disagree is worth writing about.</p></div><div class="rs-rank"><div><span class="eb">YOU</span>'+res.top.map(row).join("")+'</div>'
+      h+='<div class="rs-rh"><span class="eb">YOUR TOP THREE</span><h3>Your ranking'+(ct&&ct.n>1?', next to your class':'')+'</h3><p class="rs-q">Look at where your picks differ from your class and write about why.</p></div><div class="rs-rank"><div><span class="eb">YOU</span>'+res.top.map(row).join("")+'</div>'
         +(ct&&ct.n>1?'<div><span class="eb">CLASS · '+ct.n+' PLAYED</span>'+ct.ids.map(function(id,k){ return row(p.imgs.filter(function(x){ return String(x.id)===String(id); })[0],k); }).join("")+'</div>':'')+'</div>'; }
-    return h+'<div class="rs-yn"><button class="rs-go2" data-rs-act="'+(res.kind==="punctum"?"cull":"all")+'" data-rs-id="'+rsEsc(p.id)+'">'+(res.kind==="punctum"?"Now the culling game":"See all the photos ›")+'</button><button class="rs-go2" data-rs-act="shelf">All packs</button></div></div>'; }
+    return h+'<div class="rs-yn"><button class="rs-go2" data-rs-act="'+(res.kind==="punctum"?"cull":"all")+'" data-rs-id="'+rsEsc(p.id)+'">'+(res.kind==="punctum"?"Now the Culling Game":"See all the photos ›")+'</button><button class="rs-go2" data-rs-act="shelf">All packs</button></div></div>'; }
   function rsRender(){ var box=$("st-research"); if(!box||!st.open||st.room!=="research") return;
     if(rs.view==="mood"&&!rs.pack) rs.pack={name:"Every pack", imgs:[]};
     if(rs.view==="all"&&!rs.pack) rs.pack={name:"All artists", imgs:[], id:"*"};

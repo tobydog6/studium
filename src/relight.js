@@ -157,8 +157,8 @@
   // ---- the kit: real fixtures are presets ----
   var RL_FX={ fresnel:{n:"Fresnel",d:"Hard, warm spot",type:"spot",k:3200,power:12,soft:0.05,cone:35,h:1.6},
     led:{n:"LED panel",d:"Big and soft",type:"bulb",k:5600,power:9,soft:0.6,cone:90,h:1.4},
-    speed:{n:"Speedlight",d:"Punchy flash",type:"spot",k:5500,power:16,soft:0.15,cone:70,h:1.5},
-    torch:{n:"Torch",d:"Tight little beam",type:"spot",k:4500,power:7,soft:0.03,cone:18,h:1.2},
+    speed:{n:"Speedlight",d:"Fast flash, hard light",type:"spot",k:5500,power:16,soft:0.15,cone:70,h:1.5},
+    torch:{n:"Torch",d:"Narrow beam",type:"spot",k:4500,power:7,soft:0.03,cone:18,h:1.2},
     candle:{n:"Candle",d:"Low and orange",type:"bulb",k:1900,power:1.8,soft:0.08,cone:90,h:0.3},
     sodium:{n:"Streetlight",d:"Sodium, overhead",type:"bulb",k:2000,power:14,soft:0.3,cone:90,h:2.4,gel:"#ffb050"},
     rgb:{n:"RGB tube",d:"Any colour",type:"bulb",k:6500,power:7,soft:0.2,cone:90,h:1,gel:"#ff3df0"}};
@@ -283,7 +283,7 @@
   function rlPanel(){ var p=$("rlPanel"); if(!p){ p=document.createElement("div"); p.id="rlPanel"; document.body.appendChild(p); p.addEventListener("input",rlInput); p.addEventListener("click",rlClick); p.addEventListener("keydown",function(e){ e.stopPropagation(); }); }
     p.classList.toggle("show", !!RL.ui); if(!RL.ui) return; var ae=document.activeElement; if(p.contains(ae)&&ae.type==="range") return;   // don't rebuild under a dragging slider
     var L=rlCur(), h='<div class="rl-h"><div><span class="rl-eb">LIGHTING</span><b>Light the scene</b></div><button class="rl-done" data-rl="done" title="Keep these lights (Esc)">DONE</button></div>'+(RL.status?'<p class="rl-s">'+RL.status+'</p>':'');
-    h+='<div class="rl-seg"><button data-rl-view="plan" class="'+(RL.view==="plan"?'on':'')+'">FROM ABOVE</button><button data-rl-view="eye" class="'+(RL.view==="eye"?'on':'')+'">THROUGH MY EYES</button></div>';
+    h+='<div class="rl-seg"><button data-rl-view="plan" class="'+(RL.view==="plan"?'on':'')+'">FROM ABOVE</button><button data-rl-view="eye" class="'+(RL.view==="eye"?'on':'')+'">EYE LEVEL</button></div>';
     h+='<div class="rl-sec">TIME OF DAY</div><div class="rl-times">'+Object.keys(RL_TIMES).map(function(t){ var T=RL_TIMES[t]; return '<button data-rl-time="'+t+'" class="t-'+t+(rlTimeIs(t)?' on':'')+'"><i></i>'+T.n+'</button>'; }).join("")+'</div>'
       +(RL.sunPow>0?'<div class="rl-sun">'+rlSl("g","sunAz","SUN FROM",RL)+rlSl("g","sunEl","SUN HEIGHT",RL)+'</div>':'');
     h+='<div class="rl-sec">ADD A LIGHT</div><div class="rl-fx">'+Object.keys(RL_FX).map(function(f){ return '<button data-rl-fx="'+f+'"><b>'+RL_FX[f].n+'</b><span>'+RL_FX[f].d+'</span></button>'; }).join("")+'</div>';

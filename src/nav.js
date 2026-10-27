@@ -58,7 +58,7 @@
       k.addEventListener("click",function(e){ var b=e.target.closest("[data-kit]"); if(b){ e.stopPropagation(); kitGo(b.getAttribute("data-kit")); } else if(!e.target.closest(".kit-card")) kitClose(); });
       k.addEventListener("mouseover",function(e){ var b=e.target.closest("[data-kit-i]"); if(b&&+b.getAttribute("data-kit-i")!==KIT.sel){ KIT.sel=+b.getAttribute("data-kit-i"); kitMark(); } }); }
     k.classList.toggle("show",KIT.open); if(!KIT.open) return;
-    k.innerHTML='<div class="kit-wrap"><div class="kit-top"><span class="kit-eb">YOUR KIT</span><h2>What do you need?</h2><em>&ldquo;Everything you carry, one key away&rdquo;</em></div>'
+    k.innerHTML='<div class="kit-wrap"><div class="kit-top"><span class="kit-eb">YOUR KIT</span><h2>What do you need?</h2><em>Press Space any time to open this.</em></div>'
       +'<div class="kit-row">'+KIT_ITEMS.map(function(it,i){ return '<button class="kit-card" data-kit="'+it[0]+'" data-kit-i="'+i+'" style="--w:'+((i>>1)+(i&1))+'"><div class="kit-art ka-'+it[0]+'">'+(it[0]==="studio"?kitStudioArt():KIT_ART[it[0]])+'</div><div class="kit-meta"><b>'+it[1]+'</b><span>'+it[2]+'</span></div><kbd>'+it[3]+'</kbd></button>'; }).join("")+'</div>'
       +(typeof weKitHTML==="function"?weKitHTML():"")+'<div class="kit-foot"><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> or click to choose</span><span><kbd>5</kbd><kbd>6</kbd><kbd>7</kbd> weather</span><span><kbd>Space</kbd> or <kbd>Esc</kbd> back to the scene</span></div></div>';
     kitMark(); }

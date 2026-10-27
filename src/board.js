@@ -201,7 +201,7 @@
         page().splits[p]=best.sk; best.groups.forEach(function(g,k){ page().secStyle[best.keys[k]]=style; g.forEach(function(i){ pg.items.push({id:bdUid(), t:"photo", pid:stId(i), x:0, y:0, w:10, sec:best.keys[k]}); }); }); });
       B.sel=[]; B.view=-1; commit();
       var f=B.fill||{}, ks=Object.keys(f), avg=ks.length?ks.reduce(function(a,k){ return a+f[k]; },0)/ks.length:0;
-      toast(avg>0.86?"Board filled edge to edge. Drag frames between sections to rearrange.":"Board filled as far as these frames allow ("+Math.round(avg*100)+"%). More frames per panel fill it out, like a finished folio."); }
+      toast(avg>0.86?"The board is full. Drag frames between sections to move them around.":"Board filled as far as these frames allow ("+Math.round(avg*100)+"%). More frames per panel fill it out, like a finished folio."); }
     function secRect(q,s){ return 'left:'+(q.x*s).toFixed(1)+'px;top:'+(q.y*s).toFixed(1)+'px;width:'+(q.w*s).toFixed(1)+'px;height:'+(q.h*s).toFixed(1)+'px'; }
     function zoom(i){ B.view=i; B.sel=[]; render(); }
     function gidSel(k){ var pg=page(), g=pg.items[k]&&pg.items[k].gid; if(!g) return [k]; var a=[]; pg.items.forEach(function(it,j){ if(it.gid===g&&!it.hidden) a.push(j); }); return a; }
@@ -296,8 +296,8 @@
           h='<div class="bd-sec"><span class="eb">'+cq.label+' <i>'+n4+' FRAME'+(n4===1?'':'S')+' · '+Math.round(((B.fill||{})[ck]||0)*100)+'% FILLED</i></span>'
             +'<div class="bd-chips">'+[["auto","BEST FIT"],["rows","ROWS"],["cols","COLUMNS"],["hero","HERO"]].map(function(x){ return '<button data-bd-style="'+x[0]+'" data-bd-key="'+ck+'" class="'+(stl===x[0]?'on':'')+'">'+x[1]+'</button>'; }).join("")+'</div>'
             +'<div class="bd-chips"><button data-bd-shuffle="'+ck+'" class="gold" title="A new random order and arrangement that still fills the section">⤮ SHUFFLE</button><button data-bd-bestorder="'+ck+'" title="Try every order and keep the one that fills the section most">⇄ BEST ORDER</button><button data-bd-clearsec="'+ck+'" class="del">EMPTY</button></div>'
-            +'<p class="bd-none">Every section fills edge to edge, with no white space: photos crop a little to fit. Click SIZE in the middle of a photo to make it bigger. Drag one onto another to swap them. The same frame can go in more than once.</p></div>'+h; }
-        else h='<div class="bd-sec"><span class="eb">SECTIONS</span><p class="bd-none">Each A1 panel is split into thirds that fill themselves edge to edge, like a finished folio board. You work on one third at a time: zoom into it with ⤢.</p></div>'+h; }
+            +'<p class="bd-none">Photos fill each section with no gaps, so they get cropped a little to fit. Click SIZE in the middle of a photo to make it bigger. Drag one onto another to swap them. The same frame can go in more than once.</p></div>'+h; }
+        else h='<div class="bd-sec"><span class="eb">SECTIONS</span><p class="bd-none">Each A1 panel is split into thirds, and photos fill each third with no gaps. You work on one third at a time, so zoom into it with ⤢.</p></div>'+h; }
       var top=h; h="";   // whatever is selected goes first, so its controls are always in reach
       if(B.sel.length>1&&o.sections){ h+='<div class="bd-sec"><span class="eb">'+B.sel.length+' SELECTED</span><div class="bd-chips"><button data-bd-act="del" class="del">REMOVE FROM BOARD</button></div><p class="bd-none">Drag any of them to move the lot into another section.</p></div>'; }
       else if(B.sel.length>1){ var grouped=B.sel.every(function(k){ return pg.items[k].gid&&pg.items[k].gid===pg.items[B.sel[0]].gid; }), anyPh=B.sel.some(function(k){ return pg.items[k].t==="photo"; });
@@ -315,7 +315,7 @@
           +'<div class="bd-sizes"><button data-bd-fs="-1">A−</button><b>'+(one.size||14)+' PT</b><button data-bd-fs="1">A+</button><button data-bd-bold class="'+(one.bold?'on':'')+'"><b>B</b></button><button data-bd-al="left" class="'+((one.align||"left")==="left"?'on':'')+'">⇤</button><button data-bd-al="center" class="'+(one.align==="center"?'on':'')+'">↔</button></div>'
           +inkChips(one)
           +(one.ph&&!String(one.text||"").trim()?'<div class="bd-prompts"><span class="eb">QUESTIONS TO ANSWER</span><p>'+cbEsc(one.ph).replace(/\n/g,"<br>")+'</p><button data-bd-act="usepr">WRITE UNDER EACH QUESTION</button></div>':''); }
-        else if(one.t==="line"){ h+='<div class="bd-chips"><button data-bd-head="end" class="'+((one.head||"end")==="end"?'on':'')+'">→ ARROW</button><button data-bd-head="both" class="'+(one.head==="both"?'on':'')+'">↔ BOTH</button><button data-bd-head="none" class="'+(one.head==="none"?'on':'')+'">— LINE</button></div>'
+        else if(one.t==="line"){ h+='<div class="bd-chips"><button data-bd-head="end" class="'+((one.head||"end")==="end"?'on':'')+'">→ ARROW</button><button data-bd-head="both" class="'+(one.head==="both"?'on':'')+'">↔ BOTH</button><button data-bd-head="none" class="'+(one.head==="none"?'on':'')+'">LINE</button></div>'
           +'<div class="bd-sizes"><button data-bd-wt="-1">THINNER</button><b>'+(one.wt||0.7).toFixed(1)+' MM</b><button data-bd-wt="1">THICKER</button></div>'+inkChips(one); }
         else if(one.t==="shape"){ h+='<div class="bd-chips"><button data-bd-outline="0" class="'+(!one.outline?'on':'')+'">FILLED</button><button data-bd-outline="1" class="'+(one.outline?'on':'')+'">OUTLINE</button></div>'
           +'<div class="bd-chips">'+Object.keys(BD_BGS).map(function(b){ return '<button data-bd-fill="'+BD_BGS[b][1]+'" class="'+(one.fill===BD_BGS[b][1]?'on':'')+'">'+swatch(BD_BGS[b][1])+'</button>'; }).join("")
@@ -483,7 +483,7 @@
         if(mm==="up") return scaleSel(1.1); if(mm==="down") return scaleSel(1/1.1);
         if(mm==="sh"||mm==="sw") return matchSel(mm==="sh"?"h":"w");
         if(mm==="dh"||mm==="dv") return distSel(mm==="dh"?"h":"v");
-        if(mm==="group"){ var ng=bdUid(); B.sel.forEach(function(k){ pg.items[k].gid=ng; }); toast("Grouped. They now move together."); return commit(); }
+        if(mm==="group"){ var ng=bdUid(); B.sel.forEach(function(k){ pg.items[k].gid=ng; }); toast("Grouped, so they'll move together now."); return commit(); }
         if(mm==="ungroup"){ B.sel.forEach(function(k){ delete pg.items[k].gid; }); toast("Ungrouped"); return commit(); }
         if(mm.indexOf("f:")===0){ B.sel.forEach(function(k){ if(pg.items[k].t==="photo") pg.items[k].f=mm.slice(2); }); return commit(); }
         return alignSel(mm.slice(2)); }
@@ -518,7 +518,7 @@
       if(has("data-bd-paper")){ d.paper=g("data-bd-paper"); return commit(); }
       var a2=g("data-bd-act");
       if(a2==="newpage"){ d.pages.splice(d.cur+1,0,{id:bdUid(), items:[], bg:pg.bg}); d.cur++; B.sel=[]; return commit(); }
-      if(a2==="dup"){ var c=JSON.parse(JSON.stringify(pg)); c.id=bdUid(); c.items.forEach(function(it){ it.id=bdUid(); }); d.pages.splice(d.cur+1,0,c); d.cur++; B.sel=[]; toast("Copied. Try another version on this one."); return commit(); }
+      if(a2==="dup"){ var c=JSON.parse(JSON.stringify(pg)); c.id=bdUid(); c.items.forEach(function(it){ it.id=bdUid(); }); d.pages.splice(d.cur+1,0,c); d.cur++; B.sel=[]; toast("Copied. You can try a different version on this copy."); return commit(); }
       if(a2==="delpage"){ if(d.pages.length<2) return; d.pages.splice(d.cur,1); d.cur=Math.max(0,d.cur-1); B.sel=[]; return commit(); }
       if(a2==="text"||a2==="title"||a2==="caption") return addText(a2);
       if(a2==="arrow") return addLine("end");
@@ -586,19 +586,19 @@
   function wsS(x,y,w,h,label,keep){ return {t:"slot", x:x, y:y, w:w, h:h, label:label||"Photo", keep:!!keep}; }
   function wsA(x,y,x2,y2,head){ return {t:"line", x:x, y:y, x2:x2, y2:y2, head:head||"end", wt:1.2}; }
   var WS_TEMPLATES=[
-    {id:"rank", name:"Rank", tip:"Your five picks ranked from 5 up to your best, and why each sits where it does", build:function(){ var it=[wsT(15,10,390,18,"title","Ranking my five: from 5 up to my best")];
+    {id:"rank", name:"Rank", tip:"Your five picks ranked from 5 up to your best, and why each sits where it does", build:function(){ var it=[wsT(15,10,390,18,"title","My five, ranked from 5 to my best")];
       for(var k=0;k<5;k++){ var y=38+k*49.6, n=5-k;
         it.push(wsT(13,y+8,26,30,"title","",{text:String(n), size:30}));
         it.push(wsS(42,y,70,46.6,n===1?"Your best":"#"+n,true));
         it.push(wsT(120,y,285,46.6,"text",n===1?"Why is this your best? What does it do that the others don't?":n===5?"Why is this last of the five? What holds it back?":"Why does it sit at #"+n+"? What's stronger or weaker than the ones around it?",{rank:n})); }
       return {bg:"white", items:it}; }},
     {id:"compare", name:"Compare", tip:"Two photos side by side, a big arrow between them, and one sentence on the difference", build:function(){ return {bg:"white", items:[
-      wsT(15,12,390,18,"title","Compare: what changed between these two?"),
+      wsT(15,12,390,18,"title","What changed between these two?"),
       wsS(15,40,170,150,"Photo A",true), wsS(235,40,170,150,"Photo B",true),
       {t:"line", x:191, y:115, x2:229, y2:115, head:"end", wt:2.4},
-      wsT(15,206,390,70,"text","In one sentence: what's the difference between A and B, and which works better?",{sentence:true, size:16})]}; }},
+      wsT(15,206,390,70,"text","Write one sentence on the difference between A and B, and which one works better.",{sentence:true, size:16})]}; }},
     {id:"annotate", name:"Annotate", tip:"One photo, with notes and arrows pointing into it", build:function(){ return {bg:"white", items:[
-      wsT(15,12,390,18,"title","Title: what is this photo about?"),
+      wsT(15,12,390,18,"title","What is this photo about?"),
       wsS(15,40,252,168,"Your strongest frame"),
       wsT(15,212,252,14,"caption","Lens · aperture · shutter · ISO · light"),
       wsT(15,232,252,50,"text","Why does this photo work? What would you change next time?"),
@@ -606,28 +606,28 @@
       wsT(290,110,115,62,"text","Where is the light coming from? What is it doing?"), wsA(288,132,200,128),
       wsT(290,180,115,62,"text","What's in focus, and what isn't? Why?"), wsA(288,202,150,170)]}; }},
     {id:"edit", name:"Before & after", tip:"Straight from the camera beside your edit, and what you changed", build:function(){ return {bg:"white", items:[
-      wsT(15,12,390,18,"title","Editing: from the camera to the final image"),
+      wsT(15,12,390,18,"title","How I edited this photo"),
       wsS(15,40,190,127,"Straight from the camera",true), wsS(215,40,190,127,"Your edit",true), wsA(196,104,224,104),
-      wsT(15,171,190,14,"caption","Before"), wsT(215,171,190,14,"caption","After: the settings you changed"),
+      wsT(15,171,190,14,"caption","Before"), wsT(215,171,190,14,"caption","After (what you changed)"),
       wsT(15,194,390,88,"text","What did you change in Edit, and why?\n(exposure, highlights, shadows, contrast, colour, crop)\n\nHow does the edit change the mood?")]}; }},
-    {id:"contact", name:"Contact sheet", tip:"A whole shoot, and what you chose from it", build:function(){ var it=[wsT(15,12,390,18,"title","Contact sheet: name the shoot")], cw=(258-12)/3, ch=cw/1.5;
+    {id:"contact", name:"Contact sheet", tip:"A whole shoot, and what you chose from it", build:function(){ var it=[wsT(15,12,390,18,"title","Contact sheet (name the shoot)")], cw=(258-12)/3, ch=cw/1.5;
       for(var r=0;r<3;r++) for(var c=0;c<3;c++) it.push(wsS(15+c*(cw+6),38+r*(ch+6),cw,ch,"Frame "+(r*3+c+1)));
       it.push(wsT(15,214,258,68,"text","Circle or star your strongest frames.\nWhat made them stand out from the rest?"));
       it.push(wsT(288,40,117,242,"text","Which frames are you taking forward?\n\nWhy did you reject the others?\n\nWhat pattern do you notice across the shoot?\n\nWhat will you reshoot, and how?"));
       return {bg:"white", items:it}; }},
     {id:"artist", name:"Artist model", tip:"A photographer's work beside your response to it", build:function(){ return {bg:"white", items:[
-      wsT(15,12,390,18,"title","Artist model: name the photographer"),
+      wsT(15,12,390,18,"title","Artist model (name the photographer)"),
       wsS(15,38,192,128,"Their work (upload it)",true), wsS(213,38,192,128,"Your response"),
       wsT(15,172,192,110,"text","Who are they, and what are they known for?\n\nWhich conventions do they use?\n(light, framing, subject, colour, time)"),
       wsT(213,172,192,110,"text","What did you take from them?\n\nWhat did you make your own, and why?"),
       wsA(201,102,219,102,"both")]}; }},
     {id:"experiment", name:"Experiment", tip:"Testing an idea or technique three ways, then reflecting", build:function(){ return {bg:"grey", items:[
-      wsT(15,12,390,18,"title","Experiment: name the idea or technique",{font:"type"}),
+      wsT(15,12,390,18,"title","Experiment (name the idea or technique)",{font:"type"}),
       wsT(15,34,390,24,"text","What were you exploring? What sparked it (an artist, a quote, a technique)?",{font:"type"}),
       wsS(15,62,126,84,"Test 1"), wsS(147,62,126,84,"Test 2"), wsS(279,62,126,84,"Test 3"),
       wsT(15,150,126,24,"caption","What you tried, and the settings"), wsT(147,150,126,24,"caption","What you tried, and the settings"), wsT(279,150,126,24,"caption","What you tried, and the settings"),
       wsT(15,184,390,98,"text","What did you discover?\n\nWhich test is strongest, and why?\n\nWill you keep developing this idea? Why, or why not?",{font:"type"})]}; }},
-    {id:"mood", name:"Mood & ideas", tip:"Planning a shoot: images, words and colours", build:function(){ return {bg:"charcoal", items:[
+    {id:"mood", name:"Mood & ideas", tip:"Plan your next shoot with images, words and colours", build:function(){ return {bg:"charcoal", items:[
       wsT(15,12,260,20,"title","Ideas for my next shoot",{font:"type"}),
       wsS(15,40,160,107,"Image"), wsS(181,40,104,70,"Image"), wsS(181,116,104,70,"Image"), wsS(15,153,104,70,"Image"), wsS(125,153,50,70,"Detail"),
       wsT(300,40,105,146,"text","Words for the mood\n\nColours and light\n\nWhere, when, who?",{font:"type"}),
@@ -635,7 +635,7 @@
     {id:"next", name:"What's next?", tip:"Looking back at the board and planning ahead", build:function(){ return {bg:"charcoal", items:[
       wsT(15,12,240,20,"title","What is next?",{font:"type", size:38}),
       wsS(15,40,120,80,"Board so far",true), wsS(141,40,120,80,"Board so far",true), wsS(15,126,120,80,"Frame"), wsS(141,126,120,80,"Frame"),
-      wsT(15,214,246,68,"text","Where has your work come from? What has it grown into?",{font:"type"}),
+      wsT(15,214,246,68,"text","How has your work changed since you started? What's different now?",{font:"type"}),
       wsT(278,40,127,242,"text","1. What has worked so far, and why?\n\n2. Which idea will you push further?\n\n3. Which photographers could you look at next?\n\n4. What will you shoot next, and how?",{font:"type"}),
       wsA(274,64,265,78), wsA(274,170,265,160)]}; }}];
 
@@ -668,13 +668,13 @@
     {name:"Strip of 4", slots:clRows([[1.5,1.5,1.5,1.5]],4)}, {name:"2 × 2", slots:clRows([[1.5,1.5],[1.5,1.5]],5)}, {name:"Contact 3 × 3", slots:clRows([[1.5,1.5,1.5],[1.5,1.5,1.5],[1.5,1.5,1.5]],3)}];
   function bdDownload(blob, fname){ var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=fname; document.body.appendChild(a); a.click(); a.remove(); }
   var wsB=Board({el:"st-workshop", W:420, H:297, margin:15, defW:120, maxAuto:6, text:true, tools:true, filters:true, papers:null, bgs:true, pageWord:"PAGE", sizes:[60,90,120,180,260],
-    emptyTitle:"Your page, your way.", emptyBody:"Start from a page template on the right, drag frames in from the left, or add text and arrows from the rail.",
+    emptyTitle:"This page is empty.", emptyBody:"Start from a page template on the right, drag frames in from the left, or add text and arrows from the rail.",
     cap:function(d){ return "A3 LANDSCAPE · 420 × 297 MM · PAGE "+(d.cur+1)+" OF "+d.pages.length; },
     load:function(){ return st.wsBoard||null; }, save:function(d){ st.wsBoard=d; saveSession(); },
     layouts:WS_LAYOUTS, templates:WS_TEMPLATES, exportLabel:"EXPORT PAGES AS PDF",
     exportFn:function(B){ var d=B.doc_(), out=[], i=0; toast("Building your workbook PDF…"); (function next(){ if(i>=d.pages.length){ pbBuildPDF(out, namePrefix()+"workbook.pdf", "Workbook PDF downloaded"); return; } B.draw(d.pages[i++], 150/25.4, function(cv){ out.push(cv); next(); }); })(); }});
   var foB=Board({el:"st-folio", W:1782, H:841, panelW:594, sections:true, margin:FO_M, defW:180, maxAuto:18, text:false, filters:false, papers:["white","black"], pageWord:"LAYOUT", sizes:[100,150,200,280,400,560],
-    emptyTitle:"Your folio board. No text.", emptyBody:"A1 panels side by side, read left to right. Drag frames or whole folders into the sections and they pack themselves edge to edge, or fill the whole board in one go. Every frame keeps its shape.",
+    emptyTitle:"This is your folio board. It's for photos only.", emptyBody:"A1 panels side by side, read left to right. Drag frames or whole folders into the sections and they fit into the space for you. You can also fill the whole board at once. Your photos won't be stretched.",
     cap:function(d){ return d.panels+" × A1 PORTRAIT PANELS · "+(d.panels*594)+" × 841 MM · LAYOUT "+(d.cur+1)+" OF "+d.pages.length; },
     load:function(){ return st.foBoard||null; }, save:function(d){ st.foBoard=d; saveSession(); },
     layouts:FO_LAYOUTS, exportLabel:"Export panels as PDF",

@@ -915,7 +915,7 @@ $('bBinder').onclick=openBinder;
 
 /* ================= the copier ================= */
 const SCAN={ busy:false, t:0, p:null, q:null, made:false, done:false };
-function copyPrint(p){ if(SCAN.busy){ toast('The copier is busy. One at a time.'); return; } if(!p||p.wg) return;
+function copyPrint(p){ if(SCAN.busy){ toast('The copier is still printing. Wait for it to finish first.'); return; } if(!p||p.wg) return;
   pushUndo(); SCAN.busy=true; SCAN.made=false; SCAN.done=false; SCAN.q=null; SCAN.p=p; SCAN.t=-0.9; hideActs();
   if(p.rejected) unreject(p); removeFromBoard(p); layoutBoard(null); updateChains(false);
   p.locked=true; p.order=++orderN; p.tx=GLASS.x; p.tz=GLASS.z; p.yawT=0; p.base=scanner.userData.top+0.022; restack();
@@ -968,7 +968,7 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden) recordHis
 /* ================= photobook + workbook ================= */
 let BOOK=[]; try{ BOOK=JSON.parse(localStorage.getItem(BOOK_KEY)||'[]'); }catch(e){ BOOK=[]; }
 function sendToBook(ids, note){
-  if(HOST){ const own=ids.map(realId).filter(Boolean); if(!own.length){ toast('Hmm, those prints couldn\u2019t go to the book. Try pulling them out of the binder again.'); return; }
+  if(HOST){ const own=ids.map(realId).filter(Boolean); if(!own.length){ toast('Those prints couldn\u2019t be sent to the book. Try pulling them out of the binder again.'); return; }
     HOST.sendToBook(own, note?noteSummary(note):''); toast('Added to your photobook in this order.','Open book',()=>HOST.room('book')); return; }
   BOOK.push({ ids:ids.slice(), date:new Date().toLocaleDateString('en-NZ',{ day:'numeric', month:'short' }), note:note?noteSummary(note):'' }); try{ localStorage.setItem(BOOK_KEY, JSON.stringify(BOOK)); }catch(e){}
   renderWorkbook(); const b=$('bBook'); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); toast('Sent to the photobook in this order. The builder lays it out as spreads.'); }
@@ -977,7 +977,7 @@ const capCam=new THREE.OrthographicCamera(-BW/2*1.03, BW/2*1.03, BH/2*1.03, -BH/
 capCam.position.set(BX,30,BZ); capCam.up.set(0,0,-1); capCam.lookAt(BX,0,BZ); capCam.updateMatrixWorld();
 function captureBoard(){
   if(!prints.some(p=>p.onBoard)){ toast('Put some prints on the board first.'); return; }
-  if(HOST){ closeNote(); hideActs(); const pg=hostPage(); if(!pg){ toast('Hmm, those prints couldn\u2019t go to your workbook. Try pulling them out of the binder again.'); return; }
+  if(HOST){ closeNote(); hideActs(); const pg=hostPage(); if(!pg){ toast('Those prints couldn\u2019t be sent to your workbook. Try pulling them out of the binder again.'); return; }
     HOST.addWorkbookPage(pg); const fl=$('flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go'); tourEv('capture');
     toast('Added to your workbook as a new page. Write on it there.','Open workbook',()=>HOST.room('workshop')); return; }
   tourEv('capture');
@@ -1201,22 +1201,22 @@ function hostPage(){ const on=prints.filter(p=>p.onBoard&&realId(p.id)); if(!on.
 
 /* ================= the tour: one prompt at a time, ticks over when you've done it (Studium's coach style) ================= */
 const TSTEPS=[
-  { ch:'PULL', line:'This is your <b>light table</b>.', sub:'Every frame you shoot lives in the binder, the glowing folder at the front. Pull prints out, try them next to each other, and pin the keepers to the wall.', hot:'binder', next:true },
+  { ch:'PULL', line:'This is your <b>light table</b>.', sub:'All your photos are in the binder, the glowing folder at the front. You can pull prints out, try them next to each other, and pin the ones you like to the wall.', hot:'binder', next:true },
   { ch:'PULL', line:'Open the <b>binder</b>.', sub:'Click it, or press <kbd>B</kbd>.', hot:'binder', ev:'binder' },
   { ch:'PULL', line:'Pick a few frames, then <b>Pull out</b>.', sub:'Click to pick. The tabs down the side are your folders.', hot:'pull', ev:'pull' },
   { ch:'PAIR', line:'Drag a print onto the <b>board</b>.', sub:'It straightens and lines up when you let go.', hot:'board', ev:'board' },
   { ch:'PAIR', line:'Put another one <b>right beside it</b>.', sub:'Side by side or one above the other. Touching makes a pair.', hot:'board', ev:'pair' },
   { ch:'PAIR', line:'Say <b>what joins them</b>.', sub:'Hover the pair and click the cog above it, or right-click one of them.', hot:'chain', ev:'note' },
   { ch:'PAIR', line:'Make one <b>bigger</b>.', sub:'Hover a print and press <kbd>]</kbd>. <kbd>[</kbd> makes it smaller.', hot:'chain', ev:'size' },
-  { ch:'CULL', line:'Not working? Drop one in the <b>reject box</b>.', sub:'Drag a print into the glowing box. Nothing is lost, you can pull it back out any time.', hot:'box', ev:'reject', skip:true },
-  { ch:'CULL', line:'Want it twice? Use the <b>copier</b>.', sub:'Drag a print onto its glass. A copy prints out beside it.', hot:'scan', ev:'copy', skip:true },
+  { ch:'CULL', line:'Drop a print you don\u2019t want in the <b>reject box</b>.', sub:'Drag it into the glowing box. You can pull it back out later.', hot:'box', ev:'reject', skip:true },
+  { ch:'CULL', line:'Make a second copy with the <b>copier</b>.', sub:'Drag a print onto its glass and a copy prints out beside it.', hot:'scan', ev:'copy', skip:true },
   { ch:'WALL', line:'<b>Pin</b> your pair to the wall.', sub:'Hover the pair and click the pin next to the cog.', hot:'chain', ev:'pin' },
   { ch:'WALL', line:'Make <b>another series</b> and pin that too.', sub:'Another pair or a run of three on the board, then the pin. Strings need two things to join.', hot:'board', ev:'pin2', skip:true, ok:()=>wallSeries()>=2 },
   { ch:'WALL', line:'Push the mouse to the <b>top edge</b> to look up.', sub:'Or press <kbd>W</kbd>.', hot:'edge', ev:'wall' },
   { ch:'WALL', line:'Run a <b>string</b> between your series.', sub:'Click a spool on the ledge, then click a print in each series.', hot:'spools', ev:'string', skip:true },
   { ch:'WALL', line:'Come back down to the <b>table</b>.', sub:'Move the mouse to the bottom of the screen.', hot:'edgeDown', ev:'table' },
   { ch:'KEEP', line:'Add the board to your <b>workbook</b>.', sub:'It becomes a new page with a caption under each pair for you to write in.', hot:'capture', ev:'capture', skip:true },
-  { ch:'KEEP', line:'That’s the <b>light table</b>.', sub:'Live with your series on the wall for a while. Press <kbd>?</kbd> to see this again.', next:true, last:true } ];
+  { ch:'KEEP', line:'That’s the end of the <b>light table</b> tour.', sub:'Leave your series up on the wall and come back to it later. Press <kbd>?</kbd> to see this tour again.', next:true, last:true } ];
 const wallSeries=()=>wallGroups.filter(g=>g.members.length>1).length;
 const TOUR={ on:false, i:0, done:false, okT:0, seen:{} };
 const CHAPS=['PULL','PAIR','CULL','WALL','KEEP'];

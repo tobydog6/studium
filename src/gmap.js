@@ -3,9 +3,9 @@
   // and the result is blended over, Soft Light by default, at an opacity. The ramp: click a stop to select it, double-click
   // it for the colour picker, drag it along, double-click the bar to add a stop, right-click a stop to remove it (two stay). Presets
   // are just ramps. Stored on the frame as gmStops [[position, hex], …], gmMode and gmOpacity (0 = off).
-  var GM_PRESETS=[["Teal & orange",[[0,"#1c2b4a"],[0.5,"#8a6a56"],[1,"#f1c27a"]]],["Sepia",[[0,"#2b1d12"],[1,"#e8d2a6"]]],["Cyanotype",[[0,"#0b1f3a"],[1,"#dfe9ee"]]],
+  var GM_PRESETS=[["Teal and orange",[[0,"#1c2b4a"],[0.5,"#8a6a56"],[1,"#f1c27a"]]],["Sepia",[[0,"#2b1d12"],[1,"#e8d2a6"]]],["Cyanotype",[[0,"#0b1f3a"],[1,"#dfe9ee"]]],
     ["Dusk",[[0,"#2a1a3e"],[0.55,"#b2496a"],[1,"#f7c27c"]]],["Forest",[[0,"#101d14"],[0.6,"#4f6b3a"],[1,"#e9e2b9"]]],["Silver",[[0,"#000000"],[1,"#ffffff"]]]];
-  var GM_MODES=[["softlight","Soft light"],["overlay","Overlay"],["color","Color"],["multiply","Multiply"],["screen","Screen"],["normal","Normal"]];
+  var GM_MODES=[["softlight","Soft light"],["overlay","Overlay"],["color","Colour"],["multiply","Multiply"],["screen","Screen"],["normal","Normal"]];
   var gmSel=0, gmDrag=null;
   function gmStops(){ if(!edState) return GM_PRESETS[0][1]; if(!edState.gmStops||edState.gmStops.length<2) edState.gmStops=JSON.parse(JSON.stringify(GM_PRESETS[0][1])); return edState.gmStops; }
   function gmCss(st){ return "linear-gradient(90deg,"+st.slice().sort(function(a,b){ return a[0]-b[0]; }).map(function(s){ return s[1]+" "+(s[0]*100).toFixed(1)+"%"; }).join(",")+")"; }
@@ -19,7 +19,7 @@
       +(st.length>2?'<button class="gm-del" data-gm-del title="Remove this stop">Remove</button>':'')+'</div>'
       +'<div class="lr-row wb"><span class="lr-n">Blend</span><select class="lr-sel sm" data-gm-mode>'+GM_MODES.map(function(m){ return '<option value="'+m[0]+'"'+(m[0]===mode?' selected':'')+'>'+m[1]+'</option>'; }).join("")+'</select></div>'
       +'<div class="lr-row'+(op?' touched':'')+'"><span class="lr-n">Opacity</span><input type="range" data-gm-op min="0" max="100" value="'+op+'"><span class="lr-v" data-gm-opv>'+op+'</span></div>'
-      +'<p class="lr-note">Double-click a stop for its colour, double-click the bar for a new stop, right-click a stop to remove it. Soft light at 20 to 40 is the classic: it colours the shadows and the lights without flattening the photograph.</p>';
+      +'<p class="lr-note">Double-click a stop for its colour, double-click the bar for a new stop, right-click a stop to remove it. Soft light at 20 to 40 opacity is a good place to start. It tints the shadows and highlights and keeps the contrast.</p>';
     if(typeof cvFillAll==="function") cvFillAll(); }
   function gmSync(){ if($("lrGmap")) gmRender(); }
   function gmCommit(){ queueRender(); }

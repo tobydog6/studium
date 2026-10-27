@@ -46,13 +46,13 @@
   // ---- photo briefs (the lesson layer) ----
   var BRIEFS=[
     {id:"thirds",  t:"Rule of thirds",       tip:"Put your subject on a third-line, not dead centre"},
-    {id:"leading", t:"Leading lines",        tip:"Use lines to pull the eye toward your subject"},
+    {id:"leading", t:"Leading lines",        tip:"Use lines to lead the eye towards your subject"},
     {id:"fill",    t:"Fill the frame",       tip:"Get in close so your subject fills the shot"},
     {id:"symmetry",t:"Symmetry",             tip:"Find a balanced, mirrored composition"},
     {id:"frame",   t:"Frame within a frame", tip:"Shoot through a doorway, window or gap"},
-    {id:"low",     t:"Low angle",            tip:"Get low and shoot upward for drama"},
+    {id:"low",     t:"Low angle",            tip:"Get down low and shoot upwards"},
     {id:"negative",t:"Negative space",       tip:"Leave lots of empty space around a small subject"},
-    {id:"detail",  t:"Close detail",         tip:"Zoom in on a texture or detail most people miss"}
+    {id:"detail",  t:"Close detail",         tip:"Zoom in on a small texture or detail"}
   ];
   var activeBrief=-1, briefDone={}, studentName="";
   function briefProgText(){ var d=0; for(var k in briefDone){ if(briefDone[k]>0) d++; } return d+" / "+BRIEFS.length+" done"; }
@@ -62,10 +62,10 @@
     BRIEFS.forEach(function(brf,i){ var b=document.createElement("button"); b.className="chip"+(activeBrief===i?" on":""); b.textContent=(briefDone[brf.id]?"✓ ":"")+brf.t; b.title=brf.tip; b.onclick=function(){ setBrief(i); }; el.appendChild(b); });
     var pg=$("briefProg"); if(pg) pg.textContent=briefProgText();
   }
-  function setBrief(i){ activeBrief=i; updateBriefUI(); buildBriefList(); if(typeof vfRenderChips==="function") vfRenderChips(); if(i>=0) toast("Brief: "+BRIEFS[i].t+" — "+BRIEFS[i].tip); }
+  function setBrief(i){ activeBrief=i; updateBriefUI(); buildBriefList(); if(typeof vfRenderChips==="function") vfRenderChips(); if(i>=0) toast("Brief: "+BRIEFS[i].t+". "+BRIEFS[i].tip); }
   function updateBriefUI(){
     var chip=$("briefChip"), ct=$("briefChipText"), vb=$("vfBrief"); if(!chip) return;
-    if(activeBrief>=0){ var b=BRIEFS[activeBrief]; ct.textContent=b.t; chip.classList.remove("hidden"); vb.textContent=b.t+" — "+b.tip; vb.classList.remove("hidden"); }
+    if(activeBrief>=0){ var b=BRIEFS[activeBrief]; ct.textContent=b.t; chip.classList.remove("hidden"); vb.textContent=b.t+". "+b.tip; vb.classList.remove("hidden"); }
     else { chip.classList.add("hidden"); vb.classList.add("hidden"); }
   }
 
@@ -586,7 +586,7 @@
       console.error("Load failed:",err); hideLoader();
       if(viewer){ try{ viewer.dispose(); }catch(e){} viewer=null; } loaded=false; show(landing);
       var m=String(err&&err.message||err||"");
-      if(/fetch|network|Failed to fetch|CORS/i.test(m)) toast("Couldn't download that sample — check the connection, or load a file from this computer instead.");
+      if(/fetch|network|Failed to fetch|CORS/i.test(m)) toast("Couldn't download that scan. Check your connection, or open a file from this computer.");
       else toast("Couldn't load that splat ("+m.slice(0,80)+")");
     });
   }
@@ -671,7 +671,7 @@
   function openStudioHome(){ hubHide("hub"); hubShow("studio"); studioSync(); App.go("studio"); }
   function openPunctum(){ hubHide("hub"); hubShow("punctum"); App.go("punctum");
     if(!punctumLoaded){ var fr=$("punctumFrame"); if(fr && window.PUNCTUM_B64){ try{ var bin=atob(window.PUNCTUM_B64), by=new Uint8Array(bin.length), i; for(i=0;i<bin.length;i++) by[i]=bin.charCodeAt(i); fr.srcdoc=new TextDecoder("utf-8").decode(by); punctumLoaded=true; }catch(e){ toast("Couldn't open Punctum."); } } } }
-  function studioSync(){ var c=$("stCount"); if(c) c.textContent=(photos.length? photos.length+" photo"+(photos.length>1?"s":"")+" ready" : "No photos yet — shoot some in the Splat viewer, or upload below"); }
+  function studioSync(){ var c=$("stCount"); if(c) c.textContent=(photos.length? photos.length+" photo"+(photos.length>1?"s":"")+" ready" : "No photos yet. Take some in a location, or upload some below"); }
   function studioReturn(){ if(suiteFrom==="studio"){ suiteFrom="scene"; hubShow("studio"); studioSync(); } }
 
   // ---- session persistence (IndexedDB — survives closing the tab, fully offline) ----
@@ -723,29 +723,29 @@
   function showTip(h,b){ var e=$("shotTip"); if(!e) return; e.querySelector(".st-h").textContent=h; e.querySelector(".st-b").textContent=b;
     e.classList.remove("hidden"); void e.offsetWidth; e.classList.add("show"); clearTimeout(_tipT); _tipT=setTimeout(function(){ e.classList.remove("show"); }, 6500); }
   function photoTip(){ var ap=APERTURES[apIdx], mm=focalMM, sh=SHUTTER_LABELS[shIdx], iso=ISOS[isoIdx], tips=[];
-    if(ap<=2.0) tips.push(["Wide aperture · f/"+ap,"The background melts into soft blur so your subject pops — classic for portraits and detail."]);
-    else if(ap>=11) tips.push(["Small aperture · f/"+ap,"Sharp from front to back — everything stays in focus. Great for landscapes and architecture."]);
+    if(ap<=2.0) tips.push(["Wide aperture · f/"+ap,"The background goes soft and blurry, so your subject stands out. This works well for portraits and close-ups."]);
+    else if(ap>=11) tips.push(["Small aperture · f/"+ap,"Everything is sharp from front to back, which works well for landscapes and buildings."]);
     var m=/^1\/(\d+)/.exec(sh), den=m?+m[1]:0;
-    if(sh==="1/2"||sh==="1/4"||(den&&den<=15)) tips.push(["Slow shutter · "+sh,"Anything moving smears into blur — hold very still, or use it on purpose for motion streaks."]);
-    else if(den>=500) tips.push(["Fast shutter · "+sh,"Freezes motion crisp and sharp — good for anything that moves."]);
+    if(sh==="1/2"||sh==="1/4"||(den&&den<=15)) tips.push(["Slow shutter · "+sh,"Anything moving turns into a blur. Hold really still, or use it on purpose to show movement."]);
+    else if(den>=500) tips.push(["Fast shutter · "+sh,"Stops movement so it stays sharp."]);
     if(iso>=3200) tips.push(["High ISO · "+iso,"Brighter in low light, but you'll see more grain. Bring it down when there's enough light."]);
-    if(mm<=24) tips.push(["Wide lens · "+mm+"mm","Takes in a lot and exaggerates depth — step in close to your subject for real drama."]);
-    else if(mm>=100) tips.push(["Telephoto · "+mm+"mm","Compresses distance and lifts your subject cleanly off the background."]);
+    if(mm<=24) tips.push(["Wide lens · "+mm+"mm","Fits a lot in and makes things look further apart. Get close to your subject to make the most of it."]);
+    else if(mm>=100) tips.push(["Telephoto · "+mm+"mm","Makes things look closer together and separates your subject from the background."]);
     var lim=handheldLimit(), eqmm=Math.round(camEquiv());
     if(lastShake>0.0025) tips.unshift(["Camera shake · "+sh+" at "+eqmm+" mm","Too slow to hold this lens steady, so the whole frame smeared. Rule of thumb: 1 over the focal length. Try "+lim.label+" or faster, and open the aperture or raise the ISO to keep the exposure."]);
-    else if(shakeRisk()) tips.unshift(["Lucky · "+sh+" at "+eqmm+" mm","You got away with it this time, but that's slower than you can reliably hand-hold. "+lim.label+" or faster is the safe speed for this lens."]);
+    else if(shakeRisk()) tips.unshift(["Close call · "+sh+" at "+eqmm+" mm","This is slower than you can usually hold steady. "+lim.label+" or faster is the safe speed for this lens."]);
     if(typeof WE!=="undefined"&&WE.rain>0){ var ts=SHUTTERS[shIdx]; if(ts<=1/500+1e-6) tips.unshift(["Rain frozen · "+sh,"At this speed each drop barely moves while the shutter is open, so the rain hangs in the air as beads."]);
-      else if(ts>=1/30-1e-6) tips.unshift(["Rain streaks · "+sh,"The shutter stays open while the drops fall, so they draw lines. Slower still and the rain melts into a soft haze."]);
+      else if(ts>=1/30-1e-6) tips.unshift(["Rain streaks · "+sh,"The shutter stays open while the drops fall, so they draw lines. Go even slower and the rain turns into a soft blur."]);
       else tips.unshift(["Rain · "+sh,"Somewhere between frozen and streaked. Try 1/1000 and then 1/15 and compare the two."]); }
-    if(!tips.length) tips.push(["Balanced exposure","A clean, neutral setup. Now change one dial — aperture, shutter or ISO — and watch what it does to the shot."]);
+    if(!tips.length) tips.push(["Balanced exposure","Your settings are balanced. Try changing one thing, like the aperture, shutter or ISO, and see what happens to your photo."]);
     if(viewfinderOn && typeof vfToast==="function") vfToast(tips[0][1]); else showTip(tips[0][0], tips[0][1]); }
 
   // ---- first-run tutorial (coach-marks) ----
   var TUT=[
-    {ico:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="13" width="36" height="27" rx="4"/><circle cx="24" cy="26" r="8"/><path d="M17 13l3-5h8l3 5"/></svg>', s:"Step inside", b:"You're standing inside a real place, captured in 3D. Move around and look closely — you can walk right up to things."},
+    {ico:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="13" width="36" height="27" rx="4"/><circle cx="24" cy="26" r="8"/><path d="M17 13l3-5h8l3 5"/></svg>', s:"Look around", b:"This is a real place scanned in 3D. You can walk right up to things and look closely."},
     {ico:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="16" y="6" width="16" height="27" rx="8"/><path d="M24 6v9"/></svg>', s:"Look around", b:"Click the scene, then move your mouse to look. Press Esc to let the mouse go again."},
     {ico:'<span class="kc"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>', s:"Walk through it", b:"W A S D to move, E and Q for up and down, and hold Shift to move faster."},
-    {ico:'<span class="kc"><kbd>P</kbd></span>', s:"Raise the camera", b:"Press P to bring the camera up to your eye — the viewfinder frame appears."},
+    {ico:'<span class="kc"><kbd>P</kbd></span>', s:"Raise the camera", b:"Press P to raise the camera to your eye and you'll see the viewfinder."},
     {ico:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="12" width="38" height="28" rx="3"/><path d="M5 21.3h38M5 30.6h38M17.6 12v28M30.3 12v28"/></svg>', s:"Frame and shoot", b:"Aim, then click or press Enter to take the shot. Press G to cycle composition guides like the rule of thirds."},
     {ico:'<span class="kc"><kbd style="min-width:72px">Space</kbd></span>', s:"Flip the camera", b:"Press Space to flip to the camera back. Click or drag shutter, aperture and ISO and watch the meter. Press B for the camera bag to change body or lens."},
     {ico:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="9" width="24" height="18" rx="2"/><rect x="17" y="20" width="25" height="17" rx="2"/></svg>', s:"Make something", b:"Your photos save automatically. Open Photo studio from the hub to build a folio, a photobook or a gallery show."}
@@ -867,7 +867,7 @@
     var W=pad*2+cols*cellW+(cols-1)*gap, H=headH+rows*(thumbH+capH+gap)-gap+pad;
     var cv=document.createElement("canvas"); cv.width=W; cv.height=H; var c=cv.getContext("2d");
     c.fillStyle="#14161c"; c.fillRect(0,0,W,H);
-    c.fillStyle="#eef1f6"; c.font="700 30px system-ui,sans-serif"; c.fillText("Splat Explorer — contact sheet", pad, 50);
+    c.fillStyle="#eef1f6"; c.font="700 30px system-ui,sans-serif"; c.fillText("Studium contact sheet", pad, 50);
     c.fillStyle="#9aa3b2"; c.font="500 17px system-ui,sans-serif";
     c.fillText((studentName?studentName+"   ·   ":"")+new Date().toLocaleDateString()+"   ·   "+photos.length+" photo"+(photos.length>1?"s":""), pad, 78);
     var loaded=0, imgs=[];
@@ -1099,12 +1099,12 @@
   if($("btnMenuHub")) $("btnMenuHub").onclick=function(){ hide(menu); showHub(); };
   Array.prototype.forEach.call(document.querySelectorAll("[data-hub]"),function(b){ b.onclick=showHub; });
   if($("stEdit")) $("stEdit").onclick=function(){ suiteFrom="studio"; hubHide("studio"); openGallery(); };
-  if($("stFolio")) $("stFolio").onclick=function(){ if(!anyPhotos()){ toast("Add photos first — Upload below, or shoot in the Splat viewer."); return; } suiteFrom="studio"; hubHide("studio"); openFolio(); };
-  if($("stBook")) $("stBook").onclick=function(){ if(!anyPhotos()){ toast("Add photos first — Upload below, or shoot in the Splat viewer."); return; } suiteFrom="studio"; hubHide("studio"); openPhotobook(); };
-  if($("stGallery")) $("stGallery").onclick=function(){ if(!anyPhotos()){ toast("Add photos first — Upload below, or shoot in the Splat viewer."); return; } suiteFrom="studio"; hubHide("studio"); openGalleryShow(); };
+  if($("stFolio")) $("stFolio").onclick=function(){ if(!anyPhotos()){ toast("Add some photos first. Upload them below or take some in a location."); return; } suiteFrom="studio"; hubHide("studio"); openFolio(); };
+  if($("stBook")) $("stBook").onclick=function(){ if(!anyPhotos()){ toast("Add some photos first. Upload them below or take some in a location."); return; } suiteFrom="studio"; hubHide("studio"); openPhotobook(); };
+  if($("stGallery")) $("stGallery").onclick=function(){ if(!anyPhotos()){ toast("Add some photos first. Upload them below or take some in a location."); return; } suiteFrom="studio"; hubHide("studio"); openGalleryShow(); };
   if($("stUpload")) $("stUpload").onclick=function(){ if($("stFile")) $("stFile").click(); };
   if($("stFile")) $("stFile").onchange=function(){ var self=this; importPhotoFiles(self.files,function(n){ if(n) toast(n+" photo"+(n>1?"s":"")+" added"); studioSync(); saveSession(); }); self.value=""; };
-  if($("stClear")) $("stClear").onclick=function(){ if(!photos.length){ toast("Nothing to clear yet."); return; } if(confirm("Start fresh? This clears the photos and layouts saved on this computer. This can't be undone.")){ clearSession(); studioSync(); foBuildTray&&foBuildTray(); toast("Cleared — fresh start."); } };
+  if($("stClear")) $("stClear").onclick=function(){ if(!photos.length){ toast("Nothing to clear yet."); return; } if(confirm("Start fresh? This clears the photos and layouts saved on this computer. This can't be undone.")){ clearSession(); studioSync(); foBuildTray&&foBuildTray(); toast("Everything's cleared."); } };
   if($("tutNext")) $("tutNext").onclick=function(){ if(tutI>=TUT.length-1) endTutorial(); else { tutI++; renderTut(); } };
   if($("tutBack")) $("tutBack").onclick=function(){ if(tutI>0){ tutI--; renderTut(); } };
   if($("tutSkip")) $("tutSkip").onclick=endTutorial;
@@ -1243,7 +1243,7 @@
   // ---------- Folio board: magnetic masonry, click-to-resize, drag-to-reorder ----------
   var foItems=[], foBW=0, foBH=0, foDrag=null, foDragging=false, foCols=3, foFill=1;
   var FO_SIZES=["S","M","L","XL"];
-  function openFolio(){ if(!anyPhotos()){ toast("Take some photos first — press P, then click to shoot."); return; }
+  function openFolio(){ if(!anyPhotos()){ toast("Take some photos first. Press P, then click to shoot."); return; }
     openOverlayOnly($("folio")); foBuildTray();
     requestAnimationFrame(function(){ foSizeBoard(); if(!foItems.length) foSeed(); foPack(false); }); }
   function foSizeBoard(){ var st=$("folio").querySelector(".outstage"); var mw=Math.max(160,st.clientWidth-48), mh=Math.max(160,st.clientHeight-48), A=1/1.41421;
@@ -1492,7 +1492,7 @@
   if($("pbNext")) $("pbNext").onclick=function(){ pbFlip(1); };
   if($("pbAdd")) $("pbAdd").onclick=pbAddSpread;
   if($("pbUpload")) $("pbUpload").onclick=function(){ if($("pbFile")) $("pbFile").click(); };
-  if($("pbFile")) $("pbFile").onchange=function(){ var self=this; importPhotoFiles(self.files,function(n){ if(!n){ toast("No images added."); return; } pbBuildTray(); toast(n+" photo"+(n>1?"s":"")+" added — click one to place it"); saveSession(); }); self.value=""; };
+  if($("pbFile")) $("pbFile").onchange=function(){ var self=this; importPhotoFiles(self.files,function(n){ if(!n){ toast("No images added."); return; } pbBuildTray(); toast(n+" photo"+(n>1?"s":"")+" added. Click one to place it."); saveSession(); }); self.value=""; };
   if($("pbDownload")) $("pbDownload").onclick=pbExportPDF;
   if($("gxBack")) $("gxBack").onclick=function(){ hide($("galleryshow")); studioReturn(); };
   window.addEventListener("resize",function(){ var f=$("folio"); if(f&&!f.classList.contains("hidden")){ foSizeBoard(); foPack(false); } var pb=$("photobook"); if(pb&&!pb.classList.contains("hidden")) pbRender(); var g=$("galleryshow"); if(g&&!g.classList.contains("hidden")) gxRender(); });

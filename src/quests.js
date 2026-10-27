@@ -27,10 +27,10 @@
   // ---- Term 1: in the splats ----
   var QUEST_SETS={ term1:{ name:"Term 1 · In the splats", checkpoints:[{id:"cp1", name:"Ready", week:3}, {id:"cp2", name:"Underway", week:6}, {id:"cp3", name:"Term's end", week:10}], quests:[
     // foundations: each unlocks the next
-    {id:"f1", type:"foundation", order:1, checkpoint:"cp1", pillar:"craft", title:"Step inside", blurb:"Learn to move, shoot and set the camera, then take three gold-frame shots.", go:"scene",
+    {id:"f1", type:"foundation", order:1, checkpoint:"cp1", pillar:"craft", title:"Getting started", blurb:"Learn to move, shoot and set the camera, then take three gold-frame shots.", go:"scene",
      steps:[{t:"Do the warm-up", tour:"basics", go:"scene", check:function(){ return qTour("basics"); }},
        {t:"Complete 3 gold frames", go:"scene", check:function(){ return qChDone()>=3; }, now:function(){ return qCount(qChDone(),3); }}]},
-    {id:"f2", type:"foundation", order:2, checkpoint:"cp1", pillar:"craft", title:"Shoot it your way", blurb:"Fifteen frames of your own, using every lens and pushing every setting.", go:"scene",
+    {id:"f2", type:"foundation", order:2, checkpoint:"cp1", pillar:"craft", title:"Shoot it your way", blurb:"Take fifteen frames of your own, trying all four lenses and changing your settings a lot.", go:"scene",
      steps:[{t:"Take 15 photos", check:function(q){ return qPhotosSince(q).length>=15; }, now:function(q){ return qCount(qPhotosSince(q).length,15); }},
        {t:"Use all four lenses", check:function(q){ return qLensesUsed(q)>=4; }, now:function(q){ return qCount(qLensesUsed(q),4); }},
        {t:"At least 3 apertures", check:function(q){ return qDistinct(qPhotosSince(q),"f")>=3; }, now:function(q){ return qCount(qDistinct(qPhotosSince(q),"f"),3); }},
@@ -56,12 +56,12 @@
     {id:"m2", type:"main", checkpoint:"cp2", pillar:"craft", title:"Composition set", blurb:"Three frames on every composition brief, then a contact sheet.", go:"scene", page:"contact",
      steps:[{t:"3 frames on each of the 8 briefs", go:"scene", check:function(){ return qBriefs()>=BRIEFS.length; }, now:function(){ return qCount(qBriefs(),BRIEFS.length); }},
        {t:"Make a Contact sheet page", go:"workshop", check:function(){ return qPages("contact").length>=1; }}]},
-    {id:"m3", type:"main", checkpoint:"cp2", pillar:"environment", title:"Bring the light", blurb:"One place at day, golden hour and night, then light it yourself.", go:"scene", page:"experiment",
+    {id:"m3", type:"main", checkpoint:"cp2", pillar:"environment", title:"Lighting", blurb:"One place at day, golden hour and night, then light it yourself.", go:"scene", page:"experiment",
      steps:[{t:"Open the lighting rig", tour:"lightrig", go:"scene", check:function(){ return qTour("lightrig")||qTour("lighting")||!!Q.flags.rlOpened; }},
        {t:"3 frames each at day, golden hour and night", go:"scene", check:function(q){ return qTimes(q)>=3; }, now:function(q){ return qCount(qTimes(q),3)+" times"; }},
        {t:"A night frame with 2 or more of your lights", go:"scene", check:function(q){ return qPhotosSince(q).some(function(p){ return qTime(p)==="night"&&qLightsOn(p)>=2; }); }},
        {t:"Make an Experiment page", go:"workshop", check:function(){ return qPages("experiment").length>=1; }}]},
-    {id:"m4", type:"main", checkpoint:"cp2", pillar:"context", title:"Two photographers", blurb:"Two more photographers, looked at closely, on artist model pages.", go:"research", page:"artist",
+    {id:"m4", type:"main", checkpoint:"cp2", pillar:"context", title:"Two photographers", blurb:"Look closely at two more photographers and make artist model pages.", go:"research", page:"artist",
      steps:[{t:"Culling Game on 3 packs in all", go:"research", check:function(){ return qPacks("cull").length>=3; }, now:function(){ return qCount(qPacks("cull").length,3); }},
        {t:"3 Artist model pages in all", go:"research", check:function(){ return qPages("artist").length>=3; }, now:function(){ return qCount(qPages("artist").length,3); }}]},
     // main quests, due at checkpoint 3
@@ -71,19 +71,19 @@
     {id:"m6", type:"main", checkpoint:"cp3", pillar:"drive", title:"Find your theme", blurb:"Say why your picks work, then plan what comes next.", go:"select", page:"next",
      steps:[{t:"A why note on 10 picks", go:"select", check:function(){ return qNoted()>=10; }, now:function(){ return qCount(qNoted(),10); }},
        {t:"Make a What's next page", go:"workshop", check:function(){ return qPages("next").length>=1; }}]},
-    {id:"m7", type:"main", checkpoint:"cp3", pillar:"craft", pillars:["craft","environment"], title:"Three series", blurb:"Three places, six strong frames from each, edited as sets.", go:"scene", page:"edit",
+    {id:"m7", type:"main", checkpoint:"cp3", pillar:"craft", pillars:["craft","environment"], title:"Three series", blurb:"Pick six good frames from each of three places and edit each set together.", go:"scene", page:"edit",
      locked:function(){ return (window.SPLAT_SCENES||[]).length<3?"Needs more locations":""; },
      steps:[{t:"6 picks from each of 3 places", go:"select", check:function(){ return qSeries().length>=3; }, now:function(){ return qCount(qSeries().length,3); }},
        {t:"Edit every one of those picks", go:"edit", check:function(){ return qSeries().filter(function(pl){ return qPicks().filter(function(p){ return p.place===pl; }).every(function(p){ return p.edited; }); }).length>=3; }},
        {t:"Make a Before & after page", go:"workshop", check:function(){ return qPages("edit").length>=1; }}]},
-    {id:"m10", type:"main", checkpoint:"cp3", pillar:"drive", title:"Pairs and sequences", blurb:"Live with your frames on the light table: pair them, build series on the wall, string the ideas together, and keep the board in your workbook.", go:"table", page:"sequence", try:true,
+    {id:"m10", type:"main", checkpoint:"cp3", pillar:"drive", title:"Pairs and sequences", blurb:"Put your frames on the light table, pair them up, string two series together on the wall and save two sequence boards to your workbook.", go:"table", page:"sequence", try:true,
      steps:[{t:"Take the light table tour", tour:"lighttable", go:"table", check:function(){ return qTour("lighttable"); }},
        {t:"String two series together on the wall", go:"table", check:function(){ return !!Q.flags.ltString; }},
        {t:"2 sequence boards in your workbook", go:"table", check:function(){ return qPages("sequence").length>=2; }, now:function(){ return qCount(qPages("sequence").length,2); }}]},
-    {id:"m8", type:"main", checkpoint:"cp3", pillar:"all", title:"The folio", blurb:"All three A1 panels filled, and each arrangement tried.", go:"folio",
+    {id:"m8", type:"main", checkpoint:"cp3", pillar:"all", title:"The folio", blurb:"Fill all three A1 panels and try different layouts on each.", go:"folio",
      steps:[{t:"A photo in all 9 sections", go:"folio", check:function(){ return qFolioSecs()>=9; }, now:function(){ return qCount(qFolioSecs(),9); }},
        {t:"Try 2 arrangements on each panel", go:"folio", check:function(){ return qFolioArr()>=3; }, now:function(){ return qCount(qFolioArr(),3)+" panels"; }}]},
-    {id:"m9", type:"main", checkpoint:"cp3", pillar:"all", title:"Show it", blurb:"Your work as a book, and hung as a show.", go:"book",
+    {id:"m9", type:"main", checkpoint:"cp3", pillar:"all", title:"Show it", blurb:"Make a book of your work and hang a show.", go:"book",
      steps:[{t:"A book: cover and 6 spreads", go:"book", check:function(){ return qBookSpreads()>=6&&qBookCover(); }, now:function(){ return qCount(qBookSpreads(),6)+" spreads"; }},
        {t:"Export the book as a PDF", go:"book", check:function(){ return !!Q.flags.bookPdf; }},
        {t:"Hang 8 or more prints in the gallery", go:"gallery", check:function(){ return qPrints()>=8; }, now:function(){ return qCount(qPrints(),8); }},
@@ -92,8 +92,8 @@
   // ---- the demo: about 30 minutes for someone who's never seen Studium. Three foundations, then all four board quests, in any order. ----
   function qFolioTop(){ var b=typeof st!=="undefined"&&st.foBoard; if(!b||!b.pages) return 0; var n=0; b.pages.forEach(function(pg){ (pg.items||[]).forEach(function(it){ if(it.t==="photo"&&it.sec==="0.0"&&!it.hidden) n++; }); }); return n; }
   /* the board is rows of three: a row opens once the row above it is done. Row 1 keeps its order (each foundation unlocks the next). */
-  QUEST_SETS.demo={ name:"Demo", checkpoints:[], sampleCp:true, finish:7, rows:[{n:"Start here", ids:["d1","d2","d3"]}, {n:"Then choose", ids:["d6","d5","d4"]}, {n:"Make it yours", ids:["d7","d10","d8","d9"]}], quests:[
-    {id:"d1", type:"foundation", order:1, pillar:"craft", mins:8, title:"Step inside", blurb:"Learn to move, shoot and set the camera, then take the three gold-frame shots.", go:"scene",
+  QUEST_SETS.demo={ name:"Demo", checkpoints:[], sampleCp:true, finish:7, rows:[{n:"Start here", ids:["d1","d2","d3"]}, {n:"Then choose", ids:["d6","d5","d4"]}, {n:"Your own work", ids:["d7","d10","d8","d9"]}], quests:[
+    {id:"d1", type:"foundation", order:1, pillar:"craft", mins:8, title:"Getting started", blurb:"Learn to move, shoot and set the camera, then take the three gold-frame shots.", go:"scene",
      steps:[{t:"Do the warm-up", tour:"basics", go:"scene", check:function(){ return qTour("basics"); }},
        {t:"Complete the 3 gold frames", go:"scene", check:function(){ return qChDone()>=3; }, now:function(){ return qCount(qChDone(),3); }}]},
     {id:"d2", type:"foundation", order:2, pillar:"craft", mins:4, title:"Shoot it your way", blurb:"Swap to another camera from the bag, then take at least five frames of your own.", go:"scene",
@@ -104,7 +104,7 @@
        {t:"Pick 5 frames", go:"select", check:function(){ return qPicks().length>=5; }, now:function(){ return qCount(qPicks().length,5); }},
        {t:"Edit one with the tour", tour:"edit", go:"edit", check:function(){ return qTour("edit"); }},
        {t:"Copy the look onto one more", go:"edit", check:function(){ return !!(Q.flags.synced||Q.flags.pasted); }}]},
-    {id:"d4", type:"main", pillar:"environment", mins:6, title:"Bring the light", blurb:"Light the stump yourself with a key and a fill, then catch it at golden hour.", go:"scene", page:null,
+    {id:"d4", type:"main", pillar:"environment", mins:6, title:"Lighting", blurb:"Light the stump yourself with a key and a fill, then catch it at golden hour.", go:"scene", page:null,
      steps:[{t:"Set up a key and a fill with the lighting tour", tour:"lightrig", go:"scene", check:function(){ return qTour("lightrig")||qTour("lighting"); }},
        {t:"A night frame with both your lights on", go:"scene", check:function(q){ return qPhotosSince(q).some(function(p){ return qTime(p)==="night"&&qLightsOn(p)>=2; }); }},
        {t:"A frame at golden hour", tour:"golden", go:"scene", check:function(q){ return qPhotosSince(q).some(function(p){ return qTime(p)==="golden"; }); }}]},
@@ -124,7 +124,7 @@
     {id:"d8", type:"main", pillar:"all", mins:4, title:"Hang a show", blurb:"Choose prints for the gallery wall, lay them out, and give the show a title.", go:"gallery",
      steps:[{t:"Take the gallery tour", tour:"gallery", go:"gallery", check:function(){ return qTour("gallery"); }},
        {t:"Hang 3 prints on the wall", go:"gallery", check:function(){ return qPrints()>=3; }, now:function(){ return qCount(qPrints(),3); }}]},
-    {id:"d9", type:"main", pillar:"drive", mins:2, title:"Your own project", blurb:"Make a folder of your own in the Library. That's where the rest of your term begins.", go:"select", last:true,
+    {id:"d9", type:"main", pillar:"drive", mins:2, title:"Your own project", blurb:"Make a folder of your own in the Library. You'll use it for the rest of the term.", go:"select", last:true,
      locked:function(){ var o=qAll().filter(function(x){ return x.type==="main"&&x.id!=="d9"&&!qIsDone(x.id); }); return o.length?"Finish the other quests first":""; },
      steps:[{t:"Make your own folder", tour:"library", go:"select", check:function(){ return ((typeof st!=="undefined"&&st.projects)||[]).length>=1; }}]}
   ]};

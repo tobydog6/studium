@@ -870,8 +870,8 @@ body[data-state="viewfinder"] #hud,body[data-state="viewfinder"] #shotTip{visibi
 #bag .bg-head.want .sub{color:var(--accent)}
 #bag .bg-card.want{border:1px solid rgba(var(--gold-rgb),.75);background:rgba(var(--gold-rgb),.05);animation:bgWant 1.8s ease-in-out infinite}
 @keyframes bgWant{0%,100%{box-shadow:0 0 0 0 rgba(var(--gold-rgb),0)}50%{box-shadow:0 0 0 5px rgba(var(--gold-rgb),.2)}}
-#bag .bg-card.want::after,#bag .bg-card.want-ok::after{content:"THE FRAME WANTS THIS";position:absolute;right:8px;top:8px;padding:3px 7px;border-radius:999px;font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;color:var(--accent-ink);background:var(--accent)}
-#bag .bg-card.want-ok::after{content:"✓ THE FRAME'S BODY"}
+#bag .bg-card.want::after,#bag .bg-card.want-ok::after{content:"NEEDED FOR THIS SHOT";position:absolute;right:8px;top:8px;padding:3px 7px;border-radius:999px;font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;color:var(--accent-ink);background:var(--accent)}
+#bag .bg-card.want-ok::after{content:"✓ RIGHT CAMERA"}
 #bag .bg-card{position:relative}
 #bag .bg-card.dim:not(.on):not(.off){opacity:.55}
 #bag .lensbtn.want{border-color:var(--accent);background:rgba(var(--gold-rgb),.1)}

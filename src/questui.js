@@ -86,7 +86,7 @@
       html='<div class="hd"><span class="k">'+(qDemo()?'<em class="q-tm">'+qTook()+'</em>':'')+qEsc(x.title.toUpperCase())+'</span><span class="fr">'+d+' / '+st0.length+'</span><button data-q="how" title="Show me how">?</button><button class="q-logb" data-q="log" title="All your quests">QUESTS</button></div>'
         +'<div class="q-sub">'+(x.type==="foundation"?'<span>FOUNDATION '+x.order+' OF '+qFoundations().length+'</span>':'')+qPillarChip(x)+(x.type==="main"?'<span>'+qEsc(qCpLine(x))+'</span>':'')+'</div>'
         +st0.map(function(c){ return '<div class="ck'+(c.ok?' ok':'')+'"><i>'+(c.ok?'✓':'')+'</i><span>'+qEsc(c.t)+'</span>'+(c.now?'<em>'+qEsc(c.now)+'</em>':'')+'</div>'; }).join("")
-        +(how?'<button class="q-how" data-q="how">Show me how: '+qEsc(Q_TOUR_NAMES[nx.tour]||nx.tour)+' ›</button>':'')
+        +(how?'<button class="q-how" data-q="how">Show me '+qEsc(Q_TOUR_NAMES[nx.tour]||nx.tour)+' ›</button>':'')
         +(late?'<button class="q-skipst" data-q="skipstep">Skip this step ›</button>':'')
         +'<div class="bar"><b style="width:'+(d/st0.length*100).toFixed(0)+'%"></b></div>'; }
     if(el._html!==html){ el.innerHTML=html; el._html=html; }
@@ -106,17 +106,17 @@
     if(typeof looking!=="undefined"&&looking){ try{ document.exitPointerLock(); }catch(e){} }
     var el=gdEl("qDone","gd-pop q-pop"), h;
     if(false){
-      h='<div class="gd-card q-donecard big"><span class="k">FOUNDATIONS DONE</span><b class="t">Your board is open</b><p>From here, you choose the order, one at a time. Your own project comes last. In class, each one counts toward a checkpoint your teacher sets.</p>'
+      h='<div class="gd-card q-donecard big"><span class="k">FOUNDATIONS DONE</span><b class="t">Your board is open</b><p>From here, you choose the order, one at a time. Your own project comes last. In class, each one counts towards a checkpoint your teacher sets.</p>'
         +'<div class="q-cps">'+qAll().filter(function(x){ return x.type==="main"; }).map(function(x){ return '<span><b>'+qEsc(x.title)+'</b>'+qPillarChip(x)+'</span>'; }).join("")+'</div>'
         +'<div class="gd-acts"><button class="gd-skip" data-q="closedone">Later</button><button class="gd-go" data-q="next">CHOOSE YOUR FIRST ›</button></div></div>'; }
     else if(m.kind==="finish"){ h=qFinishCard(); }
     else if(m.kind==="board"){ var cps=qCheckpoints();
-      h='<div class="gd-card q-donecard big"><span class="k">FOUNDATIONS DONE</span><b class="t">Your board is open</b><p>From here, you choose. Main quests count toward your checkpoints, and you can switch between them any time.</p>'
+      h='<div class="gd-card q-donecard big"><span class="k">FOUNDATIONS DONE</span><b class="t">Your board is open</b><p>Now you can do the quests in any order. Main quests count towards your checkpoints, and you can switch between them any time.</p>'
         +'<div class="q-cps">'+cps.map(function(c){ return '<span><b>Checkpoint '+c.id.slice(2)+'</b>'+qEsc(c.name)+' · '+qDateNice(c.date)+'</span>'; }).join("")+'</div>'
         +'<div class="gd-acts"><button class="gd-skip" data-q="closedone">Later</button><button class="gd-go" data-q="next">CHOOSE YOUR FOCUS ›</button></div></div>'; }
     else { var x=qGet(m.id), F=qFoundations(), fd=F.filter(function(f){ return qIsDone(f.id); }).length;
       h='<div class="gd-card q-donecard"><span class="k">QUEST COMPLETE</span><b class="t">'+qEsc(x.title)+'</b><div class="q-pils">'+qPillarChip(x)+'</div>'
-        +'<p>'+(x.page?'You made: '+qEsc(Q_PAGE_NAMES[x.page]||x.page)+'. ':'')+(x.type==="foundation"?'Foundation '+fd+' of '+F.length+' done.':qSet().finish?'That\'s '+qAll().filter(function(y){ return y.type==="main"&&qIsDone(y.id); }).length+' of '+qSet().finish+' for the demo.':'One more toward '+qEsc(qCpLine(x)||"your board")+'.')+'</p>'
+        +'<p>'+(x.page?'You made: '+qEsc(Q_PAGE_NAMES[x.page]||x.page)+'. ':'')+(x.type==="foundation"?'Foundation '+fd+' of '+F.length+' done.':qSet().finish?'That\'s '+qAll().filter(function(y){ return y.type==="main"&&qIsDone(y.id); }).length+' of '+qSet().finish+' for the demo.':'One more towards '+qEsc(qCpLine(x)||"your board")+'.')+'</p>'
         +(function(){ var nf=x.type==="foundation"&&F.filter(function(f){ return !qIsDone(f.id); })[0];   /* the next foundation is one click away, no picker */
             var ri=qSet().rows?qRowOf(x.id):-1, opened=ri>=0&&qRowDone(ri)&&qRows()[ri+1];
             return nf?'<div class="gd-acts"><button class="gd-skip" data-q="closedone">Keep going here</button><button class="gd-go" data-q-pick="'+nf.id+'">NEXT: '+qEsc(nf.title.toUpperCase())+' ›</button></div></div>'
@@ -183,7 +183,7 @@
     else if(kind==="folio"){ var pw3=(W-56)/3, ph3=pw3*1.41, py3=(H-ph3)/2; for(i=0;i<3;i++){ g.fillStyle="#f4f1ea"; g.fillRect(16+i*(pw3+12),py3,pw3,ph3); }
       var cells=[[0,0,.55,.4],[.58,0,.42,.26],[.58,.29,.42,.11],[0,.43,.3,.28],[.33,.43,.67,.28],[0,.74,1,.26]]; for(i=0;i<6;i++){ var c=cells[i], a=qcS(u,.1+i*.12,.2+i*.12); if(a<=0) continue; var cx3=16+4+c[0]*(pw3-8), cy3=py3+4+c[1]*(ph3-8), cw3=c[2]*(pw3-8)-2, ch3=c[3]*(ph3-8)-2; g.save(); g.globalAlpha=a; g.translate(cx3+cw3/2,cy3+ch3/2); g.scale(qcL(.85,1,a),qcL(.85,1,a)); qcImg(g,-cw3/2,-ch3/2,cw3,ch3,"brightness("+(0.7+0.12*i)+")"); g.restore(); }
       if(u<.84){ var ci=Math.min(5,Math.floor((u-.05)/.12)), cc=cells[Math.max(0,ci)]; qcCur(g,16+4+cc[0]*(pw3-8)+cc[2]*(pw3-8)/2,py3+4+cc[1]*(ph3-8)+cc[3]*(ph3-8)/2); }
-      qcTag(g,"FILL A THIRD · EDGE TO EDGE"); }
+      qcTag(g,"FILL THE FIRST PANEL"); }
     else if(kind==="book"){ var bw=W*0.78, bh=bw*0.5, bx=(W-bw)/2, by=(H-bh)/2; g.fillStyle="#f4f1ea"; g.fillRect(bx,by,bw,bh); g.fillStyle="rgba(0,0,0,.18)"; g.fillRect(bx+bw/2-1,by,2,bh);
       qcImg(g,bx+14,by+14,bw/2-28,bh-28,"brightness(.8)"); k=qcS(u,.3,.72); var fx=Math.cos(k*Math.PI);
       if(fx>0){ qcImg(g,bx+bw/2+14,by+14,bw/2-28,bh-28,"brightness(1.05)"); g.save(); g.translate(bx+bw/2,0); g.scale(fx,1); g.fillStyle="#f4f1ea"; g.fillRect(0,by,bw/2,bh); qcImg(g,14,by+14,bw/2-28,bh-28,"brightness(1.05)"); g.fillStyle="rgba(0,0,0,"+(0.25*(1-fx))+")"; g.fillRect(0,by,bw/2,bh); g.restore(); }
@@ -192,7 +192,7 @@
     else if(kind==="gallery"){ g.fillStyle="#e9e4da"; g.fillRect(0,0,W,H*0.78); g.fillStyle="#6e5a40"; g.fillRect(0,H*0.78,W,H*0.22); var fw=W*0.22, fh=fw*0.67, fy=H*0.3;
       var sp=g.createRadialGradient(W/2,H*0.1,10,W/2,H*0.35,W*0.5); sp.addColorStop(0,"rgba(255,235,200,.55)"); sp.addColorStop(1,"rgba(255,235,200,0)"); g.fillStyle=sp; g.fillRect(0,0,W,H*0.78);
       for(i=0;i<3;i++){ var fx2=W*0.14+i*(fw+W*0.08), fy2=fy; if(i===1){ k=qcS(u,.2,.55); fy2=qcL(-fh-20,fy,k); } g.fillStyle="rgba(0,0,0,.22)"; g.fillRect(fx2+4,fy2+6,fw+12,fh+12); g.fillStyle="#17140d"; g.fillRect(fx2-6,fy2-6,fw+12,fh+12); g.fillStyle="#f4f1ea"; g.fillRect(fx2-2,fy2-2,fw+4,fh+4); qcImg(g,fx2,fy2,fw,fh,"brightness("+(0.85+0.1*i)+")"); }
-      g.fillStyle="#17140d"; g.font="500 7px 'Geist Mono',ui-monospace,monospace"; g.fillText("STUMP · 2026",W*0.14,fy+fh+22); qcTag(g,u<.55?"HANG ANOTHER":"SPACE AND SEQUENCE"); }
+      g.fillStyle="#17140d"; g.font="500 7px 'Geist Mono',ui-monospace,monospace"; g.fillText("STUMP · 2026",W*0.14,fy+fh+22); qcTag(g,u<.55?"HANG ANOTHER":"MOVE THE PRINTS AROUND"); }
     else if(kind==="research"){ var aw=(W-36)/2, ah=aw*0.7, ay=(H-ah)/2+8, fa=u>.72&&u<.78?1-qcS(u,.72,.78):u>=.78&&u<.84?qcS(u,.78,.84):1; g.globalAlpha=fa;
       qcImg(g,12,ay,aw,ah,u<.78?"brightness(.95)":"brightness(.8) sepia(.3)"); qcImg(g,24+aw,ay,aw,ah,u<.78?"brightness(.7) saturate(.6)":"brightness(1.05)"); g.globalAlpha=1;
       g.fillStyle="#8d8678"; g.font="500 9px 'Geist Mono',ui-monospace,monospace"; g.fillText("A",12,ay-6); g.fillText("B",24+aw,ay-6);
@@ -204,7 +204,7 @@
       g.strokeStyle="#e3ad57"; g.lineWidth=2; g.beginPath(); g.arc(sx,sy,16,0,Math.PI*2); g.stroke(); g.fillStyle="rgba(227,173,87,.25)"; g.fill();
       g.fillStyle="#f4f1ea"; g.beginPath(); g.moveTo(sx,sy+56); g.lineTo(sx-7,sy+72); g.lineTo(sx+7,sy+72); g.closePath(); g.fill();
       g.fillStyle="#ffe6b4"; g.beginPath(); g.arc(lx,ly,7,0,Math.PI*2); g.fill(); g.strokeStyle="rgba(255,230,180,.5)"; g.setLineDash([3,4]); g.beginPath(); g.moveTo(lx,ly); g.lineTo(sx,sy); g.stroke(); g.setLineDash([]); if(k<1) qcCur(g,lx+6,ly+8);
-      var tw4=W*0.3, th4=tw4*0.67; qcImg(g,W-tw4-10,H-th4-10,tw4,th4,"brightness("+(0.3+0.9*k*on).toFixed(2)+")"); qcFrame(g,W-tw4-10,H-th4-10,tw4,th4,"#f4f1ea"); qcTag(g,u<.15?"MAKE IT NIGHT":u<.5?"DRAG THE LIGHT IN":"SEE IT THROUGH THE LENS"); }
+      var tw4=W*0.3, th4=tw4*0.67; qcImg(g,W-tw4-10,H-th4-10,tw4,th4,"brightness("+(0.3+0.9*k*on).toFixed(2)+")"); qcFrame(g,W-tw4-10,H-th4-10,tw4,th4,"#f4f1ea"); qcTag(g,u<.15?"MAKE IT NIGHT":u<.5?"DRAG THE LIGHT IN":"CHECK IT IN THE CAMERA"); }
     else if(kind==="table"){ g.fillStyle="#efe9dc"; g.fillRect(0,0,W,H); var bx5=W*0.4, by5=H*0.14, bw5=W*0.54, bh5=H*0.72; g.fillStyle="#141210"; g.fillRect(bx5,by5,bw5,bh5);
       var pw5=bw5*0.32, ph5=pw5*0.67, k5a=qcS(u,.06,.28), k5b=qcS(u,.32,.54), x5a=bx5+bw5*0.16, x5b=x5a+pw5+3, y5=by5+bh5/2-ph5/2;
       g.fillStyle="#2a3a30"; g.fillRect(W*0.05,H*0.66,W*0.2,H*0.22); g.fillStyle="#efe9dc"; g.fillRect(W*0.09,H*0.73,W*0.12,H*0.07);
@@ -237,7 +237,7 @@
   function qHubRender(h){ if(!qMode()||qPlanLive()) return; var x=Q.tracked&&qGet(Q.tracked), p=x&&qProgress(x.id);
     var wel=typeof LA!=="undefined"&&LA.welcome&&Date.now()-LA.welcome<20000;
     h.querySelector(".h6-eb").textContent=(wel?"WELCOME TO STUDIUM · ":"")+(x?"YOUR FOCUS":"CHOOSE YOUR FOCUS");
-    h.querySelector(".h6-h").textContent=(x?x.title:"What's your focus today?")+(x?".":"");
+    h.querySelector(".h6-h").textContent=(x?x.title:"What's your focus today?");
     h.querySelector(".h6-words").textContent=x?x.blurb:"Open your quests and pick one. You can switch any time.";
     var cta=h.querySelector(".h6-cta"); cta.innerHTML=(x?"CARRY ON":"YOUR QUESTS")+' <kbd>↵</kbd>';
     h.querySelector(".h6-status").textContent=x?p.done+" OF "+p.of+" STEPS":"";
@@ -306,7 +306,7 @@
     QU.moments=[]; QU.seen={}; QU.hubAsked=false; if(typeof __qu!=="undefined"&&window.__qu) window.__qu.closeAll(); else { qPickClose(); qLogClose(); qDoneClose(); }
     if(typeof CO!=="undefined"&&CO.on) coStop(); if(typeof RL!=="undefined"&&RL.ui) rlClose();
     if(typeof launchStart==="function") launchStart(); else lsGo("shoot"); if(loaded&&typeof chAttach==="function") chAttach(); }
-  function qDemoRestart(){ qPickClose(); qLogClose(); qDoneClose(); qDemoStart(); toast("Fresh demo. Over to the next person."); }
+  function qDemoRestart(){ qPickClose(); qLogClose(); qDoneClose(); qDemoStart(); toast("The demo has restarted for the next person."); }
   /* leaving the demo for a real sign-in: reload so the real session and quests come back exactly as saved */
   var qSetWhoBase=lsSetWho; lsSetWho=function(w){ var was=qDemo(); qSetWhoBase(w); if(was&&!(w&&w.demo)){ wipeWorkspace(); try{ localStorage.setItem(LS_KEY, JSON.stringify(lsDB)); }catch(e){} var u=location.href.replace(/([?&])demo(=[^&#]*)?(&|$)/,function(m,a,b,c){ return c?a:""; }); if(u===location.href) location.reload(); else location.replace(u); } };   /* drop ?demo so it doesn't start again */
   function qSkipStep(){ var id=Q.tracked, s=id&&qState(id); if(!s) return; var st0=qSteps(id); for(var i=0;i<st0.length;i++) if(!st0[i].ok){ s.stepDone[i]=true; s.skipped=(s.skipped||0)+1; break; }
@@ -315,7 +315,7 @@
       ch=qAll().filter(function(x){ return x.type==="main"&&qIsDone(x.id); }).sort(function(a,b){ return qState(a.id).done-qState(b.id).done; });
     var made=[fr+" frame"+(fr===1?"":"s"), pk+" pick"+(pk===1?"":"s"), pg+" workbook page"+(pg===1?"":"s")]; if(qFolioTop()) made.push("a third of a folio panel");
     var ach=typeof achFinishLine==="function"?achFinishLine():"";
-    return '<div class="gd-card q-donecard big q-finish"><span class="k">EVERY QUEST DONE · '+qEsc(qTook().toUpperCase())+'</span><b class="t">That\'s the whole loop</b><p class="q-go">Studium stays open. Keep shooting the Stump, pick and edit more, fill the rest of the folio, hang a bigger show. Everything you learnt today keeps working, and there are more quests to come.</p>'
+    return '<div class="gd-card q-donecard big q-finish"><span class="k">EVERY QUEST DONE · '+qEsc(qTook().toUpperCase())+'</span><b class="t">You\'ve finished the demo</b><p class="q-go">You can keep going. Shoot more of the Stump, edit more of your picks, fill the rest of the folio or hang a bigger show. More quests are coming.</p>'
       +'<div class="q-made">'+made.map(function(m){ return '<span>'+qEsc(m)+'</span>'; }).join("")+'</div>'+ach
       +'<div class="q-rooms"><button class="q-room" data-q-go="scene"><b>Shoot</b><span>More frames, any settings</span></button><button class="q-room" data-q-go="select"><b>Edit</b><span>Your library and the develop room</span></button><button class="q-room" data-q-go="folio"><b>Folio</b><span>Two more thirds to fill</span></button><button class="q-room" data-q-go="gallery"><b>Gallery</b><span>Hang a bigger show</span></button></div>'
       +'<div class="q-fb"><span class="k">THREE QUICK QUESTIONS · OPTIONAL</span>'
@@ -333,7 +333,7 @@
     if(!rec.best&&!rec.stuck&&rec.rate==null){ toast("Nothing to send yet. Skip it if you like."); return; }
     var L=[]; try{ L=JSON.parse(localStorage.getItem(Q_FB_KEY)||"[]"); }catch(e){} L.push(rec); try{ localStorage.setItem(Q_FB_KEY, JSON.stringify(L)); }catch(e){}
     if(typeof Sync!=="undefined"&&Sync.on()) Sync.sendFeedback({body:rec});
-    var f=el.querySelector(".q-fb"); if(f) f.innerHTML='<span class="k">THANK YOU</span><p>That really helps.</p>'; }
+    var f=el.querySelector(".q-fb"); if(f) f.innerHTML='<span class="k">THANK YOU</span><p>Thanks, we have your answers.</p>'; }
   if(qDemo()) READ_MS=Math.min(READ_MS,2000);
   if(window.__q){ window.__q.feedback=function(){ try{ return JSON.parse(localStorage.getItem(Q_FB_KEY)||"[]"); }catch(e){ return []; } };
     window.__q.demo={start:qDemoStart, restart:qDemoRestart, skip:qSkipStep, took:qTook, on:qDemo}; }

@@ -15,7 +15,7 @@
   function edpMixer(){ var el=$("lrMixer"); if(!el) return; var T=MX_TABS.filter(function(t){ return t[0]===mxTab; })[0];
     el.innerHTML='<div class="lr-tabs">'+MX_TABS.map(function(t){ return '<button data-mx="'+t[0]+'"'+(t[0]===mxTab?' class="on"':'')+'>'+t[1]+'</button>'; }).join("")+'</div>'
       +MX_BANDS.map(function(b,i){ return edpRow(T[2]+i,b[0],-100,100,edpTrack(mxTab,b[1])); }).join("")
-      +'<p class="lr-note">'+(mxTab==="h"?'Shift one colour towards its neighbours: turn the greens more yellow, or the blues more aqua.':mxTab==="s"?'Make one colour richer or quieter, leaving the rest alone.':'Brighten or darken one colour. In black and white this is how much each colour lightens its grey.')+'</p>';
+      +'<p class="lr-note">'+(mxTab==="h"?'Shift one colour towards its neighbours: turn the greens more yellow, or the blues more aqua.':mxTab==="s"?'Make one colour stronger or weaker and leave the rest alone.':'Brighten or darken one colour. In black and white, this sets how light or dark each colour turns out.')+'</p>';
     edpSync(); }
   // a colour wheel: hue round it, saturation out from the middle
   function edpWheel(w,size,noLum){ var k=w[2];

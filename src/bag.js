@@ -17,19 +17,19 @@
   // lens kits per system; hot = the lens's hit area on the 840 x 560 hero, measured off each render
   var LENS_KITS={
     "35":[
-      {id:"2470", label:"24–70", long:"24–70 mm f/2.8", kind:"ZOOM", mm:50, zoom:[24,28,35,50,70], hot:[336,170,425,349], note:"The everyday zoom. Wide for places, longer for people, without changing lens. In the viewfinder, scroll to zoom."},
-      {id:"50", label:"50", long:"50 mm f/1.8", kind:"NORMAL", mm:50, hot:[335,170,327,297], note:"50 mm sees roughly what your eye does. Small, light and sharp."},
+      {id:"2470", label:"24–70", long:"24–70 mm f/2.8", kind:"ZOOM", mm:50, zoom:[24,28,35,50,70], hot:[336,170,425,349], note:"A zoom for most situations. Go wide for places and longer for people, without changing lens. In the viewfinder, scroll to zoom."},
+      {id:"50", label:"50", long:"50 mm f/1.8", kind:"NORMAL", mm:50, hot:[335,170,327,297], note:"50 mm sees roughly what your eye does. It's small and light and gives sharp photos."},
       {id:"85", label:"85", long:"85 mm f/1.4", kind:"PORTRAIT", mm:85, hot:[336,169,424,350], note:"85 mm pulls backgrounds closer and softer. Good for picking out one thing."},
       {id:"135", label:"135", long:"135 mm f/2", kind:"TELE", mm:135, hot:[335,165,498,388], note:"135 mm isolates details from far away. Hold it steady."}],
     "67":[
-      {id:"105", label:"105", long:"105 mm f/2.4", kind:"NORMAL", mm:105, hot:[341,202,358,308], note:"The classic medium-format normal lens. On this huge negative it sees about what a 50 mm does on full frame."},
-      {id:"55", label:"55", long:"55 mm f/4", kind:"WIDE", mm:55, hot:[342,202,364,318], note:"The 6×7 wide. Frames like a 27 mm on full frame: big skies, big rooms, big landscapes."},
-      {id:"165", label:"165", long:"165 mm f/2.8", kind:"PORTRAIT", mm:165, hot:[341,201,469,345], note:"Frames like an 80 mm on full frame. The classic medium-format portrait lens."}]
+      {id:"105", label:"105", long:"105 mm f/2.4", kind:"NORMAL", mm:105, hot:[341,202,358,308], note:"The standard medium-format normal lens. On this huge negative it sees about what a 50 mm does on full frame."},
+      {id:"55", label:"55", long:"55 mm f/4", kind:"WIDE", mm:55, hot:[342,202,364,318], note:"The 6×7 wide. Frames like a 27 mm on full frame. Good for wide landscapes and big spaces."},
+      {id:"165", label:"165", long:"165 mm f/2.8", kind:"PORTRAIT", mm:165, hot:[341,201,469,345], note:"Frames like an 80 mm on full frame. A medium-format portrait lens."}]
   };
   var BAG_BODIES=[
     {id:"dslr", card:"Full-frame DSLR", fmt:"36×24 · OPTICAL", spec:"36 × 24 MM SENSOR · OPTICAL VIEWFINDER", note:"The camera in your school kit. You look through a mirror, not a screen, so the viewfinder will not show you the exposure. Read the meter before you shoot."},
     {id:"ml", card:"APS-C mirrorless", fmt:"1.6× CROP · ELECTRONIC", spec:"22.3 × 14.9 MM SENSOR · 1.6× CROP · ELECTRONIC VIEWFINDER", note:"Like your school mirrorless. No mirror, so the viewfinder shows the exposure before you shoot. The smaller sensor crops every lens tighter: a 50 mm frames like an 80 mm."},
-    {id:"67", card:"6×7 film SLR", fmt:"0.49× CROP · 120 FILM", spec:"56 × 70 MM NEGATIVE · 0.49× CROP · 10 SHOTS A ROLL", note:"Medium-format film. The huge negative frames every lens wider: the 105 mm here sees about what a 50 mm does on full frame. Ten shots a roll, so make each one count."},
+    {id:"67", card:"6×7 film SLR", fmt:"0.49× CROP · 120 FILM", spec:"56 × 70 MM NEGATIVE · 0.49× CROP · 10 SHOTS A ROLL", note:"Medium-format film. The huge negative frames every lens wider: the 105 mm here sees about what a 50 mm does on full frame. You only get ten shots a roll, so think before each one."},
     {id:"", card:"35 mm SLR", fmt:"135 FILM · 36 EXP"},
     {id:"", card:"Waist-level 6×7", fmt:"120 FILM · MIRRORED"},
     {id:"", card:"4×5 view camera", fmt:"SHEET FILM · 1 EXP"}];
@@ -65,7 +65,7 @@
     E.right=el("div","bg-right",null,'<span class="lbl">BODIES</span><div class="grid"></div><span class="lbl" style="margin-top:14px">LENS</span>'
       +'<button class="lensbtn" data-bg="lens"><span class="th"><img alt=""></span><span class="tx"><span class="nm"></span><span class="kd"></span></span><span class="ch">CHANGE <svg width="8" height="12" viewBox="0 0 8 12" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M1.5 1l5 5-5 5"/></svg></span></button><p class="lnote"></p>');
     var grid=E.right.querySelector(".grid"); E.cards=[];
-    BAG_BODIES.forEach(function(b){ var c=el("button","bg-card"+(b.id?"":" off"),grid,'<span class="im">'+(b.id?'<img alt="" src="'+BAG_A("body-"+b.id)+'">':'<span class="tc">[ RENDER TO COME ]</span>')+'</span><span class="nm">'+b.card+'</span><span class="fm">'+b.fmt+'</span>');
+    BAG_BODIES.forEach(function(b){ var c=el("button","bg-card"+(b.id?"":" off"),grid,'<span class="im">'+(b.id?'<img alt="" src="'+BAG_A("body-"+b.id)+'">':'<span class="tc">Coming soon</span>')+'</span><span class="nm">'+b.card+'</span><span class="fm">'+b.fmt+'</span>');
       c.setAttribute("data-bg-body",b.id); c.setAttribute("aria-label","Choose "+b.card); if(!b.id) c.disabled=true; E.cards.push(c); });
     E.tag=el("div","bg-tag",null,'<span class="t"></span><span class="nm"></span><span class="nt"></span>');
     E.tray=el("div","bg-tray");

@@ -22,60 +22,59 @@
   <br><sub><i>The Stump, a real place scanned as Gaussian splats. The gold frames are challenges: walk into one and the shot lines itself up.</i></sub>
 </p>
 
-**Studium is a photography studio that runs in a browser tab.** Students walk through a Gaussian-splat scan of a real place,
-shoot it with a simulated camera that behaves like the real thing (aperture, shutter, ISO, focal length, depth of field,
-handheld shake, crop factor, film grain), then cull, develop, lay out and hang their work. That covers the whole NZ Visual Art
-(Photography) workflow for Years 11–13, all in one HTML file with nothing to install. **Punctum**, its companion critique game,
-lives inside it.
+Studium is a photography studio that runs in a browser tab. Students walk through a Gaussian-splat scan of a real place,
+shoot it with a simulated camera (aperture, shutter, ISO, focal length, depth of field, handheld shake, crop factor,
+film grain), then cull, develop, lay out and hang their work. It follows the NCEA Visual Art (Photography) workflow for
+Years 11–13 and runs from one HTML file. **Punctum**, its companion critique game, lives inside it.
 
 ## Features
 
-- **Real places, not stock photos.** Scenes are Gaussian-splat scans you can walk around, with collision, ground-following
-  and a sky dome built from the scan itself. Three detail levels (Light, Balanced, Full) keep it smooth on school laptops.
-- **A camera that teaches.** Raise the camera (right click or `P`) for a true-FOV viewfinder; the scroll wheel zooms a
-  zoom lens. Flip to the back (`Space`) for shutter, aperture and ISO as sliders you click or drag, the meter, and a
-  Review tab. Stand in a gold frame and its checklist comes onto the back with you. Shutter speed causes real handheld blur, aperture sets real depth of field, and `X` turns
-  the camera vertical.
-- **A camera bag.** Three bodies (full-frame DSLR, APS-C mirrorless at 1.6×, a 6×7 film SLR on a ten-frame roll), each
-  with its own lenses, from a 24–70 zoom to a 165 mm on the 6×7, plus an animated lens swap.
-- **Gold-frame challenges, Skate-style.** Briefs float in the scene as glowing frames, each a different move: *Wide, low
-  and sharp*, *Wide open, fast shutter*, *Film, slow and steady*. Walk into the pulse and it pulls you into position. Then
-  it's up to you to nail the settings; the camera back shows what the frame wants.
-- **Research.** Punctum, rebuilt inside the studio. Artist packs from your Punctum account: the Punctum round (does
+- Scenes are Gaussian-splat scans of real places you can walk around, with collision, ground-following and a sky dome
+  built from the scan itself. Three detail levels (Light, Balanced, Full) keep it smooth on school laptops.
+- The camera: raise it (right click or `P`) for a true-FOV viewfinder, and the scroll wheel zooms a zoom lens. Flip to
+  the back (`Space`) for shutter, aperture and ISO as sliders you click or drag, the meter, and a Review tab. Stand in a
+  gold frame and its checklist comes onto the back with you. Slow shutter speeds blur from hand shake and wide apertures
+  blur the background. `X` turns the camera vertical.
+- The camera bag has three bodies (full-frame DSLR, APS-C mirrorless at 1.6×, a 6×7 film SLR on a ten-frame roll), each
+  with its own lenses, from a 24–70 zoom to a 165 mm on the 6×7, and an animated lens swap.
+- Gold-frame challenges, like the ones in *Skate*. Briefs float in the scene as glowing frames, each asking for something
+  different: *Wide, low and sharp*, *Wide open, fast shutter*, *Film, slow and steady*. Walk into the pulse and it pulls
+  you into position, then you set the exposure yourself. The camera back shows what the frame wants.
+- **Research** is Punctum, rebuilt inside the studio. Artist packs from your Punctum account: the Punctum round (does
   anything prick you? tap the detail, say why) and the Culling Game (two at a time to a top three), with what the class
   thought. Then the library: every photograph from every photographer, a folder each, and six or more of them (from one
   photographer or a mix) become an Artist model page.
-- **Select.** A light table with pick (`P`), reject (`X`), stars, notes on *why this one*, folders, projects and
+- **Select** is a light table with pick (`P`), reject (`X`), stars, notes on *why this one*, folders, projects and
   drag-and-drop import from the computer (EXIF included).
-- **Develop, on a real Camera Raw engine.** A JavaScript port of PhotoCraft's pipeline runs in Web Workers:
-  Highlights/Shadows as a local Laplacian filter, measured Whites/Blacks curves, Dehaze, Clarity, Texture, an HSL **Color
-  Mixer** and 3-way **Color Grading** wheels, a proper **crop tool** (handles, free or fixed ratios, rule of thirds) and a
-  Before / After button. Previews show the full stage at full sharpness, and full-size renders bake in the background.
-- **Workbook.** A3 pages with templates made for the NCEA workbook: Rank, Compare, Annotate, Before & after, Contact
+- **Develop** runs on a JavaScript port of PhotoCraft's Camera Raw pipeline in Web Workers: Highlights/Shadows as a local
+  Laplacian filter, measured Whites/Blacks curves, Dehaze, Clarity, Texture, Lightroom-style Colour Mixer (HSL) and
+  3-way Colour Grading wheels, a crop tool (handles, free or fixed ratios, rule of thirds) and a Before / After button.
+  Previews show the full stage at full sharpness, and full-size renders bake in the background.
+- **Workbook** has A3 pages with templates made for the NCEA workbook: Rank, Compare, Annotate, Before & after, Contact
   sheet, Artist model, Experiment, Mood & ideas, What's next? It also has arrows, captions, layers and page colours.
-- **Folio.** Three A1 portrait panels, worked one third at a time. Drop photos in (repeats allowed) and each third fills
-  edge to edge with no white space, photos cropping a little to fit. Click **SIZE** on a photo to make it bigger; try
-  Rows, Columns or Hero; **Shuffle** deals a new arrangement. Exports to PDF.
-- **Book and Gallery.** A lay-flat photobook with spreads and page templates, and a gallery wall at real print sizes on
-  the 1450 mm eye line: hang photos from the library, take them down, choose frames, and a title card you can restyle
-  and drag anywhere.
-- **Lessons and teachers.** A teacher timeline, a live class view, heads-up and move-on cards, and a hub that walks each
+- **Folio** is three A1 portrait panels, worked one third at a time. Drop photos in (repeats allowed) and each third fills
+  edge to edge with no white space, photos cropping a little to fit. Click **SIZE** on a photo to make it bigger, try
+  Rows, Columns or Hero, and **Shuffle** deals a new arrangement. Exports to PDF.
+- **Book** and **Gallery**: a lay-flat photobook with spreads and page templates, and a gallery wall at true print sizes
+  on the 1450 mm eye line where you hang photos from the library, take them down, choose frames, and restyle and move a
+  title card.
+- For teachers there's a lesson timeline, a live class view, heads-up and move-on cards, and a hub that takes each
   student through Shoot → Pick → Edit → Make → Show.
-- **Learn by doing.** A game-style warm-up (WASD, look, raise, bag, then each camera setting with a little clip of what
-  it does) unlocks the gold frames. After that, hands-on tours run through every room: on one photo you drag each
-  slider to a gold mark, then edit your own way. Popups wait a few seconds before they can be dismissed, so they get
-  read. There's a **ten-minute demo** for playtesters.
+- A game-style warm-up (WASD, look, raise, bag, then each camera setting with a short clip of what it does) unlocks the
+  gold frames. After that, hands-on tours go through every room: on one photo you drag each slider to a gold mark, then
+  edit your own way. Popups wait a few seconds before they can be dismissed, so they get read. There's a
+  **ten-minute demo** for playtesters.
 
 ## A lesson in Studium
 
 <table>
   <tr>
     <td width="50%"><img src="docs/media/hub.jpg" alt="The hub"><br><sub><b>Home.</b> Today's brief, your kit and where you're up to.</sub></td>
-    <td width="50%"><img src="docs/media/bag.jpg" alt="The camera bag"><br><sub><b>Camera bag.</b> Choose a body, swap lenses, lock one in.</sub></td>
+    <td width="50%"><img src="docs/media/bag.jpg" alt="The camera bag"><br><sub><b>Camera bag.</b> Bodies and lenses, with the lens swap.</sub></td>
   </tr>
   <tr>
-    <td><img src="docs/media/select.jpg" alt="Select"><br><sub><b>Select.</b> Pick, reject, rate and say <i>why this one</i>.</sub></td>
-    <td><img src="docs/media/edit.jpg" alt="Edit"><br><sub><b>Edit.</b> Camera Raw sliders, Color Mixer and Color Grading wheels.</sub></td>
+    <td><img src="docs/media/select.jpg" alt="Select"><br><sub><b>Select.</b> Picks, rejects, stars and a note on <i>why this one</i>.</sub></td>
+    <td><img src="docs/media/edit.jpg" alt="Edit"><br><sub><b>Edit.</b> Camera Raw sliders, Colour Mixer and Colour Grading wheels.</sub></td>
   </tr>
   <tr>
     <td><img src="docs/media/workbook.jpg" alt="Workbook"><br><sub><b>Workbook.</b> The Compare template, with an arrow onto one detail.</sub></td>
@@ -83,25 +82,22 @@ lives inside it.
   </tr>
   <tr>
     <td><img src="docs/media/book.jpg" alt="Book"><br><sub><b>Book.</b> Spreads, sequence and page templates.</sub></td>
-    <td><img src="docs/media/gallery.jpg" alt="Gallery"><br><sub><b>Gallery.</b> Hang the show at real sizes, on the eye line.</sub></td>
+    <td><img src="docs/media/gallery.jpg" alt="Gallery"><br><sub><b>Gallery.</b> The show hung at print size, on the eye line.</sub></td>
   </tr>
 </table>
 
 ## News
 
-- **27 Oct 2026.** The opening has sound: a dark bed and a low drone, the point cloud ticking into place, the lens
-  motor and focus confirm, the shutter, film winding on frame by frame, a whoosh round the big circle and a warm chord
-  as the wordmark lands. All synthesised in Web Audio, no files. The viewfinder is raised once behind the dark so the
-  real raise doesn't hitch, and the still goes straight into the strip without a JPEG encode. The first time through, a
+- **27 Oct 2026.** The opening now has sound (a low drone, the lens motor and focus, the shutter, film
+  winding on, a chord as the wordmark comes up), all synthesised in Web Audio with no audio files. The viewfinder is
+  raised once in the dark at the start so the first proper raise doesn't hitch, and the still goes straight into the strip without a JPEG encode. The first time through, a
   welcome card says what Studium is and starts the warm-up from its button.
 
-- **26 Oct 2026, later.** An opening: dark for a beat while the scan loads, then the scan arrives as a sparse cloud of
-  gold points and a line sweeps up through it leaving the full splat below, close on the stump in slow motion from the
-  shallow-depth gold frame's own viewpoint. The lens eases open, the viewfinder racks focus onto the bark and fires; the
-  still shrinks into the first frame of a strip of 35 mm film, ember through amber with light catches sliding along it,
-  the rooms crawling across and wooshing on one frame at a time with the scan behind the sprocket holes. The strip slides
-  off and the scan goes round in one big circle that lands on the starting spot as the wordmark reveals. Click or any
-  key skips; after the first time it is the short version.
+- **26 Oct 2026, later.** An opening sequence. While the scan loads it comes in as gold points
+  and fills out into the full splat, close on the stump from the shallow-depth gold frame's viewpoint. The viewfinder
+  focuses on the bark and takes a shot, and the photo drops into a 35 mm film strip that carries the room names past.
+  Then the camera circles the scan back to the starting spot and the wordmark comes up. Click or press any key to skip,
+  and after the first time it plays a short version.
 
 - **26 Oct 2026.** Quests are a board of rows of three, each row opening when the one above is done, and every quest has a
   page with a live clip of what it looks like. The lighting quest is a recipe with gold spots in the plan and setting bands
@@ -109,7 +105,7 @@ lives inside it.
 
 - **19 Oct 2026.** Playtest round: the viewfinder wheel just zooms; the camera back is sliders, and carries a
   challenge's checklist; bigger popups that wait to be read; a bigger loupe and pick five; the edit tour slider by
-  slider to gold marks, then your own edit with copy and paste; a real crop tool; a Rank workbook page; folio thirds
+  slider to gold marks, then your own edit with copy and paste; a proper crop tool; a Rank workbook page; folio thirds
   with no white space and a size button; the gallery gets a library and a movable title card. The sign-in page is just
   the demo for now.
 - **18 Oct 2026.** Hands-on tours for every room: Select, Edit (light, black and white, crop, grading), Workbook, Folio,
@@ -117,7 +113,7 @@ lives inside it.
   templates.
 - **18 Oct 2026.** A ten-minute **demo** from the sign-in page for playtesters. A game-style warm-up before the gold
   frames. **Balanced** scan detail. A web build for hosts with a per-file limit.
-- **17 Oct 2026.** Develop moves to a **Camera Raw engine** ported from PhotoCraft, with Color Mixer and Color Grading.
+- **17 Oct 2026.** Develop moves to a **Camera Raw engine** ported from PhotoCraft, with Colour Mixer and Colour Grading.
   Drag-and-drop import into the library.
 - **17 Oct 2026.** Library folders and projects, self-filling folio sections, handheld camera shake.
 - **16 Oct 2026.** Gold viewfinder-frame challenges, walking on the ground, a sky dome from the scan, and the Stump at
@@ -167,7 +163,7 @@ Open `dist/studium.html` in Chrome. Add `?dev` to expose the test hooks (`window
 | `src/research.js` | Research: Punctum's packs from Supabase, the Punctum round, the Culling Game, into the workbook. |
 | `src/crop.js` | The crop tool: a box over the whole photo with handles, ratios and a thirds grid. |
 | `src/crdev.js`, `src/crtables.js` | The Develop engine, a port of PhotoCraft's Camera Raw pipeline, run in Web Workers, plus its measured curve tables. |
-| `src/edpanels.js` | Color Mixer and Color Grading panels. |
+| `src/edpanels.js` | Colour Mixer and Colour Grading panels. |
 | `src/studio.js`, `src/board.js` | The Studio rooms; the Workbook and Folio boards and their templates. |
 | `src/challenge.js` | Gold-frame challenges and the pull into position. |
 | `src/guide.js`, `src/coach.js` | The first-session guide, the demo, and the hands-on tours. |
@@ -202,9 +198,9 @@ with `thumb:"asset:assets/scenes/name-thumb.jpg"` and `data:"asset-b64:assets/sc
 ## Trivia
 
 - The names come in a pair from Roland Barthes' *Camera Lucida* (1980). The *studium* is the general interest a photograph
-  holds: its subject, its context, what it's about. The *punctum* is the detail that pricks you. Studium is where students
-  make the work, and Punctum is where the class critiques it.
-- Every screenshot on this page is from the real app, rendered headless by `tools/shots.mjs`.
+  holds, its subject and what it's about. The *punctum* is the detail that pricks you. So Studium is for
+  making the work and Punctum is for the class to critique it.
+- Every screenshot on this page is from the app, rendered headless by `tools/shots.mjs`.
 
 ## About
 

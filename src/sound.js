@@ -75,7 +75,8 @@
     lift:    ["C",function(b,t){ sxNoise(b,t,"highpass",3000,0.6,0.08,0.012,0.02,0.15,6000); }],
     drop:    ["C",function(b,t){ sxPaper(b,t,0.025,false); sxNoise(b,t,"lowpass",400,0.7,0.005,0.03,0.01,0.12); }],
     pin:     ["C",function(b,t){ sxTick(b,t,6000,0.015); sxGlint(b,t+0.01,SN.Fs6,0.01,0,0.5); }],
-    copier:  ["C",function(b,t){ sxNoise(b,t,"bandpass",600,2,0.2,0.02,1.0,0.2,4500,-0.6,0.6); sxGlint(b,t+1.4,SN.A6,0.012,0.4,0.8); }],   /* timed to the scan bar's 1.35 s pass */
+    copier:  ["A",function(b,t){ sxThump(b,t,110,0.07); sxTick(b,t,1200,0.05); sxTone(b,t+0.2,SN.A2,"sawtooth",0.2,0.008,1.6,0.3); sxNoise(b,t+0.2,"bandpass",500,1.2,0.3,0.02,1.4,0.3,2500,-0.6,0.6);
+      sxPaper(b,t+2.1,0.035,true,0.5); sxFelt(b,t+2.2,SN.E5,0.03,0.4,1.2); }],   /* fired as the lid shuts: hum under the scan bar, the copy slides out at ~2.1 s */
     reject:  ["C",function(b,t){ sxNoise(b,t,"bandpass",3000,1.2,0.04,0.02,0.04,0.3,700); }],
     binder:  ["C",function(b,t){ sxNoise(b,t,"highpass",3500,0.6,0.15,0.015,0.1,0.15,7000,-0.3,0.3); }]
   };

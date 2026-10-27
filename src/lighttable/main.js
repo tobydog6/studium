@@ -925,7 +925,8 @@ function scanFrame(dt){ const top=scanner.userData.top, open=-1.95;
   if(SCAN.busy){ SCAN.t+=dt/1.35; const t=SCAN.t;
     if(t>-0.5&&t<1.12) lidT=0;
     scanBar.visible=t>=0&&t<=1; if(scanBar.visible){ scanBar.position.x=GLASS.x-GLASS.w/2+t*GLASS.w; leak=0.55+0.25*Math.sin(t*30); }
-    if(t>-0.05&&!SCAN.lcd1){ SCAN.lcd1=true; drawLCD('SCANNING'); SFX('copier'); }
+    if(t>-0.5&&!SCAN.lid){ SCAN.lid=true; SFX('copier'); }
+    if(t>-0.05&&!SCAN.lcd1){ SCAN.lcd1=true; drawLCD('SCANNING'); }
     if(t>1&&!SCAN.made){ SCAN.made=true; drawLCD('PRINTING'); const p=SCAN.p, src=libById(p.id);
       const nth=library.filter(i=>(i.copyOf||i.id)===(src.copyOf||src.id)).length+1, base=(src.copyOf?libById(src.copyOf):src)||src;
       const it=libAdd(src.canvas, src.kind, src.long, null, src.data); it.copyOf=src.copyOf||src.id; it.place=src.place; it.url=src.url; it.sample=src.sample; it.name=(base.name||'Print')+' · '+(nth===2?'2nd':nth===3?'3rd':nth+'th');
@@ -933,7 +934,7 @@ function scanFrame(dt){ const top=scanner.userData.top, open=-1.95;
     if(t>1.6&&SCAN.q&&SCAN.q.base>0.1){ SCAN.q.base=0; SCAN.q.tz=SC.z+0.4; SCAN.q.yawT=0.06; }
     if(t>1.95&&!SCAN.done){ SCAN.done=true; const p=SCAN.p, q=SCAN.q;
       q.locked=false; p.locked=false; p.tx=SC.x+0.2; p.tz=SC.z+SC.d/2+0.4+p.h/2; p.yawT=(Math.random()-0.5)*0.12; restack();
-      SCAN.busy=false; SCAN.lcd1=false; drawLCD('READY'); saveAll(); tourEv('copy'); drawBinderCover(); toast('Printed another copy. It’s filed in the binder too.','Undo',undo); } }
+      SCAN.busy=false; SCAN.lcd1=false; SCAN.lid=false; drawLCD('READY'); saveAll(); tourEv('copy'); drawBinderCover(); toast('Printed another copy. It’s filed in the binder too.','Undo',undo); } }
   else scanBar.visible=false;
   lidHinge.rotation.x+=(lidT-lidHinge.rotation.x)*(1-Math.exp(-dt*(lidT===0?6:4.5)));
   lidLeak.material.opacity+=(leak-lidLeak.material.opacity)*(1-Math.exp(-dt*12)); }

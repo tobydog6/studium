@@ -38,7 +38,7 @@ try {
   await page.waitForTimeout(2000);
   await page.addStyleTag({content:'#laWel,#coCard{display:none!important}'});
   await page.waitForTimeout(8000);
-  await page.evaluate(() => { setInterval(() => __we.set({rain:2, fog:0}), 50); __cam.raise(); __cam.set({sh:5}); }); await page.waitForTimeout(1500); console.log('rain', JSON.stringify(await page.evaluate(() => __we.state()))); await page.waitForTimeout(2500); await shot('wx-30');
+  await page.evaluate(() => { setInterval(() => __we.set({rain:2, fog:0}), 50); __cam.raise(); __cam.set({sh:5}); }); await page.waitForTimeout(1500); console.log('rain', JSON.stringify(await page.evaluate(() => __we.diag()))); await page.waitForTimeout(2500); await shot('wx-30');
   await page.evaluate(() => { __cam.set({sh:0}); }); await page.waitForTimeout(1500); await shot('wx-1000');
 } catch (e) { fail = e.message; }
 await browser.close(); server.close();

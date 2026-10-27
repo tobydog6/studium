@@ -3128,3 +3128,4 @@ body.rackin #loader,body.rackin #hud,body.rackin #navTop,body.rackin #navActs,bo
 #editor #editStage.panning #editCanvas{cursor:grabbing}
 #editor.healing #editStage #editCanvas{cursor:none}
 #editor #editCanvas.ezAnim{transition:transform .22s cubic-bezier(.2,.7,.2,1)}
+body.la-warm #viewfinder,body.la-warm #crosshair{visibility:hidden!important}   /* the opening raises the camera once behind the dark to warm it up: never shown */

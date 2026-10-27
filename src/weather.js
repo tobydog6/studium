@@ -54,8 +54,8 @@
     "  }",
     "  if(a<0.004){ hide(); return; }",
     /* behind something solid? step through the solidity on the way to the eye */
-    "  if(fok>0.5){ float oc=0.0; for(int i=0;i<7;i++){ vec3 s=mix(p,cam,(float(i)+0.5)/7.0); vec3 uv=(s-fo)*finv; if(all(greaterThanEqual(uv,vec3(0.0)))&&all(lessThanEqual(uv,vec3(1.0)))) oc+=texture(fld,uv).b; }",
-    "    a*=clamp(1.0-(oc-0.5)/0.9,0.0,1.0); if(a<0.004){ hide(); return; } }",
+    "  float dc=length(cam-p); if(fok>0.5&&dc>1.2*S){ float oc=0.0, f1=1.0-0.7*S/dc; for(int i=0;i<7;i++){ vec3 s=mix(p,cam,mix(0.12,f1,(float(i)+0.5)/7.0)); vec3 uv=(s-fo)*finv; if(all(greaterThanEqual(uv,vec3(0.0)))&&all(lessThanEqual(uv,vec3(1.0)))) oc+=texture(fld,uv).b; }",   /* skip the air right round the drop and round you (grass at your feet is not a wall) */
+    "    a*=clamp(1.0-(oc-1.2)/1.0,0.0,1.0); if(a<0.004){ hide(); return; } }",
     "  if(vk<0.5){",
     "    vec3 dir=normalize(vel); vec4 A=viewMatrix*vec4(p-dir*len*0.5,1.0), B=viewMatrix*vec4(p+dir*len*0.5,1.0);",
     "    float dep=-mix(A.z,B.z,0.5); if(dep<0.05){ hide(); return; }",

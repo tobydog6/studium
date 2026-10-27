@@ -273,7 +273,7 @@ function addPrint(cnv, longWorld, kind, id){
   mesh.userData.p=p; prints.push(p); return p;
 }
 const byId=id=>prints.find(p=>p.id===id);
-const SIZES=[0.72,1,1.35,1.75], SIZE_NAMES=['Small','Medium','Large','Extra large'];
+const SIZES=[0.72,1,1.35,1.75,2.2], SIZE_NAMES=['Small','Medium','Large','Extra large','XXL'];
 function setSize(p,i){ i=THREE.MathUtils.clamp(i,0,SIZES.length-1); if(i===p.szi) return; p.szi=i; const k=SIZES[i]; p.w=p.w0*k; p.h=p.h0*k;
   p.mesh.geometry.dispose(); const geo=new THREE.PlaneGeometry(p.w,p.h,14,14); geo.rotateX(-Math.PI/2); p.mesh.geometry=geo; p.mat.uniforms.uHalf.value.set(p.w/2,p.h/2);
   p.shadow.geometry.dispose(); p.shadow.geometry=new THREE.PlaneGeometry(p.w*1.33,p.h*1.33);
@@ -636,7 +636,7 @@ function noteSummary(n){ if(!n) return ''; const w=[...n.why]; return w.join(' Â
 let boxBtn=null;
 function drawBoxBtn(){ if(boxBtn){ boxBtn.el.remove(); tags=tags.filter(t=>t!==boxBtn); boxBtn=null; } if(!rejects.length) return;
   const el=addTag('', V(BOX.x,0,BOX.z+BOX.d/2+0.55), 'boxbtn'); boxBtn=tags[tags.length-1];
-  const b=document.createElement('button'); b.type='button'; b.textContent='Shred rejects'; b.onpointerdown=e=>e.stopPropagation(); b.onclick=e=>{ e.stopPropagation(); shredAll(); }; el.appendChild(b); }
+  const b=document.createElement('button'); b.type='button'; b.textContent='Shred rejects'; b.onpointerdown=e=>e.stopPropagation(); b.onclick=e=>{ e.stopPropagation(); shredAll(); }; el.appendChild(b); try{ tourHotDom(); }catch(e){} }
 function emptyBox(){ if(!rejects.length) return; pushUndo(); const L=rejects.slice(); L.forEach((p,i)=>setTimeout(()=>fileBack(p,true),i*80)); setTimeout(()=>toast('Emptied '+L.length+' back into the binder.','Undo',undo), L.length*80+360); }
 
 /* ================= the shredder: beside the table's front edge, under the reject box. Only the print is shredded; the photo stays in the binder ================= */
@@ -681,7 +681,7 @@ function shredAll(){ if(SH.busy||!rejects.length) return; SH.busy=true; pushUndo
     SH.items.push({ p, t:0, s:Math.min(1,(SHR.w-0.8)/Math.max(p.w,0.01)), from:p.group.position.clone(), fromQ:p.group.quaternion.clone(), fed:false, f:1, sheet:null, ribs:[] }); }, 1000+i*2800)); }
 function shredFinish(){ const P=SH.prev; if(P&&cam.view===P.view){ cam.tx=P.tx; cam.ty=P.ty; cam.tz=P.tz; cam.dT=P.dT; cam.pitch=P.pitch; } SH.prev=null; SH.busy=false;
   shredder.userData.led.material.color.setHex(0x63c27a); saveAll();
-  toast('Shredded '+SH.done+' print'+(SH.done===1?'':'s')+'. The photos are still in your binder.','Undo',undo); }
+  tourEv('shred'); toast('Shredded '+SH.done+' print'+(SH.done===1?'':'s')+'. The photos are still in your binder.','Undo',undo); }
 const _shQ=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),Math.PI/2), _shV=new THREE.Vector3();   /* upright, the photo facing the front */
 const RIBS=14;
 function shredFrame(dt){
@@ -1303,7 +1303,8 @@ const TSTEPS=[
   { ch:'PAIR', line:'Put another one <b>right beside it</b>.', sub:'Side by side or one above the other. Touching makes a pair.', hot:'board', ev:'pair' },
   { ch:'PAIR', line:'Say <b>what joins them</b>.', sub:'Hover the pair and click the cog above it, or right-click one of them.', hot:'chain', ev:'note' },
   { ch:'PAIR', line:'Make one <b>bigger</b>.', sub:'Hover a print and press <kbd>]</kbd>. <kbd>[</kbd> makes it smaller.', hot:'chain', ev:'size' },
-  { ch:'CULL', line:'Drop a print you don\u2019t want in the <b>reject box</b>.', sub:'Drag it into the glowing box. You can pull it back out later.', hot:'box', ev:'reject', skip:true },
+  { ch:'CULL', line:'Drop <b>two prints</b> you don\u2019t want in the <b>reject box</b>.', sub:'Drag them into the glowing box. You can pull them back out later.', hot:'box', ev:'reject', skip:true, ok:()=>rejects.length>=2 },
+  { ch:'CULL', line:'Now press <b>Shred rejects</b>.', sub:'Watch the shredder under the table edge. Only the prints go, the photos stay in your binder.', hot:'shred', ev:'shred', skip:true },
   { ch:'CULL', line:'Make a second copy with the <b>copier</b>.', sub:'Drag a print onto its glass and a copy prints out beside it.', hot:'scan', ev:'copy', skip:true },
   { ch:'WALL', line:'<b>Pin</b> your pair to the wall.', sub:'Hover the pair and click the pin next to the cog.', hot:'chain', ev:'pin' },
   { ch:'WALL', line:'Make <b>another series</b> and pin that too.', sub:'Another pair or a run of three on the board, then the pin. Strings need two things to join.', hot:'board', ev:'pin2', skip:true, ok:()=>wallSeries()>=2 },
@@ -1324,11 +1325,11 @@ function tourShow(){ const s=TSTEPS[TOUR.i], el=$('co'); if(!s){ tourEnd(true); 
   el.querySelector('.co-dots').innerHTML=TSTEPS.map((_,k)=>'<i class="'+(k<TOUR.i?'past':k===TOUR.i?'on':'')+'"></i>').join('');
   const nb=el.querySelector('.co-next'); nb.hidden=!s.next; nb.textContent=s.last?'Done':'Next';
   el.classList.remove('ok'); el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
-  document.querySelectorAll('.co-hot').forEach(e=>e.classList.remove('co-hot'));
-  const dom={ pull:'#bdPull', capture:'#bCapture' }[s.hot]; if(dom){ const t=document.querySelector(dom); if(t) t.classList.add('co-hot'); }
+  tourHotDom();
   if(s.ev&&(performance.now()-(TOUR.seen[s.ev]||-1e9)<1500||(s.ok&&s.ok()))) tourEv(s.ev); TP.x=null; }
-function tourEv(name){ TOUR.seen[name]=performance.now(); if(!TOUR.on) return; const s=TSTEPS[TOUR.i]; if(!s||s.ev!==name||TOUR.okT) return;
-  $('co').classList.add('ok'); TOUR.okT=setTimeout(()=>{ TOUR.okT=0; TOUR.i++; tourShow(); },900); }
+function tourEv(name){ TOUR.seen[name]=performance.now(); if(!TOUR.on) return; const s=TSTEPS[TOUR.i]; if(!s||s.ev!==name||TOUR.okT||(s.ok&&!s.ok())) return;
+  $('co').classList.add('ok'); TOUR.okT=setTimeout(()=>{ TOUR.okT=0; TOUR.i++; tourShow(); },420); }
+function tourHotDom(){ document.querySelectorAll('.co-hot').forEach(e=>e.classList.remove('co-hot')); const h=tourHot(); const dom={ pull:'#bdPull', capture:'#bCapture', shred:'.tag.boxbtn button' }[h]; if(dom){ const t=document.querySelector(dom); if(t) t.classList.add('co-hot'); } }
 $('co').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
   if(b.classList.contains('co-next')){ if(TSTEPS[TOUR.i].last) tourEnd(true); else { TOUR.i++; tourShow(); } }
   else if(b.dataset.co==='step'){ TOUR.i++; tourShow(); } else if(b.dataset.co==='all') tourEnd(false); });
@@ -1336,7 +1337,7 @@ $('bTour').onclick=()=>{ if(TOUR.on) tourEnd(false); else tourStart(); };
 const TP={ x:null, y:null };
 function tourAnchor(hot){ switch(hot){
   case 'binder': return { at:V(BINDER.x+BINDER.w/2+0.3,BINDER.h,BINDER.z), side:'right' };
-  case 'box': return { at:V(BOX.x+BOX.w/2+0.4,BOX.h,BOX.z), side:'right' };
+  case 'box': case 'shred': return SH.busy?null:{ at:V(BOX.x+BOX.w/2+0.4,BOX.h,BOX.z), side:'right' };
   case 'scan': return { at:V(SC.x+SC.w/2+0.4,SC.h,SC.z), side:'right' };
   case 'board': return { at:V(BX-BW/2-0.3,0,BZ), side:'left' };
   case 'chain': { const L=chains.length?chains[chains.length-1]:prints.filter(p=>p.onBoard); if(!L.length) return { at:V(BX-BW/2-0.3,0,BZ), side:'left' }; const b=bboxOf(L); return { at:V(b.x0-0.4,0,(b.z0+b.z1)/2), side:'left' }; }

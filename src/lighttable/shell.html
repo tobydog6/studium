@@ -215,9 +215,12 @@ body.ready .load{ opacity:0; }
 /* inside Studium: the studio bar already says where you are, and the design options are settled */
 .in-studium .mast, .in-studium .panel, .in-studium #bPanel, .in-studium #bookN{ display:none !important; }
 /* the tour card (Studium's coach look) */
-.co-card{ position:fixed; left:50%; bottom:calc(146px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); z-index:60; width:min(500px,92vw); box-sizing:border-box; padding:14px 18px; border-radius:12px; background:rgba(17,15,12,.93); border:1px solid rgba(227,173,87,.4); box-shadow:0 24px 50px -18px rgba(0,0,0,.85),0 0 40px -16px rgba(227,173,87,.35); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); font-family:var(--f-ui); color:var(--text); pointer-events:none; display:none; }
+.co-card{ position:fixed; left:50%; bottom:calc(146px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); z-index:60; width:min(500px,92vw); box-sizing:border-box; padding:14px 18px; border-radius:12px; background:rgba(17,15,12,.97); border:1px solid rgba(227,173,87,.4); box-shadow:0 24px 50px -18px rgba(0,0,0,.85),0 0 40px -16px rgba(227,173,87,.35); font-family:var(--f-ui); color:var(--text); pointer-events:none; display:none; }
 .co-card.show{ display:block; animation:coIn .35s cubic-bezier(.2,.8,.2,1); }
 @keyframes coIn{ from{ opacity:0; transform:translate(-50%,10px); } to{ opacity:1; transform:translate(-50%,0); } }
+.co-card.placed{ bottom:auto; transform:none; width:min(400px,40vw); }
+.co-card.placed.show{ animation:coInP .35s cubic-bezier(.2,.8,.2,1); }
+@keyframes coInP{ from{ opacity:0; } to{ opacity:1; } }
 .co-card.ok{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent),0 0 50px -6px rgba(227,173,87,.6); }
 .co-card.ok .co-line::after{ content:" \2713"; color:var(--accent); }
 .co-top{ display:flex; align-items:center; gap:7px; font:500 9.5px/1 var(--f-mono); letter-spacing:.16em; color:rgba(244,241,234,.32); }
@@ -231,7 +234,7 @@ body.ready .load{ opacity:0; }
 .co-sub{ margin:6px 0 0; font-size:13px; line-height:1.45; color:var(--faint); }
 .co-sub kbd{ display:inline-block; min-width:20px; padding:1px 5px; border-radius:4px; border:1px solid rgba(244,241,234,.3); border-bottom-width:2px; font:500 11px/1.3 var(--f-mono); text-align:center; color:var(--text); }
 .co-foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:11px; min-height:14px; }
-.co-dots{ display:flex; gap:5px; } .co-dots i{ width:16px; height:3px; border-radius:2px; background:rgba(244,241,234,.12); } .co-dots i.past{ background:#8d6a35; } .co-dots i.on{ background:var(--accent); }
+.co-dots{ display:flex; gap:5px; flex:1; min-width:0; } .co-dots i{ flex:1; max-width:16px; height:3px; border-radius:2px; background:rgba(244,241,234,.12); } .co-dots i.past{ background:#8d6a35; } .co-dots i.on{ background:var(--accent); }
 .co-next{ pointer-events:auto; background:var(--accent); border:0; border-radius:6px; color:#1a140b; font:500 11px/1 var(--f-mono); letter-spacing:.12em; text-transform:uppercase; padding:8px 12px; cursor:pointer; }
 .co-next:hover{ background:#efbd6a; } .co-next[hidden]{ display:none; }
 body:has(#bd.on) .co-card{ left:24px; bottom:18px; transform:none; width:min(420px,32vw); padding:10px 16px 12px; animation:none; }

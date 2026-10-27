@@ -2,20 +2,23 @@
   // The table runs in its own iframe (its own three.js and WebGL context). It talks to Studium only through LT_BRIDGE:
   // it reads the student's frames and projects, saves its state into the session, and hands finished boards to the
   // Workbook and finished sequences to the Book.
-  var LT_B64="@@lighttable-b64@@", ltFrame=null;
+  var LT_B64="@@lighttable-b64@@", ltFrame=null, ltWant=false;
   function ltPhotos(){ var n={}, out=[];
     photos.forEach(function(p,i){ if(p.research||!p.url) return; var pl=stPlaceOf(p); n[pl]=(n[pl]||0)+1;
       out.push({id:stId(i), url:p.url, name:pl+" "+String(n[pl]).padStart(2,"0"), place:pl, pick:!!p.pick}); });
     return out; }
-  function ltData(){ return {photos:ltPhotos(), projects:(st.projects||[]).map(function(p){ return {id:p.id, name:p.name, ids:(p.ids||[]).slice()}; }), state:st.lightTable||null}; }
+  function ltData(){ var want=ltWant; ltWant=false; return {photos:ltPhotos(), projects:(st.projects||[]).map(function(p){ return {id:p.id, name:p.name, ids:(p.ids||[]).slice()}; }), state:st.lightTable||null, startTour:want}; }
   window.LT_BRIDGE={
     data:ltData,
     save:function(s){ st.lightTable=s; saveSession(); },
+    tourDone:function(){ ltWant=false; if(typeof Q!=="undefined"&&Q&&Q.tours){ Q.tours.lighttable=true; if(typeof qSave==="function") qSave(); } },
+    flag:function(k){ if(typeof qFlag==="function") qFlag(k); },
+    adopt:function(url, name){ photos.push({url:url, t:new Date(), place:"Samples", uploaded:true, body:"Sample", note:name||""}); var id=stId(photos.length-1); saveSession(); stRenderBar(); return id; },
     room:function(r){ if(st.open) stRoom(r); },
     key:function(k){ if(k==="q"||k==="Q") stCycle(-1); else if(k==="e"||k==="E") stCycle(1); else if(k==="Escape") stRoom("select"); },
     importFiles:function(files){ importPhotoFiles(files, function(n){ if(!n) return; saveSession(); stRenderBar(); ltSync(); }); },
     addWorkbookPage:function(pg){ wsEnsure(); if(!st.wsBoard||!st.wsBoard.pages) st.wsBoard={cur:0, paper:"white", pages:[]};
-      var doc=st.wsBoard, page={id:bdUid(), items:pg.items.map(function(it){ var c={}; for(var k in it) c[k]=it[k]; c.id=bdUid(); return c; })};
+      var doc=st.wsBoard, page={id:bdUid(), tpl:pg.tpl||"sequence", items:pg.items.map(function(it){ var c={}; for(var k in it) c[k]=it[k]; c.id=bdUid(); return c; })};
       if(doc.pages.length===1&&!(doc.pages[0].items||[]).length) doc.pages[0]=page; else doc.pages.push(page);
       doc.cur=doc.pages.length-1; wsB.reset(doc); saveSession(); },
     sendToBook:function(ids, note){ ids=ids.filter(function(id){ return stById(id)>=0; }); if(!ids.length) return;
@@ -35,3 +38,5 @@
     else { try{ ltFrame.contentWindow.LTapp.pause(false); }catch(e){} ltSync(); try{ ltFrame.contentWindow.focus(); }catch(e){} } }
   function ltPause(){ try{ if(ltFrame&&ltFrame.contentWindow&&ltFrame.contentWindow.LTapp) ltFrame.contentWindow.LTapp.pause(true); }catch(e){} }
   function ltReset(){ if(!ltFrame) return; try{ ltFrame.contentWindow.LTapp.kill(); }catch(e){} ltFrame.remove(); ltFrame=null; if(st.open&&st.room==="table") ltOpen(); }
+  /* the quest's "Show me how": open the room and run the table's own tour */
+  function ltTour(){ ltWant=true; try{ if(ltFrame&&ltFrame.contentWindow&&ltFrame.contentWindow.LTapp){ ltFrame.contentWindow.LTapp.tour(); ltWant=false; } }catch(e){} }

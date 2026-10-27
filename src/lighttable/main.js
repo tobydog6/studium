@@ -296,7 +296,7 @@ function seedLibrary(sample){
   for(let i=0;i<(sample?12:30);i++){
     const kind=KINDS[i%KINDS.length], shape=rnd(); let W=1024,H=683; if(shape<0.2){ W=683; H=1024; } else if(shape<0.3){ W=900; H=900; }
     const img=paintPhoto(kind, 100+i*13, W, H, rnd()<0.22 || kind==='forest'); photoCanvases.push(img);
-    const it=libAdd(borderCanvas(img, 1024, 'No. '+String(i+1).padStart(2,'0')), 'print', W<H?2.35:2.2); it.name='No. '+String(i+1).padStart(2,'0');
+    const it=libAdd(borderCanvas(img, 1024, 'No. '+String(i+1).padStart(2,'0')), 'print', W<H?2.35:2.2, sample?'s'+(i+1):null); it.raw=img; it.name='No. '+String(i+1).padStart(2,'0');
     it.place=i%3===2?'Car Park':'Stump'; it.pick=[1,4,6,10,13,17,22,25,26].includes(i); if(sample){ it.place='Samples'; it.pick=false; it.sample=true; } }
   if(sample) return;
   const s0=libAdd(contactSheet(0),'sheet',3.3); s0.name='Roll 3'; s0.place='Stump'; const s1=libAdd(contactSheet(1),'sheet',3.3); s1.name='Roll 4'; s1.place='Car Park';
@@ -375,7 +375,7 @@ function pinGroup(members, note, kind, at, silent){
   const g={ id:++wgN, members:members.slice(), note:note?{ why:new Set(note.why), text:note.text||'' }:null, kind, date:new Date().toLocaleDateString('en-NZ',{ day:'numeric', month:'short' }), x:0, y:0 };
   members.forEach(p=>{ p.wg=g; p.inspT=0; });
   const s=at||freeSpot(g); g.x=s.x; g.y=s.y; wallGroups.push(g); layoutGroup(g);
-  layoutBoard(null); restack(); updateChains(false); saveAll(); if(!silent&&kind!=='single') tourEv('pin');
+  layoutBoard(null); restack(); updateChains(false); saveAll(); if(!silent&&kind!=='single'){ tourEv('pin'); if(wallSeries()>=2) tourEv('pin2'); }
   if(!silent) toast((kind==='single'?'Pinned to the wall.':'Pinned the '+(kind==='pair'?'pair':'sequence')+' to the wall.')+' Press W to see it.', 'Undo', undo);
   return g; }
 function unlink(g){ pushUndo(); const i=wallGroups.indexOf(g); if(i<0) return; wallGroups.splice(i,1);
@@ -391,7 +391,8 @@ function serialize(){ return { v:2, idN,
   free:freeB.map(p=>p.id), rows:rows.map(r=>r.map(p=>p.id)), rejects:rejects.map(p=>p.id),
   walls:wallGroups.map(g=>({ ids:g.members.map(p=>p.id), x:g.x, y:g.y, kind:g.kind, date:g.date, note:g.note?{ why:[...g.note.why], text:g.note.text }:null })),
   strings:strSnap(), copies:library.filter(i=>i.copyOf).map(i=>({ id:i.id, copyOf:i.copyOf, name:i.name })),
-  notes:[...notes].map(([k,n])=>[k,{ why:[...n.why], text:n.text||'' }]), hist:hist.slice(-20), wallStyle, stringsOn, tour:TOUR.done }; }
+  notes:[...notes].map(([k,n])=>[k,{ why:[...n.why], text:n.text||'' }]), hist:hist.slice(-20), wallStyle, stringsOn, tour:TOUR.done,
+  samples:library.some(i=>i.sample), adopted:library.filter(i=>i.sample&&i.realId).map(i=>[i.id,i.realId]) }; }
 function saveAll(){ if(LOADING) return; clearTimeout(saveT); saveT=setTimeout(saveNow,350); }
 function saveNow(){ if(LOADING||!READY) return; const s=serialize();
   if(HOST){ try{ HOST.save(s); }catch(e){} return; }
@@ -640,7 +641,7 @@ function closeNote(){ if(!pop.classList.contains('on')) return; pop.classList.re
 $('noteDone').onclick=closeNote;
 
 /* ================= hover icons + right-click menu ================= */
-const ICON={ grip:'<circle cx="6" cy="4" r="1"/><circle cx="10" cy="4" r="1"/><circle cx="6" cy="8" r="1"/><circle cx="10" cy="8" r="1"/><circle cx="6" cy="12" r="1"/><circle cx="10" cy="12" r="1"/>', cog:'<circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1"/>', note:'<path d="M3 13l.8-3.2L10.6 3l2.4 2.4-6.8 6.8z"/><path d="M9.4 4.2l2.4 2.4"/>', pin:'<path d="M8 13V4"/><path d="M4.8 7.2L8 4l3.2 3.2"/><path d="M4 2.5h8"/>',
+const ICON={ grip:'<circle cx="6" cy="4" r="1"/><circle cx="10" cy="4" r="1"/><circle cx="6" cy="8" r="1"/><circle cx="10" cy="8" r="1"/><circle cx="6" cy="12" r="1"/><circle cx="10" cy="12" r="1"/>', pin:'<path d="M6 2.5h4"/><path d="M7 2.5v3.5L4.8 8.8h6.4L9 6V2.5"/><path d="M8 8.8v4.7"/>', cog:'<circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1"/>', note:'<path d="M3 13l.8-3.2L10.6 3l2.4 2.4-6.8 6.8z"/><path d="M9.4 4.2l2.4 2.4"/>', 
   book:'<path d="M8 4.2C6.8 3.4 5 3 2.5 3v9.5c2.5 0 4.3.4 5.5 1.2 1.2-.8 3-1.2 5.5-1.2V3C11 3 9.2 3.4 8 4.2z"/><path d="M8 4.2v9.5"/>', down:'<path d="M8 3v9"/><path d="M4.8 8.8L8 12l3.2-3.2"/><path d="M4 14h8"/>', why:'<path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z"/>' };
 const ACTS={ el:$('acts'), key:null, anchor:null, t:0 };
 function ib(icon,label,fn){ const b=document.createElement('button'); b.type='button'; b.className='ib'; b.title=label; b.setAttribute('aria-label',label); b.innerHTML='<svg viewBox="0 0 16 16" aria-hidden="true">'+ICON[icon]+'</svg>';
@@ -652,6 +653,7 @@ function setHover(p){ HOV.p=p; if(inspected||drag.p||drag.wall||histIdx>=0||STR.
     if(key!==ACTS.key){ ACTS.key=key; ACTS.el.innerHTML='';
       if(key[0]==='c'&&FREE()){ const ch=chains.find(c=>c.includes(p)); const g=ib('grip','Drag to move the whole '+(ch.length===2?'pair':'sequence'),()=>{}); g.classList.add('grip'); g.onpointerdown=e=>{ e.stopPropagation(); e.preventDefault(); startGroupDrag(ch,e); }; ACTS.el.appendChild(g); }
       ACTS.el.appendChild(ib('cog','Options',r=>openCtx(ACTS.p,r.left,r.bottom+6)));
+      if(key[0]!=='g'){ const ch=key[0]==='c'?chains.find(c=>c.includes(p)):null; ACTS.el.appendChild(ib('pin',ch?'Pin the '+(ch.length===2?'pair':'sequence')+' to the wall':'Pin to the wall',()=>act('pin',ACTS.p))); }
       if(key[0]==='g'){ const g=p.wg; ACTS.anchor=()=>V(g.x, g.y+groupHeight(g)/2+0.42, WALL_Z+0.08); }
       else if(key[0]==='c'){ const ch=chains.find(c=>c.includes(p)); ACTS.anchor=()=>{ const bb=bboxOf(ch); return V((bb.x0+bb.x1)/2, BOARD_Y+LAYER*2, bb.z0-0.84); }; }
       else ACTS.anchor=()=>{ const c=Math.cos(p.yaw), s=Math.sin(p.yaw), lz=-p.h/2-0.42; return V(p.x+lz*s, p.y+0.02, p.z+lz*c); }; }
@@ -761,7 +763,7 @@ function stringPointer(e){ setNDC(e);
   if(!end) return true;
   if(!STR.hold.from){ STR.hold.from=end; toast('Now click another print, or a spot on the wall.'); return true; }
   if(end.id!=null&&end.id===STR.hold.from.id) return true;
-  if(!STR.hold.orig) pushUndo(); strings.push({ id:++strN, c:STR.hold.c, a:STR.hold.from, b:end, mesh:null, key:'' }); dropString(false); saveAll(); tourEv('string'); return true; }
+  if(!STR.hold.orig) pushUndo(); strings.push({ id:++strN, c:STR.hold.c, a:STR.hold.from, b:end, mesh:null, key:'' }); dropString(false); saveAll(); tourEv('string'); { const s0=strings[strings.length-1], pa=s0.a.id!=null&&byId(s0.a.id), pb=s0.b.id!=null&&byId(s0.b.id); if(pa&&pb&&pa.wg&&pb.wg&&pa.wg!==pb.wg&&HOST&&HOST.flag) try{ HOST.flag('ltString'); }catch(e){} } return true; }
 function showMenu(items,x,y){ hideActs(); CTX.innerHTML=''; items.forEach(it=>{ if(!it){ CTX.appendChild(document.createElement('hr')); return; } const b=document.createElement('button'); b.type='button'; b.innerHTML='<span></span><kbd></kbd>'; b.firstChild.textContent=it[0]; b.lastChild.textContent=it[1]; if(!it[1]) b.lastChild.remove();
     b.onclick=()=>{ closeCtx(); it[2](); }; CTX.appendChild(b); });
   CTX.classList.add('on'); const r=CTX.getBoundingClientRect(); CTX.style.left=Math.min(window.innerWidth-r.width-10,x)+'px'; CTX.style.top=Math.min(window.innerHeight-r.height-10,y)+'px'; }
@@ -823,6 +825,12 @@ const binderTex=new THREE.CanvasTexture(binderCv); binderTex.colorSpace=THREE.SR
   blobShadow(BINDER.w+1.3,BINDER.d+1.3,binder,0.2,0.3); }
 const binderGlow=new THREE.Mesh(new THREE.PlaneGeometry(BINDER.w+0.5,BINDER.d+0.5), new THREE.MeshBasicMaterial({ color:0xf4f1ea, transparent:true, opacity:0, depthWrite:false }));
 binderGlow.rotation.x=-Math.PI/2; binderGlow.position.y=0.003; binder.add(binderGlow);
+function hotRing(w,d,pad){ const W=w+pad*2, D=d+pad*2, k=56, c=document.createElement('canvas'); c.width=Math.round(W*k); c.height=Math.round(D*k); const g=c.getContext('2d'), m=0.55*k;
+  g.shadowColor='rgba(214,140,30,.95)'; g.shadowBlur=0.45*k; g.strokeStyle='#d48a1c'; g.lineWidth=0.13*k; g.beginPath(); g.roundRect(m,m,c.width-2*m,c.height-2*m,0.35*k); g.stroke(); g.stroke(); g.shadowBlur=0; g.strokeStyle='#f0b85a'; g.lineWidth=0.05*k; g.stroke();
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace;
+  const r=new THREE.Mesh(new THREE.PlaneGeometry(W,D), new THREE.MeshBasicMaterial({ map:t, transparent:true, opacity:0, depthWrite:false })); r.rotation.x=-Math.PI/2; r.renderOrder=5; return r; }
+const RINGS={ binder:hotRing(BINDER.w,BINDER.d,0.75), box:hotRing(BOX.w,BOX.d,0.75), scan:hotRing(SC.w,SC.d,0.75), board:hotRing(BW,BH,0.55) };
+RINGS.binder.position.y=0.012; binder.add(RINGS.binder); RINGS.box.position.set(BOX.x,0.012,BOX.z); RINGS.scan.position.set(SC.x,0.012,SC.z); RINGS.board.position.set(BX,0.03,BZ); scene.add(RINGS.box,RINGS.scan,RINGS.board);
 const boardGlow=new THREE.Mesh(new THREE.PlaneGeometry(BW+0.7,BH+0.7), new THREE.MeshBasicMaterial({ color:0xe3ad57, transparent:true, opacity:0, depthWrite:false }));
 boardGlow.rotation.x=-Math.PI/2; boardGlow.position.set(BX,0.002,BZ); scene.add(boardGlow);
 const spoolGlow=new THREE.Mesh(new THREE.PlaneGeometry(SHELF.w+1,1.5), new THREE.MeshBasicMaterial({ color:0xe3ad57, transparent:true, opacity:0, depthWrite:false }));
@@ -958,7 +966,7 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden) recordHis
 /* ================= photobook + workbook ================= */
 let BOOK=[]; try{ BOOK=JSON.parse(localStorage.getItem(BOOK_KEY)||'[]'); }catch(e){ BOOK=[]; }
 function sendToBook(ids, note){
-  if(HOST){ const own=ids.filter(id=>{ const it=libById(id); return it&&!it.sample; }).map(realId); if(!own.length){ toast('Sample prints stay on the table. Pull out your own photos to build the book.'); return; }
+  if(HOST){ const own=ids.map(realId).filter(Boolean); if(!own.length){ toast('Hmm, those prints couldn\u2019t go to the book. Try pulling them out of the binder again.'); return; }
     HOST.sendToBook(own, note?noteSummary(note):''); toast('Added to your photobook in this order.','Open book',()=>HOST.room('book')); return; }
   BOOK.push({ ids:ids.slice(), date:new Date().toLocaleDateString('en-NZ',{ day:'numeric', month:'short' }), note:note?noteSummary(note):'' }); try{ localStorage.setItem(BOOK_KEY, JSON.stringify(BOOK)); }catch(e){}
   renderWorkbook(); const b=$('bBook'); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); toast('Sent to the photobook in this order. The builder lays it out as spreads.'); }
@@ -967,7 +975,7 @@ const capCam=new THREE.OrthographicCamera(-BW/2*1.03, BW/2*1.03, BH/2*1.03, -BH/
 capCam.position.set(BX,30,BZ); capCam.up.set(0,0,-1); capCam.lookAt(BX,0,BZ); capCam.updateMatrixWorld();
 function captureBoard(){
   if(!prints.some(p=>p.onBoard)){ toast('Put some prints on the board first.'); return; }
-  if(HOST){ closeNote(); hideActs(); const pg=hostPage(); if(!pg){ tourEv('capture'); toast('Sample prints don\u2019t go in your workbook. Put your own photos on the board.'); return; }
+  if(HOST){ closeNote(); hideActs(); const pg=hostPage(); if(!pg){ toast('Hmm, those prints couldn\u2019t go to your workbook. Try pulling them out of the binder again.'); return; }
     HOST.addWorkbookPage(pg); const fl=$('flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go'); tourEv('capture');
     toast('Added to your workbook as a new page. Write on it there.','Open workbook',()=>HOST.room('workshop')); return; }
   tourEv('capture');
@@ -1100,7 +1108,9 @@ function frame(now){
   binderGlow.material.opacity+=((carrying?(drag.target==='binder'?0.5:0.1):hot==='binder'?tp*1.6:0)-binderGlow.material.opacity)*kk;
   scanGlow.material.opacity+=((carrying?(drag.target==='scan'?0.5:0.1):SCAN.busy?0.18:hot==='scan'?tp*1.6:0)-scanGlow.material.opacity)*kk;
   boxGlow.material.opacity+=((carrying&&drag.target==='box'?0.3:hot==='box'?tp:0)-boxGlow.material.opacity)*kk;
-  boardGlow.material.opacity+=((hot==='board'?tp:0)-boardGlow.material.opacity)*kk; spoolGlow.material.opacity+=((hot==='spools'&&cam.view==='wall'?tp*1.4:0)-spoolGlow.material.opacity)*kk;
+  boardGlow.material.opacity+=((hot==='board'?tp*0.5:0)-boardGlow.material.opacity)*kk; const rp=0.6+0.4*Math.sin(now/220);
+  for(const k in RINGS){ const want=hot===k&&!carrying?rp:carrying&&drag.target===(k==='box'?'box':k==='scan'?'scan':k==='binder'?'binder':'')?1:0; RINGS[k].material.opacity+=(want-RINGS[k].material.opacity)*kk; }
+  tourPlace(); spoolGlow.material.opacity+=((hot==='spools'&&cam.view==='wall'?tp*1.4:0)-spoolGlow.material.opacity)*kk;
   binder.scale.setScalar(1+binderBump); binderBump*=Math.exp(-dt*9);
   scanner.userData.led.material.color.setHex(SCAN.busy?((now%500<250)?0xe3ad57:0x7a5a22):0x63c27a);
   scanFrame(dt); updateStrings(); holdFrame(); edgeFrame(dt);
@@ -1157,13 +1167,18 @@ function frame(now){
 }
 
 /* ================= inside Studium: the library is the student's own photos, and keepers go to the workbook and book ================= */
-const realId=id=>{ const it=libById(id); return it?(it.copyOf||it.id):id; };
-function hostLibrary(d){ const seen=new Set(), stale=[];
-  (d.photos||[]).forEach(ph=>{ seen.add(ph.id); let it=libById(ph.id);
+function realId(id){ const it=libById(id); if(!it) return id; const b=it.copyOf?(libById(it.copyOf)||it):it;
+  if(b.sample&&!b.realId&&b.raw&&HOST&&HOST.adopt){ try{ b.realId=HOST.adopt(b.raw.toDataURL('image/jpeg',0.86), b.name); saveAll(); }catch(e){} }
+  return b.sample?b.realId||null:b.id; }
+function hostLibrary(d, adopted){ const seen=new Set(), stale=[];
+  if((d.photos||[]).length<4||(d.state&&d.state.samples)||library.some(i=>i.sample)){ if(!library.some(i=>i.sample)) seedLibrary(true); }
+  (adopted||[]).forEach(([sid,rid])=>{ const it=libById(sid); if(it) it.realId=rid; });
+  const taken=new Set(library.filter(i=>i.sample&&i.realId).map(i=>i.realId));
+  (d.photos||[]).forEach(ph=>{ seen.add(ph.id); if(taken.has(ph.id)) return; let it=libById(ph.id);
     if(!it){ it=libAdd(null,'print',2.2,ph.id); it.url=ph.url; }
     else if(it.url!==ph.url){ it.url=ph.url; it.canvas=null; it.thumb=null; stale.push(it.id); }
     it.name=ph.name; it.place=ph.place||'Uploads'; it.pick=!!ph.pick; });
-  if((d.photos||[]).length<4&&!library.some(i=>i.sample)){ seedLibrary(true); }
+  library.forEach(i=>{ if(i.sample&&i.realId&&!seen.has(i.realId)) i.realId=null; });
   for(let i=library.length-1;i>=0;i--){ const it=library[i]; if(it.sample||it.copyOf) continue; if(!seen.has(it.id)){ const p=byId(it.id); if(p){ if(p.wg){ const g=p.wg; g.members.splice(g.members.indexOf(p),1); if(!g.members.length) wallGroups.splice(wallGroups.indexOf(g),1); else layoutGroup(g); } removePrint(p); } library.splice(i,1); } }
   for(let i=library.length-1;i>=0;i--){ const it=library[i]; if(!it.copyOf) continue; const s=libById(it.copyOf); if(!s){ const p=byId(it.id); if(p) removePrint(p); library.splice(i,1); } else if(stale.includes(s.id)){ it.canvas=null; it.url=s.url; stale.push(it.id); } }
   PROJ.length=0; (d.projects||[]).forEach(p=>PROJ.push({ id:p.id, name:p.name, ids:p.ids.slice() }));
@@ -1171,38 +1186,40 @@ function hostLibrary(d){ const seen=new Set(), stale=[];
   prepare(onTable,()=>onTable.forEach(id=>{ const p=byId(id), it=libById(id); if(!p||!it.canvas) return; p.mat.uniforms.map.value.dispose(); p.mat.uniforms.map.value=makeTex(it.canvas); p.canvas=it.canvas; p.stats=printStats(it.canvas); }));
   drawBinderCover(); if(BD.el.classList.contains('on')) bdRender(); updateChains(false); }
 // a workbook page in Studium's own format (A3 landscape, millimetres): the board's frames where they sit, a title, and a caption under each pair
-function hostPage(){ const on=prints.filter(p=>p.onBoard&&!libById(p.id).sample); if(!on.length) return null;
+function hostPage(){ const on=prints.filter(p=>p.onBoard&&realId(p.id)); if(!on.length) return null;
   const pad=0.4, bb=bboxOf(on); bb.x0-=pad; bb.x1+=pad; bb.z0-=pad; bb.z1+=pad;
   const W=420, H=297, M=15, top=44, foot=8, s=Math.min((W-2*M)/(bb.x1-bb.x0), (H-top-foot-12)/(bb.z1-bb.z0)), ox=M+((W-2*M)-(bb.x1-bb.x0)*s)/2, oy=top;
   const X=x=>ox+(x-bb.x0)*s, Y=z=>oy+(z-bb.z0)*s, inner=1/1.09, items=[];
   items.push({ t:'text', role:'title', x:M, y:12, w:W*0.6, h:H*0.08, text:'Sequence board', size:30, font:'serif', ph:'Title' });
   items.push({ t:'text', role:'caption', x:W-M-150, y:18, w:150, h:H*0.06, text:new Date().toLocaleDateString('en-NZ',{ day:'numeric', month:'long', year:'numeric' })+' · '+rejects.length+' in the reject box', size:11, font:'type', ph:'' });
   on.forEach(p=>{ const w=p.w*inner*s, h=p.h*inner*s; items.push({ t:'photo', pid:realId(p.id), x:X(p.tx)-w/2, y:Y(p.tz)-h/2, w }); });
-  chains.forEach(ch=>{ if(ch.some(p=>libById(p.id).sample)) return; const b=bboxOf(ch), n=notes.get(chainKey(ch));
+  chains.forEach(ch=>{ if(!ch.some(p=>on.includes(p))) return; const b=bboxOf(ch), n=notes.get(chainKey(ch));
     items.push({ t:'text', role:'caption', x:X(b.x0), y:Math.min(H-foot-12,Y(b.z1)+1.5), w:Math.max(60,(b.x1-b.x0)*s), h:H*0.05, text:n&&(n.why.size||n.text)?noteSummary(n):'', size:11, font:'type', ph:ch.length===2?'What joins these two?':'Why this order?' }); });
-  return { items }; }
+  return { items, tpl:'sequence' }; }
 
 /* ================= the tour: one prompt at a time, ticks over when you've done it (Studium's coach style) ================= */
 const TSTEPS=[
-  { ch:'PULL', line:'This is your <b>light table</b>.', sub:'Every frame you shoot lives in the binder. Pull prints out, try them next to each other, and pin the keepers to the wall.', next:true },
-  { ch:'PULL', line:'Open the <b>binder</b>.', sub:'Click it at the front of the table, or press <kbd>B</kbd>.', hot:'binder', ev:'binder' },
+  { ch:'PULL', line:'This is your <b>light table</b>.', sub:'Every frame you shoot lives in the binder, the glowing folder at the front. Pull prints out, try them next to each other, and pin the keepers to the wall.', hot:'binder', next:true },
+  { ch:'PULL', line:'Open the <b>binder</b>.', sub:'Click it, or press <kbd>B</kbd>.', hot:'binder', ev:'binder' },
   { ch:'PULL', line:'Pick a few frames, then <b>Pull out</b>.', sub:'Click to pick. The tabs down the side are your folders.', hot:'pull', ev:'pull' },
   { ch:'PAIR', line:'Drag a print onto the <b>board</b>.', sub:'It straightens and lines up when you let go.', hot:'board', ev:'board' },
   { ch:'PAIR', line:'Put another one <b>right beside it</b>.', sub:'Side by side or one above the other. Touching makes a pair.', hot:'board', ev:'pair' },
-  { ch:'PAIR', line:'Say <b>what joins them</b>.', sub:'Use the cog above the pair, or right-click one of them.', ev:'note' },
-  { ch:'PAIR', line:'Make one <b>bigger</b>.', sub:'Hover a print and press <kbd>]</kbd>. <kbd>[</kbd> makes it smaller.', ev:'size' },
-  { ch:'CULL', line:'Not working? Drop one in the <b>reject box</b>.', sub:'Nothing is lost. You can pull it back out any time.', hot:'box', ev:'reject', skip:true },
-  { ch:'CULL', line:'Want it twice? Use the <b>copier</b>.', sub:'Drag a print onto the glass, top left of the table.', hot:'scan', ev:'copy', skip:true },
-  { ch:'WALL', line:'<b>Pin</b> your pair to the wall.', sub:'Cog or right-click, then Pin pair to the wall.', ev:'pin' },
+  { ch:'PAIR', line:'Say <b>what joins them</b>.', sub:'Hover the pair and click the cog above it, or right-click one of them.', hot:'chain', ev:'note' },
+  { ch:'PAIR', line:'Make one <b>bigger</b>.', sub:'Hover a print and press <kbd>]</kbd>. <kbd>[</kbd> makes it smaller.', hot:'chain', ev:'size' },
+  { ch:'CULL', line:'Not working? Drop one in the <b>reject box</b>.', sub:'Drag a print into the glowing box. Nothing is lost, you can pull it back out any time.', hot:'box', ev:'reject', skip:true },
+  { ch:'CULL', line:'Want it twice? Use the <b>copier</b>.', sub:'Drag a print onto its glass. A copy prints out beside it.', hot:'scan', ev:'copy', skip:true },
+  { ch:'WALL', line:'<b>Pin</b> your pair to the wall.', sub:'Hover the pair and click the pin next to the cog.', hot:'chain', ev:'pin' },
+  { ch:'WALL', line:'Make <b>another series</b> and pin that too.', sub:'Another pair or a run of three on the board, then the pin. Strings need two things to join.', hot:'board', ev:'pin2', skip:true, ok:()=>wallSeries()>=2 },
   { ch:'WALL', line:'Push the mouse to the <b>top edge</b> to look up.', sub:'Or press <kbd>W</kbd>.', hot:'edge', ev:'wall' },
-  { ch:'WALL', line:'Run a <b>string</b> between ideas.', sub:'Click a spool on the ledge, then click two prints.', hot:'spools', ev:'string', skip:true },
+  { ch:'WALL', line:'Run a <b>string</b> between your series.', sub:'Click a spool on the ledge, then click a print in each series.', hot:'spools', ev:'string', skip:true },
   { ch:'WALL', line:'Come back down to the <b>table</b>.', sub:'Move the mouse to the bottom of the screen.', hot:'edgeDown', ev:'table' },
-  { ch:'KEEP', line:'Add the board to your <b>workbook</b>.', sub:'It becomes a new page you can write on.', hot:'capture', ev:'capture', skip:true },
-  { ch:'KEEP', line:'That’s the <b>light table</b>.', sub:'Live with your pairs on the wall for a while. Press <kbd>?</kbd> to see this again.', next:true, last:true } ];
+  { ch:'KEEP', line:'Add the board to your <b>workbook</b>.', sub:'It becomes a new page with a caption under each pair for you to write in.', hot:'capture', ev:'capture', skip:true },
+  { ch:'KEEP', line:'That’s the <b>light table</b>.', sub:'Live with your series on the wall for a while. Press <kbd>?</kbd> to see this again.', next:true, last:true } ];
+const wallSeries=()=>wallGroups.filter(g=>g.members.length>1).length;
 const TOUR={ on:false, i:0, done:false, okT:0, seen:{} };
 const CHAPS=['PULL','PAIR','CULL','WALL','KEEP'];
 function tourStart(){ clearTimeout(TOUR.okT); TOUR.okT=0; if(BD.el.classList.contains('on')) closeBinder(); TOUR.on=true; TOUR.i=0; tourShow(); }
-function tourEnd(finished){ clearTimeout(TOUR.okT); TOUR.okT=0; TOUR.on=false; $('co').classList.remove('show','ok'); document.querySelectorAll('.co-hot').forEach(e=>e.classList.remove('co-hot')); if(finished!==false||!TOUR.done){ TOUR.done=true; saveAll(); if(library.every(i=>i.sample||i.copyOf)) try{ localStorage.setItem('lt_tour_done','1'); }catch(e){} } }
+function tourEnd(finished){ clearTimeout(TOUR.okT); TOUR.okT=0; TOUR.on=false; $('co').classList.remove('show','ok'); document.querySelectorAll('.co-hot').forEach(e=>e.classList.remove('co-hot')); if(finished!==false||!TOUR.done){ TOUR.done=true; saveAll(); if(finished!==false&&HOST&&HOST.tourDone) try{ HOST.tourDone(); }catch(e){} if(library.every(i=>i.sample||i.copyOf)) try{ localStorage.setItem('lt_tour_done','1'); }catch(e){} } }
 function tourShow(){ const s=TSTEPS[TOUR.i], el=$('co'); if(!s){ tourEnd(true); return; }
   el.querySelector('.co-top').innerHTML=CHAPS.map((c,k)=>'<span class="co-ch'+(c===s.ch?' on':CHAPS.indexOf(s.ch)>k?' past':'')+'">'+c+'</span>').join('<i></i>')
     +(s.skip?'<button class="co-skip" type="button" data-co="step">SKIP</button>':'')+'<button class="co-skip all" type="button" data-co="all">END TOUR</button>';
@@ -1212,13 +1229,35 @@ function tourShow(){ const s=TSTEPS[TOUR.i], el=$('co'); if(!s){ tourEnd(true); 
   el.classList.remove('ok'); el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
   document.querySelectorAll('.co-hot').forEach(e=>e.classList.remove('co-hot'));
   const dom={ pull:'#bdPull', capture:'#bCapture' }[s.hot]; if(dom){ const t=document.querySelector(dom); if(t) t.classList.add('co-hot'); }
-  if(s.ev&&performance.now()-(TOUR.seen[s.ev]||-1e9)<1500) tourEv(s.ev); }
+  if(s.ev&&(performance.now()-(TOUR.seen[s.ev]||-1e9)<1500||(s.ok&&s.ok()))) tourEv(s.ev); TP.x=null; }
 function tourEv(name){ TOUR.seen[name]=performance.now(); if(!TOUR.on) return; const s=TSTEPS[TOUR.i]; if(!s||s.ev!==name||TOUR.okT) return;
   $('co').classList.add('ok'); TOUR.okT=setTimeout(()=>{ TOUR.okT=0; TOUR.i++; tourShow(); },900); }
 $('co').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
   if(b.classList.contains('co-next')){ if(TSTEPS[TOUR.i].last) tourEnd(true); else { TOUR.i++; tourShow(); } }
   else if(b.dataset.co==='step'){ TOUR.i++; tourShow(); } else if(b.dataset.co==='all') tourEnd(false); });
 $('bTour').onclick=()=>{ if(TOUR.on) tourEnd(false); else tourStart(); };
+const TP={ x:null, y:null };
+function tourAnchor(hot){ switch(hot){
+  case 'binder': return { at:V(BINDER.x+BINDER.w/2+0.3,BINDER.h,BINDER.z), side:'right' };
+  case 'box': return { at:V(BOX.x+BOX.w/2+0.4,BOX.h,BOX.z), side:'right' };
+  case 'scan': return { at:V(SC.x+SC.w/2+0.4,SC.h,SC.z), side:'right' };
+  case 'board': return { at:V(BX-BW/2-0.3,0,BZ), side:'left' };
+  case 'chain': { const L=chains.length?chains[chains.length-1]:prints.filter(p=>p.onBoard); if(!L.length) return { at:V(BX-BW/2-0.3,0,BZ), side:'left' }; const b=bboxOf(L); return { at:V(b.x0-0.4,0,(b.z0+b.z1)/2), side:'left' }; }
+  case 'spools': return cam.view==='wall'?{ at:V(SHELF.x+SHELF.w/2+0.4,SHELF.y+0.3,WALL_Z), side:'right' }:null;
+  case 'edge': return { top:true };
+  case 'capture': return { dom:'#bCapture' };
+  default: return null; } }
+function tourPlace(){ const el=$('co'); if(!TOUR.on||!el.classList.contains('show')) return; const s=TSTEPS[TOUR.i];
+  const a=s&&s.hot&&!BD.el.classList.contains('on')?tourAnchor(s.hot):null;
+  if(!a){ if(el.classList.contains('placed')){ el.classList.remove('placed'); el.style.left=el.style.top=''; } TP.x=null; return; }
+  const W=window.innerWidth, H=window.innerHeight, cw=el.offsetWidth, ch=el.offsetHeight, gap=28; let x, y;
+  if(a.top){ x=W/2-cw/2; y=64; }
+  else if(a.dom){ const t=document.querySelector(a.dom); if(!t) return; const r=t.getBoundingClientRect(); x=r.right-cw; y=r.top-ch-56; }
+  else { tmpV.copy(a.at).project(camera); if(tmpV.z>1) return; const sx=(tmpV.x+1)/2*W, sy=(1-tmpV.y)/2*H; x=a.side==='left'?sx-gap-cw:sx+gap; y=sy-ch/2;
+    if(x+cw>W-12) x=sx-gap-cw-60; if(x<12) x=sx+gap; }
+  x=Math.max(12,Math.min(W-cw-12,x)); y=Math.max(12,Math.min(H-ch-112,y));
+  if(TP.x==null){ TP.x=x; TP.y=y; } else { TP.x+=(x-TP.x)*0.18; TP.y+=(y-TP.y)*0.18; }
+  el.classList.add('placed'); el.style.left=TP.x.toFixed(1)+'px'; el.style.top=TP.y.toFixed(1)+'px'; }
 function tourHot(){ return TOUR.on&&TSTEPS[TOUR.i]?TSTEPS[TOUR.i].hot:null; }
 
 /* ================= start ================= */
@@ -1227,14 +1266,15 @@ function finishBoot(){ restack(); updateChains(false); drawBoxBtn(); applyOpts()
   setTimeout(()=>{ let i=0; const next=()=>{ while(i<WALLS.length&&wallTiles[WALLS[i][0]]) i++; if(i>=WALLS.length){ buildWallPick(); return; } wallTile(WALLS[i][0]); i++; setTimeout(next,120); }; next(); },1600);
   /* a student with no photos yet can't save a session, so remember the finished tour in this browser for them */
   if(library.every(i=>i.sample||i.copyOf)) try{ if(localStorage.getItem('lt_tour_done')) TOUR.done=true; }catch(e){}
-  if(!TOUR.done) setTimeout(()=>{ if(!TOUR.on&&!TOUR.done) tourStart(); },900); }
-window.LTapp={ kill(){ READY=false; PAUSED=true; clearTimeout(saveT); },
+  if(!TOUR.done||WANT_TOUR) setTimeout(()=>{ WANT_TOUR=false; if(!TOUR.on) tourStart(); },900); }
+let WANT_TOUR=false;
+window.LTapp={ tour(){ if(READY){ if(!TOUR.on) tourStart(); } else WANT_TOUR=true; }, kill(){ READY=false; PAUSED=true; clearTimeout(saveT); },
   sync(d){ if(!READY||LOADING) return; hostLibrary(d); },
   pause(on){ on=!!on; if(on===PAUSED) return; PAUSED=on; if(on){ clearTimeout(saveT); saveNow(); recordHist(); closeBinder(); dropString(); }
     else if(READY&&!looping){ last=performance.now(); looping=true; requestAnimationFrame(frame); } } };
 drawBoxLabel(0); buildPanel(); buildSwatches(); buildWallPick(); setStringsOn(stringsOn);
 if(HOST){ $('bBook').textContent='Open workbook'; $('bBook').title='Go to the Workbook room'; }
-if(HOST){ const d=HOST.data()||{}; hostLibrary(d);
+if(HOST){ const d=HOST.data()||{}; hostLibrary(d, d.state&&d.state.adopted); if(d.startTour) WANT_TOUR=true;
   requestAnimationFrame(()=>applyState(d.state, had=>{ if(had){ finishBoot(); return; }
     const own=library.filter(i=>!i.copyOf&&!i.sample), pool=own.length>=4?own:library.filter(i=>!i.copyOf), first=pool.slice(0,Math.min(3,Math.max(0,pool.length-3))).map(i=>i.id); prepare(first,()=>{ first.forEach(ensurePrint); scatter(true); finishBoot(); }); })); }
 else { seedLibrary();

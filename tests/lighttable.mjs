@@ -34,6 +34,7 @@ try {
   await page.waitForTimeout(2500); await shot('1-open');
   const info = await fr.evaluate(() => ({ host: document.documentElement.classList.contains('in-studium'), lib: __lt.library.length, out: __lt.prints.length, tour: __lt.TOUR.on, step: __lt.TOUR.i }));
   console.log('  table:', JSON.stringify(info));
+  console.log('  card:', await fr.evaluate(() => { const c = document.getElementById('co'); const cs = getComputedStyle(c); return [cs.opacity, cs.animationName, cs.display, c.className, c.getAnimations().map((a) => a.animationName + ':' + a.playState + ':' + a.currentTime).join(',')].join(' | '); }));
   if (!info.host) fail = 'not in host mode'; if (info.lib < 5) fail = 'library missing photos';
   await fr.click('.co-next'); await page.waitForTimeout(600);
   await fr.evaluate(() => { __lt.openBinder(); }); await page.waitForTimeout(1500);
@@ -42,6 +43,8 @@ try {
   await fr.evaluate(() => { const own = __lt.prints.filter((p) => !__lt.library.find((i) => i.id === p.id).sample).slice(0, 2); own.forEach((p, k) => __lt.placeFree(p, 6 + k * 2.45, -1)); __lt.tourEv('board'); __lt.restack(); return [__lt.TOUR.i, __lt.TOUR.okT, __lt.TOUR.on]; }).then((r) => console.log('  after board:', JSON.stringify(r)));
   await page.waitForTimeout(1200); await fr.evaluate(() => __lt.updateChains(true));
   await page.waitForTimeout(1800); await shot('3-board');
+  console.log('  over card:', await fr.evaluate(() => { const c = document.getElementById('co'), r = c.getBoundingClientRect(); const e = document.elementFromPoint(r.left + r.width * 0.5, r.top + 20); const cs = getComputedStyle(c); return [e && (e.id || e.tagName + '.' + e.className), cs.opacity, cs.zIndex, cs.filter, c.className, r.left|0, r.top|0].join(' | '); }));
+  await page.waitForTimeout(3000); await shot('3c-later'); await fr.locator('#co').screenshot({ path: join(OUT, 'lt-card.png') }).catch(() => {});
   const tstep = await fr.evaluate(() => __lt.TOUR.i); console.log('  tour step after pull + pair:', tstep); if (tstep < 5) fail = 'tour did not advance';
   await fr.evaluate(() => { const ch = __lt.chains()[0]; if (ch) __lt.pinGroup(ch, null, 'pair'); __lt.focus('wall'); }); await page.waitForTimeout(2500); await shot('3b-wall');
   await fr.evaluate(() => __lt.focus('table')); await page.waitForTimeout(1200);

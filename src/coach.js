@@ -304,7 +304,7 @@
         start:function(){ var B=rbFind("softbox"); rbHome(true); RLB.keySide=1; if(B&&rbAngle(B)!=null){ var H=rbHome(), T=rbTarget(), bx=B.x-T.x, bz=B.z-T.z; RLB.keySide=(H.x*bz-H.z*bx)>=0?1:-1; } rbFrame(rbHome()); },
         target:function(){ var B=rbFind("softbox"); if(!B) return document.querySelector('#rbKit [data-rb-fx="softbox"]'); var p=rbSpotAt("key"); return p?rbAnchor({x:p.x,y:p.y,z:p.z},90):null; },
         done:function(){ return rbNearSpot(rbFind("softbox"),"key"); }}),
-      coRig({ch:"SIZE", place:"top", spot:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); return !F||(B&&Math.hypot(F.x-B.x,F.z-B.z)>0.6*(RL.S||1))?"fresnel":null; }, start:function(){ rbFrame(rbHome()); },
+      coRig({ch:"SIZE", place:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); return !F||(B&&Math.hypot(F.x-B.x,F.z-B.z)>0.6*(RL.S||1))?"top":null; }, spot:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); return !F||(B&&Math.hypot(F.x-B.x,F.z-B.z)>0.6*(RL.S||1))?"fresnel":null; }, start:function(){ rbFrame(rbHome()); },
         line:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); if(!F) return 'Drag the <b>Fresnel</b> onto the gold spot beside the softbox'; if(Math.hypot(F.x-B.x,F.z-B.z)>0.6*(RL.S||1)) return 'Drag the Fresnel\'s stand onto the gold <b>FRESNEL</b> spot'; return 'Now turn the softbox <b>off</b> with its ◉'; }, sub:"Same place, a much smaller light. Watch the edge of the stump's shadow.",
         target:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); if(!F) return document.querySelector('#rbKit [data-rb-fx="fresnel"]'); if(Math.hypot(F.x-B.x,F.z-B.z)>0.6*(RL.S||1)){ var p=rbSpotAt("fresnel"); return p?rbAnchor({x:p.x,y:p.y,z:p.z},90):null; } return document.querySelector('#rbSide [data-rb-on="'+RL.lights.indexOf(B)+'"]'); }, nodim:true,
         done:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); return !!(F&&F.on&&B&&!B.on&&Math.hypot(F.x-B.x,F.z-B.z)<=0.6*(RL.S||1)); }}, true),
@@ -450,8 +450,8 @@
       /* column: stay in the target's own column (its right edge), below it if there's room, else above: the light table stays clear */
       if(pl==="column"){ var col=t.closest(".st-loupe")||(s.col&&document.querySelector(s.col))||t, cr=col.getBoundingClientRect(), cwid=Math.min(cw,Math.max(300,cr.width)); e.style.width=cwid+"px"; cw=cwid; chh=e.offsetHeight||chh;
         x=Math.max(12,Math.min(W-cw-12,cr.right-cw)); var fitsBelow=r.bottom+p+16+chh<H-10; y=fitsBelow?r.bottom+p+16:Math.max(12,cr.top+12); }   /* no room below: over the top of the column (the big preview), never over the buttons */
-      if(pl==="low"){ var stg=document.querySelector("#editStage"), sr=stg?stg.getBoundingClientRect():{left:0,width:W}; x=Math.max(12,Math.min(W-cw-12,sr.left+sr.width/2-cw/2)); y=H-chh-10; }   // over the film strip, clear of the photo
-      if(pl==="bottom"){ x=Math.max(12,Math.min(W-cw-12,r.left+r.width/2-cw/2)); y=Math.max(r.bottom+p+16,H-chh-64); if(y+chh>H-8) y=H-chh-8; }   // under the screen, clear of the rows
+      if(pl==="low"){ var stg=document.querySelector("#editStage"), sr=stg?stg.getBoundingClientRect():{left:0,width:W}; x=Math.max(12,Math.min(W-cw-12,sr.left+sr.width/2-cw/2)); y=H-chh-10; }   /* over the film strip, clear of the photo */
+      if(pl==="bottom"){ x=Math.max(12,Math.min(W-cw-12,r.left+r.width/2-cw/2)); y=Math.max(r.bottom+p+16,H-chh-64); if(y+chh>H-8) y=H-chh-8; }   /* under the screen, clear of the rows */
       /* side: beside the camera screen, so the sliders and the meter stay clear to use */
       if(pl==="side"){ var rr=0; Array.prototype.forEach.call(document.querySelectorAll('#camback .cb-scale'),function(x){ rr=Math.max(rr,x.getBoundingClientRect().right); }); rr=Math.max(rr,r.right);
         var sw=Math.max(260,Math.min(440,W-rr-40)); e.style.width=sw+"px"; e.classList.add("side"); cw=sw; chh=e.offsetHeight||chh; x=Math.min(W-sw-12,rr+24); y=Math.max(12,Math.min(H-chh-12,H/2-chh/2)); }

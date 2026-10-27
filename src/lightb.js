@@ -367,7 +367,7 @@
   function rbNdc(e){ return {x:e.clientX/innerWidth*2-1, y:-(e.clientY/innerHeight)*2+1}; }
   function rbHit(e){ _rbRay.setFromCamera(rbNdc(e),camera); var objs=[], aims=[]; RL.lights.forEach(function(L){ if(L.stand&&L.stand.visible) L.stand.traverse(function(o){ if(!o.visible) return; if(o.isSprite) aims.push(o); else if(o.isMesh) objs.push(o); }); });
     var ha=aims.length?_rbRay.intersectObjects(aims,false):[]; if(ha.length) return {L:ha[0].object.userData.L, aim:true, head:false};   /* the reticle sits on top of everything */
-    var h=_rbRay.intersectObjects(objs,false); if(!h.length) return null; var o=h[0].object; return {L:o.userData.L, aim:o.name==="aim", head:!!(o.parent&&o.parent.name==="head")}; }
+    var h=_rbRay.intersectObjects(objs,false); if(!h.length) return null; var o=h[0].object; for(var hi=0;hi<h.length;hi++){ if(h[hi].object.name!=="ring"){ o=h[hi].object; break; } }   /* a stand beats a dial lying under it */ return {L:o.userData.L, aim:o.name==="aim", head:!!(o.parent&&o.parent.name==="head")}; }
   function rbOnPlane(e,y){ _rbRay.setFromCamera(rbNdc(e),camera); _rbPl.constant=-y; var o=new THREE.Vector3(); return _rbRay.ray.intersectPlane(_rbPl,o)?o:null; }
   /* while the camera is up, the scene belongs to the camera again: shutter, right-click to lower */
   function rbOnCanvas(e){ return RLB.open&&!viewfinderOn&&e.target===renderer.domElement; }
@@ -577,7 +577,7 @@
   var RLB_HOLOMAT=null;
   function rbHoloSnap(fx,p){ var sp=RLB.spotNow; if(sp&&sp.fx===fx&&Math.hypot(p.x-sp.x,p.z-sp.z)<0.28*RL.S) return {x:sp.x,z:sp.z}; return {x:p.x,z:p.z}; }
   function rbHolo(fx,p){ var G=RLB.holo; if(!fx||!p){ if(G) G.visible=false; return; } if(typeof scene==="undefined"||!scene) return;
-    if(G&&G.parent!==scene){ G=null; } if(!G||G.userData.fx!==fx){ if(G){ scene.remove(G); G.traverse(function(o){ if(o.geometry) o.geometry.dispose(); }); }
+    if(G&&G.parent!==scene){ G.traverse(function(o){ if(o.geometry) o.geometry.dispose(); }); G=null; RLB.holo=null; } if(!G||G.userData.fx!==fx){ if(G){ scene.remove(G); G.traverse(function(o){ if(o.geometry) o.geometry.dispose(); }); }
       if(!RLB_HOLOMAT) RLB_HOLOMAT={fill:new THREE.MeshBasicMaterial({color:0xf0c46e, transparent:true, opacity:0.18, depthWrite:false, toneMapped:false, side:THREE.DoubleSide}), edge:new THREE.LineBasicMaterial({color:0xffd690, transparent:true, opacity:0.85, toneMapped:false}),
         ring:new THREE.MeshBasicMaterial({map:rbRingTex(), color:0xf0c46e, transparent:true, opacity:0.9, depthWrite:false, toneMapped:false})};
       var F=RLB_FX[fx]||RLB_FX.softbox, T=rbTarget(), subH=(T.y-rlGround(T.x,T.z))/RL.S, h=fx==="sodium"?F.h:Math.min(F.h,Math.max(rbMinH(fx),subH+0.55)), w=Math.max(0.16,Math.min(0.9,(F.R||0.1)*2));
@@ -621,7 +621,7 @@
   function rlNatural(){ if(!RLB) return; RL.lights.forEach(rbDropStand); RL.lights=[]; RLB.sel=-1; RLB.sunMode=false; RLB.play=false; RL.on=false; rbRestore(); RLB.eye=1; rbPanel(true); rbTimeline(); }
   function rlForget(){ if(!RLB) return; rlClose(); RL.lights.forEach(rbDropStand); RL.lights=[]; RLB.sel=-1; RLB.sunMode=false; RL.on=false; RL.ready=false; RL.target=null; RLB.built=false;
     if(RL.grid&&RL.grid.tex) RL.grid.tex.dispose(); RL.grid=null; if(RLB.gridS&&RLB.gridS.tex) RLB.gridS.tex.dispose(); RLB.gridS=null; RLB.gpu=null; RL.gpu=null; RLB.eye=1; RLB.north=null;
-    if(RLB.spotM){ if(RLB.spotM.parent) RLB.spotM.parent.remove(RLB.spotM); RLB.spotM.traverse(function(o){ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); RLB.spotM=null; } RLB.home=null; RLB.spotNow=null; RLB.frame=null; }   /* a new scan has a new scene */
+    if(RLB.spotM){ if(RLB.spotM.parent) RLB.spotM.parent.remove(RLB.spotM); RLB.spotM.traverse(function(o){ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); RLB.spotM=null; } RLB.home=null; RLB.spotNow=null; RLB.frame=null; if(RLB.holo){ RLB.holo.traverse(function(o){ if(o.geometry) o.geometry.dispose(); }); if(RLB.holo.parent) RLB.holo.parent.remove(RLB.holo); RLB.holo=null; } RLB.glowL=null; }   /* a new scan has a new scene */
   function rlVis(){ if(RLB) rbStands(); }
   function rlPlanUI(){} function rlPanel(){} function rlMarkers(){}
 

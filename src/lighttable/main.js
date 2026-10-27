@@ -530,7 +530,7 @@ canvas.addEventListener('pointermove', e=>{
 window.addEventListener('pointerup', e=>{
   if(SD.n){ dropSticky(); drag.pending=null; pan.on=false; return; }
   if(drag.ctx){ const c=drag.ctx; drag.ctx=null; openCtx(c.p,c.x,c.y); }
-  else if(drag.wall){ saveAll(); drag.wall=null; }
+  else if(drag.wall){ saveAll(); drag.wall=null; tourEv('wallmove'); }
   else if(drag.p){ endDrag(); }
   else if(drag.pending){ openInspect(drag.pending); }
   drag.pending=null; pan.on=false; canvas.style.cursor=loupe.on?'none':'default';
@@ -633,8 +633,6 @@ function drawChains(){
     if(pick.marker==='A'){ const m=flat(new THREE.Mesh(new THREE.PlaneGeometry(x1-x0+0.44,maxH+0.44), new THREE.MeshBasicMaterial({ map:matTex, color:0x3b3631, transparent:true, opacity:0, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1 })));
       m.position.set((x0+x1)/2,BOARD_Y+0.004,zc); m.userData.fade=0.9; m.renderOrder=-1; }
     else if(pick.marker==='B') ch.forEach((p,i)=>addTag(String(i+1), V(p.tx-p.w/2+0.2,top,p.tz-p.h/2+0.2), 'num'));
-    const rh=flat(new THREE.Mesh(new THREE.PlaneGeometry(x1-x0,0.4), new THREE.MeshBasicMaterial({ map:rhythmTexture(ch,x0,x1), transparent:true, depthWrite:false })));
-    rh.position.set((x0+x1)/2, top, above-(pick.marker==='A'?0.06:0));
     const n=notes.get(chainKey(ch)); if(n&&(n.why.size||n.text)) addTag(noteSummary(n), V(x0,top,zc+maxH/2+0.3), 'nsum'); });
   drawBoxBtn(); }
 function addTag(text, world, cls){ const el=document.createElement('div'); el.className='tag '+cls; if(text) el.textContent=text; tagLayer.appendChild(el); const t={ el, w:world }; tags.push(t); return el; }
@@ -889,13 +887,13 @@ function buildSwatches(){ scene.remove(swatch); return; WALLS.forEach(([key,name
   const frame=new THREE.Mesh(new THREE.PlaneGeometry(0.72,0.72), new THREE.MeshBasicMaterial({ color:0x2a241c })); frame.position.z=0.01; swatch.add(frame); swatch.userData.frame=frame; markSwatch(); }
 function markSwatch(){ const m=swatchChips.find(c=>c.userData.wall===wallStyle); if(m&&swatch.userData.frame){ swatch.userData.frame.position.x=m.position.x; swatch.userData.frame.position.y=m.position.y; } }
 function hitSwatch(){ return null; ray.setFromCamera(ndc,camera); const h=ray.intersectObjects(swatchChips,false)[0]; return h?h.object.userData.wall:null; }
-function swatchPointer(){ const k=hitSwatch(); if(!k) return false; if(k!==wallStyle){ wallStyle=k; saveAll(); drawWall(); markSwatch(); toast('Wall finish: '+WALLS.find(w=>w[0]===k)[1]+'.'); } return true; }
+function swatchPointer(){ const k=hitSwatch(); if(!k) return false; if(k!==wallStyle){ wallStyle=k; saveAll(); drawWall(); markSwatch(); toast('Wall finish: '+WALLS.find(w=>w[0]===k)[1]+'.'); tourEv('wallstyle'); } return true; }
 
 /* ================= wall finish + string toggle (small panel, only on the wall) ================= */
 const WALL_SWATCH={ studio:'#24211e', cork:'#a87a4c', white:'#ece9e3', concrete:'#8f8c87', ply:'#e0cba3', linen:'#4d5560' };
 function buildWallPick(){ const host=$('wpChips'); host.innerHTML='';
   WALLS.forEach(([key,name])=>{ const b=document.createElement('button'); b.type='button'; b.className='wchip2'+(key===wallStyle?' on':''); b.title=name; b.setAttribute('aria-label',name); if(wallTiles[key]) b.style.backgroundImage='url('+wallTiles[key].thumb+')'; else b.style.backgroundColor=WALL_SWATCH[key];
-    b.onclick=()=>{ if(key===wallStyle) return; wallStyle=key; saveAll(); drawWall(); buildWallPick(); }; host.appendChild(b); });
+    b.onclick=()=>{ if(key===wallStyle) return; wallStyle=key; saveAll(); drawWall(); buildWallPick(); tourEv('wallstyle'); }; host.appendChild(b); });
   $('wpName').textContent=WALLS.find(w=>w[0]===wallStyle)[1]; }
 let stringsOn=true; try{ stringsOn=localStorage.getItem('lt_strings')!=='off'; }catch(e){}
 function setStringsOn(on){ stringsOn=on; strGroup.visible=on; $('wpStr').textContent=on?'String on':'String off'; $('wpStr').classList.toggle('on',on); saveAll(); if(!on) dropString(); }
@@ -1417,11 +1415,12 @@ function shoot(){ if(!STAND.up||STAND.dir) return; const on=prints.filter(p=>p.o
   STAND.flashT=0.16; const fl=$('flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
   const R=shotRect(on), cw=2000, ch=Math.round(2000/1.4142);
   const oc=new THREE.OrthographicCamera(R.x0-BX,R.x1-BX,-(R.z0-BZ),-(R.z1-BZ),1,60); oc.position.set(BX,30,BZ); oc.up.set(0,0,-1); oc.lookAt(BX,0,BZ); oc.updateMatrixWorld(); oc.updateProjectionMatrix();
-  const hideL=[ghost,loupeProp,dim,stand,aim,boardGlow,RINGS.board,...springs], was=hideL.map(o=>o.visible); hideL.forEach(o=>o.visible=false);
+  const hideL=[ghost,loupeProp,dim,stand,aim,boardGlow,RINGS.board,threads,stickyGroup,...springs], was=hideL.map(o=>o.visible); hideL.forEach(o=>o.visible=false);
+  const specWas=prints.map(p=>p.mat.uniforms.uSpec.value.clone()); prints.forEach(p=>p.mat.uniforms.uSpec.value.set(0,1,0,1));   /* flat copy light: no sheen on the prints */
   const lampWas=lamp.clone(); lamp.set(BX-4,14,BZ-6);
   const pr=renderer.getPixelRatio(); renderer.setPixelRatio(1); renderer.setSize(cw,ch,false); renderer.setRenderTarget(null); renderer.render(scene,oc);
   const shot=document.createElement('canvas'); shot.width=cw; shot.height=ch; shot.getContext('2d').drawImage(renderer.domElement,0,0);
-  renderer.setPixelRatio(pr); resize(); lamp.copy(lampWas); hideL.forEach((o,i)=>o.visible=was[i]);
+  renderer.setPixelRatio(pr); resize(); lamp.copy(lampWas); hideL.forEach((o,i)=>o.visible=was[i]); prints.forEach((p,i)=>p.mat.uniforms.uSpec.value.copy(specWas[i]));
   const sm=document.createElement('canvas'); sm.width=1400; sm.height=Math.round(1400/1.4142); sm.getContext('2d').drawImage(shot,0,0,sm.width,sm.height);
   const s={ id:'sh'+Date.now().toString(36), url:sm.toDataURL('image/jpeg',0.8), date:new Date().toISOString(), sent:false, rect:R, page:HOST?hostPage(R):null, n:on.length };
   SHOTS.push(s); while(SHOTS.length>8) SHOTS.shift();
@@ -1474,15 +1473,21 @@ function stickyCanvas(n){ const S=384, c=n.cv||(n.cv=document.createElement('can
   const gl=g.createLinearGradient(0,0,0,S*0.16); gl.addColorStop(0,'rgba(0,0,0,0.07)'); gl.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle=gl; g.fillRect(0,0,S,S*0.16);   /* the glue strip reads a touch darker */
   const gb=g.createLinearGradient(0,S*0.7,0,S); gb.addColorStop(0,'rgba(255,255,255,0)'); gb.addColorStop(1,'rgba(255,255,255,0.12)'); g.fillStyle=gb; g.fillRect(0,S*0.7,S,S*0.3);
   for(let i=0;i<900;i++){ g.fillStyle='rgba(0,0,0,'+(Math.random()*0.035)+')'; g.fillRect(Math.random()*S,Math.random()*S,1.5,1.5); }
-  g.fillStyle=col[1]; g.textBaseline='top'; let fs=40; const lines=()=>{ g.font='400 '+fs+'px "Fraunces", Georgia, serif'; const out=[]; (n.text||'').split('\n').forEach(par=>{ let line=''; par.split(' ').forEach(w=>{ const t=line?line+' '+w:w; if(g.measureText(t).width>S-56&&line){ out.push(line); line=w; } else line=t; }); out.push(line); }); return out; };
-  let L=lines(); while(L.length*fs*1.22>S-64&&fs>20){ fs-=3; L=lines(); }
-  L.forEach((l,i)=>g.fillText(l,28,30+i*fs*1.22));
+  const fit=stickyFit(n.text||'', g); g.fillStyle=col[1]; g.textBaseline='middle'; g.textAlign='center'; g.font='400 '+fit.fs+'px "Fraunces", Georgia, serif';
+  const lh=fit.fs*1.14, y0=S*0.52-(fit.lines.length-1)*lh/2; fit.lines.forEach((l,i)=>g.fillText(l,S/2,y0+i*lh));
   if(n.tex) n.tex.needsUpdate=true; return c; }
+/* the biggest type that fits the square, so a short note reads from across the table */
+let fitCtx=null;
+function stickyFit(text, g){ g=g||fitCtx||(fitCtx=document.createElement('canvas').getContext('2d')); const S=384, W=S-60, Hm=S-80; text=text.trim();
+  const wrap=fs=>{ g.font='400 '+fs+'px "Fraunces", Georgia, serif'; const out=[]; text.split('\n').forEach(par=>{ let line=''; par.split(/\s+/).forEach(w=>{ if(!w) return; const t=line?line+' '+w:w; if(g.measureText(t).width>W&&line){ out.push(line); line=w; } else line=t; }); out.push(line); }); return out; };
+  let fs=150, L=wrap(fs); while(fs>22&&(L.length*fs*1.14>Hm||L.some(l=>g.measureText(l).width>W))){ fs-=4; L=wrap(fs); } return { fs, lines:L }; }
 function makeSticky(n){ stickyCanvas(n); n.tex=new THREE.CanvasTexture(n.cv); n.tex.colorSpace=THREE.SRGBColorSpace; n.tex.anisotropy=MAXANI;
   n.mesh=new THREE.Mesh(GEO_FLAT, new THREE.MeshLambertMaterial({ map:n.tex, side:THREE.DoubleSide })); n.mesh.userData.note=n;
   n.sh=new THREE.Mesh(new THREE.PlaneGeometry(NS*1.25,NS*1.25), new THREE.MeshBasicMaterial({ map:softShadow, transparent:true, depthWrite:false, opacity:0.35 }));
   stickyGroup.add(n.sh); stickyGroup.add(n.mesh); poseSticky(n); return n; }
 function poseSticky(n){ const m=n.mesh, sh=n.sh, lift=n.lift||0;
+  if(n.shred!=null){ const t=n.shred, a=Math.min(1,t/0.4), e=a*a*(3-2*a), b=Math.max(0,(t-0.4)/0.9);
+    m.position.set(n.x+(BOX.x-n.x)*e+(b>0?(Math.random()-0.5)*0.03:0), 0.1+1.3*e-1.9*b, n.z+(BOX.z-n.z)*e); m.rotation.set(-Math.PI/2+1.35*e,0,(n.r||0)*(1-e)); sh.material.opacity=0.3*(1-e); return; }
   if(n.s==='w'){ m.position.set(n.x,n.y,WALL_Z+0.05+lift*1.2+(n.k%7)*0.002); m.rotation.set(0,0,n.r||0); sh.position.set(n.x+0.08,n.y-0.12,WALL_Z+0.02); sh.rotation.set(0,0,n.r||0); sh.material.opacity=0.3/(1+lift*5); }
   else { m.position.set(n.x,0.09+lift+(n.k%7)*0.002,n.z); m.rotation.set(-Math.PI/2,0,n.r||0); sh.position.set(n.x+0.1+lift*0.3,0.003,n.z+0.16+lift*0.5); sh.rotation.set(-Math.PI/2,0,n.r||0); sh.material.opacity=0.3/(1+lift*5); } }
 function disposeSticky(n){ stickyGroup.remove(n.mesh); stickyGroup.remove(n.sh); n.tex.dispose(); n.mesh.material.dispose(); n.sh.geometry.dispose(); n.sh.material.dispose(); }
@@ -1516,31 +1521,33 @@ function moveSticky(e){ const n=SD.n; if(!n) return false; if(!SD.moved&&Math.hy
   return true; }
 function dropSticky(){ const n=SD.n; if(!n) return false; SD.n=null; canvas.style.cursor='default';
   if(!SD.moved){ editSticky(n); return true; }
-  n.lift=0; SFX('drop');
+  n.lift=0; if(n.s==='t'&&inBox(n.x,n.z)){ shredSticky(n); saveAll(); return true; } SFX('drop');
   if(SD.fresh){ setTimeout(()=>editSticky(n),120); tourEv('sticky'); }
   saveAll(); return true; }
 function removeSticky(n){ const i=STICKY.indexOf(n); if(i<0) return; STICKY.splice(i,1); disposeSticky(n); if(NE.n===n) closeEdit(false); saveAll(); }
 
 /* writing on a note: a textarea laid over it, drawn onto the paper when you're done */
 const NE={ el:null, n:null };
-function editSticky(n){ closeEdit(true); NE.n=n; const ta=document.createElement('textarea'); ta.className='sticky-ed'; ta.maxLength=140; ta.value=n.text||''; ta.placeholder='Write a note';
-  const col=NOTE_COLS[n.c%NOTE_COLS.length]; ta.style.background=col[0]; ta.style.color=col[1];
-  ta.onkeydown=e=>{ e.stopPropagation(); if(e.key==='Escape'||(e.key==='Enter'&&!e.shiftKey)){ e.preventDefault(); closeEdit(true); } };
-  ta.oninput=()=>{ n.text=ta.value; };
-  ta.onblur=()=>setTimeout(()=>{ if(NE.el===ta) closeEdit(true); },60);
-  document.body.appendChild(ta); NE.el=ta; placeEdit(); ta.focus(); n.mesh.visible=false; }
+function editSticky(n){ closeEdit(true); NE.n=n; const ed=document.createElement('div'); ed.className='sticky-ed'; ed.contentEditable='true'; ed.spellcheck=true; ed.dataset.ph='Write a note'; ed.textContent=n.text||'';
+  const col=NOTE_COLS[n.c%NOTE_COLS.length]; ed.style.background=col[0]; ed.style.color=col[1];
+  ed.onkeydown=e=>{ e.stopPropagation(); if(e.key==='Escape'||(e.key==='Enter'&&!e.shiftKey)){ e.preventDefault(); closeEdit(true); } };
+  ed.oninput=()=>{ let t=ed.innerText.replace(/\n$/,''); if(t.length>140){ t=t.slice(0,140); ed.textContent=t; } n.text=t; placeEdit(); };
+  ed.onpaste=e=>{ e.preventDefault(); document.execCommand('insertText',false,(e.clipboardData.getData('text/plain')||'').slice(0,140)); };
+  ed.onblur=()=>setTimeout(()=>{ if(NE.el===ed) closeEdit(true); },60);
+  document.body.appendChild(ed); NE.el=ed; placeEdit(); ed.focus(); const r=document.createRange(); r.selectNodeContents(ed); r.collapse(false); const sel=getSelection(); sel.removeAllRanges(); sel.addRange(r); n.mesh.visible=false; }
 function closeEdit(keep){ const ta=NE.el, n=NE.n; NE.el=null; NE.n=null; if(!ta) return; ta.remove(); if(!n) return; n.mesh.visible=true;
   n.text=(n.text||'').trim(); stickyCanvas(n); saveAll(); }
 const _nc=[V(0,0,0),V(0,0,0),V(0,0,0),V(0,0,0)];
 function placeEdit(){ const ta=NE.el, n=NE.n; if(!ta||!n) return; const W=window.innerWidth, H=window.innerHeight; n.mesh.updateMatrixWorld();
   let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([a,b],i)=>{ const v=_nc[i].set(a*NS/2,b*NS/2,0).applyMatrix4(n.mesh.matrixWorld).project(camera); const sx=(v.x+1)/2*W, sy=(1-v.y)/2*H; x0=Math.min(x0,sx); x1=Math.max(x1,sx); y0=Math.min(y0,sy); y1=Math.max(y1,sy); });
-  const s=Math.max(60,Math.min(x1-x0,y1-y0)); ta.style.left=((x0+x1)/2-s/2).toFixed(1)+'px'; ta.style.top=((y0+y1)/2-s/2).toFixed(1)+'px'; ta.style.width=ta.style.height=s.toFixed(1)+'px'; ta.style.fontSize=Math.max(11,s*0.104).toFixed(1)+'px'; ta.style.padding=(s*0.073).toFixed(1)+'px'; }
-function stickyFrame(dt){ for(const n of STICKY){ if(n.lift>0&&SD.n!==n){ n.lift=Math.max(0,n.lift-dt*3); } poseSticky(n); n.mesh.visible=NE.n!==n&&!(n.s==='w'&&histIdx>=0); n.sh.visible=n.mesh.visible; }
+  const s=Math.max(150,Math.min(x1-x0,y1-y0)), fit=stickyFit(n.text||'Write a note'); ta.style.left=((x0+x1)/2-s/2).toFixed(1)+'px'; ta.style.top=((y0+y1)/2-s/2).toFixed(1)+'px'; ta.style.width=ta.style.height=s.toFixed(1)+'px'; ta.style.fontSize=(fit.fs/384*s).toFixed(1)+'px'; ta.style.padding=(s*30/384).toFixed(1)+'px'; }
+function shredSticky(n){ if(n.shred!=null) return; if(NE.n===n) closeEdit(true); n.shred=0; n.lift=0; SFX('shRun'); [450,650,850,1050].forEach(t=>setTimeout(()=>SFX('shBite'),t)); }
+function stickyFrame(dt){ for(const n of STICKY.slice()){ if(n.shred!=null){ n.shred+=dt; if(n.shred>1.35){ removeSticky(n); toast('Note shredded.'); continue; } } if(n.lift>0&&SD.n!==n){ n.lift=Math.max(0,n.lift-dt*3); } poseSticky(n); n.mesh.visible=NE.n!==n&&!(n.s==='w'&&histIdx>=0); n.sh.visible=n.mesh.visible; }
   const hot=tourHot()==='pad'; padT.position.y=hot?0.04+0.04*Math.sin(performance.now()/220):0; placeEdit(); }
-function stickyCtx(n,x,y){ SFX('ltMenu'); hideActs(); const items=[['Write on it','',()=>editSticky(n)],['Change colour','',()=>{ n.c=(n.c+1)%NOTE_COLS.length; stickyCanvas(n); saveAll(); }],['Throw it away','',()=>{ removeSticky(n); toast('Note thrown away.'); }]];
+function stickyCtx(n,x,y){ SFX('ltMenu'); hideActs(); const items=[['Write on it','',()=>editSticky(n)],['Change colour','',()=>{ n.c=(n.c+1)%NOTE_COLS.length; stickyCanvas(n); saveAll(); }],n.s==='t'?['Shred it','',()=>shredSticky(n)]:['Throw it away','',()=>{ removeSticky(n); toast('Note thrown away.'); }]];
   CTX.innerHTML=''; items.forEach(it=>{ const b=document.createElement('button'); b.type='button'; b.innerHTML='<span></span>'; b.firstChild.textContent=it[0]; b.onclick=()=>{ closeCtx(); it[2](); }; CTX.appendChild(b); });
   CTX.classList.add('on'); const r=CTX.getBoundingClientRect(); CTX.style.left=Math.min(window.innerWidth-r.width-10,x)+'px'; CTX.style.top=Math.min(window.innerHeight-r.height-10,y)+'px'; }
-function stickySnap(){ return STICKY.map(n=>({ id:n.id, s:n.s, x:+n.x.toFixed(3), y:+(n.y||0).toFixed(3), z:+(n.z||0).toFixed(3), r:+(n.r||0).toFixed(3), c:n.c, text:n.text||'' })); }
+function stickySnap(){ return STICKY.filter(n=>n.shred==null).map(n=>({ id:n.id, s:n.s, x:+n.x.toFixed(3), y:+(n.y||0).toFixed(3), z:+(n.z||0).toFixed(3), r:+(n.r||0).toFixed(3), c:n.c, text:n.text||'' })); }
 function stickyLoad(L){ STICKY.splice(0).forEach(disposeSticky); (L||[]).forEach(o=>{ const n=makeSticky({ ...o, k:++stickyN, lift:0 }); STICKY.push(n); }); padCol=STICKY.length%NOTE_COLS.length; buildPads(); }
 
 RINGS.kit=RING_KIT; RINGS.tray=RING_TRAY;
@@ -1594,6 +1601,9 @@ const TSTEPS=[
   { ch:'WALL', line:'<b>Pin</b> both series to the wall.', sub:'Hover each one and click the pin next to the cog.', hot:'chain', ev:'pin2', skip:true, ok:()=>wallSeries()>=2 },
   { ch:'WALL', line:'Push the mouse to the <b>top edge</b> to look up.', sub:'Or press <kbd>W</kbd>.', hot:'edge', ev:'wall' },
   { ch:'WALL', line:'Run a <b>string</b> between your series.', sub:'Click a spool on the ledge, then click a print in each series.', hot:'spools', ev:'string', skip:true },
+  { ch:'WALL', line:'Drag a print to <b>move it</b> on the wall.', sub:'Pairs and sequences move together. Find a spot where they sit well.', hot:null, ev:'wallmove', skip:true },
+  { ch:'WALL', line:'Change a print\u2019s <b>size</b> on the wall.', sub:'Hover it and press <kbd>]</kbd> for bigger or <kbd>[</kbd> for smaller.', hot:null, ev:'size', skip:true },
+  { ch:'WALL', line:'Try a different <b>wall</b>.', sub:'Pick a finish in the Wall panel at the top left, and see how the background changes your prints.', hot:'swatch', ev:'wallstyle', skip:true },
   { ch:'WALL', line:'Come back down to the <b>table</b>.', sub:'Move the mouse to the bottom of the screen.', hot:'edgeDown', ev:'table' },
   { ch:'KEEP', line:'Open your <b>board photos</b>.', sub:'Click the tray at the top right of the table.', hot:'tray', ev:'tray' },
   { ch:'KEEP', line:'Pick one and <b>Send to workbook</b>.', sub:'That\u2019s the end of the light table tour. Press <kbd>?</kbd> any time to see it again.', hot:'send', ev:'workbook', end:true } ];
@@ -1613,7 +1623,7 @@ function tourShow(){ const s=TSTEPS[TOUR.i], el=$('co'); if(!s){ tourEnd(true); 
   if(s.ev&&(performance.now()-(TOUR.seen[s.ev]||-1e9)<1500||(s.ok&&s.ok()))) tourEv(s.ev); TP.x=null; }
 function tourEv(name){ TOUR.seen[name]=performance.now(); if(!TOUR.on) return; const s=TSTEPS[TOUR.i]; if(!s||s.ev!==name||TOUR.okT||(s.ok&&!s.ok())) return;
   $('co').classList.add('ok'); TOUR.okT=setTimeout(()=>{ TOUR.okT=0; if(s.end){ tourEnd(true); return; } TOUR.i++; tourShow(); },s.end?1100:420); }
-function tourHotDom(){ document.querySelectorAll('.co-hot').forEach(e=>e.classList.remove('co-hot')); const h=tourHot(); const dom={ pull:'#bdPull', send:'#trSend', shred:'.tag.boxbtn button' }[h]; if(dom){ const t=document.querySelector(dom); if(t) t.classList.add('co-hot'); } }
+function tourHotDom(){ document.querySelectorAll('.co-hot').forEach(e=>e.classList.remove('co-hot')); const h=tourHot(); const dom={ pull:'#bdPull', send:'#trSend', shred:'.tag.boxbtn button', swatch:'#wallPick' }[h]; if(dom){ const t=document.querySelector(dom); if(t) t.classList.add('co-hot'); } }
 $('co').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
   if(b.classList.contains('co-next')){ if(TSTEPS[TOUR.i].last) tourEnd(true); else { TOUR.i++; tourShow(); } }
   else if(b.dataset.co==='step'){ TOUR.i++; tourShow(); } else if(b.dataset.co==='all') tourEnd(false); });

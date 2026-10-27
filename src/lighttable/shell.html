@@ -243,8 +243,8 @@ body.ready .load{ opacity:0; }
 .co-dots{ display:flex; gap:5px; flex:1; min-width:0; } .co-dots i{ flex:1; max-width:16px; height:3px; border-radius:2px; background:rgba(244,241,234,.12); } .co-dots i.past{ background:#8d6a35; } .co-dots i.on{ background:var(--accent); }
 .co-next{ pointer-events:auto; background:var(--accent); border:0; border-radius:6px; color:#1a140b; font:500 11px/1 var(--f-mono); letter-spacing:.12em; text-transform:uppercase; padding:8px 12px; cursor:pointer; }
 .co-next:hover{ background:#efbd6a; } .co-next[hidden]{ display:none; }
-.sticky-ed{ position:fixed; z-index:9; box-sizing:border-box; border:0; outline:0; resize:none; overflow:hidden; font-family:var(--f-display); font-weight:400; line-height:1.22; box-shadow:0 14px 30px rgba(0,0,0,.35); border-radius:1px; }
-.sticky-ed::placeholder{ color:currentColor; opacity:.4; }
+.sticky-ed{ position:fixed; z-index:9; box-sizing:border-box; border:0; outline:0; overflow:hidden; display:flex; align-items:center; justify-content:center; text-align:center; white-space:pre-wrap; word-break:break-word; font-family:var(--f-display); font-weight:400; line-height:1.14; box-shadow:0 14px 30px rgba(0,0,0,.35); border-radius:1px; cursor:text; }
+.sticky-ed:empty::before{ content:attr(data-ph); opacity:.4; }
 /* the board-photo tray, opened up big: the print rises out of the tray to the middle of the screen */
 #tr{ position:fixed; inset:0; z-index:8; display:grid; grid-template-rows:auto 1fr auto auto; justify-items:center; align-items:center; gap:12px; opacity:0; pointer-events:none; transition:opacity .3s;
   padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(64px + env(safe-area-inset-bottom,0px)); --pw:min(1080px, 88vw, calc((100vh - 280px) * 1.4142)); }

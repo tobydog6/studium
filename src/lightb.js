@@ -411,7 +411,7 @@
   function rbAway(){ return menuOpen()||!(App.is("scene")||App.is("viewfinder")); }
   window.addEventListener("keydown",function(e){ if(!RLB.open||rbAway()||(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName))) return;
     if(e.code==="Escape"){ e.preventDefault(); e.stopImmediatePropagation(); rlClose(); return; }
-    if(e.code==="KeyF"&&!viewfinderOn&&!e.repeat){ e.preventDefault(); rbFrame(); return; }
+    if(e.code==="KeyF"&&!viewfinderOn&&!e.repeat){ e.preventDefault(); rbFit(); return; }
     if((e.code==="Delete"||e.code==="Backspace")&&rbCur()){ e.preventDefault(); e.stopImmediatePropagation(); rbRemove(RLB.sel); return; }
  },true);
 
@@ -543,7 +543,7 @@
       Array.prototype.forEach.call(p.querySelectorAll(".rb-li"),function(b){ var i=+b.getAttribute("data-rb-pick"), r=b.querySelector("small"); if(r){ r.textContent=(roles[i]||"").toUpperCase(); r.style.color=RLB_ROLEC[roles[i]]||""; } });
       var hl=p.querySelector('[data-rb-k="h"]'); if(hl&&L&&document.activeElement!==hl){ hl.value=L.h; hl.parentNode.querySelector(".lr-v").textContent=L.h.toFixed(2)+" m"; } return; }
     var h='<div class="lr-hist rb-diag"><canvas id="rbDiag"></canvas><span class="rb-hint">FROM ABOVE · DRAG TO MOVE</span><div class="lr-rgb"><span>KEY : FILL <b id="rbRatioV">'+rt[0]+'</b></span><span><b id="rbRatioW">'+rt[1]+'</b></span></div></div>';
-    h+='<div class="lr-edithdr"><span class="lr-h">Lighting</span><div class="lr-hbtns"><button class="lr-pill" data-rb="fit" title="Step back so the whole set fits (F)">Fit</button><button class="lr-pill'+(RL.shadows?' on':'')+'" data-rb="shadows" title="Shadows on or off">Shadows</button><button class="lr-save" data-rb="done" title="Done (Esc)">Done</button></div></div>';
+    h+='<div class="lr-edithdr"><span class="lr-h">Lighting</span><div class="lr-hbtns"><button class="lr-pill" data-rb="fit" title="Line the view back up (F)">Fit</button><button class="lr-pill'+(RL.shadows?' on':'')+'" data-rb="shadows" title="Shadows on or off">Shadows</button><button class="lr-save" data-rb="done" title="Done (Esc)">Done</button></div></div>';
     var set=RL.lights.length?RL.lights.map(function(l,i){ return '<div class="rb-li'+(i===RLB.sel?' on':'')+(l.on?'':' off')+'" data-rb-pick="'+i+'"><img src="'+(RLB_THUMB[l.fx]||'')+'" alt=""><span class="rb-nm">'+l.name+'<small style="color:'+(RLB_ROLEC[roles[i]]||'')+'">'+(roles[i]||'').toUpperCase()+'</small></span>'
       +'<button class="rb-ic'+(l.on?'':' off')+'" data-rb-on="'+i+'" title="'+(l.on?'Turn it off':'Turn it on')+'">'+(l.on?'◉':'○')+'</button><button class="rb-ic" data-rb-del="'+i+'" title="Take it off the set">✕</button></div>'; }).join("")
       :'<p class="rb-note">Nothing on the set yet. Pick a piece from the kit along the bottom. Try a softbox first.</p>';
@@ -600,7 +600,7 @@
     if(b.hasAttribute("data-rb-surf")){ if(L){ L.surf=b.getAttribute("data-rb-surf"); rbStands(); rbDirty(); rbPanel(true); } return; }
     if(b.hasAttribute("data-rb-day")){ RLB.day=b.getAttribute("data-rb-day"); if(!RLB.sunMode) rbSunOn(); rbDirty(); rbTimeline(); return rbPanel(false); }
     var a=b.getAttribute("data-rb");
-    if(a==="fit") return rbFrame(); if(a==="done") return rlClose(); if(a==="clear") return rlNatural(); if(a==="shadows"){ RL.shadows=!RL.shadows; rbDirty(); return rbPanel(true); }
+    if(a==="fit") return rbFit(); if(a==="done") return rlClose(); if(a==="clear") return rlNatural(); if(a==="shadows"){ RL.shadows=!RL.shadows; rbDirty(); return rbPanel(true); }
     if(a==="scan"){ RLB.sunMode=false; RLB.play=false; rbDirty(); rbTimeline(); return rbPanel(false); }
     if(a==="play"){ RLB.play=!RLB.play; if(RLB.play&&!RLB.sunMode){ rbSunOn(); RLB.mins=Math.max(RLB.mins,5*60); } return rbTimeline(); }
     if(!L) return;
@@ -621,7 +621,7 @@
   function rlNatural(){ if(!RLB) return; RL.lights.forEach(rbDropStand); RL.lights=[]; RLB.sel=-1; RLB.sunMode=false; RLB.play=false; RL.on=false; rbRestore(); RLB.eye=1; rbPanel(true); rbTimeline(); }
   function rlForget(){ if(!RLB) return; rlClose(); RL.lights.forEach(rbDropStand); RL.lights=[]; RLB.sel=-1; RLB.sunMode=false; RL.on=false; RL.ready=false; RL.target=null; RLB.built=false;
     if(RL.grid&&RL.grid.tex) RL.grid.tex.dispose(); RL.grid=null; if(RLB.gridS&&RLB.gridS.tex) RLB.gridS.tex.dispose(); RLB.gridS=null; RLB.gpu=null; RL.gpu=null; RLB.eye=1; RLB.north=null;
-    if(RLB.spotM){ if(RLB.spotM.parent) RLB.spotM.parent.remove(RLB.spotM); RLB.spotM.traverse(function(o){ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); RLB.spotM=null; } RLB.home=null; RLB.spotNow=null; RLB.frame=null; if(RLB.holo){ RLB.holo.traverse(function(o){ if(o.geometry) o.geometry.dispose(); }); if(RLB.holo.parent) RLB.holo.parent.remove(RLB.holo); RLB.holo=null; } RLB.glowL=null; }   /* a new scan has a new scene */
+    if(RLB.spotM){ if(RLB.spotM.parent) RLB.spotM.parent.remove(RLB.spotM); RLB.spotM.traverse(function(o){ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); RLB.spotM=null; } RLB.home=null; RLB.spotNow=null; RLB.frame=null; RLB.viewKey=null; if(RLB.holo){ RLB.holo.traverse(function(o){ if(o.geometry) o.geometry.dispose(); }); if(RLB.holo.parent) RLB.holo.parent.remove(RLB.holo); RLB.holo=null; } RLB.glowL=null; }   /* a new scan has a new scene */
   function rlVis(){ if(RLB) rbStands(); }
   function rlPlanUI(){} function rlPanel(){} function rlMarkers(){}
 
@@ -635,7 +635,7 @@
     var msaa=RLB.open&&!viewfinderOn&&RL.lights.length?4:0; if(typeof sceneRT!=="undefined"&&sceneRT.samples!==msaa){ sceneRT.samples=msaa; sceneRT.dispose(); }
     if(RLB.open&&viewfinderOn){ rbShow(false); rbStands(); RLB.hidden=true; } else if(RLB.open&&RLB.hidden){ RLB.hidden=false; if(looking){ try{ document.exitPointerLock(); }catch(er){} } rbShow(true); rbStands(); }
     if(RLB.play&&RLB.open&&dt>0){ RLB.mins+=dt*40; if(RLB.mins>RLB_T1){ RLB.mins=RLB_T0+60; } rbDirty(); if(((t/250)|0)!==RLB.pt){ RLB.pt=(t/250)|0; rbTimeline(); } }
-    rbFrameStep(dt); rbSpotTick();
+    rbViewTick(); rbFrameStep(dt); rbSpotTick();
     if(RLB.dirty&&RLB.built) rbApply();
     else if(RLB.gpu&&RLB.gpu.U.on.value>0){ var cm=RLB.camP; if(!cm||Math.hypot(camPos.x-cm.x,camPos.y-cm.y,camPos.z-cm.z)>0.4*RL.S){ RLB.camP={x:camPos.x,y:camPos.y,z:camPos.z}; if(cm) rbDirty(); } }
     if(RLB.open&&!viewfinderOn) rbDiagDraw(); })();
@@ -692,10 +692,19 @@
     if(lab.material.map!==rbLabTex(p.label)){ lab.material.map=rbLabTex(p.label); lab.material.needsUpdate=true; } lab.position.y=lh; lab.scale.set(0.1,0.035,1); lab.material.opacity=0.8+0.2*pu;
     ln.scale.set(1,lh,1); }
   /* step back to a view that shows the subject and the floor round it: for the tour, or when you've zoomed right in */
-  function rbFrame(dir){ if(!RLB.open||viewfinderOn) return; var T=rbTarget(), S=RL.S, h=dir;
+  /* the tour's views: wide to place a light, from where you shoot to judge it, from the side to watch a shadow's edge */
+  var RLB_VIEWS={wide:{el:0.6, need:2.0, min:2.6}, shoot:{el:0.18, need:0.95, min:1.3}, judge:{el:0.32, need:1.4, min:1.8}, side:{el:0.45, need:1.3, min:1.8, turn:-75}};
+  function rbView(name){ var V=RLB_VIEWS[name]; if(!V) return false; var H=rbHome(), h=H;
+    if(V.turn){ var a=V.turn*(RLB.keySide||1)*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a); h={x:H.x*ca-H.z*sa, z:H.x*sa+H.z*ca}; }
+    rbFrame(h,V); return true; }
+  function rbStepView(){ if(typeof CO==="undefined"||!CO||!CO.on||typeof coSteps!=="function") return null; var s=coSteps()[CO.i]; if(!s||!s.view) return null; return typeof s.view==="function"?s.view():s.view; }
+  function rbFit(){ var v=rbStepView(); if(!(v&&rbView(v))) rbFrame(); }   /* Fit: back to the tour's view, or just step back */
+  function rbViewTick(){ if(!RLB.open||viewfinderOn||RLB.drag||RLB.kdrag) return; var v=rbStepView(); if(!v){ RLB.viewKey=null; return; } var k=CO.tour+"|"+CO.i+"|"+v; if(k===RLB.viewKey) return; RLB.viewKey=k; rbView(v); }   /* each step lines the camera up once; drag away freely after */
+  function rbFrame(dir,V){ if(!RLB.open||viewfinderOn) return; V=V||RLB_VIEWS.wide; var T=rbTarget(), S=RL.S, h=dir;
     if(!h){ var ax=camPos.x-T.x, az=camPos.z-T.z, al=Math.hypot(ax,az); h=al>0.05*S?{x:ax/al,z:az/al}:rbHome(); }
     var gy=rlGround(T.x,T.z), vf=(camera.fov||50)*Math.PI/360, asp=Math.max(0.5,(innerWidth-RLB_SIDE)/Math.max(200,innerHeight-260)), half=Math.min(vf,Math.atan(Math.tan(vf)*asp));
-    var dd=Math.max(2.6,Math.min(14,2.0/Math.tan(half)))*S, el=0.6, to={x:T.x+h.x*dd*Math.cos(el), y:(T.y+gy)/2+dd*Math.sin(el), z:T.z+h.z*dd*Math.cos(el)};   /* far enough for this lens to take in 2 m round the subject, looking down about 35° */
+    var dd=Math.max(V.min,Math.min(14,V.need/Math.tan(half)))*S, el=V.el, to={x:T.x+h.x*dd*Math.cos(el), y:(T.y+gy)/2+dd*Math.sin(el), z:T.z+h.z*dd*Math.cos(el)};   /* far enough for this lens to take in the view's radius round the subject */
+    to.y=Math.max(to.y,rlGround(to.x,to.z)+0.25*S);
     if(typeof boundsOn!=="undefined"&&boundsOn){ to.x=Math.min(Math.max(to.x,boxMin.x),boxMax.x); to.y=Math.min(Math.max(to.y,boxMin.y),boxMax.y); to.z=Math.min(Math.max(to.z,boxMin.z),boxMax.z); }
     if(Math.hypot(to.x-camPos.x,to.y-camPos.y,to.z-camPos.z)<0.15*S) return; RLB.frame={a:{x:camPos.x,y:camPos.y,z:camPos.z}, b:to, t:0, t0:performance.now()}; RLB.fly=true; }
   function rbFrameStep(dt){ var F=RLB.frame; if(!F) return; if(!RLB.open||viewfinderOn){ RLB.frame=null; return; }

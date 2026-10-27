@@ -92,41 +92,28 @@
     sdTone(b,t,96,"sine",0.003,0.2,0.01,0.2,38); sdNoise(b,t,"lowpass",900,0.7,0.002,0.05,0.02,0.2,200);
     if(SD.drone){ sdDroneTo(1,t,0.05); } }
   // the film: the still lands, a projector flutter under it, every frame wound on with a ratchet and a woosh panned across
-  // the film: a backing track. 80 bpm, two beats a frame, so every frame lands on a downbeat; felt-piano arpeggios through
-  // a dotted-eighth echo, a warm pad that breathes with the beat, then bass, a soft kick, snaps and a shaker come in as it goes.
-  // A, F#m, D, E, A, D, then E under the exit, resolving to A when the title lands.
-  var SD_CH=[[110,[440,554.37,659.25,880],[220,277.18,329.63]],[92.5,[369.99,440,554.37,739.99],[185,220,277.18]],[73.42,[293.66,369.99,440,587.33],[146.83,185,220]],[82.41,[329.63,415.3,493.88,659.25],[164.81,207.65,246.94]],
-    [110,[440,554.37,659.25,880],[220,277.18,329.63]],[73.42,[293.66,369.99,440,587.33],[146.83,185,220]],[82.41,[329.63,415.3,493.88,659.25],[164.81,207.65,246.94]]];
-  function sdPluck(b,t,f,peak,pan){ var c=SD.ctx, o=c.createOscillator(), o2=c.createOscillator(), lp=c.createBiquadFilter(), g=c.createGain(); o.type="triangle"; o2.type="sine"; o.frequency.value=f; o2.frequency.value=f*2; o2.detune.value=4;
-    lp.type="lowpass"; lp.frequency.setValueAtTime(f*6,t); lp.frequency.exponentialRampToValueAtTime(f*1.5,t+0.35); var g2=c.createGain(); g2.gain.value=0.25;
-    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+0.006); g.gain.exponentialRampToValueAtTime(0.0001,t+0.75);
-    o.connect(lp); o2.connect(g2); g2.connect(lp); lp.connect(g); sdOut(g,b,pan,null,t,0.8); o.start(t); o2.start(t); o.stop(t+0.8); o2.stop(t+0.8); }
-  function sdKick(b,t,peak){ sdTone(b,t,130,"sine",0.002,peak,0.02,0.22,42); sdTick(b,t,3000,peak*0.12); }
-  function sdSnap(b,t,peak){ sdNoise(b,t,"bandpass",1700,1.6,0.002,peak,0.008,0.12,null,0.1); sdNoise(b,t+0.012,"bandpass",2600,2,0.002,peak*0.6,0.006,0.09,null,-0.1); }
-  function sdFilm(t){ var b0=sdSeq(); if(!b0) return; t=t==null?sdNow():t; var c=SD.ctx, n=1+LA_ROOMS.length, P=LA_T.crawl+LA_T.move, S=LA_T.settle, beat=P/2, e8=beat/2;
-    var first=t+S+LA_T.crawl, t0=first-P, xt=t+S+(n-1)*P, hit=xt+LA_T.exit+0.7;   /* frames land on downbeats; the title lands on the hit */
-    sdTone(b0,t+S-0.1,130,"sine",0.006,0.07,0.02,0.3,62);   /* the still settles into the strip */
-    // the mix: a sidechained pad bus, a dry bus and an echo for the piano
-    var mus=c.createGain(); mus.gain.setValueAtTime(0.0001,t0); mus.gain.exponentialRampToValueAtTime(1,t0+0.6); mus.connect(b0);
-    var dl=c.createDelay(1), fb=c.createGain(), dlp=c.createBiquadFilter(), dw=c.createGain(); dl.delayTime.value=e8*1.5; fb.gain.value=0.32; dlp.type="lowpass"; dlp.frequency.value=3200; dw.gain.value=0.35; dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(dw); dw.connect(mus);
-    var keys=c.createGain(); keys.connect(mus); keys.connect(dl);
-    var pad=c.createGain(); pad.connect(mus);
-    var beats=Math.round((hit-t0)/beat), k, i;
-    for(k=0;k<beats;k++){ var bt=t0+k*beat; pad.gain.setValueAtTime(0.35,bt); pad.gain.linearRampToValueAtTime(1,bt+beat*0.8); }   /* the pad ducks on every beat: the pump */
-    var nCh=Math.round((xt-t0)/P)+1;
-    for(i=0;i<nCh;i++){ var ct=t0+i*P, ch=SD_CH[Math.min(i,SD_CH.length-1)], last=ct+P>xt-0.01, len=last?(hit-ct):P;
-      ch[2].forEach(function(f,j){ var o=c.createOscillator(), o2=c.createOscillator(), lp=c.createBiquadFilter(), g=c.createGain(); o.type="sawtooth"; o2.type="sawtooth"; o.frequency.value=f; o2.frequency.value=f; o.detune.value=-7; o2.detune.value=7;
-        lp.type="lowpass"; lp.frequency.setValueAtTime(700+i*140,ct); lp.Q.value=0.4; g.gain.setValueAtTime(0.0001,ct); g.gain.exponentialRampToValueAtTime(0.012,ct+0.12); g.gain.setValueAtTime(0.012,ct+len-0.12); g.gain.exponentialRampToValueAtTime(0.0001,ct+len+0.05);
-        o.connect(lp); o2.connect(lp); lp.connect(g); sdOut(g,pad,(j-1)*0.35,null,ct,len); o.start(ct); o2.start(ct); o.stop(ct+len+0.1); o2.stop(ct+len+0.1); });
-      var pat=[0,2,3,1,2,3,1,2], steps=last?Math.round(len/e8)-2:4;   /* eighths: four to a frame; the last chord keeps going into the hit */
-      for(k=0;k<steps;k++){ var nt=ct+k*e8, f=ch[1][pat[k%8]]*(k%4===3&&i%2?2:1); sdPluck(keys,nt,f,(k===0?0.1:0.075)*(last?0.85:1),((k%4)-1.5)*0.25); }
-      if(i>=1){ for(k=0;k<2;k++) sdTone(mus,ct+k*beat,ch[0],"sine",0.01,0.055,beat*0.45,0.2); sdTone(mus,ct+k*beat,ch[0]*2,"triangle",0.01,0.02,beat*0.3,0.15); }   /* bass from the second frame */
-      if(i>=2){ for(k=0;k<2;k++) sdKick(mus,ct+k*beat,0.12); }                                  /* a soft kick on the beat from the third */
-      if(i>=3){ sdSnap(mus,ct+beat,0.07); for(k=0;k<8;k++) sdNoise(mus,ct+k*e8/2,"highpass",7000,0.7,0.002,(k%2?0.006:0.011),0.01,0.05); }   /* snaps and a shaker from the fourth */
-    }
-    sdNoise(mus,xt-0.1,"highpass",800,0.7,(hit-xt)-0.05,0.05,0.02,0.04,7000);   /* the exit: a rising wash into the title */
-    for(k=0;k<6;k++) sdSnap(mus,hit-0.75+k*0.125,0.02+k*0.01);                     /* and a little roll */
-    mus.gain.setValueAtTime(1,hit-0.02); mus.gain.exponentialRampToValueAtTime(0.0001,hit+0.6);   /* the band stops; the title chord takes over */
+  // the film: a score, not a beat. Warm held chords (Amaj9, F#m9, Dmaj9, E6/9, Amaj9, Dmaj9, then Esus under the exit),
+  // one soft felt-piano note as each frame lands, a low pulse under it, and the light opening up as it goes.
+  var SD_SC=[[[110,164.81,207.65,246.94,277.18],554.37],[[92.5,138.59,164.81,207.65,220],493.88],[[73.42,110,138.59,164.81,185],440],[[82.41,123.47,138.59,185,207.65],493.88],
+    [[110,164.81,207.65,246.94,277.18],554.37],[[73.42,110,138.59,164.81,185],659.25],[[82.41,123.47,146.83,220,246.94],587.33]];
+  function sdFelt(b,t,f,peak,pan){ var c=SD.ctx, g=c.createGain(), lp=c.createBiquadFilter(); lp.type="lowpass"; lp.frequency.setValueAtTime(f*5,t); lp.frequency.exponentialRampToValueAtTime(f*1.6,t+2.5);
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+0.012); g.gain.exponentialRampToValueAtTime(peak*0.35,t+0.5); g.gain.exponentialRampToValueAtTime(0.0001,t+3.2); lp.connect(g); sdOut(g,b,pan,null,t,3.2);
+    [[1,1],[2,0.32],[3,0.1],[4.02,0.05]].forEach(function(h){ var o=c.createOscillator(), og=c.createGain(); o.type="sine"; o.frequency.value=f*h[0]; og.gain.value=h[1]; o.connect(og); og.connect(lp); o.start(t); o.stop(t+3.3); }); }
+  function sdFilm(t){ var b0=sdSeq(); if(!b0) return; t=t==null?sdNow():t; var c=SD.ctx, n=1+LA_ROOMS.length, P=LA_T.crawl+LA_T.move, S=LA_T.settle;
+    var first=t+S+LA_T.crawl, t0=first-P, xt=t+S+(n-1)*P, hit=xt+LA_T.exit+0.7;
+    sdTone(b0,t+S-0.1,130,"sine",0.006,0.06,0.02,0.3,62);   /* the still settles into the strip */
+    var mus=c.createGain(); mus.gain.setValueAtTime(0.0001,t0-0.3); mus.gain.exponentialRampToValueAtTime(1,t0+1.2); mus.connect(b0);
+    var wet=c.createGain(); wet.gain.value=1.4; mus.connect(wet); wet.connect(SD.verb);   /* the score sits in the room */
+    var bright=c.createBiquadFilter(); bright.type="lowpass"; bright.Q.value=0.3; bright.frequency.setValueAtTime(600,t0); bright.frequency.exponentialRampToValueAtTime(2600,hit); bright.connect(mus);   /* the light opens up as it goes */
+    var nCh=Math.round((xt-t0)/P)+1, i;
+    for(i=0;i<nCh;i++){ var ct=t0+i*P, ch=SD_SC[Math.min(i,SD_SC.length-1)], last=ct+P>xt-0.01, len=last?(hit-ct):P, ov=0.35;
+      ch[0].forEach(function(f,j){ var o=c.createOscillator(), o2=c.createOscillator(), g=c.createGain(); o.type="sawtooth"; o2.type="triangle"; o.frequency.value=f; o2.frequency.value=f*2; o.detune.value=-6+j*3; o2.detune.value=5;
+        var pk=[0.022,0.016,0.012,0.011,0.01][j]; g.gain.setValueAtTime(0.0001,ct-ov); g.gain.exponentialRampToValueAtTime(pk,ct+0.5); g.gain.setValueAtTime(pk,ct+len-0.1); g.gain.exponentialRampToValueAtTime(0.0001,ct+len+ov+0.4);
+        var og=c.createGain(); og.gain.value=0.35; o2.connect(og); og.connect(g); o.connect(g); sdOut(g,bright,(j-2)*0.22,null,ct,len); o.start(ct-ov); o2.start(ct-ov); o.stop(ct+len+ov+0.5); o2.stop(ct+len+ov+0.5); });
+      sdFelt(mus,ct+(i?0:0.05),ch[1],0.075,(i%2?0.2:-0.2));                                  /* one note as the frame lands */
+      if(i>=1&&!last) sdTone(mus,ct,ch[0][0]/2>40?ch[0][0]:ch[0][0],"sine",0.04,0.07,0.15,0.9); }   /* a low, soft pulse under each landing */
+    sdNoise(mus,xt-0.2,"bandpass",500,0.8,(hit-xt)-0.1,0.03,0.05,0.04,3800);   /* a slow swell into the title */
+    mus.gain.setValueAtTime(1,hit-0.3); mus.gain.exponentialRampToValueAtTime(0.0001,hit+1.4);   /* the score hands over to the title chord */
     sdDroneTo(1.5,xt,0.9); }
   // the big circle: a whoosh round, the sub swelling, then the wordmark lands on a warm A chord with the letters glinting in
   function sdSpin(t,quick){ var b=sdCtx()&&sdBus(0.6); if(!b) return; t=t==null?sdNow():t; SD.big=b; var D=quick?1.6:LA_T.spin, w=t+0.7;
@@ -225,15 +212,17 @@
     var cv=e&&e.querySelector(".la-iris"); if(cv) cv.style.opacity=0;
     if(LA.after) LA.after(); }
   // ---- the welcome: what Studium is, and that the camera comes first ----
+  var LA_WEL=[["asset:assets/launch/shoot.jpg","Shoot"],["asset:assets/launch/select.jpg","Pick"],["asset:assets/launch/edit.jpg","Edit"],["asset:assets/launch/workbook.jpg","Make"],["asset:assets/launch/folio.jpg","Folio"],["asset:assets/launch/gallery.jpg","Show"]];
   function laWelOpen(){ var w=$("laWel"); if(!w){ w=document.createElement("div"); w.id="laWel";
-      w.innerHTML='<div class="lw-card" role="dialog" aria-labelledby="lwH"><div class="lw-k">WELCOME TO STUDIUM</div><h2 id="lwH">A photography studio you walk into.</h2>'
-        +'<p>These are real places, scanned so you can stand in them with a camera in your hands. You\'ll shoot, pick your best frames, edit them, and build them into a folio and a show on the wall, learning what working photographers know as you go.</p>'
-        +'<ol class="lw-steps">'+["Shoot","Pick","Edit","Make","Show"].map(function(x,i){ return '<li style="--n:'+i+'"><b>0'+(i+1)+'</b>'+x+'</li>'; }).join("")+'</ol>'
-        +'<p class="lw-first">First, a few minutes on the camera and how to move around. Then the place is yours.</p>'
-        +'<div class="lw-act"><button class="lw-go" data-lw="go">Show me the camera <kbd>↵</kbd></button><button class="lw-skip" data-lw="skip">I\'ll explore first</button></div></div>';
+      w.innerHTML='<div class="lw-in" role="dialog" aria-labelledby="lwH"><div class="lw-l"><div class="lw-k">WELCOME TO STUDIUM</div>'
+        +'<h2 id="lwH"><span>Step inside.</span><span>Take the shot.</span><span>Make the work.</span></h2>'
+        +'<p>Real places, scanned so you can stand in them with a camera in your hands. Shoot, pick your best frames, edit them, and build them into a folio and a show, the way working photographers do.</p>'
+        +'<p class="lw-first">First, the camera and how to move. A few minutes, then the place is yours.</p>'
+        +'<button class="lw-go" data-lw="go">Show me the camera <kbd>↵</kbd></button></div>'
+        +'<div class="lw-table" aria-hidden="true">'+LA_WEL.map(function(x,i){ return '<figure style="--i:'+i+'"><img alt="" decoding="async" src="'+x[0]+'"><figcaption><b>0'+(i+1)+'</b> '+x[1].toUpperCase()+'</figcaption></figure>'; }).join("")+'</div></div>';
       document.body.appendChild(w);
       ["pointerdown","mousedown","click","wheel"].forEach(function(k){ w.addEventListener(k,function(ev){ ev.stopPropagation(); var b=ev.target.closest&&ev.target.closest("[data-lw]"); if(k==="click"&&b) laWelGo(b.getAttribute("data-lw")); }); });
-      window.addEventListener("keydown",function(ev){ if(!LA.wcard||!$("laWel").classList.contains("show")) return; ev.stopImmediatePropagation(); ev.preventDefault(); if(ev.repeat) return; if(ev.code==="Enter"||ev.code==="NumpadEnter"||ev.code==="Space") laWelGo("go"); else if(ev.code==="Escape") laWelGo("skip"); },true); }
+      window.addEventListener("keydown",function(ev){ if(!LA.wcard||!$("laWel").classList.contains("show")) return; ev.stopImmediatePropagation(); ev.preventDefault(); if(ev.repeat) return; if(ev.code==="Enter"||ev.code==="NumpadEnter"||ev.code==="Space") laWelGo("go"); },true); }
     if(document.pointerLockElement){ try{ document.exitPointerLock(); }catch(e){} }
     w.className="show"; document.body.classList.add("la-wel-on"); sdChime(); var g=w.querySelector(".lw-go"); if(g) try{ g.focus({preventScroll:true}); }catch(e){} }
   function laWelClose(now){ var w=$("laWel"); LA.wcard=false; document.body.classList.remove("la-wel-on"); if(!w) return; if(now){ w.className=""; return; } w.className="show out"; setTimeout(function(){ if(!LA.wcard) w.className=""; },420); }

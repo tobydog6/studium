@@ -210,8 +210,8 @@
     var subH=(T.y-rlGround(T.x,T.z))/S, h0=fx==="sodium"?F.h:Math.min(F.h,Math.max(rbMinH(fx),subH+0.55));   /* a low subject gets low lights: just above it, looking down a little */
     var L={id:RL.nid++, on:true, fx:fx, name:F.n, kind:F.kind, type:F.kind===1?"spot":"bulb", power:F.power, base:F.power, stops:0, k:F.k, gel:F.gel||"#ffffff", R:F.R, cone:F.cone||180, h:h0, surf:F.surf||null, soft:F.R, dir:[0,-1,0], bounceP:0};
     var sp0=RLB.spotNow; if(sp0&&sp0.fx===fx) rbPlace(L, sp0.x, sp0.z); else rbPlace(L, T.x+(ax*ca-az*sa)*d, T.z+(ax*sa+az*ca)*d); rbAim(L, fx==="sodium"?{x:L.x,y:L.g,z:L.z}:T);   /* the tour shows a spot: it goes straight there */
-    RL.lights.push(L); RLB.sel=RL.lights.length-1; RL.placed=(RL.placed||0)+1; RL.on=true; rbStands(); rbPanel(true); rbDirty(); }
-  function rbRemove(i){ var L=RL.lights[i]; if(!L) return; rbDropStand(L); RL.lights.splice(i,1); RLB.sel=Math.min(RLB.sel,RL.lights.length-1); rbPanel(true); rbDirty(); }
+    sfx("lPlace"); RL.lights.push(L); RLB.sel=RL.lights.length-1; RL.placed=(RL.placed||0)+1; RL.on=true; rbStands(); rbPanel(true); rbDirty(); }
+  function rbRemove(i){ var L=RL.lights[i]; if(!L) return; sfx("lRemove"); rbDropStand(L); RL.lights.splice(i,1); RLB.sel=Math.min(RLB.sel,RL.lights.length-1); rbPanel(true); rbDirty(); }
 
   /* ---- push it all to the GPU (at most once a frame) ---- */
   function rbDirty(){ RLB.dirty=true; }
@@ -473,7 +473,8 @@
     Array.prototype.forEach.call(tl.querySelectorAll("[data-rb-day],[data-rb=scan]"),function(b){ var k=b.getAttribute("data-rb-day"); b.classList.toggle("on", k?RLB.sunMode&&RLB.day===k:!RLB.sunMode); });
     var pl=tl.querySelector("[data-rb=play]"); if(pl){ pl.classList.toggle("on",!!RLB.play); pl.textContent=RLB.play?"Pause":"Run through the day"; } }
   function rbTimeAt(e){ var tr=document.querySelector("#rbDay .rb-track"); if(!tr) return; var r=tr.getBoundingClientRect(), t=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
-    RLB.mins=Math.round((RLB_T0+t*(RLB_T1-RLB_T0))/5)*5; RLB.play=false; if(!RLB.sunMode) rbSunOn(); rbDirty(); rbTimeline(); rbPanel(false); }
+    var m0=RLB.sunMode?RLB.mins:null; RLB.mins=Math.round((RLB_T0+t*(RLB_T1-RLB_T0))/5)*5; RLB.play=false;
+    if(m0!=null){ if(rbPhase(rbSolar(RLB.mins).el)==="golden"&&rbPhase(rbSolar(m0).el)!=="golden") sfx("lGolden"); else if(Math.floor(m0/60)!==Math.floor(RLB.mins/60)) sfx("lTime"); } if(!RLB.sunMode) rbSunOn(); rbDirty(); rbTimeline(); rbPanel(false); }
 
   /* ---- the panel and the kit strip: the editing window's own parts ---- */
   var RLB_THUMB={softbox:"asset:assets/kit/thumbs/softbox.webp", strip:"asset:assets/kit/thumbs/strip.webp", umbrella:"asset:assets/kit/thumbs/umbrella.webp", fresnel:"asset:assets/kit/thumbs/fresnel.webp",
@@ -593,7 +594,7 @@
   function rbClick(e){ var hd=e.target.closest(".lr-sechdr"); if(hd){ var sec=hd.parentNode, id=sec.getAttribute("data-rb-sec"); sec.classList.toggle("collapsed"); RLB.coll=RLB.coll||{}; RLB.coll[id]=sec.classList.contains("collapsed"); return; }
     var b=e.target.closest("[data-rb],[data-rb-fx],[data-rb-pick],[data-rb-gel],[data-rb-surf],[data-rb-day],[data-rb-on],[data-rb-del]"); if(!b) return; e.stopPropagation(); if(b.tagName==="BUTTON") b.blur(); var L=rbCur();
     if(b.hasAttribute("data-rb-fx")){ if(RLB.kjust&&Date.now()-RLB.kjust<400) return; return rbAdd(b.getAttribute("data-rb-fx")); }   /* a drag already placed it */
-    if(b.hasAttribute("data-rb-on")){ var Lo=RL.lights[+b.getAttribute("data-rb-on")]; if(Lo){ Lo.on=!Lo.on; rbStands(); rbDirty(); rbPanel(true); } return; }
+    if(b.hasAttribute("data-rb-on")){ var Lo=RL.lights[+b.getAttribute("data-rb-on")]; if(Lo){ Lo.on=!Lo.on; sfx("lOn",{off:!Lo.on}); rbStands(); rbDirty(); rbPanel(true); } return; }
     if(b.hasAttribute("data-rb-del")) return rbRemove(+b.getAttribute("data-rb-del"));
     if(b.hasAttribute("data-rb-pick")){ RLB.sel=+b.getAttribute("data-rb-pick"); rbStands(); return rbPanel(true); }
     if(b.hasAttribute("data-rb-gel")){ if(L){ L.gel=b.getAttribute("data-rb-gel"); rbStands(); rbDirty(); rbPanel(true); } return; }

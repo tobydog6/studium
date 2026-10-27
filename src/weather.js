@@ -54,8 +54,8 @@
     "  }",
     "  if(a<0.004){ hide(); return; }",
     /* behind something solid? step through the solidity on the way to the eye */
-    "  if(fok>0.5){ float oc=0.0; for(int i=0;i<7;i++){ vec3 s=mix(p,cam,(float(i)+0.5)/7.0); vec3 uv=(s-fo)*finv; if(all(greaterThanEqual(uv,vec3(0.0)))&&all(lessThanEqual(uv,vec3(1.0)))) oc+=texture(fld,uv).b; }",
-    "    a*=clamp(1.0-(oc-0.5)/0.9,0.0,1.0); if(a<0.004){ hide(); return; } }",
+    "  float dc=length(cam-p); if(fok>0.5&&dc>1.2*S){ float oc=0.0, f1=1.0-0.7*S/dc; for(int i=0;i<7;i++){ vec3 s=mix(p,cam,mix(0.12,f1,(float(i)+0.5)/7.0)); vec3 uv=(s-fo)*finv; if(all(greaterThanEqual(uv,vec3(0.0)))&&all(lessThanEqual(uv,vec3(1.0)))) oc+=texture(fld,uv).b; }",   /* skip the air right round the drop and round you (grass at your feet is not a wall) */
+    "    a*=clamp(1.0-(oc-1.2)/1.0,0.0,1.0); if(a<0.004){ hide(); return; } }",
     "  if(vk<0.5){",
     "    vec3 dir=normalize(vel); vec4 A=viewMatrix*vec4(p-dir*len*0.5,1.0), B=viewMatrix*vec4(p+dir*len*0.5,1.0);",
     "    float dep=-mix(A.z,B.z,0.5); if(dep<0.05){ hide(); return; }",
@@ -71,8 +71,8 @@
   var WE_RAIN_FS=[
     "precision highp float; uniform float lit; varying vec2 vq; varying float va; varying float vk;",
     "void main(){ float a;",
-    "  if(vk<0.5){ a=va*exp(-vq.x*vq.x*2.2)*smoothstep(0.0,0.12,vq.y)*smoothstep(1.0,0.88,vq.y); }",
-    "  else { float d=length(vq); a=va*smoothstep(1.0,0.7,d)*smoothstep(0.35,0.85,d); }",
+    "  if(vk<0.5){ a=va*exp(-vq.x*vq.x*2.2)*smoothstep(0.0,0.12,vq.y)*(1.0-smoothstep(0.88,1.0,vq.y)); }",
+    "  else { float d=length(vq); a=va*(1.0-smoothstep(0.7,1.0,d))*smoothstep(0.35,0.85,d); }",
     "  if(a<0.003) discard; gl_FragColor=vec4(vec3(0.8,0.84,0.89)*lit, a); }"].join("\n");
   function weRainBuild(){ var n=WE_DROPS+WE_SPLASH, g=new THREE.InstancedBufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(new Float32Array([-1,0,0, 1,0,0, 1,1,0, -1,1,0]),3)); g.setIndex([0,1,2, 0,2,3]);
@@ -81,7 +81,7 @@
     var dummy=new THREE.Data3DTexture(new Uint8Array(4),1,1,1); dummy.format=THREE.RGBAFormat; dummy.type=THREE.UnsignedByteType; dummy.needsUpdate=true;
     var u={t:{value:0}, amt:{value:0}, len:{value:0.1}, th:{value:0.002}, al:{value:0.5}, S:{value:1}, gy:{value:0}, pxk:{value:0.001}, fok:{value:0}, lit:{value:1},
       cam:{value:new THREE.Vector3()}, box:{value:new THREE.Vector3(11,6,11)}, vel:{value:new THREE.Vector3(0,-8,0)}, fo:{value:new THREE.Vector3()}, finv:{value:new THREE.Vector3(1,1,1)}, fld:{value:dummy}};
-    var m=new THREE.ShaderMaterial({uniforms:u, vertexShader:WE_RAIN_VS, fragmentShader:WE_RAIN_FS, transparent:true, depthWrite:false, depthTest:true});
+    var m=new THREE.ShaderMaterial({uniforms:u, vertexShader:WE_RAIN_VS, fragmentShader:WE_RAIN_FS, transparent:true, depthWrite:false, depthTest:false});   /* splats write no depth anyway; the solidity check does the hiding */
     var mesh=new THREE.Mesh(g,m); mesh.frustumCulled=false; mesh.renderOrder=20; WE.mesh=mesh; WE.U=u; }
 
   // ---- what bends in the wind: a map of the scan, worked out once from its own splats ----
@@ -206,14 +206,17 @@
   // ---- sound: rain on the ground and a soft wind, made from the same noise the interface sounds use ----
   function weSound(){ var now=performance.now(); if(now-WE.sndT<120) return; WE.sndT=now;
     var want=(typeof App!=="undefined"&&(App.is("scene")||(typeof LA!=="undefined"&&LA.on))&&loaded&&soundOn)?1:0, ra=weAmt(WE.rain)*want, wa=weAmt(WE.wind)*want;
+    if(typeof sfxAmbTick==="function") sfxAmbTick(!!want&&App.is("scene"));   /* birds and air under the scan */
     if(!WE.snd){ if(!(ra||wa)) return; var c=typeof sfxCtx==="function"?sfxCtx():null; if(!c||!SFX.nb) return;
       if(navigator.userActivation&&!navigator.userActivation.hasBeenActive) return;
       var mk=function(type,f,q){ var s=c.createBufferSource(); s.buffer=SFX.nb; s.loop=true; var fl=c.createBiquadFilter(); fl.type=type; fl.frequency.value=f; fl.Q.value=q; var g=c.createGain(); g.gain.value=0.0001; s.connect(fl); fl.connect(g); g.connect(SFX.out); s.start(0,Math.random()*1.5); return {f:fl,g:g}; };
-      WE.snd={c:c, rain:mk("bandpass",2600,0.45), patter:mk("highpass",5200,0.7), wind:mk("lowpass",420,1.6)}; }
+      WE.snd={c:c, rain:mk("bandpass",2500,0.5), patter:mk("highpass",5000,0.5), wind:mk("bandpass",500,1.2), drops:sxBus(0.3)}; }
+    /* Sam's picks (28 Oct): rain = light drizzle (a soft hiss and scattered drops), wind = gusty (a band of air that swells and moves) */
     var S2=WE.snd, t=S2.c.currentTime, k=now/1000;
-    S2.rain.g.gain.setTargetAtTime(0.0001+ra*0.16,t,0.4); S2.patter.g.gain.setTargetAtTime(0.0001+ra*0.05*(0.8+0.2*Math.sin(k*3.1)),t,0.2);
-    var gust=0.55+0.45*Math.sin(k*0.55)*Math.sin(k*0.23+1);
-    S2.wind.g.gain.setTargetAtTime(0.0001+wa*0.13*gust,t,0.5); S2.wind.f.frequency.setTargetAtTime(260+340*gust,t,0.6); }
+    S2.rain.g.gain.setTargetAtTime(0.0001+ra*0.03,t,0.4); S2.patter.g.gain.setTargetAtTime(0.0001+ra*0.014,t,0.3);
+    if(ra>0){ var nd=Math.round(ra*3); for(var i=0;i<nd;i++) if(Math.random()<0.6) sxTick(S2.drops,t+0.03+Math.random()*0.12,2500+Math.random()*2500,(0.006+Math.random()*0.012)*Math.min(1,ra*1.6),Math.random()*1.6-0.8); }
+    var gust=0.5+0.5*Math.sin(k*2*Math.PI*0.13);
+    S2.wind.g.gain.setTargetAtTime(0.0001+wa*0.05*(0.6+0.4*gust),t,0.5); S2.wind.f.frequency.setTargetAtTime(220+560*gust,t,0.6); }
 
   // ---- the strip of weather squares under the kit ----
   function weKitHTML(){ return '<div class="kit-wx"><span class="kit-wx-l">WEATHER</span>'+WE_ITEMS.map(function(it){ var lv=WE[it[0]];
@@ -226,4 +229,4 @@
     var t=s.querySelector(".kit-wx-s"); if(t) t.textContent=weSummary(); }
   document.addEventListener("click",function(e){ var b=e.target.closest&&e.target.closest("#kitMenu [data-we]"); if(!b) return; e.preventDefault(); e.stopPropagation(); weCycle(b.getAttribute("data-we")); }, true);
   window.addEventListener("keydown",function(e){ if(typeof KIT==="undefined"||!KIT.open) return; var n={Digit5:"rain",Digit6:"wind",Digit7:"fog"}[e.code]; if(!n) return; e.preventDefault(); e.stopImmediatePropagation(); weCycle(n); }, true);
-  if(/[?&]dev/.test(location.search)) window.__we={ set:function(o){ for(var k in o) if(k in WE) WE[k]=o[k]; WE.dirty=true; }, state:weState, sample:function(x,y,z){ var f=weField(); if(!f) return null; var ix=Math.floor((x-f.lo[0])/f.cell), iy=Math.floor((y-f.lo[1])/f.cell), iz=Math.floor((z-f.lo[2])/f.cell); if(ix<0||iy<0||iz<0||ix>=f.nx||iy>=f.ny||iz>=f.nz) return null; var c=((iz*f.ny+iy)*f.nx+ix)*4; return [f.out[c]/255, f.out[c+1]/255]; }, splats:function(){ var f=weField(), P=viewer.P, n=P.length/3, st=Math.max(1,Math.floor(n/4000)), r=[]; for(var i=0;i<n;i+=st){ var v=this.sample(P[i*3],P[i*3+1],P[i*3+2]); if(v) r.push([+P[i*3].toFixed(2),+P[i*3+1].toFixed(2),+P[i*3+2].toFixed(2),+v[0].toFixed(2),+v[1].toFixed(2)]); } return r; }, map:function(on){ if(WE.scanU){ WE.scanU.dbg.value=on?1:0; WE.dirty=true; } }, field:function(){ var f=weField(); return f?{o:f.o.toArray(), inv:f.inv.toArray(), size:[f.tex.image.width,f.tex.image.height,f.tex.image.depth]}:null; } };
+  if(/[?&]dev/.test(location.search)) window.__we={ set:function(o){ for(var k in o) if(k in WE) WE[k]=o[k]; WE.dirty=true; }, state:weState, diag:function(){ var m=WE.mesh, pr=m&&renderer.properties.get(m.material); return {loaded:loaded, mesh:!!m, vis:!!(m&&m.visible), inScene:!!(m&&m.parent===scene), amt:WE.U&&WE.U.amt.value, al:WE.U&&WE.U.al.value, len:WE.U&&WE.U.len.value, fok:WE.U&&WE.U.fok.value, gy:WE.U&&WE.U.gy.value, cam:camera.position.toArray(), prog:!!(pr&&pr.currentProgram), calls:renderer.info.render.calls}; }, sample:function(x,y,z){ var f=weField(); if(!f) return null; var ix=Math.floor((x-f.lo[0])/f.cell), iy=Math.floor((y-f.lo[1])/f.cell), iz=Math.floor((z-f.lo[2])/f.cell); if(ix<0||iy<0||iz<0||ix>=f.nx||iy>=f.ny||iz>=f.nz) return null; var c=((iz*f.ny+iy)*f.nx+ix)*4; return [f.out[c]/255, f.out[c+1]/255]; }, splats:function(){ var f=weField(), P=viewer.P, n=P.length/3, st=Math.max(1,Math.floor(n/4000)), r=[]; for(var i=0;i<n;i+=st){ var v=this.sample(P[i*3],P[i*3+1],P[i*3+2]); if(v) r.push([+P[i*3].toFixed(2),+P[i*3+1].toFixed(2),+P[i*3+2].toFixed(2),+v[0].toFixed(2),+v[1].toFixed(2)]); } return r; }, map:function(on){ if(WE.scanU){ WE.scanU.dbg.value=on?1:0; WE.dirty=true; } }, field:function(){ var f=weField(); return f?{o:f.o.toArray(), inv:f.inv.toArray(), size:[f.tex.image.width,f.tex.image.height,f.tex.image.depth]}:null; } };

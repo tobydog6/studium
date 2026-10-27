@@ -80,12 +80,12 @@
      into the shallow depth of field one and its card says what you're after. Any move key skips straight there */
   function chIntroStart(){ if(!CH.pads.length) return; if(viewfinderOn&&typeof toggleViewfinder==="function") toggleViewfinder();   /* lower the camera so the frames can be seen */
     var S=CH.spec.subject||[0,0], a0=Math.atan2(camPos.x-S[0], camPos.z-S[1]), r=Math.max(3.4, Math.min(5, Math.hypot(camPos.x-S[0], camPos.z-S[1])));
-    var walk=!!(WK.col&&WK.mode==="walk"); CH.intro={t:0, dur:7, a0:a0, r:r, S:S, y0:walk?WK.eye:camPos.y, walk:walk, gy:wkGround(S[0],S[1])}; CH.pull=-1; CH.locked=false; }
+    var walk=!!(WK.col&&WK.mode==="walk"); CH.introSnd=sfx("chIntro"); CH.intro={t:0, dur:7, a0:a0, r:r, S:S, y0:walk?WK.eye:camPos.y, walk:walk, gy:wkGround(S[0],S[1])}; CH.pull=-1; CH.locked=false; }
   function chIntroTick(dt){ var I=CH.intro; I.t+=dt; var held=CH_MOVE&&Object.keys(CH_MOVE).some(function(k){ return keys[k]; });
     var u=Math.min(1,I.t/I.dur), s=u*u*(3-2*u), a=I.a0+s*Math.PI*1.75, x=I.S[0]+Math.sin(a)*I.r, z=I.S[1]+Math.cos(a)*I.r, eye=1.75+0.35*Math.sin(u*Math.PI);
     _vel.set(0,0,0); camPos.x=x; camPos.z=z; if(I.walk) WK.eye=eye; else camPos.y=I.gy+eye;
     var ty=I.gy+0.45, cy=(I.walk?wkGround(x,z):I.gy)+eye; yaw=Math.atan2(x-I.S[0], z-I.S[1]); pitch=Math.atan2(ty-cy, I.r);
-    if(u>=1||held){ CH.intro=null; var k=-1; CH.pads.forEach(function(P,i){ if(k<0&&/dof/.test(P.c.id)&&!CH.done[P.c.id]) k=i; }); if(k<0) CH.pads.forEach(function(P,i){ if(k<0&&!CH.done[P.c.id]) k=i; });
+    if(u>=1||held){ CH.intro=null; if(held&&CH.introSnd){ try{ CH.introSnd.gain.setTargetAtTime(0.0001,SFX.ctx.currentTime,0.15); }catch(e){} } CH.introSnd=null; var k=-1; CH.pads.forEach(function(P,i){ if(k<0&&/dof/.test(P.c.id)&&!CH.done[P.c.id]) k=i; }); if(k<0) CH.pads.forEach(function(P,i){ if(k<0&&!CH.done[P.c.id]) k=i; });
       if(k>=0){ CH.cool=-1; chGrab(k); } } }
   function chHold(){ return CH.pull>=0&&(!CH.locked||performance.now()-CH.lockT<CH_GRACE); }
   function chLetGo(){ if(CH.pull>=0) CH.cool=CH.pull; CH.pull=-1; CH.locked=false; }
@@ -95,7 +95,7 @@
     var eye0=walk?WK.eye:camPos.y, eye1=walk?P.E.y-wkGround(P.E.x,P.E.z):P.E.y;
     CH.from={x:camPos.x, z:camPos.z, yaw:yaw, pitch:pitch, eye:eye0, walk:walk}; CH.to={dyaw:dyaw, pitch:tp, eye:eye1};
     CH.dur=Math.max(1.3,Math.min(3.4,1.0+dist*0.9+Math.abs(dyaw)*0.35+Math.abs(eye1-eye0)*0.6));
-    CH.pull=i; CH.locked=false; CH.pt=0; _vel.set(0,0,0);
+    CH.pull=i; CH.locked=false; CH.pt=0; _vel.set(0,0,0); sfx("chPull");
     if(CH.focus!==i){ CH.focus=i; chFlash(P); } chCard(P); }
   function chTractor(dt){ dt=Math.min(dt||1/30,0.1);
     var held=CH_MOVE&&Object.keys(CH_MOVE).some(function(k){ return keys[k]; }), nudge=CH.nudge||held; CH.nudge=false;
@@ -184,8 +184,8 @@
       var at=b.getAttribute("data-ch-open"); if(at==="bag"&&typeof openBag==="function") openBag(); else if(at==="back"&&typeof openBack==="function") openBack(); }); })();
   function chFlash(P){ var f=$("chFlash"); if(!f) return; f.innerHTML='<span>CHALLENGE</span><b>'+cbEsc(P.c.title)+'</b>'; f.classList.remove("show"); void f.offsetWidth; f.classList.add("show"); }
   function chOnShot(p){ if(CH.active<0) return; var P=CH.pads[CH.active], checks=chChecks(P), miss=checks.filter(function(x){ return !x.ok; });
-    if(miss.length){ toast("Nearly there. Still to do: "+miss.map(function(x){ return x.label.toLowerCase(); }).join(", ")); return; }
-    p.challenge=P.c.id; var first=!CH.done[P.c.id]; CH.done[P.c.id]=1; P.frame.material.uniforms.done.value=1; saveSession();
+    if(miss.length){ sfx("chMiss"); toast("Nearly there. Still to do: "+miss.map(function(x){ return x.label.toLowerCase(); }).join(", ")); return; }
+    p.challenge=P.c.id; sfx("chDone",{delay:0.35}); var first=!CH.done[P.c.id]; CH.done[P.c.id]=1; P.frame.material.uniforms.done.value=1; saveSession();
     var n=Object.keys(CH.done).filter(function(k){ return CH.list.some(function(c){ return c.id===k; }); }).length, s=$("chDone");
     s.innerHTML='<span class="k">'+(first?'CHALLENGE COMPLETE':'DONE AGAIN')+'</span><b>'+cbEsc(P.c.title)+'</b><img src="'+p.url+'" alt=""><span class="n">'+n+' OF '+CH.pads.length+' AT '+cbEsc((cbPlace||"").toUpperCase())+'</span>';
     s.classList.remove("show"); void s.offsetWidth; s.classList.add("show"); chCard(P);

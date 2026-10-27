@@ -408,7 +408,7 @@
         var walking=!!(WK.col&&WK.mode==="walk"), fw=walking?_fwd.clone().setY(0).normalize():_fwd;
         if(keys["KeyW"]) _mv.addScaledVector(fw,1); if(keys["KeyS"]) _mv.addScaledVector(fw,-1);
         if(keys["KeyD"]) _mv.addScaledVector(_right,rs); if(keys["KeyA"]) _mv.addScaledVector(_right,-rs);
-        if(walking){ if(keys["KeyE"]) wkEye(us,dt); if(keys["KeyQ"]) wkEye(-us,dt); }
+        if(walking){ var e0=WK.eye; if(keys["KeyE"]) wkEye(us,dt); if(keys["KeyQ"]) wkEye(-us,dt); var qe=!!(keys["KeyE"]||keys["KeyQ"]); if(qe&&!SFX.qe&&WK.eye!==e0) sfx("crouch"); SFX.qe=qe&&WK.eye!==e0||(qe&&SFX.qe); }
         else { if(keys["KeyE"]) _mv.addScaledVector(UPY,us); if(keys["KeyQ"]) _mv.addScaledVector(UPY,-us); }
       }
       if(_mv.lengthSq()>0) _mv.normalize().multiplyScalar(maxV);   // target velocity
@@ -435,8 +435,7 @@
   // pixel, so the lens can blur by real distance. Half resolution: blur doesn't need more.
   // ---- the lens: Spark blurs every splat by its own distance from the focus plane (real depth of field) ----
   var dOK=true, afPending=false;
-  function sparkLens(){ var sp=viewer&&viewer.spark; if(!sp) return; if(typeof RF!=="undefined"&&RF.on&&loaded){ rfLens(sp); return; }   /* the launch page racks the lens itself */
-    var on=viewfinderOn&&loaded&&gDof>0;
+  function sparkLens(){ var sp=viewer&&viewer.spark; if(!sp) return; var on=viewfinderOn&&loaded&&gDof>0;
     if(afPending&&on){ var say=afPending==="say"; afPending=false; autoFocus(say); }
     if(!on){ sp.apertureAngle=0; return; } var sc=sceneScale(), S=focusMetres()*sc, fm=(focalMM||50)/1000*sc, N=APERTURES[apIdx]||8;
     sp.focalDistance=S; sp.apertureAngle=2*Math.atan(fm/N/2/S)*gDof; }   // the aperture's width, seen from the focus point
@@ -486,6 +485,7 @@
   }
   function animate(){ requestAnimationFrame(animate); var dt=Math.min(clock.getDelta(),0.1);
     if((typeof cbOpen!=="undefined" && cbOpen) || (typeof bg!=="undefined" && bg.open) || (typeof st!=="undefined" && st.open)) return;   // the camera back covers the scene: stop drawing it (big win on school PCs)
+    if(typeof RF!=="undefined"&&RF.on) return;   /* the launch page is a still with its own lens: the scan loads behind it but isn't drawn */
     if(loaded) updateCamera(dt); renderFrame(dt); dynTick(dt); if(viewfinderOn) vfLevelTick(); }
   animate();
 
@@ -580,7 +580,7 @@
           try{ ps.dispose(); }catch(e){} viewer.P=P; viewer.A=A; viewer.Gr=Gr; viewer.q=q.clone(); });
     }).then(function(){
       frameScene(); if(typeof wxArrival==="function"&&wxArrival()){} else if(keepCol&&CH.spec&&CH.spec.spawn){ var sp=CH.spec.spawn; if(sp[4]&&WK.mode==="walk") WK.eye=sp[4]; camPos.set(sp[0], WK.col?wkGround(sp[0],sp[1])+WK.eye:camPos.y, sp[1]); yaw=sp[2]||0; pitch=sp[3]||-0.1; }   // a scene can say where to stand first
-      chAttach(); loaded=true; updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
+      chAttach(); loaded=true; sfx("arrive"); updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       /* no toast on arrival: the coach's first prompt and the look-around pill already say it (ux-scene) */
     }).catch(function(err){

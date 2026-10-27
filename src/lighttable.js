@@ -18,7 +18,7 @@
     room:function(r){ if(st.open) stRoom(r); },
     key:function(k){ if(k==="q"||k==="Q") stCycle(-1); else if(k==="e"||k==="E") stCycle(1); else if(k==="Escape") stRoom("select"); },
     importFiles:function(files){ importPhotoFiles(files, function(n){ if(!n) return; saveSession(); stRenderBar(); ltSync(); }); },
-    addWorkbookPage:function(pg){ wsEnsure(); if(!st.wsBoard||!st.wsBoard.pages) st.wsBoard={cur:0, paper:"white", pages:[]};
+    addWorkbookPage:function(pg){ sfx("capture"); wsEnsure(); if(!st.wsBoard||!st.wsBoard.pages) st.wsBoard={cur:0, paper:"white", pages:[]};
       var doc=st.wsBoard, page={id:bdUid(), tpl:pg.tpl||"sequence", items:pg.items.map(function(it){ var c={}; for(var k in it) c[k]=it[k]; c.id=bdUid(); return c; })};
       if(doc.pages.length===1&&!(doc.pages[0].items||[]).length) doc.pages[0]=page; else doc.pages.push(page);
       doc.cur=doc.pages.length-1; wsB.reset(doc); saveSession(); },

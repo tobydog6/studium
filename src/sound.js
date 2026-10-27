@@ -59,7 +59,7 @@
     views:   ["C",function(b,t){ sxNoise(b,t,"bandpass",400,1.2,0.25,0.03,0.05,0.4,3000,-0.4,0.4); sxGlint(b,t+0.25,SN.Fs6,0.012,0,0.8); }],
     portal:  ["C",function(b,t){ sxNoise(b,t,"bandpass",400,4,0.4,0.05,0.2,0.4,2800); [SN.E6,SN.B6,SN.E7].forEach(function(f,i){ sxGlint(b,t+0.15+i*0.07,f,0.022); }); }],
     /* guidance and rewards */
-    tour:    ["C",function(b,t){ sxNoise(b,t,"highpass",1200,0.7,0.18,0.015,0.02,0.15,6000); sxGlint(b,t+0.2,SN.A6,0.012); }],
+    tour:    ["A",function(b,t){ sxTone(b,t,110,"sine",0.18,0.038,0.1,0.7); sxTone(b,t,164.81,"sine",0.22,0.022,0.1,0.7); sxNoise(b,t,"lowpass",400,0.6,0.15,0.0075,0.05,0.4); }],   /* drone lift (round 2 pick), a touch under the sampler level */
     qPick:   ["A",function(b,t){ [SN.A3,SN.E4,SN.Cs5].forEach(function(f,i){ sxFelt(b,t+i*0.04,f,0.04,(i-1)*0.25,2.4); }); }],
     qStep:   ["C",function(b,t){ sxGlint(b,t,SN.E6,0.016,-0.2,0.7); sxGlint(b,t+0.08,SN.A6,0.016,0.2,0.8); }],
     qDone:   ["A",function(b,t){ [SN.A2,SN.E3,SN.Gs3,SN.B3,SN.Cs4].forEach(function(f,i){ sxTone(b,t+i*0.03,f,i<2?"triangle":"sine",0.08,[0.05,0.04,0.03,0.025,0.025][i],0.4,2.4,null,(i-2)*0.2); });

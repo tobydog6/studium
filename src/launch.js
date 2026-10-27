@@ -8,6 +8,8 @@
   var LA={on:false, t0:0, raf:0, phase:"", fast:false, after:null, el:null, cam:null, hold:false};
   var LA_KEY="studium_launch_seen";
   var LA_ROOMS=[["select","Pick","asset:assets/launch/select.jpg"],["edit","Edit","asset:assets/launch/edit.jpg"],["workbook","Make","asset:assets/launch/workbook.jpg"],["folio","Folio","asset:assets/launch/folio.jpg"],["gallery","Show","asset:assets/launch/gallery.jpg"]];
+  var LA_OPEN=(function(){ var m=/[?&]open=(\d)/.exec(location.search); return m?+m[1]:0; })();   /* ?open=1..5 tries the other beginnings; it always plays the long version */
+  var LA_OPENS=["","DAWN","POINT CLOUD, WIDE","THROUGH THE LENS","RACK FOCUS","MOTOR DRIVE"];
   var LA_NOFILM=!/[?&]film/.test(location.search);   /* straight from the photo to the spin; ?film brings the strip back */
   var LA_T={detail:3.2, scan:2.6, shoot:2.6, iris:0.9, settle:0.95, crawl:1.0, move:0.5, exit:1.05, spin:4.6, word:1.7};
   function laSeen(){ try{ return localStorage.getItem(LA_KEY)==="1"; }catch(e){ return false; } }
@@ -20,9 +22,9 @@
     window.addEventListener("keydown",function(ev){ if(!LA.on) return; ev.stopImmediatePropagation(); ev.preventDefault(); if(!ev.repeat) laSkip(); },true);
     window.addEventListener("keyup",function(ev){ if(LA.on) ev.stopImmediatePropagation(); },true);
     return e; }
-  function laPhase(p){ if(LA.phase===p) return; LA.phase=p; LA.pt=performance.now(); LA.log=(LA.log||[]).concat([p]); LA.held=false; if(LA.el){ LA.el.className="on p-"+p+(LA.skipAsked?" skip":"")+(LA.el.classList.contains("held")?" held":""); } }
+  function laPhase(p){ if(LA.phase===p) return; LA.phase=p; LA.pt=performance.now(); LA.log=(LA.log||[]).concat([p]); LA.held=false; if(LA.el){ LA.el.className="on p-"+p+(LA.skipAsked?" skip":"")+(LA.el.classList.contains("held")?" held":"")+(LA.ocls?" "+LA.ocls:""); } }
   function laHeld(){ if(!LA.hold) return false; if(!LA.held){ LA.held=true; if(LA.pass){ LA.pass=false; return false; } LA.wait=true; } return LA.wait; }   /* tests: ?lahold parks a phase until __la.go() */
-  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.fast=laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.vf=false; LA.af=false; LA.fired=false; LA.racked=false; LA.focused=-1; LA.firedT=0; LA.quick=false; LA.scanTried=false; LA.scanHold=false; LA.first=!LA.fast; LA.eye0=WK.eye; LA.warm=false; laWelClose(true); SD.seq=null;
+  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.fast=LA_OPEN?false:laSeen(); LA.ocls=LA_OPEN?"o"+LA_OPEN:""; LA.sh={iris:0.9, rack0:0.75, rackD:1.4, fire:2.3, from:0.95, black:false}; LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.vf=false; LA.af=false; LA.fired=false; LA.racked=false; LA.focused=-1; LA.firedT=0; LA.quick=false; LA.scanTried=false; LA.scanHold=false; LA.first=!LA.fast; LA.eye0=WK.eye; LA.warm=false; laWelClose(true); SD.seq=null;
     var e=laEl(); LA.el=e; document.body.classList.add("launching"); laPhase("dark");
     ["hub","landing","studio","punctum","signin","teacher"].forEach(hubHide);
     if(!loaded){ var sc=(window.SPLAT_SCENES||[])[0]; if(sc){ App.go("landing"); loadBundled(sc); } }   /* the scan loads behind the dark */
@@ -153,21 +155,43 @@
   var LA_WIDE={r:4.1, eye:1.9};
   function laDrift(t){ laPlace(LA.a0+0.9+t*0.07, LA_WIDE.r, LA_WIDE.eye); }                                  /* wide and slow behind the film */
   // ---- the spin: one big circle from wherever the strip left the scan, landing exactly on the starting spot ----
-  function laSpinStart(){ var sp=CH.spec&&CH.spec.spawn, S=laSubject(), walk=!!(WK.col&&WK.mode==="walk"); laVfOff(); laPhase("spin"); sdSpin(null,LA.quick);
+  function laSpinStart(){ var sp=CH.spec&&CH.spec.spawn, S=laSubject(), walk=!!(WK.col&&WK.mode==="walk"); laVfOff(); LA.fov0=camera?camera.fov:55; laPhase("spin"); sdSpin(null,LA.quick);
     Array.prototype.forEach.call(LA.el.querySelectorAll("video"),function(v){ try{ v.pause(); }catch(x){} });
     var a0=LA.cam?LA.cam.a:Math.atan2(camPos.x-S[0], camPos.z-S[1]), r0=LA.cam?LA.cam.r:Math.hypot(camPos.x-S[0], camPos.z-S[1]), e0=LA.cam?LA.cam.eye:WK.eye;
     if(!sp){ LA.sp=null; LA.spinA=a0; LA.spinR=r0; LA.spinE=e0; LA.spinD=Math.PI*2; return; }
     var eye=sp[4]||1.65, aS=Math.atan2(sp[0]-S[0], sp[1]-S[1]), rS=Math.hypot(sp[0]-S[0], sp[1]-S[1]), d=aS-a0; d=Math.atan2(Math.sin(d),Math.cos(d)); if(d<0) d+=Math.PI*2;
     if(!walk) eye=LA.eye0!=null?LA.eye0:WK.eye; LA.sp={x:sp[0], z:sp[1], yaw:sp[2]||0, pitch:sp[3]||-0.1, eye:eye, y:WK.col?wkGround(sp[0],sp[1])+eye:camPos.y};   /* exactly where the app's own start puts you */ LA.spinA=a0; LA.spinR=r0; LA.spinE=e0; LA.spinD=d+Math.PI*2*(d>Math.PI*0.5?0:1); LA.spinRS=rS; }
-  function laSpin(u){ var k=laE(u), T=LA.sp; if(!T){ laPlace(LA.spinA+k*LA.spinD, LA.spinR, LA.spinE); return; }
-    var sw=LA.el.classList.contains("nofilm")?Math.sin(Math.PI*Math.min(1,k*1.15)):0; laPlace(LA.spinA+k*LA.spinD, LA.spinR+(LA.spinRS-LA.spinR)*k+sw*2.8, LA.spinE+(T.eye-LA.spinE)*k+sw*1.1);   /* from close: it swings out wide on the way round */   /* round, drawing in, looking at the stump all the way */
+  function laSpin(u){ var k=laE(u), T=LA.sp; if(camera&&!viewfinderOn&&LA.fov0&&Math.abs(LA.fov0-55)>0.5){ camera.fov=LA.fov0+(55-LA.fov0)*laE(Math.min(1,u*2.2)); camera.updateProjectionMatrix(); } if(!T){ laPlace(LA.spinA+k*LA.spinD, LA.spinR, LA.spinE); return; }
+    var sw=LA.swing?Math.sin(Math.PI*Math.min(1,k*1.15)):0; laPlace(LA.spinA+k*LA.spinD, LA.spinR+(LA.spinRS-LA.spinR)*k+sw*2.8, LA.spinE+(T.eye-LA.spinE)*k+sw*1.1);   /* from close: it swings out wide on the way round */   /* round, drawing in, looking at the stump all the way */
     var m=laE((u-0.72)/0.28); if(m<=0) return;   /* the last stretch eases onto the exact spot and the way it faces */
     var dy=T.yaw-yaw; dy=Math.atan2(Math.sin(dy),Math.cos(dy)); yaw+=dy*m; pitch+=(T.pitch-pitch)*m; camPos.x+=(T.x-camPos.x)*m; camPos.z+=(T.z-camPos.z)*m; camPos.y+=(T.y-camPos.y)*m; if(WK.col&&WK.mode==="walk") WK.eye+=(T.eye-WK.eye)*m; if(typeof basis==="function") basis(); }
   function laLockStart(){ laScanOff(); sdSeqCut(); LA.quick=true; laSpinStart(); }   /* a skip: the same landing, just the short way round */
+  // ---- the other beginnings (?open=1..5). Each ends in the spin, or hands over to the shot ----
+  function laOpenStart(){ laPhase("open"); var e=LA.el, sk=e.querySelector(".la-skip"); if(sk) sk.textContent="OPTION "+LA_OPEN+" · "+LA_OPENS[LA_OPEN];
+    e.classList.add("skip"); LA.skipAsked=true; LA.ob={cut:-1};
+    if(LA_OPEN===2){ sdScan(); }
+    if(LA_OPEN===3){ LA.sh={iris:1.6, rack0:1.3, rackD:1.7, fire:3.15, from:0.06, black:true}; var ci=e.querySelector(".la-iris"); if(ci){ ci.style.opacity=1; ci.style.setProperty("--o","1.1"); ci.style.setProperty("--r","0%"); } laPhase("shoot"); }   /* straight into the viewfinder: the lens opens out of black, then the long pull onto the bark */
+    if(LA_OPEN===4){ laShootCam(0); LA.focusTo=laFocusTarget(); laVfOn(); apIdx=1; computeCam(); setFocus(0); document.body.classList.add("la-nochrome"); var cv=e.querySelector(".la-iris"); if(cv) cv.style.opacity=0; }
+    if(LA_OPEN===1){ var b=sdSeq(); if(b){ var t=sdNow(); sdFelt(b,t+1.0,440,0.06,-0.2); sdFelt(b,t+2.4,554.37,0.05,0.2); sdFelt(b,t+3.6,659.25,0.045,0); } } }
+  var LA_BURST=[[0,-0.7,1.0,0.35,28],[0.6,1.25,2.7,1.6,46],[1.06,2.5,0.85,0.5,20],[1.44,-1.7,3.6,0.45,52],[1.76,0.5,1.5,1.25,32],[2.03,3.05,2.1,0.28,38],[2.26,0,0,0,24]];
+  function laOpenTick(pt){ var e=LA.el, u;
+    if(LA_OPEN===1){ u=Math.min(1,pt/4.6); var k=1-Math.pow(1-u,2.2); laPlace(LA.a0-0.4+k*0.38, LA.r0+1.9-1.75*k, LA.h0+0.35-0.32*k, LA.look); laFov(42-16*k); if(u>=1&&!laHeld()) laSpinStart(); return; }   /* dawn: the world comes up out of black as you glide in */
+    if(LA_OPEN===2){ var W=3.4, G=2.6;   /* the cloud from high and wide, then down and in to the stump, then the shot */
+      laScanSet(Math.min(1,pt/W)); if(pt<W){ u=pt/W; laPlace(LA.a0+0.95-0.3*u, 5.4-0.3*u, 2.8-0.2*u); laFov(46); return; }
+      u=laE(Math.min(1,(pt-W)/G)); laPlace(LA.a0+0.65+(0.03-0.65)*u, 5.1+(LA.r0-0.02-5.1)*u, 2.6+(LA.h0-0.01-2.6)*u, LA.look); laFov(46-15*u);
+      if(pt>W+G&&!laHeld()){ laScanOff(); laPhase("shoot"); } return; }
+    if(LA_OPEN===4){ var D=4.6; u=Math.min(1,pt/D); laPlace(LA.a0-0.06+u*0.09, LA.r0+0.25-0.3*u, LA.h0-0.02, LA.look);   /* everything starts as bokeh; the bark slowly comes sharp; a cut to the spin */
+      var r=laE(Math.min(1,Math.max(0,(pt-0.9)/2.8))); setFocus(LA.focusTo*r);
+      if(pt>1.0&&!LA.ob.felt){ LA.ob.felt=1; var b=sdSeq(); if(b){ var t=sdNow(); sdFelt(b,t,554.37,0.05,0); sdFelt(b,t+2.6,659.25,0.05,0); } }
+      if(u>=1&&!laHeld()){ document.body.classList.remove("la-nochrome"); e.classList.remove("snap"); void e.offsetWidth; e.classList.add("snap"); laSpinStart(); } return; }
+    if(LA_OPEN===5){ var i=LA.ob.cut, nx=LA_BURST[i+1];   /* a motor-drive burst: the stump from seven angles, a shutter on every cut, faster and faster */
+      if(nx&&pt>=nx[0]){ i=++LA.ob.cut; e.classList.add("lit"); e.classList.remove("flash"); void e.offsetWidth; e.classList.add("flash"); sdShutter(null,true); LA.ob.t=pt; }
+      if(i>=0){ var c=LA_BURST[i], dt=pt-LA.ob.t; if(i<LA_BURST.length-1) laPlace(LA.a0+c[1]+dt*0.06, c[2]+dt*0.05, c[3], LA.look); else laShootCam(0); laFov(c[4]); }
+      if(i===LA_BURST.length-1&&pt>LA_BURST[i][0]+0.85&&!laHeld()) laSpinStart(); return; } }
   // ---- the shot: the real viewfinder comes up on the 85 wide open, racks focus onto the bark, and fires ----
   function laVfOn(){ if(LA.vf) return; LA.vf=true; LA.ap=apIdx; LA.lens=lensIdx; apIdx=2; var b=curBody(), li=b.lenses.indexOf(85); if(li>=0) selectLens(li); computeCam(); setFocus(0.95); try{ raiseCamera(); }catch(e){} afPending=false; LA.fovTo=camera.fov; LA.fovFrom=24; }
   function laIris(u){ var cv=LA.el.querySelector(".la-iris"); if(u>=1){ cv.style.opacity=0; if(camera){ camera.fov=LA.fovTo; camera.updateProjectionMatrix(); } return; }
-    var k=1-Math.pow(1-u,2.4); cv.style.opacity=1; cv.style.setProperty("--o",(1-k).toFixed(3)); cv.style.setProperty("--r",(28+62*k).toFixed(1)+"%");   /* a soft dark edge that eases open as the lens comes up */
+    var k=1-Math.pow(1-u,2.4); cv.style.opacity=1; cv.style.setProperty("--o",(1-k).toFixed(3)); cv.style.setProperty("--r",((LA.sh.black?0:28)+(LA.sh.black?90:62)*k).toFixed(1)+"%");   /* a soft dark edge that eases open as the lens comes up */
     if(camera){ camera.fov=LA.fovFrom+(LA.fovTo-LA.fovFrom)*k; camera.updateProjectionMatrix(); } }
   function laVfOff(){ if(!LA.vf) return; LA.vf=false; try{ lowerCamera(); }catch(e){} if(LA.ap!=null){ apIdx=LA.ap; computeCam(); } if(LA.lens!=null) selectLens(LA.lens); afPending=false; var el=$("vfAF"); if(el) el.classList.remove("hunt","ok"); }
   function laFocusTarget(){ var P=viewer&&viewer.P, A=viewer&&viewer.A; if(!P) return 0.5; if(typeof basis==="function") basis(); if(typeof updateCamera==="function") updateCamera(0); camera.updateMatrixWorld();   /* the camera's own autofocus: what's in the middle of the frame */
@@ -175,7 +199,7 @@
     for(var i=0;i<N;i+=st){ if(A&&A[i]<0.12) continue; var vx=P[i*3]-o.x, vy=P[i*3+1]-o.y, vz=P[i*3+2]-o.z, t=vx*f.x+vy*f.y+vz*f.z; if(t<0.25*sc) continue; var p2=vx*vx+vy*vy+vz*vz-t*t, lim=t*0.026+0.01*sc; if(p2<lim*lim) ts.push(t); }
     ts.sort(function(x,y){ return x-y; }); if(ts.length<3){ var r=LA.cam?LA.cam.r:2.2; return Math.max(0,Math.min(1,Math.log(Math.max(0.3,r-0.4)/0.3)/Math.log(60))); }
     var m=ts[Math.min(ts.length-1,4)]/sc; return Math.log(Math.max(0.3,Math.min(18,m))/0.3)/Math.log(60); }
-  function laRack(u){ var from=0.95, to=LA.focusTo, el=$("vfAF"); if(u<=0){ if(el){ el.classList.remove("ok"); el.classList.add("hunt"); } return; }
+  function laRack(u){ var from=LA.sh.from, to=LA.focusTo, el=$("vfAF"); if(u<=0){ if(el){ el.classList.remove("ok"); el.classList.add("hunt"); } return; }
     var v; if(u<0.72){ var k=laE(u/0.72); v=from+(to-0.045-from)*k; } else if(u<0.9){ v=to-0.045+0.065*laE((u-0.72)/0.18); } else v=to+0.02-0.02*laE((u-0.9)/0.1);   /* a long pull, a touch past, back onto it */
     setFocus(v); if(u>=1&&LA.focused<0) LA.focused=0; if(u>=1&&el&&!el.classList.contains("ok")){ el.classList.remove("hunt"); el.classList.add("ok"); } }
   function laGrab(){ var src=renderer.domElement, W=src.width, H=src.height, sx=0, sy=0, cw=W, ch=H;
@@ -195,19 +219,20 @@
   // ---- the clock ----
   function laTick(now){ if(!LA.on) return; LA.raf=requestAnimationFrame(laTick); var t=(now-LA.t0)/1000, p=LA.phase, pt=(now-(LA.pt||LA.t0))/1000, e=LA.el;
     if(p==="dark"){ if(t>2.5&&!LA.skipAsked){ LA.skipAsked=true; e.classList.add("skip"); }
-      if(loaded&&!LA.scanTried){ LA.scanTried=true; LA.scanT=t; if(!LA.fast){ laScanOn(); laCamInit(); laVfOn(); LA.warm=true; } }   /* the point cloud's shader and the viewfinder's compile behind the dark: raised once, unseen */
+      if(loaded&&!LA.scanTried){ LA.scanTried=true; LA.scanT=t; if(!LA.fast){ if(!LA_OPEN||LA_OPEN===2) laScanOn(); laCamInit(); laVfOn(); LA.warm=true; } }   /* the point cloud's shader and the viewfinder's compile behind the dark: raised once, unseen */
       if(LA.warm&&t-LA.scanT>0.32){ LA.warm=false; laVfOff(); }   /* the point cloud's shader compiles behind the dark */
-      if(loaded&&t>(LA.fast?0.6:1.0)&&(LA.fast||(!LA.warm&&t-LA.scanT>0.5))){ laCamInit(); if(typeof updateCamera==="function") updateCamera(0); if(LA.fast){ laDrift(0); laLockStart(); return; } laPhase("detail"); sdScan(); } return; }
+      if(loaded&&t>(LA.fast?0.6:1.0)&&(LA.fast||(!LA.warm&&t-LA.scanT>0.5))){ laCamInit(); if(typeof updateCamera==="function") updateCamera(0); if(LA.fast){ laDrift(0); laLockStart(); return; } if(LA_OPEN){ laOpenStart(); return; } laPhase("detail"); sdScan(); } return; }
+    if(p==="open"){ laOpenTick(pt); return; }
     if(p==="detail"){ laDetail(Math.min(1,pt/LA_T.detail)); laScanSet(Math.min(1,pt/LA_T.scan));  if(pt>LA_T.detail&&!laHeld()) laPhase("shoot"); return; }
     if(p==="shoot"){ if(!LA.fired) laShootCam(Math.min(1,pt/LA_T.shoot)); if(!LA.vf&&!LA.fired&&pt>0.05){ laShootCam(0); LA.focusTo=laFocusTarget(); laVfOn(); sdLensUp(); if(typeof setScale==="function"&&typeof dynTop==="function"){ try{ setScale(Math.max(0.5,dynTop()*0.72)); }catch(x){} } }   /* fewer pixels while the lens is up; the auto resolution brings them back */
-      if(LA.vf&&!LA.fired) laIris(Math.min(1,(pt-0.05)/LA_T.iris));
-      if(LA.vf&&pt>0.75){ if(!LA.racked){ LA.racked=true; sdRack(null,1.4); } laRack(Math.min(1,(pt-0.75)/1.4)); }
-      if(LA.focused>=0) LA.focused++; if(LA.vf&&!LA.fired&&pt>2.3&&LA.focused>=3){ LA.fired=true; laFire(); }   /* fire only once the focus has been on screen a few frames */
+      if(LA.vf&&!LA.fired) laIris(Math.min(1,(pt-0.05)/LA.sh.iris));
+      if(LA.vf&&pt>LA.sh.rack0){ if(!LA.racked){ LA.racked=true; sdRack(null,LA.sh.rackD); } laRack(Math.min(1,(pt-LA.sh.rack0)/LA.sh.rackD)); }
+      if(LA.focused>=0) LA.focused++; if(LA.vf&&!LA.fired&&pt>LA.sh.fire&&LA.focused>=3){ LA.fired=true; laFire(); }   /* fire only once the focus has been on screen a few frames */
       if(LA_NOFILM&&LA.fired&&!LA.firedT) LA.firedT=pt; if(LA_NOFILM&&LA.firedT&&pt-LA.firedT>0.42&&!laHeld()){ LA.el.classList.add("nofilm"); laSpinStart(); return; }   /* the still holds a breath, then the world pulls away from it */
       if(!LA_NOFILM&&pt>LA_T.shoot&&!laHeld()){ laPhase("film"); sdFilm(); e.classList.add("held"); Array.prototype.forEach.call(e.querySelectorAll("video"),function(v){ try{ v.currentTime=0; v.play(); }catch(x){} }); } return; }
     if(p==="film"){ laDrift(pt); var q=laStrip(pt); if(q.end&&!laHeld()) laSpinStart(); return; }
     if(p==="spin"){ var su=Math.min(1,pt/(LA.quick?1.6:LA_T.spin)); laSpin(su); if(su>=1&&(LA.quick||!laHeld())) laEnd(); return; } }
-  function laEnd(){ if(!LA.on) return; LA.on=false; cancelAnimationFrame(LA.raf); var e=LA.el; LA.welcome=Date.now(); laVfOff(); laScanOff(); (CH.pads||[]).forEach(function(P){ P.vis=0; });   /* the gold frames fade in once the wordmark has gone */
+  function laEnd(){ if(!LA.on) return; LA.on=false; document.body.classList.remove("la-nochrome"); cancelAnimationFrame(LA.raf); var e=LA.el; LA.welcome=Date.now(); laVfOff(); laScanOff(); (CH.pads||[]).forEach(function(P){ P.vis=0; });   /* the gold frames fade in once the wordmark has gone */
     if(loaded){ hubShow("hud"); App.go("scene"); if(typeof updatePrompt==="function") updatePrompt(); } else showHub();
     sdAmbStop(sdNow()+1.6,1.2); if(LA.first&&loaded) LA.wcard=true;   /* first time: hold the tour and the gold frames for the welcome */
     if(e){ e.className="on out"; setTimeout(function(){ e.className=""; document.body.classList.remove("launching"); if(LA.wcard) laWelOpen(); },LA_T.word*1000); } else document.body.classList.remove("launching");

@@ -1255,9 +1255,9 @@
     var h=$("editHint"); if(h) h.textContent=(edVZoom>1.01? (edPct()+"% · drag to pan · click to fit") : "click to zoom to 100% · scroll to zoom · \\ compares before/after"); }
   function edResetView(){ edVZoom=1; edVX=0; edVY=0; edApplyView(); }
   function edZoomBy(f){ edVZoom=Math.max(1,Math.min(8,edVZoom*f)); if(edVZoom<=1.001){ edVX=0; edVY=0; } edApplyView(); }
-  /* 100%: one photo pixel to one screen pixel; the point you clicked stays under the cursor. Tiny photos still get 2x */
+  /* 100%: one photo pixel to one screen pixel; the point you clicked stays under the cursor. If fit is already about 100%, 2x */
   function edOneToOne(){ var c=$("editCanvas"); if(!c||!edRC) return 2; var bw=c.getBoundingClientRect().width/edVZoom; if(bw<1) return 2; var dpr=window.devicePixelRatio||1;
-    return Math.max(2,Math.min(8,cropRect().w/(bw*dpr))); }
+    var z=cropRect().w/(bw*dpr); return z>=1.1?Math.min(8,z):2; }
   function edPct(){ var c=$("editCanvas"); if(!c||!edRC) return Math.round(edVZoom*100); var bw=c.getBoundingClientRect().width/edVZoom, dpr=window.devicePixelRatio||1; return Math.round(edVZoom*bw*dpr/Math.max(1,cropRect().w)*100); }
   function edClickZoom(x,y){ var c=$("editCanvas"); if(!c) return; c.classList.add("ezAnim"); clearTimeout(c._ez); c._ez=setTimeout(function(){ c.classList.remove("ezAnim"); },260);
     if(edVZoom>1.001){ edResetView(); return; }
@@ -1297,15 +1297,15 @@
     if($("eCopy")) $("eCopy").onclick=function(){ devCommit(); saveEdit(); };
     var cnv=$("editCanvas"), dragging=false, lx=0, ly=0;
     if(cnv){
-      var dnX=0, dnY=0, moved=false;
-      cnv.addEventListener("pointerdown",function(e){ if(e.button!==0) return; dragging=true; moved=false; lx=dnX=e.clientX; ly=dnY=e.clientY; try{cnv.setPointerCapture(e.pointerId);}catch(err){} });
+      var dnX=0, dnY=0, moved=false, noZoom=false;
+      cnv.addEventListener("pointerdown",function(e){ if(e.button!==0) return; dragging=true; moved=false; noZoom=!!e._cropEnded; lx=dnX=e.clientX; ly=dnY=e.clientY; try{cnv.setPointerCapture(e.pointerId);}catch(err){} });
       cnv.addEventListener("pointermove",function(e){ hoverReadout(e); if(!dragging) return; if(!moved&&Math.abs(e.clientX-dnX)+Math.abs(e.clientY-dnY)<5) return; if(!moved){ moved=true; lx=e.clientX; ly=e.clientY; $("editStage").classList.add("panning"); return; } var dx=e.clientX-lx, dy=e.clientY-ly; lx=e.clientX; ly=e.clientY;
         if(edVZoom>1.001){ edVX+=dx; edVY+=dy; edApplyView(); }
         else { if(!edState||!edRC) return; var r=cnv.getBoundingClientRect(); if(r.width<1) return; var cr=cropRect(); edState.cx-=(dx/r.width)*(cr.w/rcW); edState.cy-=(dy/r.height)*(cr.h/rcH); edState.cx=Math.min(Math.max(edState.cx,0),1); edState.cy=Math.min(Math.max(edState.cy,0),1); queueRender(); } });
       /* a click without a drag: fit -> 100% at the point clicked, zoomed -> back to fit (like Lightroom) */
       var endd=function(e){ if(!dragging) return; dragging=false; $("editStage").classList.remove("panning");
         if(moved){ if(edVZoom<=1.001) edPushHist(); return; }
-        if(e&&e.type==="pointerup"&&!(typeof edCrop!=="undefined"&&edCrop)) edClickZoom(e.clientX,e.clientY); };
+        if(e&&e.type==="pointerup"&&!noZoom&&!(typeof edCrop!=="undefined"&&edCrop)) edClickZoom(e.clientX,e.clientY); };
       cnv.addEventListener("pointerup",endd); cnv.addEventListener("pointercancel",endd);
       cnv.addEventListener("mouseleave",function(){ edHover=false; });
       cnv.addEventListener("wheel",function(e){ if(!edState) return; e.preventDefault(); edZoomBy(e.deltaY<0?1.18:0.85); },{passive:false});

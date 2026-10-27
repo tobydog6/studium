@@ -79,7 +79,7 @@
     if((b=$("eCropSwap"))) b.onclick=cropSwap;
     Array.prototype.forEach.call(document.querySelectorAll("#editor .lr-ct[data-a]"),function(bt){ bt.onclick=function(){ var a=bt.getAttribute("data-a"), r=(a==="free"||a==="orig")?a:parseFloat(a); if(edCrop) cropSetRatio(r); else cropStart(r); }; });
     // anything else in the editor (a slider, another frame, Done) applies the crop first
-    editor.addEventListener("pointerdown",function(e){ if(!edCrop) return; if(e.target.closest("#cropUI,.lr-croptools,#eBefore")) return; cropEnd(true); },true);
+    editor.addEventListener("pointerdown",function(e){ if(!edCrop) return; if(e.target.closest("#cropUI,.lr-croptools,#eBefore")) return; e._cropEnded=true; cropEnd(true); },true);   /* the click that ends a crop doesn't also zoom (app.js) */
     window.addEventListener("keydown",function(e){ if(!editor||editor.classList.contains("hidden")) return; var t=e.target, typing=t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)&&t.type!=="range");
       if(typing) return;
       if(edCrop&&(e.key==="Enter"||e.key==="Escape")){ e.preventDefault(); e.stopImmediatePropagation(); cropEnd(e.key==="Enter"); return; }

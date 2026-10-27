@@ -6,7 +6,7 @@
   var PR_SKIP=["heals","secLight","secColor","secEffects","secMix","secGrade","secDetail","secFilm","secGmap","secCurve"];
   var PR_STARTER=[];   /* no starter looks: students build their own */
   var PR={v:1, folders:[{id:"mine",name:"My looks",open:true}], items:[]};
-  var prOpen=false, prHover=null, prKeep=null, prThumbs={}, prThumbQ=[], prThumbBusy=false, prThumbSrc=null, prThumbFor=-1, prMenuEl=null, prAppliedN=0, prSavedN=0;
+  var prRenderLater=false, prOpen=false, prHover=null, prKeep=null, prThumbs={}, prThumbQ=[], prThumbBusy=false, prThumbSrc=null, prThumbFor=-1, prMenuEl=null, prAppliedN=0, prSavedN=0;
   function prId(){ return "p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
   function prStarters(){ return PR_STARTER.map(function(s){ return {id:s[0],name:s[1],folder:"studium",fixed:true,set:s[2]}; }); }
   function prAll(){ return prStarters().concat(PR.items); }
@@ -21,7 +21,8 @@
   function prSave(){ try{ localStorage.setItem("studium_presets_v1",JSON.stringify({v:1,folders:PR.folders,items:PR.items})); }catch(e){} if(typeof saveSession==="function") saveSession(); }
   function prLoad(d){ if(!d||!d.items) return; var f=(d.folders||[]).filter(function(x){ return x&&x.id; });
     f=f.filter(function(x){ return x.id!=="studium"; });   /* older saves had a Studium starter folder */
-    PR.folders=f; var have={}; PR.items.forEach(function(p){ have[p.id]=1; });
+    PR.folders.forEach(function(x){ if(!x.fixed&&!f.some(function(y){ return y.id===x.id; })) f.push(x); });   /* folders only this browser has are kept */
+    PR.folders=f;
     PR.items=d.items.filter(function(p){ return p&&p.id&&p.set&&!/^st-/.test(p.id); }).concat(PR.items.filter(function(p){ return !d.items.some(function(q){ return q.id===p.id; }); }));
     PR.items.forEach(function(p){ if(!prFolder(p.folder)) p.folder=prMine(); }); }
   function prMine(){ var f=PR.folders.filter(function(x){ return !x.fixed; })[0]; if(!f){ f={id:"mine",name:"My looks",open:true}; PR.folders.push(f); } return f.id; }
@@ -31,7 +32,7 @@
   // ---- the drawer ----
   function prEsc(s){ return String(s).replace(/[&<>"']/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
   function prSelN(){ var n=0, cur=devOpenIdx(); for(var k in devSel) if(devSel[k]&&+k!==cur) n++; return n; }
-  function prRender(){ var el=$("prList"); if(!el) return; var h="";
+  function prRender(){ var el=$("prList"); if(!el) return; if(el.querySelector(".pr-ren")){ prRenderLater=true; return; } var h="";   /* never rebuild under a rename in progress */
     PR.folders.forEach(function(f){ var its=prAll().filter(function(p){ return p.folder===f.id; });
       h+='<div class="pr-fold'+(f.open?' open':'')+'" data-pr-fold="'+f.id+'"><button class="pr-fh" data-pr-ft="'+f.id+'"><span class="pr-chev">›</span><span class="pr-fn">'+prEsc(f.name)+'</span><small>'+its.length+'</small></button>'
         +'<div class="pr-grid">'+(its.length?its.map(function(p){ var t=prThumbs[prTkey(p)];
@@ -92,13 +93,16 @@
   function prInline(sel,val,cb){ var el=document.querySelector(sel); if(!el){ return; } var inp=document.createElement("input"); inp.className="pr-ren"; inp.value=val; inp.maxLength=40;
     /* an input inside a button: Space would press the button, so the button becomes a plain block while you type */
     var btn=el.closest("button"); if(btn){ var blk=document.createElement("div"); blk.className=btn.className+" renaming"; blk.innerHTML=btn.innerHTML; btn.replaceWith(blk); el=blk.querySelector("."+el.className.split(" ")[0]); }
-    el.replaceWith(inp); inp.focus(); inp.select(); var done=false, fin=function(ok){ if(done) return; done=true; var v=inp.value.trim(); if(ok&&v) cb(v); prRender(); };
+    el.replaceWith(inp); inp.focus(); inp.select(); var done=false, fin=function(ok){ if(done) return; done=true; var v=inp.value.trim(); if(ok&&v) cb(v); inp.remove(); prRenderLater=false; prRender(); };
     inp.addEventListener("keydown",function(e){ e.stopPropagation(); if(e.key==="Enter") fin(true); else if(e.key==="Escape") fin(false); }); inp.addEventListener("blur",function(){ fin(true); }); inp.addEventListener("click",function(e){ e.stopPropagation(); }); }
   function prNameFolder(id){ var f=prFolder(id); if(!f) return; var el=document.querySelector('#prList [data-pr-fold="'+id+'"]'); if(el&&el.scrollIntoView) el.scrollIntoView({block:"nearest"});
     prInline('#prList [data-pr-fold="'+id+'"] .pr-fn',f.name,function(v){ f.name=v.slice(0,30); prSave(); }); }
   /* the drawer sits over the right of the photo, between the top bar and the filmstrip */
   function prPlace(){ var d=$("prDrawer"), stg=$("editStage"), dock=d&&d.parentNode; if(!d||!stg||!dock) return; var a=stg.getBoundingClientRect(), b=dock.getBoundingClientRect();
-    d.style.top=Math.max(0,a.top-b.top)+"px"; d.style.bottom=Math.max(0,b.bottom-a.bottom)+"px"; }
+    /* a floating window over the top right of the photo, down to about the Exposure slider; it sits left of the next-photo arrow (CSS) */
+    var top=a.top+12, ex=$("pExposure"), er=ex?ex.closest(".lr-row").getBoundingClientRect():null, bot=er&&er.height?er.bottom+8:a.top+a.height*0.5;
+    bot=Math.max(bot,top+260);
+    d.style.top=(top-b.top)+"px"; d.style.height=(bot-top)+"px"; d.style.bottom="auto"; }
   function prMenuAct(a,kind,id,fid){ var p=kind==="preset"?prFind(id):null, f=kind==="folder"?prFolder(id):null;
     if(a==="dup"&&p){ PR.items.push({id:prId(),name:p.name+" copy",folder:prMine(),set:prCapture(prOnto(defEd(0),p))}); prFolder(prMine()).open=true; prSave(); prRender(); toast("Copied into "+prFolder(prMine()).name+". Right-click it to rename or update."); }
     else if(a==="rename"&&p) prInline('#prList [data-pr="'+id+'"] .pr-nm',p.name,function(v){ p.name=v; prSave(); });
@@ -128,7 +132,10 @@
     list.addEventListener("mouseout",function(e){ var it=e.target.closest("[data-pr]"); if(it&&!it.contains(e.relatedTarget)&&!(e.relatedTarget&&e.relatedTarget.closest&&e.relatedTarget.closest("[data-pr]"))) prPreviewEnd(); });
     list.addEventListener("contextmenu",function(e){ var it=e.target.closest("[data-pr]"); if(it){ prMenu(e,"preset",it.getAttribute("data-pr")); return; } var fh=e.target.closest("[data-pr-ft]"); if(fh) prMenu(e,"folder",fh.getAttribute("data-pr-ft")); });
     document.addEventListener("pointerdown",function(e){ if(prMenuEl&&!prMenuEl.contains(e.target)) prMenuClose(); },true);
-    window.addEventListener("keydown",function(e){ if(prKeep) prPreviewEnd(); if(e.key==="Escape"&&(prMenuEl||prOpen)&&editor&&!editor.classList.contains("hidden")){ if(prMenuEl) prMenuClose(); else prToggle(false); } },true);
+    window.addEventListener("keydown",function(e){ if(prKeep) prPreviewEnd(); if(e.key!=="Escape"||!editor||editor.classList.contains("hidden")) return;
+      if(typeof edCrop!=="undefined"&&edCrop) return;   /* Escape still cancels a crop */
+      var bx=$("prSaveBox"), handled=true; if(prMenuEl) prMenuClose(); else if(document.querySelector("#prList .pr-ren")) handled=false; else if(bx&&!bx.classList.contains("hidden")) prSaveClose(); else if(prOpen) prToggle(false); else handled=false;
+      if(handled){ e.preventDefault(); e.stopImmediatePropagation(); } },true);   /* Escape closes the menu, the save box, then the drawer: never the editor behind it */
     /* a new frame, a new filmstrip selection: fresh thumbnails and the selection line */
     var _ds=devStrip; devStrip=function(){ _ds.apply(this,arguments); if(prOpen) prRender(); };
     window.addEventListener("resize",function(){ if(prOpen) prPlace(); });

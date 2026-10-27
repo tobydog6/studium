@@ -118,6 +118,8 @@
       prep:function(){ coSec(sec); coShow(coRow(id)); setTimeout(function(){ coMark(id,lo,hi); },120); },
       done:function(){ var v=edState[key]; return !CO.down&&v>=lo&&v<=hi; },
       bar:function(){ var v=edState[key], d=v<lo?lo-v:v>hi?v-hi:0, far=Math.max(Math.abs(lo),Math.abs(hi),20); return Math.max(0,1-d/far); }}; }
+  /* how many develop settings the student has moved on this photo (not the crop, the spots or the panel toggles) */
+  function coTweaks(){ if(!edState) return 0; var n=0, skip=["aspect","zoom","cx","cy","rot","cropRatio","heals"]; for(var k in EDEF){ if(skip.indexOf(k)>=0||/^sec/.test(k)) continue; var a=edState[k], b=EDEF[k]; if(a==null) continue; if(typeof b==="object"?JSON.stringify(a)!==JSON.stringify(b):a!==b) n++; } return n; }
   function coEditTotal(){ return typeof devList==="function"?devList().length:0; }
   function coEditedN(){ var L=typeof devList==="function"?devList():[]; return L.filter(function(i){ if(edState&&edState.i===i) return !devIsDefault(edState); var p=photos[i]; return p&&!!p.dev; }).length; }
   document.addEventListener("pointerdown",function(){ CO.down=true; },true);
@@ -217,10 +219,12 @@
         target:'#eCropApply', done:function(){ return !cropActive()&&edState.aspect!=="free"; }},
       {ch:"COMPARE", line:function(){ return 'Click <b>Before / After</b> to compare with the original'; }, sub:"The "+coK("\\")+" key does the same. Click it again to come back.",
         target:'#eBefore', start:function(){ CO.s.saw=false; }, done:function(){ if(edShowOrig) CO.s.saw=true; return CO.s.saw&&!edShowOrig; }},
-      {ch:"YOURS", line:function(){ return 'Now <b>try it on your own</b>'; }, sub:"We've reset the photo. Make it look the way you want, using any sliders and any crop. Do whatever you think looks good.",
-        prep:function(){ if(edState){ var i=edState.i, r=edState.rot; edState=defEd(i); edState.rot=r; buildRotated(); edResetView(); syncEditUI(); queueRender(); edPushHist(); setTimeout(drawHist,140); } }, info:true},
-      {ch:"YOURS", line:function(){ return 'When you\'re happy, press <b>Copy</b>'; }, sub:"It copies your look so you can put it on another photo.",
-        target:'#dvCopy', start:function(){ CO.s.clip=devClip; }, done:function(){ return !!devClip&&devClip!==CO.s.clip; }},
+      {ch:"YOURS", line:function(){ var n=coTweaks(); return 'Now <b>edit it your way</b>: change at least <b>3 sliders</b>'+(n?' <span class="co-rng">'+Math.min(n,3)+' of 3</span>':''); }, sub:"We've reset the photo. Make it look the way you want, using any sliders and any crop. Do whatever you think looks good.",
+        target:'#editor .lr-panel', place:"left", nodim:true, dwell:1500,
+        prep:function(){ if(edState){ var i=edState.i, r=edState.rot; edState=defEd(i); edState.rot=r; buildRotated(); edResetView(); syncEditUI(); queueRender(); edPushHist(); setTimeout(drawHist,140); } },
+        done:function(){ return !CO.down&&coTweaks()>=3; }, bar:function(){ return Math.min(1,coTweaks()/3); }},
+      {ch:"YOURS", line:function(){ return 'When you\'re happy, press <b>Copy</b>'; }, sub:"It copies your look so you can put it on another photo. Keep editing first if you're not there yet.",
+        target:'#dvCopy', start:function(){ CO.s.clip=devClip; }, done:function(){ return !!devClip&&devClip!==CO.s.clip&&coTweaks()>=1; }},
       {ch:"YOURS", line:function(){ return 'On to the next photo: <b>›</b>'; }, sub:"",
         target:'#dvNext', start:function(){ CO.s.i=coEdIdx(); }, done:function(){ return coEdIdx()!==CO.s.i; }},
       {ch:"YOURS", line:function(){ return '<b>Paste</b> your look onto this one'; }, sub:"Using the same edit on each photo helps them look like a set.",

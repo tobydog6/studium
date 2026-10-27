@@ -22,7 +22,7 @@
     return e; }
   function laPhase(p){ if(LA.phase===p) return; LA.phase=p; LA.pt=performance.now(); LA.log=(LA.log||[]).concat([p]); LA.held=false; if(LA.el){ LA.el.className="on p-"+p+(LA.skipAsked?" skip":"")+(LA.el.classList.contains("held")?" held":""); } }
   function laHeld(){ if(!LA.hold) return false; if(!LA.held){ LA.held=true; if(LA.pass){ LA.pass=false; return false; } LA.wait=true; } return LA.wait; }   /* tests: ?lahold parks a phase until __la.go() */
-  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.fast=laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.vf=false; LA.af=false; LA.fired=false; LA.racked=false; LA.focused=-1; LA.firedT=0; LA.quick=false; LA.detM=null; LA.scanTried=false; LA.scanHold=false; LA.first=!LA.fast; LA.eye0=WK.eye; LA.warm=false; LA.loadT=null; LA.prepTried=false; LA.stillFov=null; LA.fovA=null; laWelClose(true); SD.seq=null;
+  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.fast=laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.vf=false; LA.af=false; LA.fired=false; LA.racked=false; LA.focused=-1; LA.firedT=0; LA.quick=false; LA.detM=null; LA.scanTried=false; LA.scanHold=false; LA.first=!LA.fast; LA.eye0=WK.eye; LA.warm=false; LA.loadT=null; LA.prepTried=false; LA.stillFov=null; LA.fovA=null; LA.lookT=null; LA.lookE0=0; LA.lookL=0; laWelClose(true); SD.seq=null;
     var e=laEl(); LA.el=e; document.body.classList.add("launching"); laPhase("dark");
     ["hub","landing","studio","punctum","signin","teacher"].forEach(hubHide);
     if(!loaded){ var sc=(window.SPLAT_SCENES||[])[0]; if(sc){ App.go("landing"); loadBundled(sc); } }   /* the scan loads behind the dark */
@@ -224,6 +224,9 @@
         RLB.day="today"; M=rbMarks(); sa=rbSolar(M.goldPm||19*60+30).az; var north=RLB.north!=null?RLB.north:((view+140-sa)%360+360)%360; so=rbSolar(13*60+35); sk=rbSky(so.el); RLB.day=sv;
         D={dusk:Math.max(0.2,rbLum(sk.amb)), ambK:7200, sun:sk.sunP, el:so.el, sunK:so.el>30?5600:4800, az:((so.az+north)%360+360)%360}; } }catch(e){}
     if(T) T.dayT=D; return D; }   /* the same sun, sky and level the default look will have, so the hand-back is invisible */
+  /* the default look, phased in from the start of the move to the moment the photo is taken */
+  function laLook(now){ if(LA.lookT==null||typeof rbLookEase!=="function") return; if(!LA.lookE0) LA.lookE0=now; var k=Math.min(1,(now-LA.lookE0)/((LA_T.detail+2.2)*1000));
+    if(k<1&&now-LA.lookL<100) return; LA.lookL=now; rbLookEase(laE(k)); if(k>=1) LA.lookT=null; }
   function laTodAt(u){ var K=LA_TOD, i=0; while(i<K.length-2&&u>K[i+1][0]) i++; var a=K[i], b=K[i+1], k=Math.max(0,Math.min(1,(u-a[0])/(b[0]-a[0])));   /* straight between the keys: one steady shift, no pauses at each one */
     return a.map(function(v,j){ return v+(b[j]-v)*k; }); }
   function laTod(u,day,now){ var T=LA.tod; if(!T) return; var v=laTodAt(u);
@@ -312,11 +315,12 @@
   // ---- the clock ----
   function laTick(now){ if(!LA.on) return; LA.raf=requestAnimationFrame(laTick); laDetWatch(); var t=(now-LA.t0)/1000, p=LA.phase, pt=(now-(LA.pt||LA.t0))/1000, e=LA.el;
     if(p==="dark"){ if(t>2.5&&!LA.skipAsked){ LA.skipAsked=true; e.classList.add("skip"); }
-      if(loaded&&!LA.scanTried){ LA.scanTried=true; LA.scanT=t; LA.todT=t; if(!LA.fast){ laTodInit(); laCamInit(); laVfOn(); LA.warm=true; } }
+      if(loaded&&!LA.scanTried){ LA.scanTried=true; LA.scanT=t; LA.todT=t; if(!LA.fast){ if(typeof rbDefaultLook==="function"&&CH.spec&&CH.spec.id==="stump"){ rbDefaultLook(false,7*60+30); if(typeof RLB!=="undefined"&&RLB.sunMode) LA.lookT=t; else laTodInit(); } else laTodInit(); laCamInit(); laVfOn(); LA.warm=true; } }   /* the Stump opens on its own default look, early morning, built here behind the dark */
       if(loaded&&typeof rbDefaultPrep==="function"&&typeof RLB!=="undefined"&&!RLB.built&&!LA.prepTried){ LA.prepTried=true; setTimeout(function(){ if(LA.on&&LA.phase==="dark") rbDefaultPrep(); else LA.prepTried=false; },0); }   /* the default look's light grid is built here, unseen */   /* the point cloud's shader and the viewfinder's compile behind the dark: raised once, unseen */
       if(LA.warm&&t-LA.scanT>0.32){ LA.warm=false; laVfOff(); }   /* the point cloud's shader compiles behind the dark */
-      if(loaded&&LA.loadT==null) LA.loadT=t; var det=!(CH.spec&&CH.spec.detail)||!!(viewer&&viewer.detail)||t-LA.loadT>8, settled=det&&t-LA.loadT>1.6&&(LA.fast||!LA.tod||t-LA.todT>1.4)&&(typeof RLB==="undefined"||RLB.built||!(CH.spec&&CH.spec.id==="stump")||t-LA.loadT>10);   /* hold the dark until the stump's own detail piece is in and the level of detail has had time to fill in under it */
+      if(loaded&&LA.loadT==null) LA.loadT=t; var det=!(CH.spec&&CH.spec.detail)||!!(viewer&&viewer.detail)||t-LA.loadT>8, settled=det&&t-LA.loadT>1.6&&(LA.fast||!(LA.tod||LA.lookT!=null)||t-LA.todT>1.4)&&(typeof RLB==="undefined"||RLB.built||!(CH.spec&&CH.spec.id==="stump")||t-LA.loadT>10);   /* hold the dark until the stump's own detail piece is in and the level of detail has had time to fill in under it */
       if(loaded&&settled&&t>(LA.fast?0.6:1.0)&&(LA.fast||(!LA.warm&&t-LA.scanT>1.0))){ laCamInit(); if(typeof updateCamera==="function") updateCamera(0); if(LA.fast){ if(typeof rbDefaultLook==="function") rbDefaultLook(); laDrift(0); laLockStart(); return; } laPhase("detail"); sdScan(); if(typeof setScale==="function"&&typeof dynTop==="function"){ try{ setScale(Math.max(0.5,dynTop()*0.85)); }catch(x){} } } return; }
+    if(p==="detail"||p==="shoot"||p==="spin") laLook(now);
     if(p==="detail"){ laTod(Math.min(1,pt/(LA_T.detail+2.3))); laDetail(Math.min(1,pt/LA_T.detail)); laScanSet(Math.min(1,pt/LA_T.scan));  if(pt>LA_T.detail&&!laHeld()) laPhase("shoot"); return; }
     if(p==="shoot"){ if(!LA.fired){ laShootCam(Math.min(1,pt/LA_T.shoot)); laTod(Math.min(1,(LA_T.detail+pt)/(LA_T.detail+2.3))); } if(!LA.vf&&!LA.fired&&pt>0.05){ laShootCam(0); LA.focusTo=laFocusTarget(); laVfOn(); sdLensUp(); if(typeof setScale==="function"&&typeof dynTop==="function"){ try{ setScale(Math.max(0.5,dynTop()*0.72)); }catch(x){} } }   /* fewer pixels while the lens is up; the auto resolution brings them back */
       if(LA.vf&&!LA.fired) laIris(Math.min(1,(pt-0.05)/LA_T.iris));

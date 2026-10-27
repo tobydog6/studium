@@ -264,8 +264,8 @@
 
   // ---- sound: rain on the ground and a soft wind, made from the same noise the interface sounds use ----
   function weSound(){ var now=performance.now(); if(now-WE.sndT<120) return; WE.sndT=now;
-    var want=(typeof App!=="undefined"&&(App.is("scene")||(typeof LA!=="undefined"&&LA.on))&&loaded&&soundOn)?1:0, ra=weAmt(WE.rain)*want, wa=weAmt(WE.wind)*want;
-    if(typeof sfxAmbTick==="function") sfxAmbTick(!!want&&App.is("scene"));   /* birds and air under the scan */
+    var rf=typeof RF!=="undefined"&&RF.on, want=(typeof App!=="undefined"&&!rf&&(App.is("scene")||(typeof LA!=="undefined"&&LA.on))&&loaded&&soundOn)?1:0, ra=weAmt(WE.rain)*want, wa=weAmt(WE.wind)*want*(typeof LA!=="undefined"&&LA.on?0.4:1);   /* silent under the title page, soft under the opening */
+    if(typeof sfxAmbTick==="function") sfxAmbTick(!!want&&App.is("scene")&&!(typeof LA!=="undefined"&&LA.on));   /* birds and air under the scan */
     if(!WE.snd){ if(!(ra||wa)) return; var c=typeof sfxCtx==="function"?sfxCtx():null; if(!c||!SFX.nb) return;
       if(navigator.userActivation&&!navigator.userActivation.hasBeenActive) return;
       var mk=function(type,f,q){ var s=c.createBufferSource(); s.buffer=SFX.nb; s.loop=true; var fl=c.createBiquadFilter(); fl.type=type; fl.frequency.value=f; fl.Q.value=q; var g=c.createGain(); g.gain.value=0.0001; s.connect(fl); fl.connect(g); g.connect(SFX.out); s.start(0,Math.random()*1.5); return {f:fl,g:g}; };

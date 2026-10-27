@@ -23,7 +23,7 @@
   function laPhase(p){ if(LA.phase===p) return; LA.phase=p; LA.pt=performance.now(); LA.log=(LA.log||[]).concat([p]); LA.held=false; if(LA.el){ LA.el.className="on p-"+p+(LA.skipAsked?" skip":"")+(LA.el.classList.contains("held")?" held":""); } }
   function laHeld(){ if(!LA.hold) return false; if(!LA.held){ LA.held=true; if(LA.pass){ LA.pass=false; return false; } LA.wait=true; } return LA.wait; }   /* tests: ?lahold parks a phase until __la.go() */
   function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.fast=laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.vf=false; LA.af=false; LA.fired=false; LA.racked=false; LA.focused=-1; LA.firedT=0; LA.quick=false; LA.detM=null; LA.scanTried=false; LA.scanHold=false; LA.first=!LA.fast; LA.eye0=WK.eye; LA.warm=false; LA.loadT=null; LA.prepTried=false; laWelClose(true); SD.seq=null;
-    var e=laEl(); LA.el=e; document.body.classList.add("launching"); laPhase("dark");
+    var e=laEl(); LA.el=e; var r0=e.querySelector(".la-ray"); if(r0) r0.className="la-ray"; document.body.classList.add("launching"); laPhase("dark");
     ["hub","landing","studio","punctum","signin","teacher"].forEach(hubHide);
     if(!loaded){ var sc=(window.SPLAT_SCENES||[])[0]; if(sc){ App.go("landing"); loadBundled(sc); } }   /* the scan loads behind the dark */
     try{ localStorage.setItem(LA_KEY,"1"); }catch(x){}
@@ -214,8 +214,9 @@
       RL.on=true; RL.exp=0; RL.shadows=false; RL.lights.forEach(function(L){ L.on=false; });
       var S=laSubject(), c=laShotSpec(), gy=wkGround(S[0],S[1]); RL.sunAz=((c.az+180-55)%360+360)%360;   /* the sun comes up behind and to the side of the shot: a rim on the stump */
       LA.tod.set=[[-38,1.6,1.7,5200,7,0.75],[150,1.5,1.25,3300,5,0.6]].map(function(v){   /* [degrees round from the shot, metres out, height, kelvin, power, softness] */
-        var a=(c.az+v[0])*Math.PI/180, L={id:RL.nid++, on:true, fx:"led", name:"Opening light", type:"bulb", power:v[4], k:v[3], gel:"#ffffff", soft:v[5], cone:90, h:v[2], dir:[0,-1,0], p0:v[4]};
+        var a=(c.az+v[0])*Math.PI/180, L={id:RL.nid++, on:true, fx:"led", name:"Opening light", type:"bulb", power:v[4], k:v[3], gel:"#ffffff", soft:v[5], cone:90, h:v[2], dir:[0,-1,0], p0:v[4], a0:c.az+v[0], r0:v[1], h0:v[2], k0:v[3]};
         rlSetPos(L, S[0]+Math.sin(a)*v[1]*RL.S, S[1]+Math.cos(a)*v[1]*RL.S); rlAimAt(L,{x:S[0], y:gy+0.45, z:S[1]}); RL.lights.push(L); return L; });
+      LA.tod.S=S; LA.tod.gy=gy;
       if(typeof WE!=="undefined"){ LA.tod.we={rain:WE.rain, wind:WE.wind, fog:WE.fog}; WE.rain=0; WE.fog=0; WE.wind=Math.max(1,WE.wind); WE.dirty=true; }   /* the weather comes in behind the dark, so it's built before you see it */
       laTod(0,0,true); LA.detM=null; laDetWatch(); }catch(e){ console.warn("time of day",e); LA.tod=null; } }
   function laTodAt(u){ var K=LA_TOD, i=0; while(i<K.length-2&&u>K[i+1][0]) i++; var a=K[i], b=K[i+1], k=Math.max(0,Math.min(1,(u-a[0])/(b[0]-a[0])));   /* straight between the keys: one steady shift, no pauses at each one */
@@ -228,6 +229,8 @@
       if(Math.abs(WE.rain-rn)>0.005||Math.abs(WE.fog-fg)>0.005){ WE.rain=rn; WE.fog=fg; WE.dirty=true; } }
     var t=performance.now(); if(!now&&t-T.t<100) return; T.t=t;
     (T.set||[]).forEach(function(L){ L.power=L.p0*(day?1-laE(day):1); L.on=L.power>0.05; });
+    if(T.S&&!day){ var tt=t/1000; (T.set||[]).forEach(function(L,i){ var a=(L.a0+Math.sin(tt*0.42+i*2.1)*38)*Math.PI/180, r=L.r0*(1+0.18*Math.sin(tt*0.31+i*1.7)); L.h=L.h0+0.4*Math.sin(tt*0.55+i*1.3); L.k=Math.round(L.k0+900*Math.sin(tt*0.27+i*2.6));
+      rlSetPos(L, T.S[0]+Math.sin(a)*r*RL.S, T.S[1]+Math.cos(a)*r*RL.S); rlAimAt(L,{x:T.S[0], y:T.gy+0.45, z:T.S[1]}); }); }   /* the key and rim wander round the stump, rise and fall, warm and cool: the light is never still on it */
     laGlow(day?1-day:u);
     T.shad=day?Math.max(0,1-day*2.5):laE(Math.max(0,Math.min(1,(u-0.8)/0.18))); RL.shadows=T.shad>0.001;   /* shadows fade in for the last of golden hour, long ones across the clearing for the shot */   /* the key and rim stay put through the changes; they go as the plain day comes back */
     RL.dusk=v[1]; RL.ambK=Math.round(v[2]); RL.sunPow=v[3]>0.01?v[3]:0; RL.sunEl=Math.max(2,v[4]); RL.sunK=Math.round(v[5]);
@@ -260,7 +263,8 @@
   function laDrift(t){ laPlace(LA.a0+0.9+t*0.07, LA_WIDE.r, LA_WIDE.eye); }                                  /* wide and slow behind the film */
   // ---- the spin: one big circle from wherever the strip left the scan, landing exactly on the starting spot ----
   function laSpinStart(){ var sp=CH.spec&&CH.spec.spawn, S=laSubject(), walk=!!(WK.col&&WK.mode==="walk"); laVfOff(); laPhase("spin"); sdSpin(null,LA.quick);
-    if(typeof rbDefaultLook==="function"&&LA.tod){ if(RL.gpu){ RL.gpu.U.on.value=0; try{ viewer.mesh.updateVersion(); if(viewer.detail) viewer.detail.updateVersion(); }catch(x){} } laTodEnd(); rbDefaultLook(); }   /* the rig off first (as laEnd does), then hand back */   /* the Stump arrives at its default look (daylight, light fog and wind) as the circle starts */
+    if(typeof rbDefaultLook==="function"&&LA.tod){ var ray=LA.el.querySelector(".la-ray"); if(!ray){ ray=document.createElement("div"); ray.className="la-ray"; LA.el.appendChild(ray); } ray.className="la-ray"; void ray.offsetWidth; ray.className="la-ray go";
+      setTimeout(function(){ if(!LA.tod) return; if(RL.gpu){ RL.gpu.U.on.value=0; try{ viewer.mesh.updateVersion(); if(viewer.detail) viewer.detail.updateVersion(); }catch(x){} } laTodEnd(); rbDefaultLook(); },340); }   /* a ray of warm light washes across and the day arrives under it (the rig off first, as laEnd does) */   /* the Stump arrives at its default look (daylight, light fog and wind) as the circle starts */
     Array.prototype.forEach.call(LA.el.querySelectorAll("video"),function(v){ try{ v.pause(); }catch(x){} });
     var a0=LA.cam?LA.cam.a:Math.atan2(camPos.x-S[0], camPos.z-S[1]), r0=LA.cam?LA.cam.r:Math.hypot(camPos.x-S[0], camPos.z-S[1]), e0=LA.cam?LA.cam.eye:WK.eye;
     if(!sp){ LA.sp=null; LA.spinA=a0; LA.spinR=r0; LA.spinE=e0; LA.spinD=Math.PI*2; return; }

@@ -3101,4 +3101,9 @@ body.rackin #loader,body.rackin #hud,body.rackin #navTop,body.rackin #navActs,bo
 
 
 /* the opening: a soft warm haze where the sun breaks through the fog */
+.la-ray{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0;mix-blend-mode:screen;
+  background:linear-gradient(112deg,rgba(255,226,180,0) 0%,rgba(255,226,180,0) 30%,rgba(255,236,205,.95) 48%,rgba(255,246,228,1) 52%,rgba(255,226,180,0) 70%,rgba(255,226,180,0) 100%),radial-gradient(ellipse 80% 70% at 50% 45%,rgba(255,228,190,.85),rgba(255,210,150,.35) 70%);
+  background-size:260% 100%,100% 100%;background-position:120% 0,0 0}
+.la-ray.go{animation:laRay 1.7s cubic-bezier(.3,.6,.2,1) forwards}
+@keyframes laRay{0%{opacity:0;background-position:120% 0,0 0}18%{opacity:.94}30%{opacity:.94}100%{opacity:0;background-position:-20% 0,0 0}}
 .la-sun{position:absolute;left:50%;top:50%;width:90vmax;height:90vmax;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;opacity:0;mix-blend-mode:screen;z-index:1;transition:left .12s linear,top .12s linear,opacity .2s linear;background:radial-gradient(circle,rgba(255,214,150,.55) 0%,rgba(255,170,90,.22) 12%,rgba(255,150,70,.08) 30%,rgba(255,140,60,0) 55%)}

@@ -302,7 +302,7 @@
   function qDemoStart(){ if(!qDemo()&&typeof saveSessionNow==="function") saveSessionNow();
     wipeWorkspace(); if(!qDemo()) lsSetWho({role:"solo", name:"", demo:true});
     try{ localStorage.removeItem(Q_DEMO_KEY); }catch(e){} clearSession();
-    Q=qLoad(); Q.t0=Date.now(); Q.lastFocusAsk=qToday(); qTrack("d1"); qSave(); QU.flashUntil=Date.now()+10000; READ_MS=Math.min(READ_MS,2000);
+    Q=qLoad(); Q.t0=Date.now(); Q.lastFocusAsk=qToday(); Q.tracked="d1"; qTrack("d1");   /* already tracked, so no pick ding as the opening starts */ qSave(); QU.flashUntil=Date.now()+10000; READ_MS=Math.min(READ_MS,2000);
     QU.moments=[]; QU.seen={}; QU.hubAsked=false; if(typeof __qu!=="undefined"&&window.__qu) window.__qu.closeAll(); else { qPickClose(); qLogClose(); qDoneClose(); }
     if(typeof CO!=="undefined"&&CO.on) coStop(); if(typeof RL!=="undefined"&&RL.ui) rlClose();
     if(typeof launchStart==="function") launchStart(); else lsGo("shoot"); if(loaded&&typeof chAttach==="function") chAttach(); }

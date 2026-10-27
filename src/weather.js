@@ -216,7 +216,7 @@
     S2.rain.g.gain.setTargetAtTime(0.0001+ra*0.03,t,0.4); S2.patter.g.gain.setTargetAtTime(0.0001+ra*0.014,t,0.3);
     if(ra>0){ var nd=Math.round(ra*3); for(var i=0;i<nd;i++) if(Math.random()<0.6) sxTick(S2.drops,t+0.03+Math.random()*0.12,2500+Math.random()*2500,(0.006+Math.random()*0.012)*Math.min(1,ra*1.6),Math.random()*1.6-0.8); }
     var gust=0.5+0.5*Math.sin(k*2*Math.PI*0.13);
-    S2.wind.g.gain.setTargetAtTime(0.0001+wa*0.05*(0.6+0.4*gust),t,0.5); S2.wind.f.frequency.setTargetAtTime(220+560*gust,t,0.6); }
+    S2.wind.g.gain.setTargetAtTime(0.0001+wa*0.024*(0.6+0.4*gust),t,1.6); S2.wind.f.frequency.setTargetAtTime(220+560*gust,t,0.6); }
 
   // ---- the strip of weather squares under the kit ----
   function weKitHTML(){ return '<div class="kit-wx"><span class="kit-wx-l">WEATHER</span>'+WE_ITEMS.map(function(it){ var lv=WE[it[0]];

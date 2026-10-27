@@ -676,7 +676,7 @@
     time:function(m){ RLB.mins=m; rbSunOn(); rbDirty(); rbTimeline(); }, scan:function(){ RLB.sunMode=false; rbDirty(); rbTimeline(); }, day:function(d){ RLB.day=d; rbDirty(); rbTimeline(); },
     light:function(o){ var L=rbCur(); if(!L) return; for(var k in o) L[k]=o[k]; if(o.stops!=null) L.power=L.base*Math.pow(2,o.stops); if(o.x!=null||o.z!=null||o.h!=null) rbPlace(L,L.x,L.z); if(o.aim) rbAim(L,rbTarget()); rbStands(); rbDirty(); rbPanel(true); },
     spot:function(a,d){ var L=rbCur(), T=rbTarget(); if(!L) return; var ax=camPos.x-T.x, az=camPos.z-T.z, al=Math.hypot(ax,az)||1; ax/=al; az/=al; var r=a*Math.PI/180, ca=Math.cos(r), sa=Math.sin(r); rbPlace(L,T.x+(ax*ca-az*sa)*d*RL.S,T.z+(ax*sa+az*ca)*d*RL.S); rbAim(L,T); rbStands(); rbDirty(); rbPanel(true); },
-    shadows:function(v){ RL.shadows=v; rbDirty(); }, frame:function(){ rbFrame(); }, spotAt:rbSpotAt, spotNow:function(){ return RLB.spotNow; },
+    shadows:function(v){ RL.shadows=v; rbDirty(); }, frame:function(){ rbFrame(); }, cam:function(){ return {x:camPos.x,y:camPos.y,z:camPos.z,framing:!!RLB.frame}; }, spotAt:rbSpotAt, spotNow:function(){ return RLB.spotNow; },
     orbit:function(dx,dy,z){ rbOrbit(dx,dy,z); return {x:camPos.x,y:camPos.y,z:camPos.z,fly:RLB.fly,T:rbTarget()}; },
     dbg:function(){ var L=RL.lights[0]; return {roles:rbRoles(), at:L&&rbAtSubject(L), L:L&&{fx:L.fx,kind:L.kind,on:L.on,power:L.power,cone:L.cone,dir:L.dir,ang:L.ang}, ratio:rbRatio(rbRoles())}; },
     regrid:function(o){ for(var k in o) RLB[k]=o[k]; if(RLB.gridS&&RLB.gridS.tex) RLB.gridS.tex.dispose(); RLB.gridS=null; rbGridSharp(); rbDirty(); },

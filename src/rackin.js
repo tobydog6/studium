@@ -49,7 +49,7 @@
     "  col*=mix(.62,1.,smoothstep(1.25,.35,length((v-.5)*vec2(1.2,1.)))); col=pow(col,vec3(1.04));\n"+
     "  gl_FragColor=vec4(col*(1.-fade),1.); }";
   var RF_WR=[0.14,0.12,0.86,0.44];   /* the part of the still the name and its line sit in (u0, v0, u1, v1) */
-  function rfWordCanvas(){ var W=3600, Hh=Math.round(W*(RF_WR[3]-RF_WR[1])/((RF_WR[2]-RF_WR[0])*RF_IA)), c=document.createElement("canvas"); c.width=W; c.height=Hh; var x=c.getContext("2d");
+  function rfWordCanvas(Wp){ var W=Math.max(256,Math.min(4096,Math.round(Wp||3600))), Hh=Math.round(W*(RF_WR[3]-RF_WR[1])/((RF_WR[2]-RF_WR[0])*RF_IA)), c=document.createElement("canvas"); c.width=W; c.height=Hh; var x=c.getContext("2d");
     var k=W/((RF_WR[2]-RF_WR[0])*2048); x.setTransform(k,0,0,k,-RF_WR[0]*2048*k,-RF_WR[1]*1280*k);   /* drawn in the still's 2048 x 1280 space, at much higher resolution */
     x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="alphabetic"; x.font="400 300px 'Fraunces', Georgia, serif"; x.fillText("Studium",1024,1280*0.35);
     x.font="500 22px 'Geist Mono', ui-monospace, monospace"; if(x.letterSpacing!==undefined) x.letterSpacing="6px"; x.fillText(RF_SUB.toUpperCase(),1024,1280*0.35+78); return c; }
@@ -70,7 +70,7 @@
   function rfLoad(){ var G=rfGL(); if(!G) return Promise.reject(new Error(RF.glErr||"no WebGL"));
     var fonts=document.fonts?Promise.all([document.fonts.load("400 300px 'Fraunces'"),document.fonts.load("500 22px 'Geist Mono'")]).catch(function(){}):Promise.resolve();
     return Promise.all([rfImg("asset:assets/launch/rack-stump.jpg"),rfImg("asset:assets/launch/rack-depth.png"),fonts]).then(function(r){
-      G.tex(0,r[0],"img"); G.tex(1,r[1],"dep"); var wc=rfWordCanvas(); G.tex(2,wc,"word"); RF.box=rfBox(wc);
+      G.tex(0,r[0],"img"); G.tex(1,r[1],"dep"); var wc=rfWordCanvas(); RF.wTex=G.tex(2,wc,"word"); RF.box=rfBox(wc); RF.wW=0;
       var dc=document.createElement("canvas"); dc.width=r[1].width; dc.height=r[1].height; var dx=dc.getContext("2d",{willReadFrequently:true}); dx.drawImage(r[1],0,0); RF.dd=dx.getImageData(0,0,dc.width,dc.height).data; RF.dw=dc.width; RF.dh=dc.height;
       G.ready=true; }); }
 
@@ -100,10 +100,11 @@
     var fade=RF.going?Math.max(0,Math.min(1,(now-RF.fadeT)/350)):0;
     if(RF.going&&fade>=1) e.classList.toggle("wait",!loaded);
     if(RF.going&&fade>=1&&loaded&&!RF.handed){ RF.handed=true; setTimeout(function(){ RF.handed=false; rfClose(); if(typeof siAct==="function") siAct("demo"); },0); }
-    var gl=G.gl, d=Math.min(window.devicePixelRatio||1,1), w=Math.max(2,Math.round(innerWidth*d)), h=Math.max(2,Math.round(innerHeight*d));
+    var gl=G.gl, d=Math.min(window.devicePixelRatio||1,1.5), w=Math.max(2,Math.round(innerWidth*d)), h=Math.max(2,Math.round(innerHeight*d));
     if(G.cv.width!==w||G.cv.height!==h){ G.cv.width=w; G.cv.height=h; } gl.viewport(0,0,w,h);
     var sa=w/h; if(sa>RF_IA) gl.uniform2f(G.u("px"),1/w,(1/h)*(RF_IA/sa)); else gl.uniform2f(G.u("px"),(1/w)*(sa/RF_IA),1/h);
     var still=RF_STILL?RF_STILL.matches:false;
+    var iw=(w/h>RF_IA?w:h*RF_IA), want=Math.round((RF_WR[2]-RF_WR[0])*iw); if(!RF.wW||Math.abs(RF.wW-want)>2){ RF.wW=want; try{ var wc=rfWordCanvas(want); gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D,RF.wTex); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,wc); }catch(e){} }   /* the name is redrawn at exactly the size it lands on screen, so it's crisp at any window size */
     gl.uniform4f(G.u("wr"),RF_WR[0],RF_WR[1],RF_WR[2],RF_WR[3]); gl.uniform2f(G.u("res"),w,h); gl.uniform1f(G.u("focus"),RF.f); gl.uniform1f(G.u("scale"),30*w/1440); gl.uniform1f(G.u("wordD"),RF_WORD); gl.uniform1f(G.u("time"),still?0:now/1000); gl.uniform1f(G.u("fade"),fade);
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
     rfSoft(RF.go||(RF.go=e.querySelector(".rf-go")), Math.min(1,rfCoc(RF_BTN)/7)); }

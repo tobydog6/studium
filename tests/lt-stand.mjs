@@ -44,7 +44,8 @@ try {
   await fr.evaluate(() => __lt.closeTray());
   await fr.evaluate(() => { __lt.tearSticky('t'); const n = __lt.STICKY[__lt.STICKY.length - 1]; n.x = -4; n.z = 2; window.dispatchEvent(new PointerEvent('pointerup')); });
   await page.waitForTimeout(800); await shot('8-sticky-edit');
-  await fr.evaluate(() => { const ta = document.querySelector('.sticky-ed'); ta.value = 'same low sun, try these two at XL'; ta.dispatchEvent(new Event('input')); __lt.closeEdit(true); });
+  await fr.evaluate(() => { const ta = document.querySelector('.sticky-ed'); ta.textContent = 'same low sun'; ta.dispatchEvent(new Event('input')); }); await page.waitForTimeout(500); await shot('8b-typing');
+  await fr.evaluate(() => { const ta = document.querySelector('.sticky-ed'); ta.textContent = 'same low sun, try these at XL'; ta.dispatchEvent(new Event('input')); __lt.closeEdit(true); });
   await page.waitForTimeout(800); await shot('9-sticky');
   await fr.evaluate(() => __lt.openBinder()); await page.waitForTimeout(1500); await shot('10-binder');
   console.log('  stickies:', await fr.evaluate(() => __lt.STICKY.map((n) => n.text).join('|')));

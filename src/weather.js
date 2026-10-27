@@ -71,8 +71,8 @@
   var WE_RAIN_FS=[
     "precision highp float; uniform float lit; varying vec2 vq; varying float va; varying float vk;",
     "void main(){ float a;",
-    "  if(vk<0.5){ a=va*exp(-vq.x*vq.x*2.2)*smoothstep(0.0,0.12,vq.y)*smoothstep(1.0,0.88,vq.y); }",
-    "  else { float d=length(vq); a=va*smoothstep(1.0,0.7,d)*smoothstep(0.35,0.85,d); }",
+    "  if(vk<0.5){ a=va*exp(-vq.x*vq.x*2.2)*smoothstep(0.0,0.12,vq.y)*(1.0-smoothstep(0.88,1.0,vq.y)); }",
+    "  else { float d=length(vq); a=va*(1.0-smoothstep(0.7,1.0,d))*smoothstep(0.35,0.85,d); }",
     "  if(a<0.003) discard; gl_FragColor=vec4(vec3(0.8,0.84,0.89)*lit, a); }"].join("\n");
   function weRainBuild(){ var n=WE_DROPS+WE_SPLASH, g=new THREE.InstancedBufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(new Float32Array([-1,0,0, 1,0,0, 1,1,0, -1,1,0]),3)); g.setIndex([0,1,2, 0,2,3]);
@@ -81,7 +81,7 @@
     var dummy=new THREE.Data3DTexture(new Uint8Array(4),1,1,1); dummy.format=THREE.RGBAFormat; dummy.type=THREE.UnsignedByteType; dummy.needsUpdate=true;
     var u={t:{value:0}, amt:{value:0}, len:{value:0.1}, th:{value:0.002}, al:{value:0.5}, S:{value:1}, gy:{value:0}, pxk:{value:0.001}, fok:{value:0}, lit:{value:1},
       cam:{value:new THREE.Vector3()}, box:{value:new THREE.Vector3(11,6,11)}, vel:{value:new THREE.Vector3(0,-8,0)}, fo:{value:new THREE.Vector3()}, finv:{value:new THREE.Vector3(1,1,1)}, fld:{value:dummy}};
-    var m=new THREE.ShaderMaterial({uniforms:u, vertexShader:WE_RAIN_VS, fragmentShader:WE_RAIN_FS, transparent:true, depthWrite:false, depthTest:true});
+    var m=new THREE.ShaderMaterial({uniforms:u, vertexShader:WE_RAIN_VS, fragmentShader:WE_RAIN_FS, transparent:true, depthWrite:false, depthTest:false});   /* splats write no depth anyway; the solidity check does the hiding */
     var mesh=new THREE.Mesh(g,m); mesh.frustumCulled=false; mesh.renderOrder=20; WE.mesh=mesh; WE.U=u; }
 
   // ---- what bends in the wind: a map of the scan, worked out once from its own splats ----

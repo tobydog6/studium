@@ -405,6 +405,7 @@ function serialize(){ return { v:2, idN,
 function saveAll(){ if(LOADING) return; clearTimeout(saveT); saveT=setTimeout(saveNow,350); }
 function saveNow(){ if(LOADING||!READY) return; const s=serialize();
   if(HOST){ try{ HOST.save(s); }catch(e){} return; }
+  s.shots=SHOTS.slice(-3);   /* this browser's storage is small */
   try{ s.own=library.filter(i=>i.kind==='own'&&i.data).slice(-24).map(i=>({ id:i.id, data:i.data, long:i.long, name:i.name })); localStorage.setItem(SAVE, JSON.stringify(s)); }catch(e){} }
 function applyState(s, cb){ if(!s||s.v!==2){ cb(false); return; } LOADING=true;
   if(typeof s.idN==='number') idN=Math.max(idN,s.idN);
@@ -504,8 +505,9 @@ canvas.addEventListener('pointerdown', e=>{
   if(cam.view==='wall'&&histIdx<0&&stringPointer(e)) return;
   if(e.button===0 && loupeHit(e)){ setLoupe(!loupe.on); return; }
   if(e.button===0 && binderHit(e)){ openBinder(); return; }
-  if(e.button===0 && cam.view==='table'){ if(camHit(e)){ shoot(); return; } if(kitHit(e)){ setStand(!STAND.up); return; } if(trayHit(e)){ openTray(); return; } }
+  if(e.button===0 && cam.view==='table' && camHit(e)){ shoot(); return; }
   const p=hitPrint(e);
+  if(!p && e.button===0 && cam.view==='table'){ if(kitHit(e)){ setStand(!STAND.up); return; } if(trayHit(e)){ openTray(); return; } }
   if(p&&e.button===2){ drag.ctx={ p, x:e.clientX, y:e.clientY }; return; }
   if(p&&p.wg){ drag.pending=p; drag.sx=e.clientX; drag.sy=e.clientY; const h=wallHit(camera,ndc)||V(p.wg.x,p.wg.y,0); drag.ox=p.wg.x-h.x; drag.oz=p.wg.y-h.y; }
   else if(p){ drag.pending=p; drag.sx=e.clientX; drag.sy=e.clientY; drag.h=F.lift*0.6+p.base; const hp=planeHit(camera,ndc,drag.h)||V(p.x,0,p.z); drag.ox=p.x-hp.x; drag.oz=p.z-hp.z; }
@@ -521,7 +523,7 @@ canvas.addEventListener('pointermove', e=>{
     if(h){ cam.tx+=pan.start.x-h.x; if(cam.view==='wall') cam.ty+=pan.start.y-h.y; else cam.tz+=pan.start.z-h.z; clampCam(); } }
   else if(STR.hold){ canvas.style.cursor='crosshair'; }
   else if(GD.on){ }
-  else if(!inspected){ const p=hitPrint(e); const hs=(cam.view==='wall'&&!p&&stringsOn)?hitString():null; STR.hov=hs?hs.s:null; setHover(p); STAND.hov=!p&&cam.view==='table'&&camHit(e); canvas.style.cursor=loupe.on?'none':(p||loupeHit(e))?'grab':(binderHit(e)||STAND.hov||(cam.view==='table'&&!p&&(kitHit(e)||trayHit(e)))||(cam.view==='wall'&&(hitSpool()!=null||STR.hov||hitSwatch())))?'pointer':'default'; }
+  else if(!inspected){ const p=hitPrint(e); const hs=(cam.view==='wall'&&!p&&stringsOn)?hitString():null; STR.hov=hs?hs.s:null; STAND.hov=cam.view==='table'&&camHit(e); setHover(STAND.hov?null:p); canvas.style.cursor=loupe.on?'none':(p||loupeHit(e))?'grab':(binderHit(e)||STAND.hov||(cam.view==='table'&&!p&&(kitHit(e)||trayHit(e)))||(cam.view==='wall'&&(hitSpool()!=null||STR.hov||hitSwatch())))?'pointer':'default'; }
 });
 window.addEventListener('pointerup', e=>{
   if(drag.ctx){ const c=drag.ctx; drag.ctx=null; openCtx(c.p,c.x,c.y); }
@@ -1386,9 +1388,10 @@ function shotPrintCanvas(img){ const W=900, Hh=Math.round(W/1.4142), b=26, c=doc
 const PW=3.3;
 function shotMesh(img){ const t=makeTex(shotPrintCanvas(img)); const m=new THREE.Mesh(new THREE.PlaneGeometry(PW,PW*(t.image.height/t.image.width)), new THREE.MeshLambertMaterial({ map:t })); m.rotation.x=-Math.PI/2; return m; }
 function loadImg(url,cb){ const i=new Image(); i.onload=()=>cb(i); i.onerror=()=>cb(null); i.src=url; }
-function drawTray(){ while(trayStack.children.length){ const m=trayStack.children.pop(); m.geometry.dispose(); if(m.material.map) m.material.map.dispose(); m.material.dispose(); }
+let trayGen=0;
+function drawTray(){ const gen=++trayGen; while(trayStack.children.length){ const m=trayStack.children.pop(); m.geometry.dispose(); if(m.material.map) m.material.map.dispose(); m.material.dispose(); }
   const L=SHOTS.slice(-3), r=mulberry(5);
-  L.forEach((s,i)=>loadImg(s.url,img=>{ if(!img||SHOTS.indexOf(s)<0) return; const m=shotMesh(img); m.position.set((r()-0.5)*0.25,0.075+i*0.006,(r()-0.5)*0.2); m.rotation.z=(r()-0.5)*0.12; m.userData.order=i; trayStack.add(m); trayStack.children.sort((a,b)=>a.userData.order-b.userData.order); })); }
+  L.forEach((s,i)=>loadImg(s.url,img=>{ if(!img||SHOTS.indexOf(s)<0||gen!==trayGen) return; const m=shotMesh(img); m.position.set((r()-0.5)*0.25,0.075+i*0.006,(r()-0.5)*0.2); m.rotation.z=(r()-0.5)*0.12; m.userData.order=i; trayStack.add(m); trayStack.children.sort((a,b)=>a.userData.order-b.userData.order); })); }
 function trayHit(e){ setNDC(e); ray.setFromCamera(ndc,camera); return ray.intersectObject(tray,true).some(h=>h.object!==RING_TRAY); }
 
 /* the photograph: square on, framed to an A3 page around what's on the board */
@@ -1441,7 +1444,7 @@ function sendShot(){ const s=SHOTS[TRV.i]; if(!s||TRV.busy) return; TRV.busy=tru
   setTimeout(()=>{ SFX('drop'); }, 620);
   setTimeout(()=>{ SFX('bkTurn'); TRV.el.classList.add('away'); }, 1250);
   setTimeout(()=>{
-    if(HOST){ const page=s.page||null; if(page&&page.items&&page.items.length){ try{ HOST.addWorkbookPage(page); }catch(e){} } }
+    if(HOST){ const page=s.page||null; if(!page||!page.items||!page.items.length){ TRV.el.classList.remove('sending','away'); TRV.busy=false; toast('That photo couldn\u2019t go to your workbook. Pull those prints out of the binder again and take another.'); return; } try{ HOST.addWorkbookPage(page); }catch(e){} }
     else loadImg(s.url,img=>{ if(!img) return; const P=buildPage(img); workbook.push(P); renderWorkbook(); });
     s.sent=true; saveAll(); TRV.el.classList.remove('sending','away'); TRV.busy=false; trRender(); tourEv('workbook');
     if(HOST) toast('Added to your workbook as a new page. Write on it there.','Open workbook',()=>HOST.room('workshop')); else toast('Added to your workbook as page '+workbook.length+'.'); }, 1900); }
@@ -1495,7 +1498,7 @@ const TSTEPS=[
   { ch:'CULL', line:'Now press <b>Shred rejects</b>.', sub:'Watch the shredder under the table edge. Only the prints go, the photos stay in your binder.', hot:'shred', ev:'shred', skip:true },
   { ch:'CULL', line:'Make a second copy with the <b>copier</b>.', sub:'Drag a print onto its glass and a copy prints out beside it.', hot:'scan', ev:'copy', skip:true },
   { ch:'SHOOT', line:'Make a <b>second series</b> on the board.', sub:'Another pair, or a run of three. Keep it apart from the first one.', hot:'board', ev:'series2', skip:true, ok:()=>chains.length>=2 },
-  { ch:'SHOOT', line:'Set up the <b>copy stand</b>.', sub:'Click the white case at the front right of the table.', hot:'kit', ev:'stand' },
+  { ch:'SHOOT', line:'Set up the <b>copy stand</b>.', sub:'Click the white case at the front right of the table.', hot:'kit', ev:'stand', ok:()=>STAND.up&&!STAND.dir },
   { ch:'SHOOT', line:'Press the camera\u2019s <b>shutter</b>.', sub:'It photographs the whole board, framed for an A3 workbook page, and drops the photo in the tray.', hot:'shutter', ev:'shoot' },
   { ch:'WALL', line:'<b>Pin</b> both series to the wall.', sub:'Hover each one and click the pin next to the cog.', hot:'chain', ev:'pin2', skip:true, ok:()=>wallSeries()>=2 },
   { ch:'WALL', line:'Push the mouse to the <b>top edge</b> to look up.', sub:'Or press <kbd>W</kbd>.', hot:'edge', ev:'wall' },
@@ -1518,7 +1521,7 @@ function tourShow(){ const s=TSTEPS[TOUR.i], el=$('co'); if(!s){ tourEnd(true); 
   tourHotDom();
   if(s.ev&&(performance.now()-(TOUR.seen[s.ev]||-1e9)<1500||(s.ok&&s.ok()))) tourEv(s.ev); TP.x=null; }
 function tourEv(name){ TOUR.seen[name]=performance.now(); if(!TOUR.on) return; const s=TSTEPS[TOUR.i]; if(!s||s.ev!==name||TOUR.okT||(s.ok&&!s.ok())) return;
-  $('co').classList.add('ok'); TOUR.okT=setTimeout(()=>{ TOUR.okT=0; if(s.end){ tourEnd(true); toast('Light table tour done. Your series are up on the wall to come back to.'); return; } TOUR.i++; tourShow(); },s.end?1100:420); }
+  $('co').classList.add('ok'); TOUR.okT=setTimeout(()=>{ TOUR.okT=0; if(s.end){ tourEnd(true); return; } TOUR.i++; tourShow(); },s.end?1100:420); }
 function tourHotDom(){ document.querySelectorAll('.co-hot').forEach(e=>e.classList.remove('co-hot')); const h=tourHot(); const dom={ pull:'#bdPull', send:'#trSend', shred:'.tag.boxbtn button' }[h]; if(dom){ const t=document.querySelector(dom); if(t) t.classList.add('co-hot'); } }
 $('co').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
   if(b.classList.contains('co-next')){ if(TSTEPS[TOUR.i].last) tourEnd(true); else { TOUR.i++; tourShow(); } }

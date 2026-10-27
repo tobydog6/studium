@@ -199,31 +199,28 @@
   //      a light wind throughout. A soft LED panel keeps the stump lit through the dark and fades as the sun comes up.
   //      Shadows off, and the rig is applied ten times a second (the light moves slowly), so it stays smooth ----
   var LAG={on:false, e:1, w:0, s:1, c:1};   /* (a frame grade, read by renderFrame; not used now) */
-  var LA_TOD=[[0,0.07,9500,0,-12,3000],[0.42,0.08,9500,0,-10,3000],[0.62,0.2,11000,0,-3,3000],[0.84,0.3,8400,0.7,3,2700],[1,0.42,7600,1.1,10,3100]];   /* u, dusk, ambient K, sun, sun height, sun K */
+  var LA_TOD=[[0,0.17,9000,0,-12,3000],[0.42,0.18,9000,0,-10,3000],[0.62,0.26,10500,0,-3,3000],[0.84,0.3,8400,0.4,3,2700],[1,0.42,7600,0.6,10,3100]];   /* u, dusk, ambient K, sun, sun height, sun K */
   function laTodInit(){ if(typeof RL==="undefined"||typeof rlPrepare!=="function"||!viewer||!viewer.P||!viewer.mesh) return; try{ if(!RL.ready) rlPrepare();
       LA.tod={was:{on:RL.on, dusk:RL.dusk, ambK:RL.ambK, sunPow:RL.sunPow, sunEl:RL.sunEl, sunK:RL.sunK, sunAz:RL.sunAz, exp:RL.exp, shadows:RL.shadows, sel:RL.sel, lon:RL.lights.map(function(L){ return L.on; })}, t:0};
       RL.on=true; RL.exp=0; RL.shadows=false; RL.lights.forEach(function(L){ L.on=false; });
       var S=laSubject(), c=laShotSpec(), gy=wkGround(S[0],S[1]); RL.sunAz=((c.az+180-55)%360+360)%360;   /* the sun comes up behind and to the side of the shot: a rim on the stump */
-      var a=(c.az+38)*Math.PI/180, d=1.7*RL.S, L={id:RL.nid++, on:true, fx:"led", name:"Opening lamp", type:"bulb", power:8, k:4300, gel:"#ffffff", soft:0.6, cone:90, h:1.35, dir:[0,-1,0]};
-      rlSetPos(L, S[0]+Math.sin(a)*d, S[1]+Math.cos(a)*d); rlAimAt(L,{x:S[0], y:gy+0.45, z:S[1]}); RL.lights.push(L); LA.tod.L=L;
       if(typeof WE!=="undefined"){ LA.tod.we={rain:WE.rain, wind:WE.wind, fog:WE.fog}; WE.rain=0; WE.fog=0; WE.wind=Math.max(1,WE.wind); WE.dirty=true; }   /* the weather comes in behind the dark, so it's built before you see it */
-      laTod(0,0,true); }catch(e){ console.warn("time of day",e); LA.tod=null; } }
+      laTod(0,0,true); LA.detM=null; laDetWatch(); }catch(e){ console.warn("time of day",e); LA.tod=null; } }
   function laTodAt(u){ var K=LA_TOD, i=0; while(i<K.length-2&&u>K[i+1][0]) i++; var a=K[i], b=K[i+1], k=laE(Math.max(0,Math.min(1,(u-a[0])/(b[0]-a[0]))));
     return a.map(function(v,j){ return v+(b[j]-v)*k; }); }
   function laTod(u,day,now){ var T=LA.tod; if(!T) return; var v=laTodAt(u);
     if(day){ var d=laE(day); v=[1, v[1]+(1-v[1])*d, v[2]+(6500-v[2])*d, v[3]*(1-d), v[4]+(30-v[4])*d, v[5]+(5600-v[5])*d]; }   /* golden into the plain day the scan was made in */
-    if(typeof WE!=="undefined"&&T.we){ var bump=function(a,b,c,d){ return u<a||u>d?0:u<b?laE((u-a)/(b-a)):u<c?1:1-laE((u-c)/(d-c)); }, fg=1.5*bump(0.02,0.24,0.42,0.72), rn=1.4*bump(0.14,0.26,0.42,0.56); if(day) rn=fg=0;   /* fog creeps in, rain comes and goes, the fog lifts as the sun comes up */
+    if(typeof WE!=="undefined"&&T.we){ var bump=function(a,b,c,d){ return u<a||u>d?0:u<b?laE((u-a)/(b-a)):u<c?1:1-laE((u-c)/(d-c)); }, fg=2*bump(0.0,0.16,0.52,0.82), rn=1.6*bump(0.14,0.24,0.44,0.58); if(day) rn=fg=0;   /* fog creeps in, rain comes and goes, the fog lifts as the sun comes up */
       if(Math.abs(WE.rain-rn)>0.005||Math.abs(WE.fog-fg)>0.005){ WE.rain=rn; WE.fog=fg; WE.dirty=true; } }
     var t=performance.now(); if(!now&&t-T.t<100) return; T.t=t;
     RL.dusk=v[1]; RL.ambK=Math.round(v[2]); RL.sunPow=v[3]>0.01?v[3]:0; RL.sunEl=Math.max(2,v[4]); RL.sunK=Math.round(v[5]);
-    T.L.power=8*(day?0:1-laE(Math.max(0,Math.min(1,(u-0.62)/0.33)))); T.L.on=T.L.power>0.05;   /* the lamp fades as the light comes up */
     try{ rlApply(); }catch(e){} }
-  function laTodEnd(){ var T=LA.tod; if(!T) return; LA.tod=null; try{ var w=T.was; RL.lights=RL.lights.filter(function(x){ return x!==T.L; }); if(typeof rlDrop==="function") rlDrop(T.L);
-      RL.lights.forEach(function(L,i){ L.on=w.lon[i]!==false; }); RL.dusk=w.dusk; RL.ambK=w.ambK; RL.sunPow=w.sunPow; RL.sunEl=w.sunEl; RL.sunK=w.sunK; RL.sunAz=w.sunAz; RL.exp=w.exp; RL.shadows=w.shadows; RL.sel=w.sel; RL.on=w.on;
+  function laTodEnd(){ var T=LA.tod; if(!T) return; LA.tod=null; try{ var w=T.was; RL.lights.forEach(function(L,i){ L.on=w.lon[i]!==false; }); RL.dusk=w.dusk; RL.ambK=w.ambK; RL.sunPow=w.sunPow; RL.sunEl=w.sunEl; RL.sunK=w.sunK; RL.sunAz=w.sunAz; RL.exp=w.exp; RL.shadows=w.shadows; RL.sel=w.sel; RL.on=w.on;
       if(w.on) rlApply(); else rlRestore(); }catch(e){}
-    if(typeof WE!=="undefined"&&T.we){ WE.rain=T.we.rain; WE.wind=T.we.wind; WE.fog=T.we.fog; WE.dirty=true; } }
+    if(typeof WE!=="undefined"&&T.we){ WE.rain=T.we.rain; WE.wind=T.we.wind; WE.fog=T.we.fog; WE.dirty=true; }
+    var d=T.det; if(d){ try{ if(RL.gpu&&RL.gpu.detail===d) RL.gpu.detail=null; d.worldModifiers=(d.worldModifiers||[]).filter(function(m){ return m!==T.detMod; }); d.updateGenerator(); d.updateVersion(); setTimeout(function(){ try{ d.updateGenerator(); d.updateVersion(); }catch(e){} },250); }catch(e){} } }
   /* the scan's full-detail piece (the stump) can arrive after the opening starts: give it the light and the point cloud too */
-  function laDetWatch(){ var d=viewer&&viewer.detail; if(!d||LA.detM===d||(!LA.scan&&!LA.tod)) return; LA.detM=d; try{ var mods=[]; if(LA.tod&&RL.gpu&&RL.gpu.modFor){ mods.push(RL.gpu.modFor()); RL.gpu.detail=d; }
+  function laDetWatch(){ var d=viewer&&viewer.detail; if(!d||LA.detM===d||(!LA.scan&&!LA.tod)) return; LA.detM=d; try{ var mods=[]; if(LA.tod&&RL.gpu&&RL.gpu.modFor){ var D=SPARK.dyno, k=0.95, dm=RL.gpu.modFor({on:D.dynoFloat(1), amb:D.dynoVec3(new THREE.Vector3(k,k*0.985,k*0.96)), sunOn:D.dynoFloat(0), nl:D.dynoInt(0), shad:D.dynoFloat(0), cut:D.dynoFloat(1e30)}); mods.push(dm); RL.gpu.detail=d; LA.tod.det=d; LA.tod.detMod=dm; }   /* the stump: soft neutral light, the same all the way through */
       if(LA.scan){ var md=laScanMod(null); mods.push(md); LA.scan.UD=md.U; LA.scan.det=d; }
       d.worldModifiers=mods; d.updateGenerator(); d.updateVersion(); setTimeout(function(){ try{ d.updateGenerator(); d.updateVersion(); }catch(e){} },250); }catch(e){ console.warn("detail piece",e); } }
   // ---- the camera ----

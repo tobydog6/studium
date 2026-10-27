@@ -116,7 +116,7 @@
     var cut=viewer.cut; if(cut){ U.dcut.value.set(cut[0],cut[1],cut[2],0); U.dcy.value.set(cut[3],cut[4]); }
     mesh.worldModifier=mod; mesh.updateGenerator(); RL.gpu={mesh:mesh, U:U, lt:lt, dummy:dummy, mk:function(){ var U2={}; for(var k in U) U2[k]=U[k]; return U2; }};
     /* the detail piece gets the same lighting, without the cut */
-    RL.gpu.modFor=function(){ var U2=RL.gpu.mk(); U2.dcut=D.dynoVec4(new THREE.Vector4(0,0,-1,0));
+    RL.gpu.modFor=function(over){ var U2=RL.gpu.mk(); U2.dcut=D.dynoVec4(new THREE.Vector4(0,0,-1,0)); if(over) for(var ok in over) U2[ok]=over[ok];   /* over: own uniforms for this piece (the opening keeps the stump in its own light) */
       var m2=D.dynoBlock({gsplat:D.Gsplat},{gsplat:D.Gsplat},function(io){ var ins={gsplat:io.gsplat}; for(var k in U2) ins[k]=U2[k];
         var d2=D.dyno({inTypes:types, outTypes:{gsplat:D.Gsplat}, inputs:ins, globals:function(){ return [RL_GLSL]; }, statements:STM}); return {gsplat:d2.outputs.gsplat}; }); return m2; };
     rlDetail(); }

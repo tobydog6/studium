@@ -101,6 +101,10 @@
     cullPick:[0.35,function(b,t){ sxWood(b,t,1200,0.035); }],
     cullEnd: [0.5,function(b,t){ sxTone(b,t,SN.A2,"sine",0.3,0.04,0.5,1.2); sxTone(b,t,SN.E3,"sine",0.35,0.025,0.5,1.2); }],
     lsMove:  [0.45,function(b,t){ [[1,1],[2.76,0.3],[5.4,0.08]].forEach(function(h){ sxTone(b,t,SN.A3*h[0],"sine",0.003,0.05*h[1],0.02,1.8); sxTone(b,t+0.9,SN.E3*h[0],"sine",0.003,0.05*h[1],0.02,1.8); }); }],   /* low bell */
+    shPan:   [0.5,function(b,t){ sxTone(b,t,SN.E3,"sine",0.3,0.03,0.4,0.6,SN.A2); }],   /* shredder: drone slide down the table edge */
+    shRun:   [0.5,function(b,t,o){ var D=Math.max(1.2,(o&&o.D)||2); sxNoise(b,t,"lowpass",300,0.8,0.15,0.03,D,0.4); sxTone(b,t,82.41,"sine",0.2,0.02,D,0.4);
+      for(var i=0;i<Math.round(D/0.45);i++) sxNoise(b,t+0.2+i*0.45,"bandpass",900,1,0.05,0.012,0.15,0.1,500); }],   /* muted, in the darkroom: one run for the whole batch */
+    shFall:  [0.6,function(b,t){ [SN.A2,SN.E3,SN.A3].forEach(function(f,i){ sxTone(b,t+i*0.05,f,"sine",0.25,[0.045,0.03,0.02][i],0.4,1.3,null,(i-1)*0.3); }); }],   /* drone resolve */
     capture: [0.6,function(b,t){ sxNoise(b,t,"bandpass",400,0.9,0.03,0.03,0.02,0.4,2400); }]   /* air flash */
   };
   var SFX_GAP={step:150, lTime:35, heal:70, stMark:50, hover:45, detent:22, grab:60, select:60, back:60, toggle:40, lift:60, drop:60};   /* ms between repeats of the same cue */

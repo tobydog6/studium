@@ -10,7 +10,7 @@
   function ltData(){ var want=ltWant; ltWant=false; return {photos:ltPhotos(), projects:(st.projects||[]).map(function(p){ return {id:p.id, name:p.name, ids:(p.ids||[]).slice()}; }), state:st.lightTable||null, startTour:want}; }
   window.LT_BRIDGE={
     data:ltData,
-    sfx:function(id){ sfx(id); },
+    sfx:function(id,o){ sfx(id,o); },
     save:function(s){ st.lightTable=s; saveSession(); },
     tourDone:function(){ ltWant=false; if(typeof Q!=="undefined"&&Q&&Q.tours){ Q.tours.lighttable=true; if(typeof qSave==="function") qSave(); } },
     flag:function(k){ if(typeof qFlag==="function") qFlag(k); },

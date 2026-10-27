@@ -40,7 +40,7 @@
         :'<p class="pr-empty">'+(PR.items.length?'Right-click a preset to move it here, or save a new one into this folder.':'Nothing here yet. Edit a photo until you love it, then press + to save that look.')+'</p>')+'</div></div>'; });
     el.innerHTML=h; var n=prSelN(), sb=$("prSel"); if(sb){ sb.textContent=n?"Click a preset to put it on this photo and "+n+" more selected":""; sb.classList.toggle("on",!!n); }
     prThumbsQueue(); }
-  function prToggle(on){ prOpen=on==null?!prOpen:!!on; var d=$("prDrawer"), b=$("prRailBtn"); if(d) d.classList.toggle("open",prOpen); if(b) b.classList.toggle("on",prOpen); prMenuClose(); prSaveClose();
+  function prToggle(on){ prOpen=on==null?!prOpen:!!on; var d=$("prDrawer"), b=$("prRailBtn"); if(d) d.classList.toggle("open",prOpen); if(b) b.classList.toggle("on",prOpen); if(editor) editor.classList.toggle("pr-on",prOpen); prMenuClose(); prSaveClose();
     if(prOpen){ prPlace(); prThumbFor=-1; prRender(); } else prPreviewEnd(); }
 
   // ---- thumbnails: this photo with each preset, small, one at a time so real renders aren't held up ----

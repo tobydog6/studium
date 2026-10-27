@@ -16,7 +16,8 @@
   // open a Develop panel section and bring it into view
   function coSec(name){ var s=document.querySelector('#editor .lr-sec[data-sec="'+name+'"]'); if(s) s.classList.remove("collapsed"); return s; }
   function coShow(sel){ setTimeout(function(){ var e=document.querySelector(sel); if(e&&e.scrollIntoView) try{ e.scrollIntoView({block:"center", behavior:"smooth"}); }catch(er){ e.scrollIntoView(); } },60); }
-  function coRow(id){ return '#editor .lr-row:has(#'+id+')'; }
+  function coRow(id){ return '#editor .lr-row:has('+(id.charAt(0)==='['?id:'#'+id)+')'; }
+  function coInp(id){ return id.charAt(0)==='['?document.querySelector('#editor '+id):$(id); }
   // the boards (workbook, folio) and what's on them
   function coWs(){ return typeof wsB!=="undefined"?wsB.page():{items:[]}; }
   function coWsN(t){ return coWs().items.filter(function(it){ return it.t===t; }).length; }
@@ -107,12 +108,14 @@
     done:function(){ return Math.abs(evStops)<=0.5&&(!extra||extra()); } }; }
   // edit tour: drag a slider into the gold band. It ticks once you've let go inside it, so you can wiggle it back and
   // forth as much as you like first. A band, not a point: it's about seeing what the slider does, not hitting a number.
-  function coMark(id,lo,hi){ coUnmark(); var inp=$(id); if(!inp) return; var row=inp.closest(".lr-row"); if(!row) return; row.classList.add("co-markrow");
+  function coMark(id,lo,hi){ coUnmark(); var inp=coInp(id); if(!inp) return; var row=inp.closest(".lr-row"); if(!row) return; row.classList.add("co-markrow");
     var mn=+inp.min, mx=+inp.max, th=7, span=inp.offsetWidth-2*th, fa=(lo-mn)/(mx-mn), fb=(hi-mn)/(mx-mn), m=document.createElement("i"); m.className="co-mark co-band";
     m.style.left=(inp.offsetLeft+th+fa*span).toFixed(1)+"px"; m.style.width=Math.max(6,(fb-fa)*span).toFixed(1)+"px"; m.style.top=(inp.offsetTop+inp.offsetHeight/2)+"px"; row.appendChild(m); }
-  function coUnmark(){ Array.prototype.forEach.call(document.querySelectorAll(".co-mark"),function(m){ m.parentNode.removeChild(m); }); Array.prototype.forEach.call(document.querySelectorAll(".co-markrow"),function(r){ r.classList.remove("co-markrow"); }); }
-  function coFmt(key,v){ return key==="exposure"?fmtExp(v):(v>0?"+":"")+v; }
-  function coSet(sec,id,key,lo,hi,name,what){ return {ch:sec==="light"?"LIGHT":sec==="color"?"COLOUR":"EFFECTS",
+  function coUnmark(){ Array.prototype.forEach.call(document.querySelectorAll(".co-mark,.co-patch"),function(m){ m.parentNode.removeChild(m); }); Array.prototype.forEach.call(document.querySelectorAll(".co-markrow"),function(r){ r.classList.remove("co-markrow"); }); }
+  function coPatch(k,hue,sat){ var d=document.querySelector('#lrGrade .cg-disc[data-cg="'+k+'"]'); if(!d||d.querySelector(".co-patch")) return; var a=hue*Math.PI/180, r=sat/100*50, m=document.createElement("i"); m.className="co-patch";
+    m.style.left=(50+Math.cos(a)*r).toFixed(1)+"%"; m.style.top=(50-Math.sin(a)*r).toFixed(1)+"%"; d.appendChild(m); }
+  function coFmt(key,v){ return key==="exposure"?fmtExp(v):/^(sharpen|gShS|gShH)$/.test(key)?""+v:(v>0?"+":"")+v; }   /* one-way sliders and the hue read without a plus */
+  function coSet(sec,id,key,lo,hi,name,what){ return {ch:sec==="light"?"LIGHT":sec==="color"?"COLOUR":sec==="grading"?"GRADE":sec==="detail"?"DETAIL":"EFFECTS",
       line:function(){ var v=edState?edState[key]:0, ok=v>=lo&&v<=hi; return 'Drag <b>'+name+'</b> into the gold band <span class="co-rng">'+coFmt(key,lo)+' to '+coFmt(key,hi)+'</span>'+(ok&&CO.down?' <span class="co-now ok">let go</span>':''); },
       sub:name+" "+what, target:coRow(id), mark:[id,lo,hi], dwell:500,
       prep:function(){ coSec(sec); coShow(coRow(id)); setTimeout(function(){ coMark(id,lo,hi); },120); },
@@ -193,22 +196,24 @@
     edit:{where:coInEditor, nodim:true, steps:[
       {ch:"LIGHT", line:function(){ return 'These are the <b>Light</b> sliders'; }, sub:"Drag each one into its gold band on this photo, so you see what it does. After that you can edit it however you like.",
         target:'#editor .lr-sec[data-sec="light"]', prep:function(){ coSec("light"); coShow('#editor .lr-sec[data-sec="light"]'); }, info:true},
-      coSet("light","pExposure","exposure",10,30,"Exposure","brightens or darkens everything at once."),
-      coSet("light","pContrast","contrast",15,40,"Contrast","pushes the darks darker and the brights brighter."),
-      coSet("light","pHighlights","highlights",-80,-40,"Highlights","brings back detail in the brightest parts, like the sky."),
-      coSet("light","pShadows","shadows",30,60,"Shadows","opens up the dark parts without touching the rest."),
-      coSet("light","pWhites","whites",5,25,"Whites","sets how bright the very brightest point is."),
-      coSet("light","pBlacks","blacks",-40,-15,"Blacks","sets how deep the very darkest point is."),
-      coSet("color","pTemp","temp",8,25,"Temperature","warms the photo up (right) or cools it down (left)."),
-      coSet("color","pVibrance","vibrance",15,40,"Vibrance","lifts the dull colours more than the strong ones, so skin and sky stay natural."),
-      coSet("effects","pClarity","clarity",15,35,"Clarity","adds contrast to the mid-tones, so texture like bark shows up more."),
-      coSet("effects","pVignette","vignette",-40,-15,"Vignette","darkens the corners to pull the eye in."),
-      {ch:"GRADE", line:function(){ return '<b>Colour Grading</b> tints the shadows, midtones and highlights'; }, sub:"Use it gently. A small tint is usually enough.",
-        target:'#lrGrade', prep:function(){ coSec("grading"); if(typeof cgTab!=="undefined"&&cgTab!=="3"){ cgTab="3"; edpGrade(); } coShow('#lrGrade .cg-pair'); }, info:true},
-      {ch:"GRADE", line:function(){ return 'Drag in the <b>Shadows</b> wheel towards blue'; }, sub:"Further from the middle is stronger.",
-        target:'#lrGrade .cg-disc[data-cg="gSh"]', done:function(){ return edState.gShS>=10&&!CO.down; }},
-      {ch:"GRADE", line:function(){ return 'And the <b>Highlights</b> wheel towards orange'; }, sub:"Blue shadows with orange highlights is a common film look.",
-        target:'#lrGrade .cg-disc[data-cg="gHi"]', done:function(){ return edState.gHiS>=10&&!CO.down; }},
+      coSet("light","pExposure","exposure",12,22,"Exposure","brightens or darkens everything at once."),
+      coSet("light","pContrast","contrast",8,18,"Contrast","pushes the darks darker and the brights brighter."),
+      coSet("light","pHighlights","highlights",-32,-20,"Highlights","brings back detail in the brightest parts, like the sky."),
+      coSet("light","pShadows","shadows",20,32,"Shadows","opens up the dark parts without touching the rest."),
+      coSet("light","pWhites","whites",32,44,"Whites","sets how bright the very brightest point is."),
+      coSet("light","pBlacks","blacks",-33,-21,"Blacks","sets how deep the very darkest point is."),
+      coSet("color","pVibrance","vibrance",18,30,"Vibrance","lifts the dull colours more than the strong ones, so skin and sky stay natural."),
+      coSet("effects","pTexture","texture",17,29,"Texture","brings out fine detail like bark and leaves, without touching the big shapes."),
+      coSet("detail","pSharpen","sharpen",56,72,"Sharpening","crisps up the edges. Zoom in to 100% to see it properly."),
+      {ch:"GRADE", line:function(){ return '<b>Colour Grading</b> tints the shadows, midtones and highlights'; }, sub:"Use it gently. A small tint is usually enough. We'll just do the shadows.",
+        target:'#lrGrade', prep:function(){ coSec("grading"); coShow('#lrGrade'); }, info:true},
+      {ch:"GRADE", line:function(){ return 'Click <b>Shadows</b> to open its wheel'; }, sub:"Each part of the photo gets its own big wheel.",
+        target:'#lrGrade [data-cgt="sh"]', prep:function(){ coSec("grading"); coShow('#lrGrade'); }, done:function(){ return typeof cgTab!=="undefined"&&cgTab==="sh"; }},
+      {ch:"GRADE", line:function(){ return 'Drag the dot into the <b>glowing patch</b>'; }, sub:"Towards purple-blue, just a little way out from the middle. Further out is stronger.",
+        target:'#lrGrade .cg-disc[data-cg="gSh"]', nodim:true, prep:function(){ if(cgTab!=="sh"){ cgTab="sh"; edpGrade(); } coShow('#lrGrade .cg-disc'); },
+        done:function(){ coPatch("gSh",286,19); var h=edState.gShH||0, sa=edState.gShS||0; return !CO.down&&sa>=10&&sa<=30&&h>=262&&h<=310; }},
+      coSet("grading",'[data-edp="gShS"]',"gShS",16,22,"Saturation","sets how strong the tint is. Small numbers are subtle."),
+      coSet("grading",'[data-edp="gShH"]',"gShH",280,292,"Hue","sets the colour of the tint, round the wheel."),
       {ch:"CROP", line:function(){ return 'Click <b>Crop</b>'; }, sub:"Or press "+coK("C")+". The whole photo comes back with a box over it.",
         target:'#eCrop', done:function(){ return cropActive(); }},
       {ch:"CROP", line:function(){ return 'Pick <b>4:5</b>'; }, sub:"A tall shape, like a print or a phone screen. Free lets you make any shape.",
@@ -231,8 +236,11 @@
         target:'#dvPaste', start:function(){ CO.s.n=devPasteN; }, done:function(){ return devPasteN>CO.s.n; }},
       {ch:"PRESETS", line:function(){ return 'Open <b>Presets</b>'; }, sub:"A preset is a look you save once and use on any photo, today or next term.",
         target:'#prRailBtn', place:"left", done:function(){ return typeof prOpen!=="undefined"&&prOpen; }},
-      {ch:"PRESETS", line:function(){ return 'Press <b>+</b>, give your look a name and <b>Save preset</b>'; }, sub:"Pick a folder like My looks, or make a new one such as B&W or Film.",
-        target:'#prDrawer', place:"left", nodim:true, start:function(){ CO.s.n=prSavedN; if(!prOpen) prToggle(true); }, done:function(){ return prSavedN>CO.s.n; }},
+      {ch:"PRESETS", line:function(){ return 'Press the glowing <b>+</b> to save this look'; }, sub:"It saves every slider on this photo as a preset you can use again.",
+        target:'#prAdd', place:"left", targets:function(){ var b=$("prAdd"); return b?[b]:[]; }, start:function(){ window.coPr0=prSavedN; if(!prOpen) prToggle(true); },
+        done:function(){ var bx=$("prSaveBox"); return prSavedN>window.coPr0||(bx&&!bx.classList.contains("hidden")); }},
+      {ch:"PRESETS", line:function(){ return 'Give it a name, pick a folder, then <b>Save preset</b>'; }, sub:"My looks is fine, or make a new folder such as B&W or Film.",
+        target:'#prSaveBox', place:"left", nodim:true, start:function(){ if(window.coPr0==null) window.coPr0=prSavedN; var bx=$("prSaveBox"); if(prSavedN<=window.coPr0&&bx&&bx.classList.contains("hidden")) prSaveOpen(); }, done:function(){ return prSavedN>window.coPr0; }},
       {ch:"PRESETS", line:function(){ return 'On to the next photo: <b>›</b>'; }, sub:"",
         target:'#dvNext', start:function(){ CO.s.i=coEdIdx(); }, done:function(){ return coEdIdx()!==CO.s.i; }},
       {ch:"PRESETS", line:function(){ return '<b>Hover</b> your preset to preview it, then <b>click</b> to put it on'; }, sub:"Ctrl+Z takes it off again. Right-click a preset to rename it, move it to another folder or delete it.",

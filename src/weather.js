@@ -141,7 +141,10 @@
       return '<button class="wx-sq'+(lv?" on":"")+'" data-we="'+it[0]+'" title="'+it[1]+': '+WE_LV[lv]+' ('+it[2]+')">'+WE_ICON[it[0]]+'<i class="wx-dots"><b class="'+(lv>=1?"y":"")+'"></b><b class="'+(lv>=2?"y":"")+'"></b></i><kbd>'+it[2]+'</kbd></button>'; }).join("")
     +'<span class="kit-wx-s">'+weSummary()+'</span></div>'; }
   function weSummary(){ var o=[]; WE_ITEMS.forEach(function(it){ if(WE[it[0]]) o.push(WE_LV[WE[it[0]]]+" "+it[1].toLowerCase()); }); return o.length?o.join(" · "):"Clear"; }
-  function weKitMark(){ var k=document.getElementById("kitMenu"); if(!k) return; var s=k.querySelector(".kit-wx"); if(s) s.outerHTML=weKitHTML(); }
+  function weKitMark(){ var k=document.getElementById("kitMenu"); if(!k) return; var s=k.querySelector(".kit-wx"); if(!s) return;   /* updated in place, so the strip doesn't replay its entrance */
+    WE_ITEMS.forEach(function(it){ var b=s.querySelector('[data-we="'+it[0]+'"]'), lv=WE[it[0]]; if(!b) return; b.classList.toggle("on",lv>0); b.title=it[1]+": "+WE_LV[lv]+" ("+it[2]+")";
+      var d=b.querySelectorAll(".wx-dots b"); if(d[0]) d[0].className=lv>=1?"y":""; if(d[1]) d[1].className=lv>=2?"y":""; });
+    var t=s.querySelector(".kit-wx-s"); if(t) t.textContent=weSummary(); }
   document.addEventListener("click",function(e){ var b=e.target.closest&&e.target.closest("#kitMenu [data-we]"); if(!b) return; e.preventDefault(); e.stopPropagation(); weCycle(b.getAttribute("data-we")); }, true);
   window.addEventListener("keydown",function(e){ if(typeof KIT==="undefined"||!KIT.open) return; var n={Digit5:"rain",Digit6:"wind",Digit7:"fog"}[e.code]; if(!n) return; e.preventDefault(); e.stopImmediatePropagation(); weCycle(n); }, true);
   if(/[?&]dev/.test(location.search)) window.__we={ set:function(o){ for(var k in o) if(k in WE) WE[k]=o[k]; WE.dirty=true; }, state:weState };

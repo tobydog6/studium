@@ -24,8 +24,8 @@
     if(h){ h.style.top=(r.y+r.h+12+54+10)+"px"; } }
 
   function vfScale(key){ if(key==="mm"){ var z=curLens().zoom; return {vals:z.map(String), idx:Math.max(0,z.indexOf(zoomMM))}; }
-    return key==="sh"?{vals:SHUTTER_LABELS,idx:shIdx} : key==="ap"?{vals:APERTURES.map(function(a){ return String(a); }),idx:apIdx} : {vals:ISOS.map(String),idx:isoIdx}; }
-  function vfValue(key){ if(key==="mm") return zoomMM+" MM"; return key==="sh"?SHUTTER_LABELS[shIdx] : key==="ap"?"f/"+APERTURES[apIdx] : String(ISOS[isoIdx]); }
+    return key==="sh"?{vals:SHUTTER_LABELS,idx:shIdx} : key==="ap"?{vals:APERTURES.slice(apLo,apHi+1).map(function(a){ return String(a); }),idx:apIdx-apLo,o:apLo} : {vals:ISOS.slice(0,curBody().film?FILM_ISO_MAX+1:ISOS.length).map(String),idx:isoIdx}; }
+  function vfValue(key){ if(key==="mm") return zoomMM+" MM"; return key==="sh"?SHUTTER_LABELS[shIdx] : key==="ap"?"f/"+APERTURES[apIdx] : String(ISOS[isoIdx])+(key==="iso"&&filmIsoLocked()?" · ROLL":""); }
   function vfRenderStrip(){ var s=$("vfStrip"); if(!s) return;
     var dl=vfDials(), dials=dl.map(function(d,i){ var on=d[0]==="mm", body;
       if(on){ var sc=vfScale(d[0]), cells="";
@@ -37,7 +37,7 @@
     var mark=Math.round(evStops*3), ticks="";
     for(var t=-6;t<=6;t++){ ticks+='<span class="tk'+(t===0?' zero':'')+(t%3===0?' whole':'')+'">'+(t===Math.max(-6,Math.min(6,mark))?'<em class="'+(Math.abs(mark)>6?'over':'')+'"></em>':'')+'</span>'; }
     s.innerHTML='<div class="vf-mode"><span class="vf-lbl">MODE</span><span class="m">M</span></div>'+dials
-      +'<div class="vf-meter"><span class="vf-lbl">METER<b class="ev">'+cbThirds(evStops).replace("+0","0").replace("−0","0")+'</b></span><div class="ticks">'+ticks+'</div></div>'
+      +'<div class="vf-meter"><span class="vf-lbl">METER<b class="ev">'+evText(evStops)+'</b></span><div class="ticks">'+ticks+'</div></div>'
       +'<div class="vf-frame"><span class="vf-lbl">'+(curBody().film?"ROLL":"FRAME")+'</span><span class="vf-val gold">'+vfFrameCount()+'</span></div>'; }
   function vfFrameCount(){ var b=curBody(); if(!b.film) return cbPad(photos.length+1);
     var n=photos.filter(function(p){ return p.body===b.name; }).length, r=b.roll||10; return cbPad(n%r+1)+'<small>/'+r+'</small>'; }
@@ -52,7 +52,8 @@
   function vfPickDial(k){ vfDial=k; vfRenderStrip(); }
   function vfTurn(d){ var sc=vfScale(vfDial), i=Math.max(0,Math.min(sc.vals.length-1,sc.idx+d)); if(i===sc.idx) return;
     if(vfDial==="mm"){ zoomMM=curLens().zoom[i]; focalMM=zoomMM; computeCam(); return; }
-    if(vfDial==="sh") shIdx=i; else if(vfDial==="ap") apIdx=i; else isoIdx=i; computeCam(); }
+    if(vfDial==="iso"&&filmIsoLocked()){ toast("This roll is ISO "+ISOS[isoIdx]+". Load a new roll to change it."); return; }
+    if(vfDial==="sh") shIdx=i; else if(vfDial==="ap") apIdx=apClamp(i+(sc.o||0)); else isoIdx=i; computeCam(); }
   function vfToast(text){ var t=$("vfToast"); if(!t) return;
     t.innerHTML='<i></i><span class="k">SHOT '+cbPad(photos.length)+'</span><span>'+cbEsc(text)+'</span>';
     t.classList.remove("show"); void t.offsetWidth; t.classList.add("show"); clearTimeout(vfToastT); vfToastT=setTimeout(function(){ t.classList.remove("show"); },4200); }

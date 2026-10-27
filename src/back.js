@@ -65,8 +65,7 @@
   function cbCycleTab(d){ var i=0; CB_TABS.forEach(function(x,j){ if(x[0]===cbTab) i=j; }); cbSetTab(CB_TABS[(i+d+CB_TABS.length)%CB_TABS.length][0]); }
 
   // ---- the exposure the meter reads, in plain words ----
-  function cbThirds(ev){ var n=Math.round(Math.abs(ev)*3), w=Math.floor(n/3), r=n%3;
-    var s=(w?String(w):"")+(r===1?"⅓":r===2?"⅔":""); return (ev<0?"−":"+")+(s||"0"); }
+  function cbThirds(ev){ return evText(ev); }   /* 0, +⅓, −1, +1⅔: one formatter (app.js) for every readout */
   function cbMeterWords(){ var ev=evStops, n=Math.round(Math.abs(ev)*3), t=SHUTTERS[shIdx], head, body, F=cbFrameHold();
     if(n===0){ head="Spot on"; body=F?"The exposure's right and the frame's settings hold. Go back and take the photo.":"The exposure's right. Frame it and take the photo."; }
     else if(F&&F.free.length){   // a gold frame pins some settings: set those first, then trade with the ones it leaves free
@@ -75,6 +74,9 @@
       var trade=(dark?"let more light in with ":"cut the light with ")+F.free.map(function(k){ return moves[k]; }).join(F.free.length>2?", ":" or ")+".";
       if(F.toSet.length) body="Set "+F.toSet.map(function(k){ return names[k]; }).join(" and ")+" to the gold band first, then "+trade;
       else body="Keep "+F.held.map(function(k){ return cbFmtKey(k); }).join(" and ")+" for the frame, and "+trade; }
+    else if(filmIsoLocked()){ var lk=" The ISO is fixed for this roll.";   /* film: only the shutter and the aperture can move */
+      if(ev>0){ head=(n<=2?"A touch bright, ":"Too bright, ")+cbThirds(ev); body=(n<=2?"Close down a little: a faster shutter or a smaller aperture.":"Highlights will blow out. Try a faster shutter or a smaller aperture.")+lk; }
+      else { head=(n<=2?"A touch dark, ":"Too dark, ")+cbThirds(ev); body=(n<=2?"Open up a little: a slower shutter or a wider aperture.":"Shadows will turn to mud. Open the aperture or slow the shutter.")+lk; } }
     else if(ev>0 && n<=2){ head="A touch bright, "+cbThirds(ev); body="Close down a little: a faster shutter, a smaller aperture or a lower ISO."; }
     else if(ev>0){ head="Too bright, "+cbThirds(ev); body="Highlights will blow out. Try a faster shutter or a lower ISO first."; }
     else if(n<=2){ head="A touch dark, "+cbThirds(ev); body="Open up a little: a slower shutter, a wider aperture or a higher ISO."; }
@@ -103,23 +105,27 @@
   // ---- 01 SHOOT: three sliders and the meter ----
   // Every stop is printed along its track, so you can see the whole range and where you are in it. Click a stop, or
   // grab the knob (or anywhere on the track) and drag. Arrow keys still step.
-  function cbShootRows(){ return [
-    {key:"sh", cap:"Shutter", unit:"seconds", vals:SHUTTER_LABELS, idx:shIdx, lo:"Freezes motion · darker", hi:"Brighter · hands shake", dir:1},
-    {key:"ap", cap:"Aperture", unit:"f-stop", vals:APERTURES.map(function(a){ return String(a); }), idx:apIdx, lo:"Brighter · soft background", hi:"Darker · sharp all through", dir:-1},
-    {key:"iso",cap:"ISO", unit:"sensor", vals:ISOS.map(String), idx:isoIdx, lo:"Clean · needs light", hi:"Brighter · grainy", dir:1}]; }
+  /* o: where the row starts in the full table. The aperture row shows only the stops the lens on the camera has; on film
+     the ISO row is the roll's speed, set when a fresh roll goes in and locked after the first frame */
+  function cbShootRows(){ var b=curBody(), film=!!b.film, iHi=film?FILM_ISO_MAX:ISOS.length-1;
+    return [
+    {key:"sh", cap:"Shutter", unit:"seconds", vals:SHUTTER_LABELS, o:0, idx:shIdx, lo:"Freezes motion · darker", hi:"Brighter · hands shake", dir:1},
+    {key:"ap", cap:"Aperture", unit:"f-stop", vals:APERTURES.slice(apLo,apHi+1).map(function(a){ return String(a); }), o:apLo, idx:apIdx-apLo, lo:"Brighter · soft background", hi:"Darker · sharp all through", dir:-1},
+    {key:"iso",cap:film?"Film ISO":"ISO", unit:film?"roll":"sensor", vals:ISOS.slice(0,iHi+1).map(String), o:0, idx:Math.min(isoIdx,iHi), lo:film?"Fine grain · needs light":"Clean · needs light", hi:film?"Faster film · grainier":"Brighter · grainy", dir:1,
+      lock:film&&filmIsoLocked(), note:film?(filmIsoLocked()?"This roll is ISO "+ISOS[isoIdx]+". Load a new roll to change it.":"A fresh roll: choose its ISO. It's fixed once you take the first frame."):""}]; }
   var CB_ICON={sh:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="13" r="8"/><path d="M12 13V8.5M12 13l3 2M9.5 2.5h5"/></svg>',
     ap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 3l3.6 7.2M21 12l-7.8 1.2M16.5 19.8L11 14.3M6 18.6l2.7-7.4M3.3 9.3l7.9 1.1M9 3.5l1.5 7.9"/></svg>',
     iso:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" stroke-width="2.4" stroke-linecap="round"/></svg>'};
   function cbFmt(r,v){ return r.key==="ap"?"f/"+v:v; }
   function cbShoot(){ var rows=cbShootRows(), html="", F=cbFrameHold(), offEv=Math.round(Math.abs(evStops)*3)>0;
     rows.forEach(function(r,ri){ var n=r.vals.length, stops="", pc=function(i){ return (n>1?i/(n-1)*100:50).toFixed(3)+"%"; };
-      var band=F?cbBand(r.key,F.W):null, hit=band&&r.idx>=band[0]&&r.idx<=band[1], free=F&&!band&&offEv;
-      r.vals.forEach(function(v,i){ stops+='<button class="cb-stop'+(i===r.idx?' cur':'')+(band&&i>=band[0]&&i<=band[1]?' want':'')+'" style="left:'+pc(i)+'" data-cb-set="'+r.key+':'+i+'"><i></i><span>'+cbEsc(v)+'</span></button>'; });
+      var band=F?cbBand(r.key,F.W):null; if(band){ band=[Math.max(0,band[0]-r.o),Math.min(n-1,band[1]-r.o)]; if(band[1]<band[0]) band=null; } var hit=band&&r.idx>=band[0]&&r.idx<=band[1], free=F&&!band&&offEv;
+      r.vals.forEach(function(v,i){ stops+='<button class="cb-stop'+(i===r.idx?' cur':'')+(band&&i>=band[0]&&i<=band[1]?' want':'')+'" style="left:'+pc(i)+(r.lock&&i!==r.idx?';opacity:.3':'')+'"'+(r.lock?' disabled':' data-cb-set="'+r.key+':'+(i+r.o)+'"')+'><i></i><span>'+cbEsc(v)+'</span></button>'; });
       var bandHtml=band?'<span class="cb-band'+(hit?' hit':'')+'" style="left:'+pc(band[0])+';width:calc('+pc(band[1])+' - '+pc(band[0])+')"><em>'+(hit?'✓ FRAME':'THE FRAME WANTS')+'</em></span>':'';
       var more=(evStops<0)!==(r.dir<0), tag=band?'<span class="tag'+(hit?' ok':'')+'">'+(hit?'✓ SET FOR THE FRAME':'FOR THE FRAME')+'</span>':free?'<span class="tag free">'+(more?(evStops<0?'MORE LIGHT ›':'LESS LIGHT ›'):(evStops<0?'‹ MORE LIGHT':'‹ LESS LIGHT'))+'</span>':'';
       html+='<div class="cb-scale cb-'+r.key+(ri===cbRow?' sel':'')+(band?' held':'')+(hit?' hit':'')+(free?' free':'')+'" data-cb-row="'+ri+'"><div class="cb-cap"><span class="ic">'+CB_ICON[r.key]+'</span><span class="c">'+r.cap+'</span>'+tag+'<span class="now">'+cbEsc(cbFmt(r,r.vals[r.idx]))+'</span></div>'
-        +'<div class="cb-track" data-cb-track="'+r.key+'"><div class="cb-line'+(r.dir<0?' rev':'')+'"><b style="width:'+pc(r.idx)+'"></b></div>'+bandHtml+stops+'<span class="cb-knob" style="left:'+pc(r.idx)+'"><i></i></span>'
-        +'<div class="cb-ends"><span>‹ '+cbEsc(r.lo)+'</span><span>'+cbEsc(r.hi)+' ›</span></div></div></div>'; });
+        +'<div class="cb-track"'+(r.lock?' style="cursor:default"':' data-cb-track="'+r.key+'"')+'><div class="cb-line'+(r.dir<0?' rev':'')+'"><b style="width:'+pc(r.idx)+'"></b></div>'+bandHtml+stops+'<span class="cb-knob" style="left:'+pc(r.idx)+'"><i></i></span>'
+        +(r.note?'<div class="cb-ends"><span style="color:#e3ad57">'+cbEsc(r.note)+'</span></div>':'<div class="cb-ends"><span>‹ '+cbEsc(r.lo)+'</span><span>'+cbEsc(r.hi)+' ›</span></div>')+'</div></div>'; });
     var m=cbMeterWords(), a=Math.max(-3,Math.min(3,evStops))/3*55*Math.PI/180;
     var nx=(66+48*Math.sin(a)).toFixed(1), ny=(66-48*Math.cos(a)).toFixed(1), b=curBody();
     html+='<div class="cb-meter"><svg width="132" height="72" viewBox="0 0 132 72" role="img" aria-label="Light meter: '+cbEsc(m.head)+'">'
@@ -137,9 +143,11 @@
         if(!x.ok&&w){ if(w.at==="bag") chip='<kbd class="w" data-cb-btn="bag">B · BAG</kbd>'; else if(here) chip='<kbd class="w here">HERE</kbd>'; else if(w.at==="zoom") chip='<kbd class="w">SCROLL IN THE FINDER</kbd>'; else chip='<kbd class="w">'+cbEsc(w.key)+'</kbd>'; }
         return '<span class="r'+(x.ok?' ok':'')+(j===next?' next':'')+'"><i>'+(x.ok?'✓':'')+'</i><em>'+cbEsc(x.label.replace(/[:(].*$/,""))+'</em>'+chip+'<b>'+cbEsc(x.now||"")+'</b></span>'; }).join("")
       +(all?'<span class="go">ALL SET · SPACE, THEN SHOOT</span>':'')+'</div>'; }
-  function cbShootStep(d){ var r=cbShootRows()[cbRow]; var i=Math.max(0,Math.min(r.vals.length-1,r.idx+d)); if(i===r.idx) return;
-    sfx("detent"); if(r.key==="sh") shIdx=i; else if(r.key==="ap") apIdx=i; else isoIdx=i; computeCam(); cbRender(); }
-  function cbShootSet(key,i){ sfx("detent"); if(key==="sh") shIdx=i; else if(key==="ap") apIdx=i; else isoIdx=i;
+  function cbShootStep(d){ var r=cbShootRows()[cbRow]; if(r.lock){ toast(r.note); return; } var i=Math.max(0,Math.min(r.vals.length-1,r.idx+d)); if(i===r.idx) return;
+    i+=r.o; sfx("detent"); if(r.key==="sh") shIdx=i; else if(r.key==="ap") apIdx=apClamp(i); else isoIdx=i; computeCam(); cbRender(); }
+  /* i is an index into the full table (SHUTTERS / AP_FULL / ISOS) */
+  function cbShootSet(key,i){ if(key==="iso"&&filmIsoLocked()){ toast("This roll is ISO "+ISOS[isoIdx]+". Load a new roll to change it."); return; }
+    sfx("detent"); if(key==="sh") shIdx=Math.max(0,Math.min(SHUTTERS.length-1,i)); else if(key==="ap") apIdx=apClamp(i); else isoIdx=Math.max(0,Math.min((curBody().film?FILM_ISO_MAX:ISOS.length-1),i));
     cbRow=key==="sh"?0:key==="ap"?1:2; computeCam(); cbRender(); }
 
   // ---- 02 REVIEW: the latest frames, a real histogram, ratings and picks ----
@@ -282,10 +290,10 @@
   // drag along a track: the nearest stop to the pointer, live. The track is rebuilt on every change, so its
   // position is measured once when you grab it.
   var cbDrag=null;
-  function cbDragTo(x){ var d=cbDrag, n=d.n, i=Math.max(0,Math.min(n-1,Math.round((x-d.l)/d.w*(n-1)))); if(i!==d.i){ d.i=i; cbShootSet(d.key,i); } }
+  function cbDragTo(x){ var d=cbDrag, n=d.n, i=Math.max(0,Math.min(n-1,Math.round((x-d.l)/d.w*(n-1)))); if(i!==d.i){ d.i=i; cbShootSet(d.key,i+(d.o||0)); } }
   function cbDown(e){ var tr=e.target.closest&&e.target.closest("[data-cb-track]"); if(!tr||cbTab!=="shoot"||e.button!==0) return; e.preventDefault();
     var key=tr.getAttribute("data-cb-track"), r=cbShootRows().filter(function(x){ return x.key===key; })[0], b=tr.getBoundingClientRect();
-    cbDrag={key:key, n:r.vals.length, i:r.idx, l:b.left, w:Math.max(1,b.width)}; cbRow=key==="sh"?0:key==="ap"?1:2; cbDragTo(e.clientX); $("camback").classList.add("dragging"); }
+    cbDrag={key:key, n:r.vals.length, i:r.idx, o:r.o, l:b.left, w:Math.max(1,b.width)}; cbRow=key==="sh"?0:key==="ap"?1:2; cbDragTo(e.clientX); $("camback").classList.add("dragging"); }
   window.addEventListener("pointermove",function(e){ if(cbDrag) cbDragTo(e.clientX); });
   window.addEventListener("pointerup",function(){ if(cbDrag){ cbDrag=null; var el=$("camback"); if(el) el.classList.remove("dragging"); cbRender(); } });
   (function wireBack(){ var el=$("camback"); if(!el) return;

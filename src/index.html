@@ -37,7 +37,7 @@
       <div id="vfToast" class="vf-toast" aria-live="polite"></div>
     </div>
     <div id="vfStrip" aria-label="Exposure"></div>
-    <div id="vfHints"><span><b>CLICK</b>Shoot</span><span><b>SCROLL</b>Zoom</span><span><b>SPACE</b>Kit</span><span><b>F</b>Focus</span><span><b>G</b>Guides</span><span id="vfVert" class="vfvert"><b>X</b><i class="ori-ic"></i>Vertical</span><span><b>P</b>Lower camera</span></div>
+    <div id="vfHints"><span><b>CLICK</b>Shoot</span><span><b>SCROLL</b>Zoom</span><span><b>SPACE</b>Menu</span><span><b>F</b>Focus</span><span><b>G</b>Guides</span><span id="vfVert" class="vfvert"><b>X</b><i class="ori-ic"></i>Vertical</span><span><b>P</b>Lower camera</span></div>
     <div id="vfCompLbl" class="vfcomp-lbl"></div>
     <div id="vfAF"></div>
     <div id="vfBar">
@@ -61,12 +61,12 @@
     <div id="navTop" class="nav-top"><button data-nav="home">‹ HOME <kbd>H</kbd></button><span class="pl"></span><span class="fr"></span><button id="navLoad" title="Open your own scan: a .ply, .splat or .ksplat (or drop one on the window)">OPEN A SCAN</button><button id="navFrames" class="hidden" title="Show or hide the gold challenge frames">HIDE FRAMES</button><button id="navFlip" class="hidden" title="Your scan came in upside down? Turn it over">FLIP SCAN</button></div>
     <div id="navTask" class="nav-task"></div>
     <div id="navCoach" class="nav-coach"><i></i><span>Click to look around. <em>Walk with</em> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></div>
-    <div id="navActs" class="nav-acts"><button class="hot" data-nav-act="raise">RAISE CAMERA <span>P</span></button><button data-nav-act="kit">KIT <span>Space</span></button><button data-nav-act="vert" id="navVert" class="vert"><i class="ori-ic"></i>VERTICAL <span>X</span></button><button data-nav-act="studio">STUDIO <span>Tab</span></button></div>
+    <div id="navActs" class="nav-acts"><button class="hot" data-nav-act="raise">RAISE CAMERA <span>P</span></button><button data-nav-act="kit" aria-label="Open the menu (Space)">MENU <span>Space</span></button><button data-nav-act="vert" id="navVert" class="vert"><i class="ori-ic"></i>VERTICAL <span>X</span></button><button data-nav-act="studio">STUDIO <span>Tab</span></button></div>
     <div id="briefChip" class="hidden"><span>📋</span> <span class="t" id="briefChipText"></span></div>
     <div id="photoCount"><span class="ico">◉</span> <span id="photoNum">0</span></div>
     <div id="hint">
       <span><b>WASD</b> move</span><span><b>Mouse</b> look</span><span><b>E / Q</b> up·down</span>
-      <span><b>P</b> raise camera</span><span><b>G</b> guides</span><span><b>Space</b> kit: settings, bag, lighting, studio</span>
+      <span><b>P</b> raise camera</span><span><b>G</b> guides</span><span><b>Space</b> menu: settings, bag, lighting, studio</span>
     </div>
     <button id="btnHelp" title="The guide: show this step, or start it again">?</button>
   </div>
@@ -129,7 +129,7 @@
       <div class="si-code"><input id="siCode" maxlength="6" placeholder="CLASS CODE" autocomplete="off" spellcheck="false" aria-label="Class code"><button data-si="join">Join</button></div>
       <div class="si-name hidden"><input id="siName" placeholder="Your name, the way your teacher knows it" maxlength="40" autocomplete="off" aria-label="Your name"><button data-si="name">Start</button></div>
       <p class="si-help">Your teacher has it on the board. You only need it once.</p>
-      <button class="si-demo" data-si="demo"><span class="t">Launch the demo</span><span class="d">ABOUT 30 MINUTES · SHOOT · PICK · EDIT · CHOOSE YOUR OWN</span><span class="go">→</span></button>
+      <button class="si-demo" data-si="demo"><span class="t">Launch the demo</span><span class="d">ABOUT 40 MINUTES · SHOOT · PICK · EDIT · CHOOSE YOUR OWN</span><span class="go">→</span></button>
     </div>
     <div class="si-foot"><button data-si="solo">Try it on your own, free</button><span>·</span><button data-si="teacher">I’m a teacher</button></div>
   </div>
@@ -165,13 +165,13 @@
   <div id="studio" class="overlay hubwrap hidden">
     <div class="hub-inner">
       <button class="hubback" data-hub>‹ Suite</button>
-      <div class="hub-masthead" style="margin-top:14px"><span class="hub-mono">▤</span><span class="hub-word">Photo Studio</span></div>
+      <div class="hub-masthead" style="margin-top:14px"><span class="hub-mono">▤</span><span class="hub-word">Studio</span></div>
       <div class="hub-sub">Edit your photos and put them together</div>
       <div class="studio-cards">
         <button class="stcard" id="stEdit"><span class="sc-ic"><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 10h26M4 17h26M4 24h26"/><circle cx="11" cy="10" r="3" fill="#26262b"/><circle cx="22" cy="17" r="3" fill="#26262b"/><circle cx="14" cy="24" r="3" fill="#26262b"/></svg></span><span><span class="sc-tt">Photos &amp; edit</span><span class="sc-dd">Your shots · open the Lightroom-style editor</span></span></button>
         <button class="stcard" id="stFolio"><span class="sc-ic"><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="4" width="12" height="16" rx="1"/><rect x="19" y="4" width="11" height="10" rx="1"/><rect x="19" y="17" width="11" height="13" rx="1"/><rect x="4" y="23" width="12" height="7" rx="1"/></svg></span><span><span class="sc-tt">Folio board</span><span class="sc-dd">Arrange an A0 portfolio panel</span></span></button>
         <button class="stcard" id="stBook"><span class="sc-ic"><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 6C13 3 6 3 4 4v24c2-1 9-1 13 2 4-3 11-3 13-2V4c-2-1-9-1-13 2z"/><path d="M17 8v20"/></svg></span><span><span class="sc-tt">Photobook</span><span class="sc-dd">Design spreads · export a PDF</span></span></button>
-        <button class="stcard" id="stGallery"><span class="sc-ic"><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="8" width="26" height="15" rx="1"/><path d="M4 27h26M11 8v15M23 8v15"/></svg></span><span><span class="sc-tt">Gallery show</span><span class="sc-dd">Plan how your photos would hang in a gallery</span></span></button>
+        <button class="stcard" id="stGallery"><span class="sc-ic"><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="8" width="26" height="15" rx="1"/><path d="M4 27h26M11 8v15M23 8v15"/></svg></span><span><span class="sc-tt">Gallery</span><span class="sc-dd">Plan how your photos would hang in a gallery</span></span></button>
       </div>
       <div class="studio-foot"><span id="stCount">No photos yet</span><button class="btn" id="stUpload">Upload photos</button><button class="btn" id="stClear">Start fresh</button><input type="file" id="stFile" accept="image/*" multiple hidden></div>
     </div>
@@ -195,7 +195,7 @@
           <div><span class="key">Walk</span><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> · <kbd>Shift</kbd> faster</span></div>
           <div><span class="key">Crouch, stand tall</span><span><kbd>Q</kbd><kbd>E</kbd></span></div>
           <div><span class="key">Camera</span><span><kbd>P</kbd> raise · <kbd>↵</kbd> or click to shoot</span></div>
-          <div><span class="key">Kit: settings, bag, lighting, studio</span><span><kbd>Space</kbd></span></div>
+          <div><span class="key">Menu: settings, bag, lighting, studio</span><span><kbd>Space</kbd></span></div>
           <div><span class="key">Bag</span><span><kbd>B</kbd></span></div>
           <div><span class="key">Studio</span><span><kbd>Tab</kbd></span></div>
         </div>
@@ -336,7 +336,7 @@
       <div class="out-row">
         <button class="btn" id="btnFolio">Folio board</button>
         <button class="btn" id="btnPhotobook">Photobook</button>
-        <button class="btn" id="btnGalleryShow">Gallery show</button>
+        <button class="btn" id="btnGalleryShow">Gallery</button>
       </div>
       <div class="menu-actions">
         <button class="btn" id="btnMenuHub">⌂ Suite</button>
@@ -374,7 +374,7 @@
     <div class="lr-wrap">
       <div class="lr-stage-col">
         <div class="lr-topbar">
-          <button class="lr-back" id="eCancel">‹ Back to Select</button>
+          <button class="lr-back" id="eCancel">‹ Back to the library</button>
           <div class="lr-croptools">
             <button class="lr-ct crop-go" id="eCrop" title="Crop (C)">CROP <kbd>C</kbd></button>
             <button class="lr-ct heal-go" id="eHeal" title="Heal spots (B)">HEAL <kbd>B</kbd></button>
@@ -561,7 +561,7 @@
     <div class="outwrap">
       <div class="outbar">
         <button class="btn" id="gxBack">‹ Back</button>
-        <h2>Gallery show</h2>
+        <h2>Gallery</h2>
         <div class="sp"></div>
         <div class="gxLayouts" id="gxLayouts"></div>
       </div>

@@ -15,22 +15,28 @@
   var UPY=new THREE.Vector3(0,1,0);
 
   // ---- camera-sim tables ----
-  var APERTURES=[1.4,2,2.8,4,5.6,8,11,16];
+  /* full stops; the lens on the camera limits the range (bag.js fmax/fmin) and its wide-open value takes the slot it falls in
+     (a 50 mm f/1.8 reads 1.8 in the f/2 slot, then 2.8, like its real aperture ring), so every index keeps its meaning */
+  var AP_FULL=[1.4,2,2.8,4,5.6,8,11,16,22,32], APERTURES=AP_FULL.slice();
   var SHUTTERS=[1/1000,1/500,1/250,1/125,1/60,1/30,1/15,1/8,1/4,1/2];
   var SHUTTER_LABELS=["1/1000","1/500","1/250","1/125","1/60","1/30","1/15","1/8","1/4","1/2"];
   var ISOS=[100,200,400,800,1600,3200,6400];
   var apIdx=2, shIdx=3, isoIdx=2, focalMM=50;
   // ---- camera bodies + lenses (physical cameras) ----
   // bodies match the camera bag (src/bag.js); lenses come from its kits. sensorW sets the crop factor.
+  /* digital noise comes from the ISO and the sensor size (computeCam). grain is film character only: how coarse the
+     film looks next to 35 mm at the same ISO. The 6×7 negative is enlarged far less, so its grain is finer (0.5) */
   var BODIES=[
-    {id:"dslr", name:"Full-frame DSLR",  fmt:"Full-frame",  sensorW:36,   aspect:1.5,  sys:"35", lenses:[50,50,85,135], grain:0.00, warm:0.00, finder:"eye", optical:true},
-    {id:"ml",   name:"APS-C mirrorless", fmt:"APS-C 1.6×",  sensorW:22.3, aspect:1.5,  sys:"35", lenses:[50,50,85,135], grain:0.02, warm:0.02, finder:"eye"},
-    {id:"67",   name:"6×7 film SLR",     fmt:"6×7 film",    sensorW:70,   aspect:1.25, sys:"67", lenses:[105,55,165],   grain:0.06, warm:0.05, finder:"eye", film:true, roll:10}
+    {id:"dslr", name:"Full-frame DSLR",  fmt:"Full-frame",  sensorW:36,   aspect:1.5,  sys:"35", lenses:[50,50,85,135], grain:0, warm:0.00, finder:"eye", optical:true},
+    {id:"ml",   name:"APS-C mirrorless", fmt:"APS-C 1.6×",  sensorW:22.3, aspect:1.5,  sys:"35", lenses:[50,50,85,135], grain:0, warm:0.02, finder:"eye"},
+    {id:"67",   name:"6×7 film SLR",     fmt:"6×7 film",    sensorW:70,   aspect:1.25, sys:"67", lenses:[105,55,165],   grain:0.5, warm:0.05, finder:"eye", film:true, roll:10, rollIso:400}
   ];
+  var FILM_ISO_MAX=5;   /* film stocks go to ISO 3200 */
   var vertical=false;   // camera turned on its side (X)
   var bodyIdx=0, lensIdx=2, camGrain=0, camWarm=0, focusDist=0.5;
   var meterBias=0;   /* the warm-up's practice scenes: the meter reads as if the light were this many stops brighter */
-  var expMult=1, evStops=0, isoGrain=0, apVig=0.16, dofStrength=0;
+  var expMult=1, evStops=0, isoGrain=0, apVig=0.16, dofStrength=0, lightStops=0;
+  var NZ={lum:0, chr:0, x:0, film:0, size:1.5};   /* sensor noise / film grain for the grading pass (computeCam) */
   var audioCtx=null, soundOn=true;
   var gBloom=1, gDof=1, gWarm=0, gCon=1, gSat=1, gGrain=1;   // user "look" grade
 
@@ -86,13 +92,14 @@
   var fsMat=new THREE.ShaderMaterial({
     uniforms:{ tDiffuse:{value:sceneRT.texture}, clar:{value:0}, lin:{value:0}, up:{value:0}, exposure:{value:1}, filmic:{value:0}, vignette:{value:0.1}, grain:{value:0}, dof:{value:0}, focus:{value:0.5}, seed:{value:0},
       gCon:{value:1}, gSat:{value:1}, gWarm:{value:0}, gBloom:{value:1}, gDof:{value:1}, gGrain:{value:1}, resolution:{value:new THREE.Vector2(_sz.x,_sz.y)},
+      nChr:{value:0}, nX:{value:0}, nFilm:{value:0}, nSize:{value:1.5},
       tDepth:{value:null}, useDepth:{value:0}, focusD:{value:2}, cocK:{value:0}, maxR:{value:22} },
     vertexShader:"varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }",
     fragmentShader:[
       "precision highp float;",
       "varying vec2 vUv;",
       "uniform sampler2D tDiffuse; uniform float clar; uniform float lin; uniform float up; uniform float exposure,filmic,vignette,grain,dof,focus,seed,gCon,gSat,gWarm,gBloom,gDof,gGrain; uniform vec2 resolution;",
-      "uniform sampler2D tDepth; uniform float useDepth,focusD,cocK,maxR;",
+      "uniform sampler2D tDepth; uniform float useDepth,focusD,cocK,maxR; uniform float nChr,nX,nFilm,nSize;",
       "float depthAt(vec2 uv){ vec4 d=texture2D(tDepth,uv); return d.a>0.03?d.r/d.a:1.0e5; }",
       "float cocAt(vec2 uv){ return min(maxR, cocK*abs(1.0-focusD/depthAt(uv))); }",   // thin lens: blur grows with distance from the focus plane
       /* upscaling (like FSR 1): the scene is drawn smaller, then brought up with a sharp Catmull-Rom filter (5 taps)
@@ -108,16 +115,19 @@
       "  vec3 w=-sqrt(clamp(min(mn,1.0-mx)/max(mx,vec3(1e-4)),0.0,1.0))*0.17;",
       "  return max((r+(a+b+d+e)*w)/(1.0+4.0*w),0.0); }",
       "float hash(vec2 p){ p=fract(p*vec2(123.34,456.21)); p+=dot(p,p+34.345); return fract(p.x*p.y); }",
+      /* noise: a cheap hash (Hoskins) and smooth value noise built on it, for grain clumps and colour blotches */
+      "float h12(vec2 p){ vec3 p3=fract(vec3(p.xyx)*0.1031); p3+=dot(p3,p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }",
+      "float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(h12(i),h12(i+vec2(1.0,0.0)),f.x), mix(h12(i+vec2(0.0,1.0)),h12(i+vec2(1.0,1.0)),f.x), f.y); }",
       "void main(){",
       "  vec2 dc=vUv-vec2(0.5); float r=length(dc); vec2 tx=1.0/resolution;",
       "  float ca=0.0020*filmic*smoothstep(0.06,0.85,r);",   // chromatic aberration toward the edges
       "  float band=abs(vUv.y-focus);",                       // manual focus: rack the sharp plane up/down the frame
-      "  float dofB=dof*gDof*smoothstep(0.05,0.55,band);",     // sharp at the focus plane, blurs away from it
+      "  float dofB=dof*smoothstep(0.05,0.55,band);",     // sharp at the focus plane, blurs away from it
       "  vec3 c;",
-      "  if(useDepth>0.5){ float rad=cocAt(vUv)*dof*gDof;",   // real depth of field: every pixel blurs by its own distance from the focus plane
+      "  if(useDepth>0.5){ float rad=cocAt(vUv)*dof;",   // real depth of field: every pixel blurs by its own distance from the focus plane
       "    if(rad>0.6){ vec3 s=vec3(0.0); float wsum=0.0;",
       "      for(int i=0;i<24;i++){ float a=float(i)*2.3999632; float rr=sqrt((float(i)+0.5)/24.0)*rad; vec2 off=vec2(cos(a),sin(a))*rr*tx;",
-      "        float w=clamp(cocAt(vUv+off)*dof*gDof-rr+1.0,0.0,1.0);",   // only points whose own blur reaches here count: a sharp subject doesn't smear
+      "        float w=clamp(cocAt(vUv+off)*dof-rr+1.0,0.0,1.0);",   // only points whose own blur reaches here count: a sharp subject doesn't smear
       "        vec3 sm=vec3(texture2D(tDiffuse,vUv+off+dc*ca).r, texture2D(tDiffuse,vUv+off).g, texture2D(tDiffuse,vUv+off-dc*ca).b);",
       "        w*=1.0+max(sm.r+sm.g+sm.b-1.2,0.0)*2.5; s+=sm*w; wsum+=w; }",
       "      vec3 c0=vec3(texture2D(tDiffuse,vUv+dc*ca).r, texture2D(tDiffuse,vUv).g, texture2D(tDiffuse,vUv-dc*ca).b);",
@@ -132,14 +142,35 @@
       "    c=s/wsum; }",
       "  else if(up>0.5){ c=upS(vUv); }",
       "  else { c=vec3(texture2D(tDiffuse,vUv+dc*ca).r, texture2D(tDiffuse,vUv).g, texture2D(tDiffuse,vUv-dc*ca).b); }",
-      "  c*=exposure;",
+      /* exposure is light: decode (2.2), multiply, re-encode. With a pure power curve that is exactly a multiply by
+         exposure^(1/2.2) on the encoded value, so one stop reads as one stop and exposure 1 is untouched */
+      "  float ek=pow(max(exposure,0.0),1.0/2.2);",
+      "  c*=ek;",
       "  if(filmic>0.01){ vec3 bl=vec3(0.0);",                // soft highlight bloom (lens/sensor glow)
       "    for(int i=0;i<12;i++){ float a=float(i)*2.3999632+1.2; float rr=(float(i)+1.0)/12.0*7.0;",
-      "      vec3 sm=texture2D(tDiffuse, vUv+vec2(cos(a),sin(a))*rr*tx).rgb*exposure; bl+=max(sm-0.72,0.0); }",
+      "      vec3 sm=texture2D(tDiffuse, vUv+vec2(cos(a),sin(a))*rr*tx).rgb*ek; bl+=max(sm-0.72,0.0); }",
       "    c+=bl/12.0*1.5*filmic*gBloom; }",
       /* clarity: midtone local contrast against a wide neighbourhood (before the curve, in the same space), so faces and forms get their shape back */
       "  if(filmic>0.01){ float lm=0.0; for(int i=0;i<8;i++){ float a=float(i)*0.7853982+0.39; lm+=dot(texture2D(tDiffuse,vUv+vec2(cos(a),sin(a))*vec2(resolution.y/resolution.x,1.0)*0.018).rgb,vec3(0.299,0.587,0.114)); }",
-      "    lm=lm/8.0*exposure; float l0=dot(c,vec3(0.299,0.587,0.114)); float lc=clamp(l0,0.0,1.0); c+=(l0-lm)*clar*filmic*4.0*lc*(1.0-lc); }",   /* how much: per scene (flat, overcast scans need more) */
+      "    lm=lm/8.0*ek; float l0=dot(c,vec3(0.299,0.587,0.114)); float lc=clamp(l0,0.0,1.0); c+=(l0-lm)*clar*filmic*4.0*lc*(1.0-lc); }",   /* how much: per scene (flat, overcast scans need more) */
+      /* the sensor (or the film), before the tone curve. grain is the luminance noise (or film grain) strength; the seed
+         moves it every frame in the live view and holds still for the frame the shutter records */
+      "  if(grain>0.0005){ vec2 gp=gl_FragCoord.xy+vec2(fract(seed*0.1234),fract(seed*0.3719))*vec2(517.0,731.0); float l=clamp(dot(c,vec3(0.299,0.587,0.114)),0.0,1.0);",
+      "    if(nFilm>0.5){",   /* film: clumps of silver at two sizes plus a fine tooth, near-monochrome, strongest in the midtones */
+      "      float g=(vn(gp/nSize)-0.5)*4.0+(vn(gp/(nSize*2.3)+vec2(17.0,5.0))-0.5)*2.0+(h12(gp)-0.5)*1.2;",
+      "      float w=0.3+0.7*(4.0*l*(1.0-l));",
+      "      c+=(vec3(g)+vec3(0.08,-0.04,0.06)*(h12(gp+vec2(3.1,9.7))-0.5)*2.0)*grain*gGrain*w; }",
+      "    else {",
+      "      if(nX>0.001){ vec3 b4=(texture2D(tDiffuse,vUv+vec2(tx.x*1.5,0.0)).rgb+texture2D(tDiffuse,vUv-vec2(tx.x*1.5,0.0)).rgb+texture2D(tDiffuse,vUv+vec2(0.0,tx.y*1.5)).rgb+texture2D(tDiffuse,vUv-vec2(0.0,tx.y*1.5)).rgb)*0.25*ek;",
+      "        c=mix(c,b4,0.4*nX);",   /* noise reduction smears the finest detail */
+      "        float sd=1.0-smoothstep(0.03,0.4,l); c=mix(c,vec3(dot(c,vec3(0.299,0.587,0.114))),0.45*nX*sd);",   /* shadows lose their colour */
+      "        c=c*(1.0-0.07*nX)+0.025*nX;",   /* blacks lift, contrast drops */
+      "        c+=vec3(0.010,-0.004,0.014)*nX*(1.0-smoothstep(0.0,0.25,l)); }",   /* a magenta cast down in the deepest shadows */
+      "      float n=(h12(gp)+h12(gp+vec2(19.19,7.7))+h12(gp+vec2(3.3,41.7))-1.5)*2.0;",   /* about gaussian, sd 1 */
+      "      float w=(1.0-0.72*smoothstep(0.35,0.95,l))*(0.75+0.25*smoothstep(0.0,0.12,l));",   /* strongest in shadows and midtones */
+      "      c+=vec3(n)*grain*gGrain*w;",
+      "      if(nChr>0.0005){ vec2 cp=gp/nSize; float ca2=(vn(cp)-0.5)*3.5+(h12(gp+vec2(7.0,1.0))-0.5)*1.0, cb2=(vn(cp+vec2(31.0,11.0))-0.5)*3.5+(h12(gp+vec2(13.0,29.0))-0.5)*1.0;",
+      "        c+=vec3(ca2,-0.3*(ca2+cb2),cb2)*nChr*gGrain*(1.0-0.75*smoothstep(0.15,0.75,l)); } } }",   /* colour blotches, a little bigger than a pixel, mostly in the dark */
       /* ACES filmic, done in linear light (the picture arrives display-encoded): a real S-curve, so shadows deepen and
          highlights roll off. Applied straight to encoded values it flattened everything: mids up, highlights down */
       "  vec3 x=lin>0.5?pow(max(c,0.0),vec3(2.2))*0.8:max(c,0.0); vec3 aces=clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.0,1.0); if(lin>0.5) aces=pow(aces,vec3(1.0/2.2));",   /* the original look by default; a scene can ask for the linear S-curve */
@@ -148,7 +179,6 @@
       "  float lum=dot(c,vec3(0.299,0.587,0.114)); c=mix(vec3(lum),c,gSat);",  // grade: saturation
       "  c+=vec3(gWarm,gWarm*0.05,-gWarm)*0.14;",            // grade: warmth
       "  c*=1.0-vignette*smoothstep(0.35,0.85,r);",          // lens vignette
-      "  c+=(hash(vUv*resolution+seed)-0.5)*grain*gGrain;",  // film grain
       "  gl_FragColor=vec4(clamp(c,0.0,1.0),1.0);",
       "}"
     ].join("\n")
@@ -174,12 +204,68 @@
   function updateCrosshair(){ crosshair.classList.toggle("hidden", !(looking && !viewfinderOn)); }
 
   // ---- camera-sim math ----
+  /* how bright the scene is, in stops, next to the scan's own light (0). The lighting rig darkens or brightens the splats
+     themselves, so the meter has to read the same light the picture is made of: at Night it reads under, and opening up,
+     slowing down or raising the ISO brings it back to a normal exposure */
+  function sceneLightLin(){ var lv=1;
+    try{
+      if(typeof LA!=="undefined"&&LA&&LA.tod) return 1;   /* the opening's film of a night into day is a title sequence, not a light to meter */
+      if(typeof RLB!=="undefined"&&RLB&&RLB.gpu&&RL.gpu===RLB.gpu){   /* lightb.js: light is linear, and the same level it judges your eyes by */
+        if(RLB.gpu.U.on.value<0.5) return 1;
+        lv=rbLum(RLB.sunMode?RLB.amb:[1,1,1]); if(RLB.sunMode&&RL.sunPow>0) lv+=rbLum(RLB.sunLin)*0.55;
+        if(RL.target) RL.lights.forEach(function(L){ if(L.on&&L.kind!==2) lv+=rbAtSubject(L)*0.4; });
+        return Math.max(lv,1e-4); }
+      if(typeof RL!=="undefined"&&RL.gpu&&RL.gpu.U&&RL.gpu.U.on.value>0){   /* relight.js (the opening's time of day): it scales the display-encoded colour, so the light is that to the 2.2 */
+        var E=Math.pow(2,RL.exp||0), A=rlRGB(RL.ambK), enc=(RL.dusk==null?1:RL.dusk)*E*(0.2126*A[0]+0.7152*A[1]+0.0722*A[2]);
+        if(RL.sunPow>0&&RL.sunEl>0){ var sc=rlRGB(RL.sunK); enc+=RL.sunPow*E*0.55*(0.2126*sc[0]+0.7152*sc[1]+0.0722*sc[2]); }
+        var T=RL.target; if(T) RL.lights.forEach(function(L){ if(!L.on||!(L.power>0)) return; var d2=(Math.pow(L.x-T.x,2)+Math.pow(L.y-T.y,2)+Math.pow(L.z-T.z,2))/(RL.S*RL.S); var c=rlLightRGB(L); enc+=0.4*L.power*E*(0.2126*c[0]+0.7152*c[1]+0.0722*c[2])/(d2+(L.soft||0.3)); });
+        var on=Math.min(RL.gpu.U.on.value,1); enc=1+(Math.min(enc,1.6)-1)*on; return Math.max(Math.pow(Math.max(enc,0),2.2),1e-4); }
+    }catch(e){}
+    return 1; }
+  /* ---- the lens on the camera: its real f-number range and closest focus (bag.js lens kits) ---- */
+  var apLo=0, apHi=AP_FULL.length-1, _apLens=null;
+  function lensSpec(){ var l=null; try{ if(typeof LENS_KITS!=="undefined"&&LENS_KITS) l=curLens(); }catch(e){} return {fmax:l&&l.fmax||1.4, fmin:l&&l.fmin||22, minFocus:l&&l.minFocus||0.3}; }
+  function lensRange(){ var L=lensSpec(), k=0, j;
+    APERTURES=AP_FULL.slice(); while(k<AP_FULL.length-1&&AP_FULL[k]<L.fmax*0.97) k++;
+    apLo=k; APERTURES[k]=L.fmax;   /* the wide-open value sits in its stop's slot: 1.8 where f/2 would be */
+    for(j=AP_FULL.length-1;j>apLo&&AP_FULL[j]>L.fmin*1.03;j--); apHi=j; }
+  function apClamp(i){ return Math.max(apLo,Math.min(apHi,i)); }
+  /* a new lens keeps the f-number you had where it can, then focus moves out to its closest distance */
+  function lensChanged(){ var was=APERTURES[apIdx]; lensRange(); if(was!=null&&APERTURES[apIdx]!==was){ var best=apIdx, bd=1e9; for(var i=apLo;i<=apHi;i++){ var d=Math.abs(Math.log(APERTURES[i]/was)); if(d<bd-1e-9){ bd=d; best=i; } } apIdx=best; } apIdx=apClamp(apIdx); setFocus(focusDist); }
+  /* ---- film: ISO is the roll's speed. You choose it when a fresh roll goes in, then it holds for every frame ---- */
+  var _isoBody=null, _digIso=null;
+  function filmShots(){ var b=curBody(); return photos.filter(function(p){ return p.body===b.name; }).length; }
+  function filmFresh(){ var b=curBody(); return !!b.film&&filmShots()%(b.roll||10)===0; }
+  function filmIsoLocked(){ return !!curBody().film&&!filmFresh(); }
+  function rollIsoIdx(){ var b=curBody();
+    if(!filmFresh()){ for(var p=photos.length-1;p>=0;p--) if(photos[p].body===b.name){ if(photos[p].iso) b.rollIso=photos[p].iso; break; } }   /* a roll part-shot (a saved session too): it's the speed its frames were taken at */
+    var i=ISOS.indexOf(b.rollIso||400); return Math.max(0,Math.min(FILM_ISO_MAX,i<0?2:i)); }
+  function isoSync(){ var b=curBody();
+    if(_isoBody!==b.id){ var was=_isoBody?BODIES.filter(function(x){ return x.id===_isoBody; })[0]:null; _isoBody=b.id;
+      if(b.film){ if(!(was&&was.film)) _digIso=isoIdx; isoIdx=rollIsoIdx(); }
+      else if(was&&was.film&&_digIso!=null){ isoIdx=_digIso; _digIso=null; } return; }
+    if(!b.film) return; isoIdx=Math.max(0,Math.min(FILM_ISO_MAX,isoIdx));
+    if(isoIdx!==rollIsoIdx()){ if(filmFresh()) b.rollIso=ISOS[isoIdx]; else { isoIdx=rollIsoIdx(); if(typeof toast==="function") toast("This roll is ISO "+(b.rollIso||400)+". You can change it when you load a new roll."); } } }
+  /* stops as a photographer says them: 0, +⅓, −1, +1⅔ (a true minus sign) */
+  function evText(ev){ var n=Math.round(Math.abs(ev)*3), w=Math.floor(n/3), r=n%3; if(!n) return "0"; return (ev<0?"−":"+")+(w?String(w):"")+(r===1?"⅓":r===2?"⅔":""); }
+  function stopWords(ev){ var n=Math.round(Math.abs(ev)*3), w=Math.floor(n/3), r=n%3, f=r===1?"⅓":r===2?"⅔":"";
+    if(!w) return f+" of a stop"; return w+f+(w===1&&!f?" stop":" stops"); }
   function computeCam(){
+    var body=BODIES[bodyIdx]||BODIES[0];
+    if(_apLens!==(typeof lensId!=="undefined"?lensId:"")+"|"+body.id){ _apLens=(typeof lensId!=="undefined"?lensId:"")+"|"+body.id; lensChanged(); }
+    apIdx=apClamp(apIdx); isoSync();
     var N=APERTURES[apIdx], t=SHUTTERS[shIdx], iso=ISOS[isoIdx];
     var base=(1/125)*400/(2.8*2.8), cur=t*iso/(N*N);
-    expMult=cur/base; evStops=Math.log(expMult)/Math.LN2+meterBias;
-    var body=BODIES[bodyIdx]||BODIES[0]; camGrain=body.grain||0; camWarm=body.warm||0;
-    isoGrain=Math.min(Math.max((iso-100)/6300,0),1)*0.11 + camGrain;
+    lightStops=Math.log(sceneLightLin())/Math.LN2;
+    expMult=cur/base; evStops=Math.log(expMult)/Math.LN2+lightStops+meterBias;
+    camGrain=body.grain||0; camWarm=body.warm||0;
+    /* the sensor: noise per stop above base ISO, worse the smaller the sensor (each pixel gathers less light) */
+    var s=Math.max(0,Math.log(iso/100)/Math.LN2), k=36/(body.sensorW||36);
+    if(body.film){   /* film grain from the roll's speed; the 6×7 negative is enlarged far less, so its grain is finer */
+      var co=camGrain||1; NZ.film=1; NZ.chr=0; NZ.x=0; NZ.size=Math.max(0.9,2.0*co); NZ.lum=0.012*Math.pow(2,s*0.42)*(0.4+0.6*co); }
+    else { NZ.film=0; NZ.lum=k*(0.0035*Math.pow(2,s*0.5)+0.0025*Math.pow(Math.max(0,s-3),1.6));
+      NZ.chr=k*0.02*Math.pow(Math.min(1,Math.max(0,(s-3)/3)),1.5); NZ.x=Math.min(1,Math.max(0,(s-4.3+Math.log(k)/Math.LN2)/2.5)); NZ.size=1.4+0.5*k; }
+    isoGrain=NZ.lum;
     var wide=Math.min(Math.max((5.6-N)/(5.6-1.4),0),1); apVig=0.16+wide*0.22;
     dofStrength=Math.min(Math.max((8-N)/6.6,0),1);          // f/8+ = all sharp, f/1.4 = maximum background blur
     // walking: a natural eye. Camera up: the lens's horizontal angle of view fills the viewfinder frame,
@@ -191,7 +277,7 @@
     if($("mApVal")){ $("mApVal").textContent="f/"+APERTURES[apIdx]; $("mShVal").textContent=SHUTTER_LABELS[shIdx];
       $("mIsoVal").textContent=ISOS[isoIdx];
       $("mExpNdl").style.left=(Math.min(Math.max((evStops+3)/6,0),1)*100)+"%"; }
-    var ev=(evStops>=0?"+":"")+evStops.toFixed(1)+" EV";
+    var ev=evText(evStops)+" EV";
     $("vfSettings").textContent="f/"+APERTURES[apIdx]+" · "+SHUTTER_LABELS[shIdx]+" · ISO "+ISOS[isoIdx];
     $("vfExp").textContent=ev; $("vfLens").textContent=focalMM+"mm";
     if($("tagCam")) updateHoloTags();
@@ -235,8 +321,12 @@
   function buildLensPicker(){ var el=$("lensList"); if(!el) return; el.innerHTML=""; var b=curBody();
     b.lenses.forEach(function(mm,i){ var c=document.createElement("button"); c.className="chip"+(i===lensIdx?" on":""); c.textContent=mm+"mm"; c.onclick=function(){ selectLens(i); }; el.appendChild(c); }); }
   function gauss(){ var u=1-Math.random(), v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
-  function captureAspect(A, shake){ var src=renderer.domElement, W=src.width, H=src.height, cw=W, ch=H;
+  function captureAspect(A, shake, windN, windAt){ var src=renderer.domElement, W=src.width, H=src.height, cw=W, ch=H;
     if(W/H>A){ cw=H*A; } else { ch=W/A; }
+    if(windN>1&&windAt){   /* wind on a slow shutter: the scene drawn at moments through the exposure and averaged, so moving leaves blur and the rest stays sharp */
+      var acc=document.createElement("canvas"); acc.width=W; acc.height=H; var ag=acc.getContext("2d"); ag.drawImage(src,0,0);
+      for(var wj=1;wj<windN;wj++){ windAt(wj); ag.globalAlpha=1/(wj+1); ag.drawImage(renderer.domElement,0,0); }
+      ag.globalAlpha=1; src=acc; }
     var sx=(W-cw)/2, sy=(H-ch)/2, o=document.createElement("canvas");
     if(viewfinderOn){ var r=vfRect(), kx=W/window.innerWidth, ky=H/window.innerHeight; sx=r.x*kx; sy=r.y*ky; cw=r.w*kx; ch=r.h*ky; }   // exactly what the frame shows
     o.width=Math.max(2,Math.round(cw)); o.height=Math.max(2,Math.round(ch));
@@ -280,7 +370,7 @@
     l.innerHTML='<div class="lcd-row"><span><b>&#9679;</b> Ready</span><span>'+(photos?photos.length:0)+' shots</span></div>'
       +'<div><div class="lcd-name">'+b.name+'</div><div class="lcd-row" style="margin-top:4%"><span>'+b.fmt+'</span><span>'+focalMM+'mm</span></div></div>'
       +'<div class="lcd-meter" aria-hidden="true"><i style="left:'+pos.toFixed(1)+'%"></i></div>'
-      +'<div class="lcd-grid"><div><span>Aperture</span><b>f/'+APERTURES[apIdx]+'</b></div><div><span>Shutter</span><b>'+SHUTTER_LABELS[shIdx]+'</b></div><div><span>ISO</span><b>'+ISOS[isoIdx]+'</b></div><div><span>EV</span><b>'+(lcdEv>=0?"+":"")+lcdEv.toFixed(1)+'</b></div></div>'; }
+      +'<div class="lcd-grid"><div><span>Aperture</span><b>f/'+APERTURES[apIdx]+'</b></div><div><span>Shutter</span><b>'+SHUTTER_LABELS[shIdx]+'</b></div><div><span>ISO</span><b>'+ISOS[isoIdx]+'</b></div><div><span>EV</span><b>'+evText(lcdEv)+'</b></div></div>'; }
   function updateHoloTags(){ var e, b=curBody();
     e=$("mHeroName"); if(e) e.textContent=b.name;
     e=$("mHeroSpec"); if(e) e.textContent=b.fmt+"  ·  "+focalMM+"mm  ·  f/"+APERTURES[apIdx]+"  ·  ISO"+ISOS[isoIdx]; updateLcd(); }
@@ -387,7 +477,8 @@
     s+='</svg>'; return s;
   }
   function focusBars(){ var m=focusMetres(); return (m<10?m.toFixed(1):Math.round(m))+" M"; }
-  function setFocus(v){ focusDist=Math.max(0,Math.min(1,v)); var s=$("mFocus"); if(s) s.value=Math.round(focusDist*100); var fv=$("mFocusVal"); if(fv) fv.textContent=Math.round(focusDist*100); var vf=$("vfFocus"); if(vf) vf.textContent="FOCUS "+focusBars(); }
+  function focusMin(){ return Math.max(0,Math.log(Math.max(0.3,lensSpec().minFocus)/0.3)/Math.log(60)); }   /* the lens's closest focus, on the focus scale */
+  function setFocus(v){ focusDist=Math.max(focusMin(),Math.min(1,v)); var s=$("mFocus"); if(s) s.value=Math.round(focusDist*100); var fv=$("mFocusVal"); if(fv) fv.textContent=Math.round(focusDist*100); var vf=$("vfFocus"); if(vf) vf.textContent="FOCUS "+focusBars(); }
 
   // ---- camera basis (level FPS) ----
   var _fwd=new THREE.Vector3(), _right=new THREE.Vector3(), _qy=new THREE.Quaternion(), _qp=new THREE.Quaternion(), _mv=new THREE.Vector3();
@@ -397,6 +488,7 @@
     _right.crossVectors(_fwd,UPY).normalize();
     _qp.setFromAxisAngle(_right,pt); _fwd.applyQuaternion(_qp).normalize();
   }
+  var _fwdH=new THREE.Vector3();   /* flat forward for walking, reused every frame */
   function updateCamera(dt){
     basis();
     if(dt>0){
@@ -405,7 +497,7 @@
       _mv.set(0,0,0);
       if(moving){
         var fb=(viewfinderOn?curBody().finder:""), rs=(fb==="waist"||fb==="ground")?-1:1, us=(fb==="ground")?-1:1;
-        var walking=!!(WK.col&&WK.mode==="walk"), fw=walking?_fwd.clone().setY(0).normalize():_fwd;
+        var walking=!!(WK.col&&WK.mode==="walk"), fw=walking?_fwdH.copy(_fwd).setY(0).normalize():_fwd;
         if(keys["KeyW"]) _mv.addScaledVector(fw,1); if(keys["KeyS"]) _mv.addScaledVector(fw,-1);
         if(keys["KeyD"]) _mv.addScaledVector(_right,rs); if(keys["KeyA"]) _mv.addScaledVector(_right,-rs);
         if(walking){ var e0=WK.eye; if(keys["KeyE"]) wkEye(us,dt); if(keys["KeyQ"]) wkEye(-us,dt); var qe=!!(keys["KeyE"]||keys["KeyQ"]); if(qe&&!SFX.qe&&WK.eye!==e0) sfx("crouch"); SFX.qe=qe&&WK.eye!==e0||(qe&&SFX.qe); }
@@ -417,9 +509,10 @@
       _vel.x+=(_mv.x-_vel.x)*t; _vel.y+=(_mv.y-_vel.y)*t; _vel.z+=(_mv.z-_vel.z)*t;
       if(WK.col&&WK.mode==="walk") _vel.y=0;
       if(_vel.lengthSq()>1e-10){
-        if(WK.col) wkMove(dt); else camPos.addScaledVector(_vel, dt);
+        var px0=camPos.x, pz0=camPos.z; if(WK.col) wkMove(dt); else camPos.addScaledVector(_vel, dt);
         if(boundsOn){ var bx=camPos.x, bz=camPos.z; camPos.x=Math.min(Math.max(camPos.x,boxMin.x),boxMax.x); camPos.y=Math.min(Math.max(camPos.y,boxMin.y),boxMax.y); camPos.z=Math.min(Math.max(camPos.z,boxMin.z),boxMax.z);
-          if(typeof bndClamp==="function"&&bndClamp()){ bx=NaN; }   /* the circle round the subject */
+          if(WK.col&&(bx!==camPos.x||bz!==camPos.z)&&wkBlocked(camPos.x,camPos.z,wkFeet())){ camPos.x=px0; camPos.z=pz0; }   /* the box edge never pushes you into something solid */
+          if(typeof bndClamp==="function"&&bndClamp(px0,pz0)){ bx=NaN; }   /* the circle round the subject */
           if((bx!==camPos.x||bz!==camPos.z)&&Date.now()-_edgeT>1500){ _edgeT=Date.now(); if(typeof achEvent==="function") achEvent("bounds"); } }
       }
     }
@@ -435,10 +528,12 @@
   // pixel, so the lens can blur by real distance. Half resolution: blur doesn't need more.
   // ---- the lens: Spark blurs every splat by its own distance from the focus plane (real depth of field) ----
   var dOK=true, afPending=false;
-  function sparkLens(){ var sp=viewer&&viewer.spark; if(!sp) return; var on=viewfinderOn&&loaded&&gDof>0;
+  /* depth of field is the optics only: aperture, focal length and focus distance (the sensor sets the focal length you
+     pick for a framing). The old Look "depth" slider no longer scales it, and autofocus never depends on it */
+  function sparkLens(){ var sp=viewer&&viewer.spark; if(!sp) return; var on=viewfinderOn&&loaded;
     if(afPending&&on){ var say=afPending==="say"; afPending=false; autoFocus(say); }
     if(!on){ sp.apertureAngle=0; return; } var sc=sceneScale(), S=focusMetres()*sc, fm=(focalMM||50)/1000*sc, N=APERTURES[apIdx]||8;
-    sp.focalDistance=S; sp.apertureAngle=2*Math.atan(fm/N/2/S)*gDof; }   // the aperture's width, seen from the focus point
+    sp.focalDistance=S; sp.apertureAngle=2*Math.atan(fm/N/2/S); }   // the aperture's width, seen from the focus point
   // focus is a distance: the slider and keys move along a log scale, 0.3 m to 18 m (scaled to your own scans)
   function sceneScale(){ return WK.col?1:Math.max(0.02,Math.min(50,(sceneMaxDim||8)/8)); }
   function focusMetres(){ return 0.3*Math.pow(60,focusDist); }
@@ -449,7 +544,8 @@
     for(var i=0;i<N;i++){ if(A&&A[i]<0.12) continue; var vx=P[i*3]-o.x, vy=P[i*3+1]-o.y, vz=P[i*3+2]-o.z, t=vx*f.x+vy*f.y+vz*f.z; if(t<mt) continue; var p2=vx*vx+vy*vy+vz*vz-t*t, lim=t*0.026+0.01*sc; if(p2<lim*lim) ts.push(t); }
     ts.sort(function(a,b){ return a-b; }); var k=Math.min(ts.length-1, 4);
     if(ts.length<3){ afHunt(1, say?"Focused at infinity":""); return; }   // only sky or far-off haze in the middle: like a real lens, focus far
-    var m=ts[k]/sc; afHunt(Math.log(Math.max(0.3,Math.min(18,m))/0.3)/Math.log(60), say?"Focused at "+(m<10?m.toFixed(1):Math.round(m))+" m":""); }
+    var mf=lensSpec().minFocus, m0=ts[k]/sc, m=Math.max(mf,m0), near=m0<mf*0.95;   /* closer than the lens can focus: it stops at its closest */
+    afHunt(Math.log(Math.max(0.3,Math.min(18,m))/0.3)/Math.log(60), near?"Too close to focus. This lens focuses down to "+mf+" m, so step back.":say?"Focused at "+(m<10?m.toFixed(1):Math.round(m))+" m":""); }
   /* like a real lens: the square thinks (the focus rocks past the subject and back), then turns green when it locks */
   var afLocks=0, afAnim=null;
   function afHunt(target, msg){ var el=$("vfAF"), from=focusDist, t0=performance.now(), dur=520, over=(target-from)*0.35+(target>from?0.06:-0.06);
@@ -466,7 +562,7 @@
   function renderBackdrop(rt){ fsTarget=rt; try{ renderFrame(0); }finally{ fsTarget=null; } }
   function renderFrame(dt){
     if(typeof CU!=="undefined"&&CU.open&&viewer&&loaded){ try{ if(cuRender()) return; }catch(e){ console.warn("cube",e); cuReset(); } }   // the cube of places takes the whole screen
-    var tgtE=viewfinderOn?(curBody().optical?1:expMult):(typeof rlbEye==="function"?rlbEye():1), tgtF=viewfinderOn?1:0, tgtV=viewfinderOn?apVig:0.1, tgtG=viewfinderOn?isoGrain:0, tgtD=0;
+    var tgtE=viewfinderOn?(curBody().optical?1:expMult):(typeof rlbEye==="function"?Math.pow(rlbEye(),2.2):1), tgtF=viewfinderOn?1:0, tgtV=viewfinderOn?apVig:0.1, tgtG=viewfinderOn&&!curBody().optical?isoGrain:0, tgtD=0;   /* a mirror shows the scene, not the sensor: no noise until the photo */
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
     renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
@@ -480,12 +576,16 @@
     fsMat.uniforms.useDepth.value=0;
     fsMat.uniforms.gCon.value=gCon*(lg?lg.c:1); fsMat.uniforms.gSat.value=gSat*(lg?lg.s:1)*(!viewfinderOn&&typeof RLB!=="undefined"&&RLB&&RLB.sat?RLB.sat:1);   /* the default look is a touch more vibrant to the eye */ fsMat.uniforms.gWarm.value=gWarm+camWarm+(lg?lg.w:0);
     fsMat.uniforms.gBloom.value=gBloom; fsMat.uniforms.gDof.value=gDof; fsMat.uniforms.gGrain.value=gGrain;
-    seedCounter=(seedCounter+1)%9973; fsMat.uniforms.seed.value=seedCounter;
+    var cap=typeof CH!=="undefined"&&CH&&CH.capturing; if(cap&&viewfinderOn) fsMat.uniforms.grain.value=isoGrain;   /* the photo gets the real sensor, not the eased one */
+    var nf=NZ.lum>1e-6?Math.min(1,fsMat.uniforms.grain.value/NZ.lum):0; fsMat.uniforms.nChr.value=NZ.chr*nf; fsMat.uniforms.nX.value=NZ.x*nf; fsMat.uniforms.nFilm.value=NZ.film; fsMat.uniforms.nSize.value=NZ.size;
+    if(!cap) seedCounter=(seedCounter+1)%9973; fsMat.uniforms.seed.value=seedCounter;   /* grain moves every frame you watch, and holds still for the one the shutter records */
+    if(dt>0){ var nowT=performance.now(); if(nowT-(renderFrame._lt||0)>250){ renderFrame._lt=nowT; if(Math.abs(Math.log(sceneLightLin())/Math.LN2-lightStops)>0.02) computeCam(); } }   /* the light changed (time of day, a lamp): the meter follows */
     renderer.render(fsScene,fsCam);
   }
   function animate(){ requestAnimationFrame(animate); var dt=Math.min(clock.getDelta(),0.1);
     if((typeof cbOpen!=="undefined" && cbOpen) || (typeof bg!=="undefined" && bg.open) || (typeof st!=="undefined" && st.open)) return;   // the camera back covers the scene: stop drawing it (big win on school PCs)
     if(typeof RF!=="undefined"&&RF.on){ if(!loaded&&(RF.bg=(RF.bg||0)+1)%3===0) renderFrame(dt); return; }   /* the launch page is a still with its own lens; Spark only finishes building the scan while it's being drawn, so it's drawn now and then, small, under the still, until it's in */
+    if(!(typeof LA!=="undefined"&&LA.on)&&(App.is("hub")||App.is("signin")||document.body.classList.contains("la-wel-on"))){ if(!loaded&&viewer&&(animate.bg=(animate.bg||0)+1)%3===0) renderFrame(dt); return; }   /* the hub, sign-in and the welcome card cover the scene: don't draw it (a scan still loading is drawn now and then so Spark finishes building it) */
     if(loaded) updateCamera(dt); renderFrame(dt); dynTick(dt); if(viewfinderOn) vfLevelTick(); }
   animate();
 
@@ -544,7 +644,11 @@
     camera.near=Math.max(maxDim*0.0006,0.01); camera.far=maxDim*12+100; camera.updateProjectionMatrix();
   }
 
-  function loadSplat(source, up, keepCol){ if(!keepCol){ WK.col=null; skySet(null); CH.spec=null; }
+  /* each load gets a token: a newer load makes the older one stop at its next step (a quick double click, a portal mid-load) */
+  var loadTok=0, LOAD_STALE={stale:true};
+  /* everything tied to the old scan goes before the next one comes in: its sky, the gold frames, the other worlds' previews, the wind map */
+  function sceneDispose(){ if(typeof skyDispose==="function") skyDispose(); if(typeof chDispose==="function") chDispose(); if(typeof wxDispose==="function") wxDispose(); if(typeof weForget==="function") weForget(); if(typeof bndDispose==="function") bndDispose(); }
+  function loadSplat(source, up, keepCol){ if(!keepCol){ bundTok++; WK.col=null; skySet(null); CH.spec=null; }   /* your own file wins over a bundled scan still on its way */
     var isFile=(source instanceof File), format;
     if(isFile){ var ext=source.name.split(".").pop().toLowerCase(); format=FMT[ext];
       if(format===undefined){ toast("Unsupported file. Use a .ply, .splat, .ksplat, .spz or .sog."); return; }
@@ -554,8 +658,10 @@
     viewfinderOn=false; viewfinder.classList.remove("on");
     hide(landing); hide(menu); hide(gallery); hide(prompt); showLoader("Loading scene…"); setScale(dynTop());
     var q=upQuat(lastUp);
+    var tok=++loadTok; function live(){ if(tok!==loadTok) throw LOAD_STALE; }
+    try{ sceneDispose(); }catch(e){ console.warn("scene dispose",e); }
     if(viewer){ try{ viewer.dispose(); }catch(e){} viewer=null; } loaded=false;
-    (isFile?source.arrayBuffer():fetch(source).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.arrayBuffer(); })).then(function(ab){
+    (isFile?source.arrayBuffer():fetch(source).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.arrayBuffer(); })).then(function(ab){ live();
       scene=new THREE.Scene(); skyAttach(scene); showLoader("Building detail levels…");
       // one Spark renderer for the whole session (its workers stay up); only the scan is swapped
       var spark=window.__sparkR||(window.__sparkR=new SPARK.SparkRenderer({renderer:renderer})); var DL=DETAIL[sceneDetail]||DETAIL.balanced; spark.lodSplatScale=dynLodBase(); spark.lodRenderScale=(CH.spec&&CH.spec.fullRes)?0.75:1;   /* fullRes scans: a bigger budget, and finer splats picked close up (three quarters of a pixel), without drawing millions nobody can see */ spark.maxStdDev=DL.sd||Math.sqrt(8); scene.add(spark);   // splats' faint outer edges trimmed a little: fewer pixels to fill
@@ -572,18 +678,18 @@
       // Spark says "initialized" before its level-of-detail build has the splats ready: wait for them. Then, because
       // the LoD splats live in a streaming pager that can't be read back, parse the same bytes once more without LoD to
       // get every splat's centre (world space) and opacity: framing, autofocus and lighting read those.
-      return mesh.initialized.then(function(){ return new Promise(function(res,rej){ var t0=performance.now(); (function poll(){ if(mesh.numSplats>0) return res(); if(performance.now()-t0>180000) return rej(new Error("the scan never finished loading")); setTimeout(poll,100); })(); }); })
-        .then(function(){ var ps=new SPARK.PackedSplats({fileBytes:new Uint8Array(ab), fileType:format}); return ps.initialized; })
-        .then(function(ps){ mesh.updateMatrixWorld(true); var n=ps.numSplats, P=new Float32Array(n*3), A=new Float32Array(n), Gr=new Uint8Array(n), v=new THREE.Vector3();
+      return mesh.initialized.then(function(){ live(); return new Promise(function(res,rej){ var t0=performance.now(); (function poll(){ if(tok!==loadTok) return rej(LOAD_STALE); if(mesh.numSplats>0) return res(); if(performance.now()-t0>180000) return rej(new Error("the scan never finished loading")); setTimeout(poll,100); })(); }); })
+        .then(function(){ live(); var ps=new SPARK.PackedSplats({fileBytes:new Uint8Array(ab), fileType:format}); return ps.initialized; })
+        .then(function(ps){ if(tok!==loadTok){ try{ ps.dispose(); }catch(e){} throw LOAD_STALE; } mesh.updateMatrixWorld(true); var n=ps.numSplats, P=new Float32Array(n*3), A=new Float32Array(n), Gr=new Uint8Array(n), v=new THREE.Vector3();
           ps.forEachSplat(function(i,c,sc,qq,op,co){ v.copy(c).applyQuaternion(q).multiplyScalar(SC); P[i*3]=v.x; P[i*3+1]=v.y; P[i*3+2]=v.z; A[i]=op;
             if(co){ var gd=co.g-Math.max(co.r,co.b); Gr[i]=Math.max(0,Math.min(255,Math.round((gd*5+(co.g>=co.r&&co.g>=co.b?0.12:0))*255))); } });   /* how leafy each splat looks: the wind reads it */
           try{ ps.dispose(); }catch(e){} viewer.P=P; viewer.A=A; viewer.Gr=Gr; viewer.q=q.clone(); });
-    }).then(function(){
+    }).then(function(){ live();
       frameScene(); if(typeof wxArrival==="function"&&wxArrival()){} else if(keepCol&&CH.spec&&CH.spec.spawn){ var sp=CH.spec.spawn; if(sp[4]&&WK.mode==="walk") WK.eye=sp[4]; camPos.set(sp[0], WK.col?wkGround(sp[0],sp[1])+WK.eye:camPos.y, sp[1]); yaw=sp[2]||0; pitch=sp[3]||-0.1; }   // a scene can say where to stand first
       chAttach(); loaded=true; if(!(typeof RF!=="undefined"&&RF.on)&&!(typeof LA!=="undefined"&&LA.on)) sfx("arrive"); updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       /* no toast on arrival: the coach's first prompt and the look-around pill already say it (ux-scene) */
-    }).catch(function(err){
+    }).catch(function(err){ if(err===LOAD_STALE||tok!==loadTok) return;   /* a newer load took over: it owns the loader and the scene now */
       console.error("Load failed:",err); hideLoader();
       if(viewer){ try{ viewer.dispose(); }catch(e){} viewer=null; } loaded=false; show(landing);
       if(typeof rfClose==="function"&&RF.on){ rfClose(); RF.failed=true; siShow(); }   /* the scan wouldn't load: fall back to the plain sign-in card, where the message shows */
@@ -643,14 +749,15 @@
     var urls=v.slice(7).split(","), done=0;
     return Promise.all(urls.map(function(u){ return fetch(u).then(function(r){ if(!r.ok) throw new Error("Couldn't download "+u); return r.arrayBuffer(); }).then(function(b){ done++; if(onPart) onPart(done,urls.length); return b; }); }))
       .then(function(bufs){ var n=0; bufs.forEach(function(b){ n+=b.byteLength; }); var out=new Uint8Array(n), o=0; bufs.forEach(function(b){ out.set(new Uint8Array(b),o); o+=b.byteLength; }); return out.buffer; }); }
-  function loadBundled(sc){ if(sc&&sc.name) cbPlace=sc.name; ownLoaded=false; var fb=$("navFlip"); if(fb) fb.classList.add("hidden"); showLoader("Opening "+(sc.name||"the scan")+"…");
+  var bundTok=0;
+  function loadBundled(sc){ var bt=++bundTok; if(sc&&sc.name) cbPlace=sc.name; ownLoaded=false; var fb=$("navFlip"); if(fb) fb.classList.add("hidden"); showLoader("Opening "+(sc.name||"the scan")+"…");
     assetBytes(sc.data, function(d,n){ if(d<n) showLoader("Downloading "+(sc.name||"the scan")+" · "+Math.round(d/n*100)+"%"); else showLoader("Opening "+(sc.name||"the scan")+"…"); }).then(function(ab){
       if(sc.ext!=="stm") return {buf:ab, ext:sc.ext||"splat"};
       var ds=new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate")));
       return ds.arrayBuffer().then(function(raw){ detailDpr(); return {buf:stmUnpack(raw, sceneDetail), ext:"splat"}; }); })
-    .then(function(r){ skySet(sc.sky||null); CH.spec=sc; return wkLoad(sc.collide).then(function(){ return r; }); })
-    .then(function(r){ var f=new File([r.buf],(sc.id||"scene")+"."+r.ext,{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown", true); })
-    .catch(function(e){ console.warn(e); hideLoader(); if(typeof rfClose==="function"&&RF.on){ rfClose(); RF.failed=true; siShow(); }   /* the scan wouldn't load: fall back to the plain sign-in card */ toast("Couldn't open that scene."); }); }
+    .then(function(r){ if(bt!==bundTok) return null; skySet(sc.sky||null); CH.spec=sc; return wkLoad(sc.collide).then(function(){ return r; }); })
+    .then(function(r){ if(!r||bt!==bundTok) return; var f=new File([r.buf],(sc.id||"scene")+"."+r.ext,{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown", true); })
+    .catch(function(e){ if(bt!==bundTok) return; console.warn(e); hideLoader(); if(typeof rfClose==="function"&&RF.on){ rfClose(); RF.failed=true; siShow(); }   /* the scan wouldn't load: fall back to the plain sign-in card */ toast("Couldn't open that scene."); }); }
   function buildScenePicker(){ var host=$("sceneRow"); if(!host) return; var list=(window.SPLAT_SCENES||[]);
     if(!list.length){ host.style.display="none"; var h=$("sceneHead"),o=$("orSep"); if(h)h.style.display="none"; if(o)o.style.display="none"; return; }
     host.innerHTML=""; list.forEach(function(sc){ var c=document.createElement("button"); c.className="scenecard";
@@ -739,7 +846,10 @@
     if(typeof WE!=="undefined"&&WE.rain>0){ var ts=SHUTTERS[shIdx]; if(ts<=1/500+1e-6) tips.unshift(["Rain frozen · "+sh,"At this speed each drop barely moves while the shutter is open, so the rain hangs in the air as beads."]);
       else if(ts>=1/30-1e-6) tips.unshift(["Rain streaks · "+sh,"The shutter stays open while the drops fall, so they draw lines. Go even slower and the rain turns into a soft blur."]);
       else tips.unshift(["Rain · "+sh,"Somewhere between frozen and streaked. Try 1/1000 and then 1/15 and compare the two."]); }
-    if(!tips.length) tips.push(["Balanced exposure","Your settings are balanced. Try changing one thing, like the aperture, shutter or ISO, and see what happens to your photo."]);
+    var ev=evStops, film=!!curBody().film;   /* exposure first: it's the one that ruins a photo */
+    if(Math.abs(ev)>0.4){ var over=ev>0, sw=(stopWords(ev).charAt(0)==="⅓"||stopWords(ev).charAt(0)==="⅔"?"":"about ")+stopWords(ev);
+      tips.unshift([(over?"Overexposed · ":"Underexposed · ")+evText(ev),"That's "+sw+(over?" over":" under")+". Try "+(over?"a faster shutter, a smaller aperture"+(film?"":" or a lower ISO"):"a slower shutter, a wider aperture"+(film?"":" or a higher ISO"))+"."+(film?" The ISO is fixed for this roll.":"")]); }
+    else if(!tips.length) tips.push(["Good exposure · "+evText(ev),"Your exposure is spot on. Try changing one thing, like the aperture, shutter or ISO, and balance it with another to see what happens to your photo."]);
     if(viewfinderOn && typeof vfToast==="function") vfToast(tips[0][1]); else showTip(tips[0][0], tips[0][1]); }
 
   // ---- first-run tutorial (coach-marks) ----
@@ -749,8 +859,8 @@
     {ico:'<span class="kc"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span>', s:"Walk through it", b:"W A S D to move, E and Q for up and down, and hold Shift to move faster."},
     {ico:'<span class="kc"><kbd>P</kbd></span>', s:"Raise the camera", b:"Press P to raise the camera to your eye and you'll see the viewfinder."},
     {ico:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="12" width="38" height="28" rx="3"/><path d="M5 21.3h38M5 30.6h38M17.6 12v28M30.3 12v28"/></svg>', s:"Frame and shoot", b:"Aim, then click or press Enter to take the shot. Press G to cycle composition guides like the rule of thirds."},
-    {ico:'<span class="kc"><kbd style="min-width:72px">Space</kbd></span>', s:"Flip the camera", b:"Press Space to flip to the camera back. Click or drag shutter, aperture and ISO and watch the meter. Press B for the camera bag to change body or lens."},
-    {ico:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="9" width="24" height="18" rx="2"/><rect x="17" y="20" width="25" height="17" rx="2"/></svg>', s:"Make something", b:"Your photos save automatically. Open Photo studio from the hub to build a folio, a photobook or a gallery show."}
+    {ico:'<span class="kc"><kbd style="min-width:72px">Space</kbd></span>', s:"Open the menu", b:"Press Space to open the menu. Choose Settings to change shutter, aperture and ISO and watch the meter, or Bag to change body or lens. Space again takes you back to the scene."},
+    {ico:'<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="9" width="24" height="18" rx="2"/><rect x="17" y="20" width="25" height="17" rx="2"/></svg>', s:"Make something", b:"Your photos save automatically. Open the Studio from the hub to build a folio, a photobook or a gallery show."}
   ];
   var tutI=0;
   function tutSeen(){ try{ return localStorage.getItem("splat_tut_v1")==="1"; }catch(e){ return false; } }
@@ -824,17 +934,19 @@
     if(!loaded) return;
     if(!viewfinderOn){ raiseCamera(); return; }        // first press raises the camera
     var keepS=dyn.scale, full=dynMax(); if(keepS<full) setScale(full);   // the photo is always taken at full resolution
-    var keepE=fx.exposure; fx.exposure=expMult; CH.capturing=true; renderFrame(0); CH.capturing=false;   // challenge frames never end up in the photo   // the sensor always records the real exposure, even when an optical finder hid it
+    var ts=SHUTTERS[shIdx], wN=typeof weWindSteps==="function"?weWindSteps(ts):0;   /* wind and a slow shutter: the leaves move while it's open */
+    var keepE=fx.exposure; fx.exposure=expMult; CH.capturing=true; if(wN) weExposureAt(0,ts); renderFrame(0); CH.capturing=false;   /* challenge frames never end up in the photo; the sensor always records the real exposure, even when an optical finder hid it */
     lastShake=Math.min(0.06, shakeAmount()*Math.exp(gauss()*0.35));   // some slow shots come out sharper than others
-    var url; try{ url=captureAspect(curAspect(), lastShake); }catch(e){ fx.exposure=keepE; if(keepS<full) setScale(keepS); toast("Couldn't capture this shot."); return; }
-    fx.exposure=keepE; if(keepS<full) setScale(keepS);
+    var wAt=wN?function(j){ CH.capturing=true; weExposureAt(j/(wN-1),ts); renderFrame(0); CH.capturing=false; }:null;
+    var url; try{ url=captureAspect(curAspect(), lastShake, wN, wAt); }catch(e){ CH.capturing=false; if(wN) weExposureEnd(); fx.exposure=keepE; if(keepS<full) setScale(keepS); toast("Couldn't capture this shot."); return; }
+    if(wN) weExposureEnd(); fx.exposure=keepE; if(keepS<full) setScale(keepS);
     var brf=activeBrief>=0?BRIEFS[activeBrief]:null;
     photos.push({url:url,t:new Date(),f:APERTURES[apIdx],sh:SHUTTER_LABELS[shIdx],iso:ISOS[isoIdx],mm:focalMM,body:curBody().name,lens:lensId,brief:brf?brf.t:null,place:cbPlace,shake:+lastShake.toFixed(4), ev:+evStops.toFixed(2), light:qCaptureLight(), cap:achCapture()});
     chOnShot(photos[photos.length-1]); achShot(photos[photos.length-1]);
     if(brf){ briefDone[brf.id]=(briefDone[brf.id]||0)+1; buildBriefList(); }
     refreshCount(); fireFlash(); shutterSound(); captureFX(url); vfRefresh();
     if(brf) toast("“"+brf.t+"” captured ✓");
-    if(curBody().film){ var onBody=photos.filter(function(p){ return p.body===curBody().name; }).length; if(onBody%(curBody().roll||10)===0) toast("Roll finished. A fresh roll is loaded."); }
+    if(curBody().film){ var onBody=photos.filter(function(p){ return p.body===curBody().name; }).length; if(onBody%(curBody().roll||10)===0) toast("Roll finished. A fresh roll is loaded: choose its ISO on the camera back before the first frame."); computeCam(); }
     photoTip(); saveSession();
   }
   if(/[?&]dev/.test(location.search)) document.body.classList.add("dev");   /* OPEN A SCAN and HIDE FRAMES live in the top bar for Sam, not for students */
@@ -1111,7 +1223,7 @@
   if($("tutNext")) $("tutNext").onclick=function(){ if(tutI>=TUT.length-1) endTutorial(); else { tutI++; renderTut(); } };
   if($("tutBack")) $("tutBack").onclick=function(){ if(tutI>0){ tutI--; renderTut(); } };
   if($("tutSkip")) $("tutSkip").onclick=endTutorial;
-  if($("btnHelp")) $("btnHelp").onclick=function(){ if(typeof qMode==="function"&&qMode()) qLogOpen(); else toast("Click to look around · P raises the camera · Space for the kit"); };
+  if($("btnHelp")) $("btnHelp").onclick=function(){ if(typeof qMode==="function"&&qMode()) qLogOpen(); else toast("Click to look around · P raises the camera · Space for the menu"); };
   $("mAp").addEventListener("input",function(){ apIdx=+this.value; computeCam(); });
   $("mSh").addEventListener("input",function(){ shIdx=+this.value; computeCam(); });
   $("mIso").addEventListener("input",function(){ isoIdx=+this.value; computeCam(); });
@@ -1203,7 +1315,7 @@
   document.addEventListener("contextmenu",function(e){ if(rcScene()) e.preventDefault(); });
   document.addEventListener("pointerlockchange",function(){ looking=(document.pointerLockElement===renderer.domElement); if(!looking) lowerCamera(); updateCrosshair(); updatePrompt(); });
   document.addEventListener("mousemove",function(e){ if(!looking||chHold()) return; var fb=(viewfinderOn?curBody().finder:""), ys=(fb==="waist"||fb==="ground")?-1:1, ps=(fb==="ground")?-1:1; yaw-=e.movementX*sens*ys; var dp=e.movementY*sens*ps; pitch+=invertY?dp:-dp; var lim=1.553; if(pitch>lim)pitch=lim; if(pitch<-lim)pitch=-lim; });
-  document.addEventListener("wheel",function(e){ if(!looking||menuOpen()) return; e.preventDefault(); var nv=Math.max(1,Math.min(100,Math.round(moveScale*100)+(e.deltaY<0?6:-6))); moveScale=nv/100; if($("mSpeed")){$("mSpeed").value=nv;$("mSpeedVal").textContent=nv;} },{passive:false});
+  document.addEventListener("wheel",function(e){ if(!looking||menuOpen()) return; e.preventDefault(); },{passive:false});   /* walking: scroll does nothing (it used to change speed without telling you); the viewfinder's own wheel zooms (finder.js), speed is the slider */
 
   // ---- keyboard ----
   window.addEventListener("keydown",function(e){

@@ -94,7 +94,8 @@
 
   // ---- the far-side view ----
   var _flip=new THREE.Matrix4().makeRotationY(Math.PI);
-  function ptXf(from,to){ return to.matrixWorld.clone().multiply(_flip).multiply(from.matrixWorld.clone().invert()); }
+  var _ptFr=new THREE.Frustum(), _ptM=new THREE.Matrix4(), _ptSph=new THREE.Sphere(), _ptDir=new THREE.Vector3(), _ptV=new THREE.Vector3(), _ptX=new THREE.Matrix4(), _ptInv=new THREE.Matrix4();   /* reused every frame */
+  function ptXf(from,to){ return _ptX.copy(to.matrixWorld).multiply(_flip).multiply(_ptInv.copy(from.matrixWorld).invert()); }
   function ptRender(){ if(!PT.on||!PT.o||!viewer) return; var now=performance.now(), t=(now-PT.t0)/1000;
     if(PT.state==="opening"){ var k=Math.min(1,Math.max(0,(t-0.55)/1.1)); PT.open=k<1?(1-Math.pow(1-k,3))*(1+0.06*Math.sin(k*9.0)*(1-k)):1; if(k>=1) PT.state="open"; }
     else if(PT.state==="closing"){ var c=Math.min(1,(now-PT.closeT)/900); PT.open=(PT.closeFrom||1)*(1-c*c); if(c>=1){ ptDispose(); return; } }
@@ -102,16 +103,16 @@
     u.disk.material.uniforms.time.value=t; u.disk.material.uniforms.open.value=PT.open; u.glow.material.uniforms.time.value=t; u.glow.material.uniforms.open.value=PT.open;
     u.sp.material.uniforms.time.value=t; u.sp.material.uniforms.open.value=PT.open; u.sp.material.uniforms.swirl.value=swirl;
     var s=ptScale(), vis=PT.open>0.02&&PT.o.position.distanceTo(camera.position)<80*s;
-    if(vis){ var fr=new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse)); vis=fr.intersectsSphere(new THREE.Sphere(PT.o.position,PT_R*s*1.4)); }
+    if(vis){ _ptM.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse); _ptFr.setFromProjectionMatrix(_ptM); _ptSph.center.copy(PT.o.position); _ptSph.radius=PT_R*s*1.4; vis=_ptFr.intersectsSphere(_ptSph); }
     PT.live=vis; u.disk.material.uniforms.live.value=vis?1:0; if(!vis) return;
-    var sz=new THREE.Vector2(sceneRT.width,sceneRT.height), w=Math.max(2,Math.round(sz.x*0.6)), h=Math.max(2,Math.round(sz.y*0.6));
+    var w=Math.max(2,Math.round(sceneRT.width*0.6)), h=Math.max(2,Math.round(sceneRT.height*0.6));
     if(!PT.rt) PT.rt=new THREE.WebGLRenderTarget(w,h,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter,depthBuffer:true}); else if(PT.rt.width!==w||PT.rt.height!==h) PT.rt.setSize(w,h);
     if(!PT.spark) PT.spark=new SPARK.SparkRenderer({renderer:renderer});
     var main=viewer.spark, B=PT.spark; B.lodSplatScale=main.lodSplatScale; B.maxStdDev=main.maxStdDev; B.apertureAngle=0;
     if(!PT.cam) PT.cam=camera.clone(); var c2=PT.cam; c2.fov=camera.fov; c2.aspect=camera.aspect; c2.far=camera.far;
     camera.updateMatrixWorld(true); var M=ptXf(PT.o,PT.far).multiply(camera.matrixWorld); M.decompose(c2.position,c2.quaternion,c2.scale); c2.scale.set(1,1,1);
     // the near plane sits just short of the far end, so nothing behind it (from there) gets in the way
-    var dir=new THREE.Vector3(); c2.getWorldDirection(dir); var dep=PT.far.position.clone().sub(c2.position).dot(dir); c2.near=Math.max(camera.near,dep-PT_R*s*1.4);
+    var dir=c2.getWorldDirection(_ptDir), dep=_ptV.copy(PT.far.position).sub(c2.position).dot(dir); c2.near=Math.max(camera.near,dep-PT_R*s*1.4);
     c2.updateProjectionMatrix(); c2.updateMatrixWorld(true);
     var keep=renderer.getRenderTarget(); PT.o.visible=false; renderer.setRenderTarget(PT.rt); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
     wxSkyFor(c2.position); try{ B.render(scene,c2); }catch(e){ if(!ptRender.warned){ ptRender.warned=1; console.warn("portal pass",e); } }

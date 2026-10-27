@@ -10,7 +10,7 @@
   var CO={tour:null, i:0, on:false, s:{}, keys:{}, look:0, walked:0, lx:null, lz:null, lyaw:null, done:false, raf:0, html:"", okT:0, t0:0, seen:-1};
   function coK(k){ return '<kbd data-co-k="'+k+'"'+(CO.keys[k]?' class="on"':'')+'>'+k+'</kbd>'; }
   function coPickN(){ return qDemo()?5:8; }
-  function coPicks(){ return photos.filter(function(p){ return p.pick; }).length; }
+  function coPicks(){ return photos.filter(function(p){ return p.pick&&!p.research; }).length; }   /* your own picks: research frames don't count */
   function coEdIdx(){ return typeof devOpenIdx==="function"?devOpenIdx():-1; }
   function coInEditor(){ return typeof editor!=="undefined"&&editor&&!editor.classList.contains("hidden")&&!!edState; }
   // open a Develop panel section and bring it into view
@@ -144,7 +144,7 @@
         start:function(){ CO.s.af=afLocks; }, done:function(){ return afLocks>CO.s.af; }, need:"vf"},
       {ch:"SHOOT", line:function(){ return '<kbd>CLICK</kbd> to take a photo'; }, sub:"Anything you like. It goes into your studio.",
         start:function(){ CO.s.n=photos.length; }, done:function(){ return photos.length>CO.s.n; }, need:"vf"},
-      {ch:"BAG", line:function(){ return coK("SPACE")+' opens your kit: choose <b>Bag</b>'; }, sub:"Or press "+coK("2")+" once the kit is open. You can swap cameras and lenses in here.",
+      {ch:"BAG", line:function(){ return coK("SPACE")+' opens the menu: choose <b>Bag</b>'; }, sub:"Or press "+coK("2")+" once the menu is open. You can swap cameras and lenses in here.",
         kit:"bag", done:function(){ return bg.open; }},
       {ch:"BAG", line:function(){ return 'Click the <b>APS-C mirrorless</b>'; }, sub:"Its smaller sensor crops every lens 1.6× tighter.",
         target:'#bag [data-bg-body="ml"]', done:function(){ return bg.body==="ml"; }, need:"bag"},
@@ -157,7 +157,7 @@
         target:'#bag [data-bg="done"]', done:function(){ return bg.stage==="choose"&&lensId===bg.lens; }, need:"lens"},
       {ch:"BAG", line:function(){ return coK("SPACE")+' closes the bag'; }, sub:"",
         done:function(){ return !bg.open; }},
-      {ch:"SETTINGS", line:function(){ return coK("SPACE")+' opens your kit: choose <b>Settings</b>'; }, sub:"The back of the camera: shutter, aperture and ISO.",
+      {ch:"SETTINGS", line:function(){ return coK("SPACE")+' opens the menu: choose <b>Settings</b>'; }, sub:"The back of the camera: shutter, aperture and ISO.",
         kit:"back", done:function(){ return cbOpen; }},
       {ch:"SETTINGS", media:"shutter", info:true, need:"back", line:function(){ return 'The <b>shutter speed</b> is how long the camera looks'; },
         sub:"Fast, like 1/1000, freezes everything but lets in less light. Slow, like 1/15, lets in lots of light, but any wobble in your hands smears the photo. With a longer lens you need a faster shutter."},
@@ -185,7 +185,7 @@
       {ch:"CHOOSE", line:function(){ return '<b>Reject</b> the ones you won\'t use'; }, sub:"Click a weaker photo first, then Reject (or press X). It's struck out and stays in your studio.",
         target:'#st-select [data-st-act="reject"]', place:"column", start:function(){ CO.s.r=photos.filter(function(p){ return p.reject; }).length; }, done:function(){ return photos.filter(function(p){ return p.reject; }).length>CO.s.r; }},
       {ch:"CHOOSE", line:function(){ return 'Now pick your best <b>'+coPickN()+'</b>'; }, sub:"Click a photo, then Pick. Click Pick again to change your mind.",
-        target:'#st-select .st-loupe .brief', place:"column", nodim:true, done:function(){ return coPicks()===coPickN(); }, bar:function(){ return coPicks()/coPickN(); }}]},
+        target:'#st-select .st-loupe .brief', place:"column", nodim:true, done:function(){ return coPicks()>=coPickN(); }, bar:function(){ return coPicks()/coPickN(); }}]},
     // One photo, every slider to a gold mark (the photo stays bright, and it only ticks once you let go on the mark),
     // then the image resets and it's yours: edit, Copy, next photo, Paste, and the rest of the picks.
     edit:{where:coInEditor, nodim:true, steps:[
@@ -344,7 +344,7 @@
       {ch:"SHOOT", line:function(){ return '<b>Right-click</b> to raise the camera and take the frame'; }, sub:"Shooting into the sun, so watch for flare and meter for the stump, not the sky.",
         start:function(){ CO.s.n=photos.length; }, done:function(){ return photos.length>CO.s.n; }}]},
     artist:{where:function(){ return coRoom("research")||coRoom("workshop"); }, steps:[
-      {ch:"CHOOSE", line:function(){ return 'Open <b>See all the photos</b>'; }, sub:"The library: every photograph from every photographer, with a folder for each down the side.",
+      {ch:"CHOOSE", line:function(){ return 'Open <b>See all the photos</b>'; }, sub:"The archive: every photograph from every photographer, with a folder for each down the side.",
         target:function(){ return document.querySelector('#st-research [data-rs-act="all"]')||document.querySelector('#st-research [data-rs-act="cull"]'); }, done:function(){ return rs.view==="all"; }},
       {ch:"CHOOSE", line:function(){ return 'Choose <b>'+rsAmNeed()+' photographs</b> that show how a photographer works'; }, sub:"This photographer, or a mix from the folders on the left. Look for what keeps coming back: the light, the colour, where they stand, what they leave out.",
         target:'#st-research .rs-mgrid', nodim:true, place:"bottom", done:function(){ return rs.view==="all"&&(rs.am||[]).length>=rsAmNeed(); }, bar:function(){ return (rs.am||[]).length/Math.max(1,rsAmNeed()); }},
@@ -384,10 +384,12 @@
       e.addEventListener("click",function(ev){ if(ev.target.closest("[data-co-skipall]")){ ev.stopPropagation(); coFinish(true); return; }
         if(ev.target.closest("[data-co-skip]")){ ev.stopPropagation(); coSkipStep(); }
         if(ev.target.closest("[data-co-next]")){ ev.stopPropagation(); CO.s.ok=true; } }); } return e; }
-  function coStart(tour){ tour=tour||"basics"; if(CO.on&&CO.tour===tour) return; if(CO.on) coStop(); CO.ticking=false;
+  /* replay: a done tour from the top. A prompt whose goal is already met when it shows waits for GOT IT instead of ticking itself */
+  function coStart(tour, replay){ tour=tour||"basics"; if(CO.on&&CO.tour===tour&&!replay) return; if(CO.on) coStop(); CO.ticking=false; CO.replay=!!replay; if(replay) Q.tourStep[tour]=0;
     CO.tour=tour; CO.on=true; CO.done=false; CO.skipped=0; if(Q.tours[tour]&&(Q.tourStep[tour]||0)>=coLen(tour)) Q.tourStep[tour]=0; CO.i=Q.tourStep[tour]||0; CO.look=0; CO.walked=0; CO.lx=null; CO.seen=-1; coEnter(); coLoop(); }
   function coMultiOff(){ Array.prototype.forEach.call(document.querySelectorAll('.co-multi,.co-float'),function(e){ e.classList.remove('co-multi','co-float'); }); }
-  function coEnter(){ coUnmark(); coMultiOff(); if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); if(typeof cbRender==="function") cbRender(); } var s=coSteps()[CO.i]; CO.s={}; CO.keys={}; CO.t0=performance.now(); CO.seen=-1; CO.lockTo=s&&s.info?CO.t0+READ_MS:0; if(s&&s.start) s.start(); CO.html=""; }
+  function coEnter(){ coUnmark(); coMultiOff(); if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); if(typeof cbRender==="function") cbRender(); } var s=coSteps()[CO.i]; CO.s={}; CO.keys={}; CO.t0=performance.now(); CO.seen=-1; CO.lockTo=s&&s.info?CO.t0+READ_MS:0; if(s&&s.start) s.start(); CO.html="";
+    if(CO.replay&&s&&!s.info&&!s.click&&s.done){ var met=false; try{ met=!!s.done(); }catch(e){} if(met){ CO.s.pre=true; CO.lockTo=CO.t0+Math.min(READ_MS,1500); } } }
   function coStop(){ coMultiOff(); document.body.classList.remove("co-golden"); if(typeof RL!=="undefined"&&(RL.spots||RL.want)){ RL.spots=null; RL.want=null; if(typeof rlPlanUI==="function"){ rlPlanUI(); rlPanel(); } } if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); } setTimeout(function(){ if(typeof chMarkers==="function") chMarkers(); },0); coUnmark(); if(CO.tgt){ CO.tgt.classList.remove("co-target"); CO.tgt=null; } CO.on=false; document.body.removeAttribute("data-co-kit"); document.body.classList.remove("co-lens"); cancelAnimationFrame(CO.raf); var e=$("coCard"), r=$("coRing"); if(e) e.classList.remove("show","media"); if(r) r.classList.remove("show"); document.body.classList.remove("co-on","co-dial"); }
   /* SKIP moves past one prompt, not the whole tour: one click on the first step used to throw the warm-up away. Skip all is offered once you've skipped a step */
   function coSkipStep(){ if(!CO.on||CO.ticking) return; CO.skipped=(CO.skipped||0)+1; coUnmark(); CO.i++; Q.tourStep[CO.tour]=CO.i; qSave(); if(CO.i>=coSteps().length) coFinish(false); else coEnter(); }
@@ -403,7 +405,7 @@
     if(CO.lx!=null&&!(CH.pull>=0)){ var d=Math.hypot(camPos.x-CO.lx,camPos.z-CO.lz); if(d<0.5) CO.walked+=d; } CO.lx=camPos.x; CO.lz=camPos.z;
     var s=coSteps()[CO.i]; if(!s){ coFinish(false); return; }   // each prompt stays up long enough to read (dwell) before it ticks
     if(CO.seen!==CO.i){ CO.seen=CO.i; CO.lockTo=s.info?performance.now()+READ_MS:0; if(s.prep) s.prep(); }   // the read timer starts when the card first shows
-    var isDone=(s.info||s.click)?CO.s.ok:s.done();
+    var isDone=(s.info||s.click||CO.s.pre)?CO.s.ok:s.done();
     if(!CO.ticking&&performance.now()-CO.t0>(s.info?0:(s.dwell||900))&&isDone){ coTicked(); return; }   // one tick per prompt, however late the timer runs
     coRender(s); }
   function coTicked(){ CO.ticking=true; var e=coEl(); e.classList.add("ok"); setTimeout(function(){ CO.ticking=false; e.classList.remove("ok"); CO.i++; Q.tourStep[CO.tour]=CO.i; qSave();
@@ -421,9 +423,9 @@
     var html='<div class="co-top">'+chs.map(function(c){ var on=c.ch===s.ch, past=CO.i>c.first&&!on; return '<span class="co-ch'+(on?' on':'')+(past?' past':'')+'">'+c.ch+'</span>'; }).join('<i></i>')
       +(CO.skipped?'<button class="co-skip all" data-co-skipall title="Skip the rest of this tour">SKIP ALL</button>':'')+'<button class="co-skip" data-co-skip title="Skip this step">SKIP STEP</button></div>'
       +(s.media&&!pre?'<canvas class="co-media" data-co-media="'+s.media+'"></canvas>':'')
-      +'<div class="co-line">'+(pre||s.line())+'</div>'+((pre?'':s.sub)?'<div class="co-sub">'+s.sub+'</div>':'')
+      +'<div class="co-line">'+(pre||s.line())+'</div>'+((pre?'':s.sub)?'<div class="co-sub">'+s.sub+'</div>':'')+(!pre&&CO.s.pre?'<div class="co-sub co-again">You\'ve already done this one. Have another go, or press GOT IT.</div>':'')
       +'<div class="co-foot"><div class="co-dots">'+inCh.map(function(_,j){ return '<i class="'+(j<k?'d':j===k?'c':'')+'"></i>'; }).join("")+'</div>'
-      +(s.info?(performance.now()<CO.lockTo?'<button class="co-next rl" data-co-next disabled style="--rl:'+Math.round(CO.lockTo-performance.now())+'ms">GOT IT ›</button>':'<button class="co-next" data-co-next>GOT IT ›</button>'):'')+'</div>'
+      +((s.info||CO.s.pre)?(performance.now()<CO.lockTo?'<button class="co-next rl" data-co-next disabled style="--rl:'+Math.round(CO.lockTo-performance.now())+'ms">GOT IT ›</button>':'<button class="co-next" data-co-next>GOT IT ›</button>'):'')+'</div>'
       +(b!=null?'<div class="co-bar"><b style="width:'+(b*100).toFixed(0)+'%"></b></div>':'');
     if(html!==CO.html){ e.innerHTML=html; CO.html=html; }
     if(CO.riseI!==CO.i||CO.riseT!==CO.tour){ CO.riseI=CO.i; CO.riseT=CO.tour; e.classList.add("rise"); clearTimeout(CO.riseTm); CO.riseTm=setTimeout(function(){ e.classList.remove("rise"); },900); }   /* a new prompt rises in; edits to the same prompt don't */

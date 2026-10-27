@@ -2,7 +2,7 @@
   // The darkroom. Rooms in workflow order: Select, Edit, Workbook, Folio, Book, Gallery (Q / E to switch, Esc back
   // to the location). Edit hosts the develop panel under the studio bar; every other room is drawn here, and
   // Gallery's "walk the show" opens the 3D gallery show.
-  var ST_ROOMS=[["research","Research"],["select","Select"],["edit","Edit"],["table","Table"],["workshop","Workbook"],["folio","Folio"],["book","Book"],["gallery","Gallery"]];
+  var ST_ROOMS=[["research","Research"],["select","Library"],["edit","Edit"],["table","Light table"],["workshop","Workbook"],["folio","Folio"],["book","Book"],["gallery","Gallery"]];
   var st={open:false, room:"select", cur:-1, cols:4, wsPages:[], wsBoard:null, foBoard:null, projects:[], lightTable:null, thumb:"m", hideRej:false, cmp:-1};
 
   function stPencil(seed){   // a loose grease-pencil loop on a superellipse, overshooting where it started
@@ -47,7 +47,7 @@
     bar.querySelector(".st-tabs").innerHTML=ST_ROOMS.map(function(r,i){ return '<button class="st-tab'+(r[0]===st.room?' on':'')+'" data-st-room="'+r[0]+'"><span class="n">0'+(i+1)+'</span>'+r[1]+'</button>'; }).join("");
     bar.querySelector(".st-sub").textContent=Object.keys(places).join(", ")+(photos.length?", "+photos.length+" frame"+(photos.length===1?"":"s"):"No frames yet");
     var hints={ select:[["← →","Move"],["P","Pick"],["X","Reject"],["1-5","Rate"],["V","Compare"],["Z","Full screen"],["Enter","Edit this frame"],["Q E","Rooms"]],
-      edit:[["\\","Before / after"],["⌘Z","Undo"],["Q E","Rooms"],["Esc","Back to Select"]],
+      edit:[["\\","Before / after"],["⌘Z","Undo"],["Q E","Rooms"],["Esc","Back to the library"]],
       table:[["B","Binder"],["Drag","Prints onto the board"],["Right-click","Options"],["Top edge","The wall"],["?","Tour"],["Q E","Rooms"]],
       workshop:[["Drag","Frames onto the page"],["Click","Write in a text box"],["Del","Remove"],["⌘D","Duplicate"],["⌘Z","Undo"],["Q E","Rooms"]],
       folio:[["Drag","Frames or folders into a section"],["⤢","Zoom into a section"],["Drag across","Select several"],["Del","Remove"],["⌘Z","Undo"],["Q E","Rooms"]],

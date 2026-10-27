@@ -17,8 +17,14 @@
     BND.mesh=new THREE.Mesh(geo,mat); BND.mesh.position.set(S[0], gy+1.8, S[1]); BND.mesh.frustumCulled=false; }
   function bndDispose(){ if(BND.mesh){ try{ BND.mesh.geometry.dispose(); BND.mesh.material.dispose(); }catch(e){} } BND.mesh=null; }
   // keep the camera inside the circle (slides along the edge); the walk map's own obstacles still apply
-  function bndClamp(){ if(!BND.on||!boundsOn) return false; var dx=camPos.x-BND.cx, dz=camPos.z-BND.cz, d=Math.hypot(dx,dz), lim=BND.r-0.15; if(d<=lim) return false;
-    camPos.x=BND.cx+dx/d*lim; camPos.z=BND.cz+dz/d*lim; var vr=(_vel.x*dx+_vel.z*dz)/d; if(vr>0){ _vel.x-=dx/d*vr; _vel.z-=dz/d*vr; } return true; }
+  // never into something solid: if the spot on the circle is blocked, step back in towards the middle until it's clear,
+  // and if nothing on that line is, stay where you were (prev, the position before this frame's move)
+  function bndClamp(px,pz){ if(!BND.on||!boundsOn) return false; var dx=camPos.x-BND.cx, dz=camPos.z-BND.cz, d=Math.hypot(dx,dz), lim=BND.r-0.15; if(d<=lim) return false;
+    var ux=dx/d, uz=dz/d, x=BND.cx+ux*lim, z=BND.cz+uz*lim;
+    if(WK.col&&typeof wkBlocked==="function"){ var feet=typeof wkFeet==="function"?wkFeet():camPos.y-1.6, ok=false;
+      for(var k=0;k<12;k++){ var r=lim-k*0.1; if(r<0) break; x=BND.cx+ux*r; z=BND.cz+uz*r; if(!wkBlocked(x,z,feet)){ ok=true; break; } }
+      if(!ok&&px!=null){ x=px; z=pz; } }
+    camPos.x=x; camPos.z=z; var vr=_vel.x*ux+_vel.z*uz; if(vr>0){ _vel.x-=ux*vr; _vel.z-=uz*vr; } return true; }
   function bndRender(dt){ if(!BND.on||!BND.mesh||viewfinderOn&&CH.capturing) return; var d=Math.hypot(camPos.x-BND.cx,camPos.z-BND.cz); var edge=BND.r-d; if(edge>1.8) BND.snd=false; else if(edge<1.0&&!BND.snd){ BND.snd=true; sfx("bounds"); } if(edge>2.4) return;   /* nowhere near it: draw nothing */
     var u=BND.mesh.material.uniforms; u.eye.value.copy(camPos); u.t.value+=dt||0.016;
     var ac=renderer.autoClear; renderer.autoClear=false; renderer.render(BND.mesh, camera); renderer.autoClear=ac; }

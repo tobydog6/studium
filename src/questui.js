@@ -36,10 +36,30 @@
   function qNextStep(id){ var st0=qSteps(id); for(var i=0;i<st0.length;i++) if(!st0[i].ok) return st0[i]; return null; }
   function qGoQuest(id){ var x=qGet(id), s=qNextStep(id); qGoDest(s?s.go:x.go); }
   // "Show me how": go where the tour lives, then run it once its place is open
-  function qHow(){ var id=Q.tracked, s=id&&qNextStep(id); if(!s||!s.tour){ toast("No tour for this step. Have a go, the checklist ticks itself."); return; } var tour=s.tour;
-    if(CO.on) coStop(); if(tour==="lighttable"){ qGoDest("table"); if(typeof ltTour==="function") ltTour(); return; }
-    if(tour==="lightrig"||tour==="lighting"){ tour="lightrig"; qGoDest("scene"); var t0=Date.now(); (function w(){ if(loaded&&App.is("scene")){ if(!RL.ui) rlOpen(); setTimeout(function(){ coStart(tour); },400); return; } if(Date.now()-t0<20000) setTimeout(w,300); })(); return; }
-    qGoDest(s.go); var T=CO_TOURS[tour], t1=Date.now(); (function wait(){ if(T&&T.where()){ coStart(tour); return; } if(Date.now()-t1<20000) setTimeout(wait,300); })(); }
+  function qHow(){ var id=Q.tracked, s=id&&qNextStep(id); if(!s||!s.tour){ toast("No tour for this step. Have a go, the checklist ticks itself."); return; } qRunTour(s.tour, s.go, false); }
+  /* go where a tour lives, then start it once its place is open. replay: from the top, without ticking past what's already done */
+  function qRunTour(tour, go, replay){ if(CO.on) coStop(); if(tour==="lighttable"){ qGoDest("table"); if(typeof ltTour==="function") ltTour(); return; }
+    if(tour==="lightrig"||tour==="lighting"){ tour="lightrig"; qGoDest("scene"); var t0=Date.now(); (function w(){ if(loaded&&App.is("scene")){ if(!RL.ui) rlOpen(); setTimeout(function(){ coStart(tour, replay); },400); return; } if(Date.now()-t0<20000) setTimeout(w,300); })(); return; }
+    qGoDest(go); var T=CO_TOURS[tour], t1=Date.now(); (function wait(){ if(T&&T.where()){ coStart(tour, replay); return; } if(Date.now()-t1<20000) setTimeout(wait,300); })(); }
+
+  // ---- replay: walk a finished quest's steps again from the top. It only reads: completion, achievements and photos stay as they are ----
+  function qReplay(id){ var x=qGet(id); if(!x||!qIsDone(id)) return; qMorphHide(); qLogClose(); qDoneClose(); if(typeof CO!=="undefined"&&CO.on) coStop();
+    QU.replay={id:id, i:0, run:null}; sfx("qPick"); toast("Replaying "+x.title+". Your progress is safe."); qReplayGo(0); }
+  function qReplayStep(){ var r=QU.replay, x=r&&qGet(r.id); return x?x.steps[r.i]||null:null; }
+  function qReplayGo(i){ var r=QU.replay, x=r&&qGet(r.id); if(!x) return; if(i>=x.steps.length){ qReplayEnd(true); return; } r.i=i; r.run=null; r.seen=false; var s0=x.steps[i];
+    if(s0.tour){ r.run=s0.tour; QU.hudHtml=""; qRunTour(s0.tour, s0.go||x.go, true); } else qGoDest(s0.go||x.go); qHud(); }
+  function qReplayEnd(fin){ var r=QU.replay; QU.replay=null; if(r&&r.run&&typeof CO!=="undefined"&&CO.on) coStop();
+    var rx=r&&qGet(r.id); if(rx) rx.steps.forEach(function(s0){ var tn=s0.tour==="lighting"?"lightrig":s0.tour; if(tn&&Q.tours[tn]&&typeof coLen==="function") Q.tourStep[tn]=coLen(tn); }); qSave();   /* a replay stopped halfway leaves done tours marked done */ if(fin&&r){ var x=qGet(r.id); toast("That's the whole of "+(x?x.title:"the quest")+" again. Nothing you'd done has changed."); } qHud(); }
+  /* a replayed tour that ends (finished or skipped) moves the replay on to the next step's card */
+  function qReplayWatch(){ var r=QU.replay; if(!r||!r.run) return; if(typeof CO!=="undefined"&&CO.on&&CO.tour===(r.run==="lighting"?"lightrig":r.run)){ r.seen=true; return; }
+    if(r.seen||r.run==="lighttable"){ if(r.run==="lighttable") return; r.run=null; r.seen=false; r.i++; var x=qGet(r.id); if(x&&r.i>=x.steps.length) qReplayEnd(true); else qHud(); } }
+  function qReplayHud(){ var r=QU.replay, x=qGet(r.id), cur=x.steps[r.i];
+    return '<div class="hd"><span class="k"><em class="q-rpk">REPLAY</em>'+qEsc(x.title.toUpperCase())+'</span><span class="fr">'+Math.min(r.i+1,x.steps.length)+' / '+x.steps.length+'</span><button class="q-logb" data-q="rpend" title="End the replay">END</button></div>'
+      +'<div class="q-sub"><span>YOUR PROGRESS IS SAFE</span></div>'
+      +x.steps.map(function(c,j){ return '<div class="ck q-rpck'+(j<r.i?' ok':'')+(j===r.i?' cur':'')+'"><i>'+(j<r.i?'✓':j===r.i?'›':'')+'</i><span>'+qEsc(c.t)+'</span></div>'; }).join("")
+      +(cur&&cur.tour&&cur.tour!=="lighttable"?'<button class="q-how" data-q="rphow">Show me '+qEsc(Q_TOUR_NAMES[cur.tour]||cur.tour)+' again ›</button>':cur&&cur.tour?'<button class="q-how" data-q="rphow">Open '+qEsc(Q_TOUR_NAMES[cur.tour]||cur.tour)+' ›</button>':cur?'<button class="q-how" data-q="rpgo">Take me there ›</button>':'')
+      +'<div class="q-rpacts">'+(r.i>0?'<button class="q-rpb" data-q="rpprev">‹ Back</button>':'<span></span>')+'<button class="q-rpb on" data-q="rpnext">'+(r.i+1<x.steps.length?'Next step ›':'Finish replay ›')+'</button></div>'
+      +'<div class="bar"><b style="width:'+((r.i)/x.steps.length*100).toFixed(0)+'%"></b></div>'; }
 
   // ---- the quest board: rows of three. One tile per quest; a row opens when the row above is done. Click a tile for its page. ----
   function qTile(x){ var s=qStatus(x.id), p=qProgress(x.id), lock=qLockReason(x), tr=Q.tracked===x.id, sug=!tr&&!lock&&s!=="done"&&(qSuggest()||{}).id===x.id, mins=x.mins?x.mins+" MIN":"";
@@ -49,7 +69,7 @@
     return '<button class="q-tile s-'+s+(tr?' tr':'')+(sug?' sug':'')+'"'+(lock&&!x.try?(tst?' aria-disabled="true"':' disabled'):' data-q-see="'+x.id+'"')+'>'+(tst?'<span class="q-test" data-q-test="'+x.id+'" title="Testing: skip ahead to the lighting rig">TEST</span>':'')
       +'<span class="q-tk">'+qPillarChip(x)+(mins?'<em>'+mins+'</em>':'')+'</span>'
       +'<b>'+qEsc(x.title)+'</b><p>'+qEsc(lock&&!x.try?lock:x.blurb)+'</p>'
-      +(x.try&&s!=="done"?'<span class="q-trychip" data-q-try="'+x.id+'" title="Open it now">TRY NOW ›</span>':'')+'<span class="q-tf"><span class="q-dots">'+dots+'</span><span class="q-tw">'+(s==="done"?'✓ ':'')+word+(s!=="done"&&!lock&&qState(x.id)?' · '+p.done+' / '+p.of:'')+'</span></span>'
+      +(x.try&&s!=="done"?'<span class="q-trychip" data-q-try="'+x.id+'" title="Open it now">TRY NOW ›</span>':'')+(s==="done"?'<span class="q-trychip q-rpchip" data-q-replay="'+x.id+'" title="Walk through its steps again">↻ REPLAY</span>':'')+'<span class="q-tf"><span class="q-dots">'+dots+'</span><span class="q-tw">'+(s==="done"?'✓ ':'')+word+(s!=="done"&&!lock&&qState(x.id)?' · '+p.done+' / '+p.of:'')+'</span></span>'
       +(s==="done"?'<span class="q-stamp">✓</span>':lock?'<span class="q-lockic">🔒</span>':'')+'</button>'; }
   function qBoardOpen(tab){ if(!qMode()) return; qDoneClose(); var el=gdEl("qLog","gd-pop q-pop"), wall=(tab||QU.tab)==="ach"&&typeof achWallHtml==="function"; QU.tab=wall?"ach":"q";
     if(typeof looking!=="undefined"&&looking){ try{ document.exitPointerLock(); }catch(e){} }
@@ -80,7 +100,9 @@
     var hub=$("hub"); if(hub&&!hub.classList.contains("hidden")) return false; if(typeof coActive==="function"&&coActive()) return false; return loaded||(typeof st!=="undefined"&&st.open); }
   function qHud(){ var el=gdEl("qHud","gd-track q-hud"); if(!qHudShow()){ el.classList.remove("show"); return; }
     var id=Q.tracked, x=id&&qGet(id), vf=typeof viewfinderOn!=="undefined"&&viewfinderOn, html;
-    if(!x){ var all=qAll().filter(function(y){ return y.type!=="side"; }), nd=all.filter(function(y){ return qIsDone(y.id); }).length; html='<button class="q-choose" data-q="log">YOUR QUESTS · '+nd+' / '+all.length+' ›</button>'; }
+    if(QU.replay&&!qGet(QU.replay.id)) QU.replay=null;
+    if(QU.replay){ html=qReplayHud(); x=true; }
+    else if(!x){ var all=qAll().filter(function(y){ return y.type!=="side"; }), nd=all.filter(function(y){ return qIsDone(y.id); }).length; html='<button class="q-choose" data-q="log">YOUR QUESTS · '+nd+' / '+all.length+' ›</button>'; }
     else { var st0=qSteps(id), d=st0.filter(function(s){ return s.ok; }).length, nx=qNextStep(id), how=nx&&nx.tour&&!coTourDone(nx.tour);
       var late=qDemo()&&nx;   /* in the demo any step can be skipped, so nobody gets stuck */
       html='<div class="hd"><span class="k">'+(qDemo()?'<em class="q-tm">'+qTook()+'</em>':'')+qEsc(x.title.toUpperCase())+'</span><span class="fr">'+d+' / '+st0.length+'</span><button data-q="how" title="Show me how">?</button><button class="q-logb" data-q="log" title="All your quests">QUESTS</button></div>'
@@ -138,10 +160,10 @@
     var to={x:(W-tw)/2,y:(H-th)/2,w:tw,h:th}, from=(r&&r.width>10)?{x:r.left,y:r.top,w:r.width,h:r.height}:{x:to.x+to.w*0.1,y:to.y+to.h*0.1,w:to.w*0.8,h:to.h*0.8};
     QM.id=id; QM.src=src||null; QM.from=from; var st=qSteps(id), lock=qLockReason(x), tr=Q.tracked===id, done=qIsDone(id), kind=qClipKind(x);
     e.innerHTML='<div class="qm-in"><div class="qm-media"><canvas class="qm-clip" data-qclip="'+kind+'"></canvas><span class="qm-cap">WHAT THIS QUEST LOOKS LIKE</span></div><div class="qm-text"><span class="qm-k">'+qPillars(x).map(function(p){ return ((PILLARS[p]||{}).n||p).toUpperCase(); }).join(" · ")+' · '+(x.type==="side"?"SIDE QUEST":x.type==="foundation"?"FOUNDATION":"QUEST")+(x.mins?' · '+x.mins+' MIN':'')+'</span>'
-      +'<h3>'+qEsc(x.title)+'</h3><p class="qm-p">'+qEsc(x.blurb)+'</p>'+(lock?'<p class="q-lock">'+qEsc(lock)+'</p>':'')
+      +'<h3>'+qEsc(x.title)+'</h3><p class="qm-p">'+qEsc(x.blurb)+'</p>'+(lock?'<p class="q-lock">'+qEsc(lock)+'</p>':'')+(done?'<p class="q-mk">Done. Replay walks you through its steps again, tours and all. Nothing you\'ve made or earned is reset.</p>':'')
       +'<div class="qm-steps">'+st.map(function(c){ return '<span><i class="'+(c.ok?'ok':'')+'">'+(c.ok?'✓':'')+'</i>'+qEsc(c.t)+'</span>'; }).join("")+'</div>'
       +(x.page?'<p class="q-mk">Makes: '+qEsc(Q_PAGE_NAMES[x.page]||x.page)+'</p>':'')
-      +'<div class="qm-acts">'+(x.try?'<button class="gd-go q-try" data-q-try="'+id+'">TRY NOW ›</button>':'')+(!lock&&!done?'<button class="gd-go" data-q-pick="'+id+'">'+(tr?'GO TO THIS QUEST ›':'TRACK THIS QUEST ›')+'</button>':'')+'<button class="gd-skip" data-qm-close>Back</button></div></div></div><button class="qm-x" data-qm-close title="Close">✕</button>';
+      +'<div class="qm-acts">'+(x.try?'<button class="gd-go q-try" data-q-try="'+id+'">TRY NOW ›</button>':'')+(!lock&&!done?'<button class="gd-go" data-q-pick="'+id+'">'+(tr?'GO TO THIS QUEST ›':'TRACK THIS QUEST ›')+'</button>':'')+(done?'<button class="gd-go" data-q-replay="'+id+'">↻ REPLAY THIS QUEST ›</button>':'')+'<button class="gd-skip" data-qm-close>Back</button></div></div></div><button class="qm-x" data-qm-close title="Close">✕</button>';
     e.style.transition="none"; qMorphBox(e,from); e.style.borderRadius="14px"; e.style.opacity=1; e.classList.add("on"); e.classList.remove("live"); if(src) src.style.visibility="hidden";
     requestAnimationFrame(function(){ requestAnimationFrame(function(){ var E="cubic-bezier(.2,.8,.2,1)"; e.style.transition="left .5s "+E+",top .5s "+E+",width .5s "+E+",height .5s "+E+",border-radius .5s"; qMorphBox(e,to); e.style.borderRadius="18px"; e.classList.add("live"); }); });
     QM.on=true; QM.t0=performance.now(); cancelAnimationFrame(QM.raf);
@@ -217,9 +239,10 @@
     else { qcImg(g,0,0,W,H); qcTag(g,"QUEST"); } }
 
   // ---- clicks ----
-  document.addEventListener("click",function(e){ var t=e.target.closest&&e.target.closest("[data-q],[data-q-pick],[data-q-open],[data-q-track],[data-q-see],[data-q-test],[data-q-try]"); if(!t) return; e.stopPropagation();
+  document.addEventListener("click",function(e){ var t=e.target.closest&&e.target.closest("[data-q],[data-q-pick],[data-q-open],[data-q-track],[data-q-see],[data-q-test],[data-q-try],[data-q-replay]"); if(!t) return; e.stopPropagation();
     if(t.closest(".q-tile[aria-disabled]")&&!e.target.closest("[data-q-test]")) return;
     if(e.target.closest("[data-q-test]")){ qTestLighting(); return; }
+    var rp=e.target.closest("[data-q-replay]"); if(rp){ qReplay(rp.getAttribute("data-q-replay")); return; }
     if(t.hasAttribute("data-q-try")){ var xt=qGet(t.getAttribute("data-q-try")); qMorphHide(); qPickClose(); qLogClose(); qDoneClose(); if(xt) qGoDest(xt.go); return; }
     if(t.hasAttribute("data-q-see")){ qMorphOpen(t.getAttribute("data-q-see"), t.classList.contains("q-tile")?t:t.closest(".q-tile")||t); return; }
     if(t.hasAttribute("data-q-pick")){ var id=t.getAttribute("data-q-pick"); qMorphHide(); qPickClose(); qLogClose(); qDoneClose(); if(qTrack(id)){ qFlash(8000); QU.seen[id]=qSteps(id).map(function(s){ return s.ok; }); qGoQuest(id); } return; }
@@ -230,6 +253,8 @@
     if(a==="skip"){ qPickClose(); return; } if(a==="log"){ qLogOpen(); return; } if(a==="closelog"){ qLogClose(); return; }
     if(a==="pick"){ qBoardOpen("q"); return; } if(a==="how"){ qHow(); return; }
     if(a==="closedone"){ qDoneClose(); return; } if(a==="restart"){ qDemoRestart(); return; } if(a==="explore"){ qDoneClose(); qGoDest("scene"); return; }
+    if(a==="rpend"){ qReplayEnd(false); return; } if(a==="rpnext"&&QU.replay){ if(CO.on) coStop(); qReplayGo(QU.replay.i+1); return; } if(a==="rpprev"&&QU.replay){ if(CO.on) coStop(); qReplayGo(Math.max(0,QU.replay.i-1)); return; }
+    if(a==="rphow"&&QU.replay){ qReplayGo(QU.replay.i); return; } if(a==="rpgo"&&QU.replay){ var rs0=qReplayStep(), rx=qGet(QU.replay.id); qGoDest((rs0&&rs0.go)||(rx&&rx.go)); return; }
     if(a==="skipstep"){ qSkipStep(); return; } if(a==="fbsend"){ qFeedbackSend(); return; } if(a==="next"){ qDoneClose(); qBoardOpen("q"); return; } if(a==="board"){ qBoardOpen("q"); return; } },true);
   window.addEventListener("keydown",function(e){ if(e.code!=="Escape") return; if(QU.log){ e.preventDefault(); e.stopImmediatePropagation(); qLogClose(); } else if(QU.pick){ e.preventDefault(); e.stopImmediatePropagation(); qPickClose(); } },true);
 
@@ -252,16 +277,16 @@
   setInterval(function(){ if(!qMode()){ document.body.classList.remove("q-on"); ["qHud","qPick","qLog","qDone"].forEach(function(k){ var e=$(k); if(e) e.classList.remove("show"); }); return; }
     var hub=$("hub"), atHub=App.is("hub")&&hub&&!hub.classList.contains("hidden");
     if(atHub&&!QU.wasHub) QU.hubAsked=false; QU.wasHub=atHub;
-    qMoment(); qAutoTour(); qHud(); document.body.classList.toggle("q-on", true); }, 700);
+    qReplayWatch(); qMoment(); qAutoTour(); qHud(); document.body.classList.toggle("q-on", true); }, 700);
   /* seamless: when the step you're on needs a tour you haven't done, it starts by itself (foundations, and the whole demo) */
   QU.auto={};
   var Q_NOAUTO=/[?&]noauto/.test(location.search);   /* scripted tests drive the tours themselves */
-  function qAutoTour(){ if(Q_NOAUTO||QU.moments.length||(typeof LA!=="undefined"&&(LA.on||LA.wcard))) return; var id=Q.tracked, x=id&&qGet(id); if(!x||!(qDemo()||x.type==="foundation")) return;
+  function qAutoTour(){ if(Q_NOAUTO||QU.replay||QU.moments.length||(typeof LA!=="undefined"&&(LA.on||LA.wcard))) return; var id=Q.tracked, x=id&&qGet(id); if(!x||!(qDemo()||x.type==="foundation")) return;
     if(QU.pick||QU.log||QU.done||qPlanLive()||(typeof CO!=="undefined"&&CO.on)||(typeof viewfinderOn!=="undefined"&&viewfinderOn)) return;
     if(App.is("hub")||App.is("signin")||App.is("landing")||App.is("teacher")) return; if(typeof ACHU!=="undefined"&&ACHU.full) return;
     var nx=qNextStep(id); if(!nx||!nx.tour||coTourDone(nx.tour)) return; var k=id+":"+nx.tour; if(QU.auto[k]) return; QU.auto[k]=1; qHow(); }
   if(/[?&]dev/.test(location.search)){ window.__qu={ board:function(){ qBoardOpen("q"); }, morph:function(id){ qMorphOpen(id); }, state:function(){ var el=$("qHud"); return {mode:qMode(), pick:QU.pick, log:QU.log, done:QU.done, hud:!!(el&&el.classList.contains("show")), mini:!!(el&&el.classList.contains("min")), moments:QU.moments.length, suggest:(qSuggest()||{}).id||null, how:!!(el&&el.querySelector(".q-how"))}; },
-    pick:qPickOpen, log:qLogOpen, how:qHow, closeAll:function(){ qPickClose(); qLogClose(); qDoneClose(); } }; }
+    pick:qPickOpen, log:qLogOpen, how:qHow, replay:qReplay, replayState:function(){ return QU.replay?{id:QU.replay.id, i:QU.replay.i, run:QU.replay.run}:null; }, closeAll:function(){ qPickClose(); qLogClose(); qDoneClose(); } }; }
 
   // the hub's "today" and the nav bar's task show the tracked quest when there's no live lesson plan
   var qHubBase=hubRender; hubRender=function(){ qHubBase.apply(this,arguments); var h=$("hub"); if(h) qHubRender(h); };
@@ -299,7 +324,7 @@
   var Q_FB_KEY="studium_demo_feedback";
   function qTook(){ var t0=Q.t0||Q.first, s=Math.max(0,Math.round(((Q.finished||Date.now())-t0)/1000)); return Math.floor(s/60)+" min"; }
   /* a fresh demo: the workspace empties in memory, demo state and the demo's saved session are cleared, real work stays saved */
-  function qDemoStart(){ if(!qDemo()&&typeof saveSessionNow==="function") saveSessionNow();
+  function qDemoStart(){ if(QU.replay) qReplayEnd(false); if(!qDemo()&&typeof saveSessionNow==="function") saveSessionNow();
     wipeWorkspace(); if(!qDemo()) lsSetWho({role:"solo", name:"", demo:true});
     try{ localStorage.removeItem(Q_DEMO_KEY); }catch(e){} clearSession();
     Q=qLoad(); Q.t0=Date.now(); Q.lastFocusAsk=qToday(); Q.tracked="d1"; qTrack("d1");   /* already tracked, so no pick ding as the opening starts */ qSave(); QU.flashUntil=Date.now()+10000; READ_MS=Math.min(READ_MS,2000);

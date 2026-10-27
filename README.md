@@ -63,7 +63,7 @@ Years 11–13 and runs from one HTML file. **Punctum**, its companion critique g
 - A game-style warm-up (WASD, look, raise, bag, then each camera setting with a short clip of what it does) unlocks the
   gold frames. After that, hands-on tours go through every room: on one photo you drag each slider to a gold mark, then
   edit your own way. Popups wait a few seconds before they can be dismissed, so they get read. There's a
-  **ten-minute demo** for playtesters.
+  **40-minute demo** for playtesters.
 
 ## A lesson in Studium
 
@@ -111,7 +111,7 @@ Years 11–13 and runs from one HTML file. **Punctum**, its companion critique g
 - **18 Oct 2026.** Hands-on tours for every room: Select, Edit (light, black and white, crop, grading), Workbook, Folio,
   Book, Gallery. They end with *go and shoot your own*. The folio is now one third at a time, with Shuffle. New workbook
   templates.
-- **18 Oct 2026.** A ten-minute **demo** from the sign-in page for playtesters. A game-style warm-up before the gold
+- **18 Oct 2026.** A 40-minute **demo** from the sign-in page for playtesters. A game-style warm-up before the gold
   frames. **Balanced** scan detail. A web build for hosts with a per-file limit.
 - **17 Oct 2026.** Develop moves to a **Camera Raw engine** ported from PhotoCraft, with Colour Mixer and Colour Grading.
   Drag-and-drop import into the library.
@@ -123,7 +123,7 @@ Years 11–13 and runs from one HTML file. **Punctum**, its companion critique g
 ## Try it
 
 Download **`studium.html`** from [Releases](../../releases) and open it in Chrome or Edge. It runs straight from the file,
-with no server and no install. Choose **Play the demo** on the sign-in page for the ten-minute version, or add `?demo` to
+with no server and no install. Choose **Play the demo** on the sign-in page for the 40-minute version, or add `?demo` to
 the address (`studium.html?demo`, or `https://your-site/?demo`) to send playtesters straight into it. The sign-in page only offers the demo for now. Add `?full` to get school
 sign-in, class codes and the teacher view back.
 

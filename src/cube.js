@@ -88,7 +88,7 @@
     if(!CU.scene){ CU.scene=new THREE.Scene(); CU.cam=new THREE.PerspectiveCamera(38,1,0.01,200); var b=cuBuild(); CU.grp=b.grp; CU.faces=b.faces; CU.scene.add(CU.grp); cuBgInit(); }
     cuCapture();
     CU.spots=cuAllSpots(); CU.faces.forEach(function(f,i){ f.userData.spot=CU.spots[i]; var u=f.material.uniforms; if(u.tLabel){ if(u.tLabel.value) u.tLabel.value.dispose(); u.tLabel.value=cuLabelTex(CU.spots[i]); u.lab.value=1; } });
-    CU.yaw=0.62; CU.pitch=-0.42; CU.q.setFromEuler(new THREE.Euler(CU.pitch,CU.yaw,0,"XYZ")); CU.spin.set(0.0,0.35); CU.dist=4.2; CU.open=true; CU.phase="opening"; CU.t0=performance.now(); CU.k=0; CU.dive=null; CU.hover=-1;
+    CU.yaw=0.62; CU.pitch=-0.42; CU.q.setFromEuler(_cuE.set(CU.pitch,CU.yaw,0,"XYZ")); CU.spin.set(0.0,0.35); CU.dist=4.2; CU.open=true; CU.phase="opening"; CU.t0=performance.now(); CU.k=0; CU.dive=null; CU.hover=-1;
     cuUI(true); document.body.classList.add("cube-open"); ptSoundSafe(true); App.note&&App.note("cube"); }
   /* if anything goes wrong, put everything back: no cube, all the controls showing */
   function cuReset(){ CU.open=false; CU.phase=""; CU.dive=null; if(CU.grp) CU.grp.position.set(0,0,0); cuUI(false); document.body.classList.remove("cube-open"); }
@@ -96,6 +96,7 @@
   function ptSoundSafe(up){ sfx(up?"views":"back"); }
 
   // ---- drawing: the cube in the dark, each face showing its place ----
+  var _cuE=new THREE.Euler();   /* reused every frame */
   function cuRender(){ var now=performance.now(), t=(now-CU.t0)/1000;
     if(CU.phase==="opening"){ CU.k=Math.min(1,t/0.9); if(CU.k>=1) CU.phase="open"; }
     else if(CU.phase==="closing"){ CU.k=Math.max(0,1-t/0.6); if(CU.k<=0){ CU.open=false; CU.phase=""; document.body.classList.remove("cube-open"); return false; } }
@@ -105,7 +106,7 @@
     // a turntable, not a free spin: drag sideways to turn it, up and down to tilt it (within limits), and it never rolls, so nothing reads upside down
     CU.yaw+=CU.spin.y; CU.pitch=Math.max(-1.25,Math.min(1.25,CU.pitch+CU.spin.x));
     if(CU.dive){ var dd=CU.dive, du0=Math.min(1,(now-dd.t0)/dd.dur), dk=Math.min(1,0.08+du0*0.35), dy=((dd.yaw-CU.yaw+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI; CU.yaw+=dy*dk; CU.pitch+=(dd.pitch-CU.pitch)*dk; }
-    CU.q.setFromEuler(new THREE.Euler(CU.pitch,CU.yaw,0,"XYZ")); CU.grp.quaternion.copy(CU.q); CU.grp.scale.setScalar(Math.max(0.001,e*(1+0.05*Math.sin(e*Math.PI))));
+    CU.q.setFromEuler(_cuE.set(CU.pitch,CU.yaw,0,"XYZ")); CU.grp.quaternion.copy(CU.q); CU.grp.scale.setScalar(Math.max(0.001,e*(1+0.05*Math.sin(e*Math.PI))));
     CU.grp.rotation.y+=0; CU.cam.aspect=W/H; CU.cam.position.set(0,0,CU.dist); CU.cam.lookAt(0,0,0);
     // the dive: fly straight at the chosen face's middle
     if(CU.dive){ var d=CU.dive, u=Math.min(1,(now-d.t0)/d.dur), s0=u*u*(3-2*u), fall=u*u;

@@ -20,8 +20,8 @@
     list.forEach(function(sc,i){ var off=new THREE.Vector3(WX_GAP*(i+1),0,0), g=sc.ground||0, sj=sc.subject||[0,0], w={id:sc.id, name:sc.name, off:off, walk:!!sc.collide, sc:sc, ready:false};
       w.c=off.clone().add(new THREE.Vector3(sj[0], g+0.7, sj[1])); WX.worlds.push(w);
       assetBytes(sc.preview||sc.data).then(function(ab){ return new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer(); })
-        .then(function(raw){ if(scene!==keepScene) return; var buf=stmUnpack(raw, sc.preview?"full":"light"), m=new SPARK.SplatMesh({fileBytes:new Uint8Array(buf), fileType:"splat"});
-          m.quaternion.copy(upQuat(sc.up||"ydown")); m.scale.setScalar(sc.scale||1); m.position.copy(wxMeshPos(w)); m.visible=!!WX.show; scene.add(m); w.mesh=m; return m.initialized; })
+        .then(function(raw){ if(scene!==keepScene||WX.worlds.indexOf(w)<0) return; var buf=stmUnpack(raw, sc.preview?"full":"light"), m=new SPARK.SplatMesh({fileBytes:new Uint8Array(buf), fileType:"splat"});
+          m.quaternion.copy(upQuat(sc.up||"ydown")); m.scale.setScalar(sc.scale||1); m.position.copy(wxMeshPos(w)); m.visible=!!WX.show; scene.add(m); w.mesh=m; wxWatch(true); return m.initialized; })
         .then(function(){ w.ready=!!w.mesh; })
         .catch(function(e){ console.warn("world", sc.id, e); }); }); }
 
@@ -36,7 +36,12 @@
   /* the other places are only drawn while you could see them (the cube is up, or a portal is open): the rest of the
      time they'd cost frame rate, and so sharpness, for nothing */
   function wxShowOthers(on){ WX.show=!!on; WX.worlds.forEach(function(w){ if(w!==WX.home&&w.mesh) w.mesh.visible=!!on; }); }
-  setInterval(function(){ if(!WX.home) return; var want=(typeof CU!=="undefined"&&CU.open)||(typeof PT!=="undefined"&&PT.on)||WX.here!==WX.home; if(want!==!!WX.show) wxShowOthers(want); }, 200);
+  /* checked every 200 ms only while there's somewhere else to show (other worlds loaded), and stopped with the scan */
+  var wxTimer=0;
+  function wxWatch(on){ if(on&&!wxTimer) wxTimer=setInterval(function(){ if(!WX.home){ wxWatch(false); return; } var want=(typeof CU!=="undefined"&&CU.open)||(typeof PT!=="undefined"&&PT.on)||WX.here!==WX.home; if(want!==!!WX.show) wxShowOthers(want); }, 200); else if(!on&&wxTimer){ clearInterval(wxTimer); wxTimer=0; } }
+  /* the old scan's other worlds: their preview splats go, and the watcher stops */
+  function wxDispose(){ wxWatch(false); WX.worlds.forEach(function(w){ if(w!==WX.home&&w.mesh){ if(w.mesh.parent) w.mesh.parent.remove(w.mesh); try{ w.mesh.dispose(); }catch(e){} w.mesh=null; } w.ready=false; });
+    WX.worlds=[]; WX.home=null; WX.here=null; WX.show=false; WX.loading=false; }
 
   /* which world is this point in */
   function wxAt(p){ var best=WX.home, bd=Infinity; WX.worlds.forEach(function(w){ var d=Math.hypot(p.x-w.c.x,p.z-w.c.z); if(d<bd){ bd=d; best=w; } }); return best; }

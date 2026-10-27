@@ -15,16 +15,18 @@
     "lens-165":"asset:assets/bag/lens-165.webp", "thumb-165":"asset:assets/bag/thumb-165.webp"
   };
   // lens kits per system; hot = the lens's hit area on the 840 x 560 hero, measured off each render
+  /* fmax / fmin: the widest and smallest f-number on the aperture ring; minFocus: closest focus in metres (the real lenses
+     these are modelled on: a 24-70 f/2.8 zoom, 50 f/1.8, 85 f/1.4, 135 f/2, and Pentax 67 55 f/4, 105 f/2.4, 165 f/2.8) */
   var LENS_KITS={
     "35":[
-      {id:"2470", label:"24–70", long:"24–70 mm f/2.8", kind:"ZOOM", mm:50, zoom:[24,28,35,50,70], hot:[336,170,425,349], note:"A zoom for most situations. Go wide for places and longer for people, without changing lens. In the viewfinder, scroll to zoom."},
-      {id:"50", label:"50", long:"50 mm f/1.8", kind:"NORMAL", mm:50, hot:[335,170,327,297], note:"50 mm sees roughly what your eye does. It's small and light and gives sharp photos."},
-      {id:"85", label:"85", long:"85 mm f/1.4", kind:"PORTRAIT", mm:85, hot:[336,169,424,350], note:"85 mm pulls backgrounds closer and softer. Good for picking out one thing."},
-      {id:"135", label:"135", long:"135 mm f/2", kind:"TELE", mm:135, hot:[335,165,498,388], note:"135 mm isolates details from far away. Hold it steady."}],
+      {id:"2470", label:"24–70", long:"24–70 mm f/2.8", kind:"ZOOM", mm:50, fmax:2.8, fmin:22, minFocus:0.38, zoom:[24,28,35,50,70], hot:[336,170,425,349], note:"A zoom for most situations. Go wide for places and longer for people, without changing lens. In the viewfinder, scroll to zoom."},
+      {id:"50", label:"50", long:"50 mm f/1.8", kind:"NORMAL", mm:50, fmax:1.8, fmin:22, minFocus:0.45, hot:[335,170,327,297], note:"50 mm sees roughly what your eye does. It's small and light and gives sharp photos."},
+      {id:"85", label:"85", long:"85 mm f/1.4", kind:"PORTRAIT", mm:85, fmax:1.4, fmin:22, minFocus:0.85, hot:[336,169,424,350], note:"85 mm pulls backgrounds closer and softer. Good for picking out one thing."},
+      {id:"135", label:"135", long:"135 mm f/2", kind:"TELE", mm:135, fmax:2, fmin:22, minFocus:0.9, hot:[335,165,498,388], note:"135 mm isolates details from far away. Hold it steady."}],
     "67":[
-      {id:"105", label:"105", long:"105 mm f/2.4", kind:"NORMAL", mm:105, hot:[341,202,358,308], note:"The standard medium-format normal lens. On this huge negative it sees about what a 50 mm does on full frame."},
-      {id:"55", label:"55", long:"55 mm f/4", kind:"WIDE", mm:55, hot:[342,202,364,318], note:"The 6×7 wide. Frames like a 27 mm on full frame. Good for wide landscapes and big spaces."},
-      {id:"165", label:"165", long:"165 mm f/2.8", kind:"PORTRAIT", mm:165, hot:[341,201,469,345], note:"Frames like an 80 mm on full frame. A medium-format portrait lens."}]
+      {id:"105", label:"105", long:"105 mm f/2.4", kind:"NORMAL", mm:105, fmax:2.4, fmin:32, minFocus:1.0, hot:[341,202,358,308], note:"The standard medium-format normal lens. On this huge negative it sees about what a 50 mm does on full frame."},
+      {id:"55", label:"55", long:"55 mm f/4", kind:"WIDE", mm:55, fmax:4, fmin:32, minFocus:0.375, hot:[342,202,364,318], note:"The 6×7 wide. Frames like a 27 mm on full frame. Good for wide landscapes and big spaces."},
+      {id:"165", label:"165", long:"165 mm f/2.8", kind:"PORTRAIT", mm:165, fmax:2.8, fmin:32, minFocus:1.6, hot:[341,201,469,345], note:"Frames like an 80 mm on full frame. A medium-format portrait lens."}]
   };
   var BAG_BODIES=[
     {id:"dslr", card:"Full-frame DSLR", fmt:"36×24 · OPTICAL", spec:"36 × 24 MM SENSOR · OPTICAL VIEWFINDER", note:"The camera in your school kit. You look through a mirror, not a screen, so the viewfinder will not show you the exposure. Read the meter before you shoot."},
@@ -38,7 +40,7 @@
   function lensFocal(l){ return l.zoom?zoomMM:l.mm; }
   // put a body and lens on the simulated camera
   function bagApply(bodyId, lid){ for(var i=0;i<BODIES.length;i++) if(BODIES[i].id===bodyId){ bodyIdx=i; break; }
-    lensId=lid; var l=curLens(); lensId=l.id; focalMM=lensFocal(l); computeCam(); applyFinder(); if(typeof vfRefresh==="function") vfRefresh(); }
+    lensId=lid; var l=curLens(); lensId=l.id; focalMM=lensFocal(l); computeCam();   /* a new lens re-clamps the aperture and focus to what it can do (computeCam) */ applyFinder(); if(typeof vfRefresh==="function") vfRefresh(); }
 
   // ---- bag state (mirrors the mockup's component state) ----
   var bg={open:false, stage:"choose", body:"dslr", lens:"2470", orig:"2470", prev:null, outPhase:null, inPhase:null, instant:false, glint:false, hover:false, busy:false, thunk:false, cursor:0, ret:"scene", timers:[]};

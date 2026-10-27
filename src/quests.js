@@ -89,7 +89,7 @@
        {t:"Hang 8 or more prints in the gallery", go:"gallery", check:function(){ return qPrints()>=8; }, now:function(){ return qCount(qPrints(),8); }},
        {t:"Give the show a title", go:"gallery", check:function(){ return typeof ga!=="undefined"&&!!String(ga.title||"").trim(); }}]}
   ]} };
-  // ---- the demo: about 30 minutes for someone who's never seen Studium. Three foundations, then all four board quests, in any order. ----
+  // ---- the demo: about 40 minutes for someone who's never seen Studium. Three foundations, then all four board quests, in any order. ----
   function qFolioTop(){ var b=typeof st!=="undefined"&&st.foBoard; if(!b||!b.pages) return 0; var n=0; b.pages.forEach(function(pg){ (pg.items||[]).forEach(function(it){ if(it.t==="photo"&&it.sec==="0.0"&&!it.hidden) n++; }); }); return n; }
   /* the board is rows of three: a row opens once the row above it is done. Row 1 keeps its order (each foundation unlocks the next). */
   QUEST_SETS.demo={ name:"Demo", checkpoints:[], sampleCp:true, finish:7, rows:[{n:"Start here", ids:["d1","d2","d3"]}, {n:"Then choose", ids:["d6","d5","d4"]}, {n:"Your own work", ids:["d7","d10","d8","d9"]}], quests:[
@@ -108,7 +108,7 @@
      steps:[{t:"Set up a key and a fill with the lighting tour", tour:"lightrig", go:"scene", check:function(){ return qTour("lightrig")||qTour("lighting"); }},
        {t:"A night frame with both your lights on", go:"scene", check:function(q){ return qPhotosSince(q).some(function(p){ return qTime(p)==="night"&&qLightsOn(p)>=2; }); }},
        {t:"A frame at golden hour", tour:"golden", go:"scene", check:function(q){ return qPhotosSince(q).some(function(p){ return qTime(p)==="golden"; }); }}]},
-    {id:"d5", type:"main", pillar:"context", mins:5, title:"Look at others", blurb:"Rank a photographer's work in the Culling Game, then choose six photographs from the library for an artist model page.", go:"research", page:"artist",
+    {id:"d5", type:"main", pillar:"context", mins:5, title:"Look at others", blurb:"Rank a photographer's work in the Culling Game, then choose six photographs from the archive for an artist model page.", go:"research", page:"artist",
      steps:[{t:"Play a Culling Game", go:"research", check:function(){ return qPacks("cull").length>=1; }},
        {t:"Make an Artist model page and press Finished", tour:"artist", go:"research", check:function(){ return qPages("artist").some(function(pg){ return !!pg.done; }); }}]},
     {id:"d6", type:"main", pillar:"drive", mins:4, title:"Show your thinking", blurb:"Put two of your photos side by side and say, in one sentence, what makes them different.", go:"workshop", page:"compare",
@@ -188,7 +188,7 @@
     return x.steps.map(function(st0,i){ var ok=!!done||!!(s&&s.stepDone[i]); if(!ok&&s){ try{ ok=!!st0.check(s); }catch(e){ ok=false; } if(ok) s.stepDone[i]=true; }
       var now=null; if(!ok&&st0.now&&s){ try{ now=st0.now(s); }catch(e){} } return {t:st0.t, ok:ok, now:now, tour:st0.tour||null, go:st0.go||x.go}; }); }
   function qProgress(id){ var st=qSteps(id); return {done:st.filter(function(s){ return s.ok; }).length, of:st.length}; }
-  function qTrack(id){ var x=qGet(id); if(!x||qLockReason(x)) return false; if(Q.tracked!==id) sfx("qPick"); if(!Q.quests[id]) Q.quests[id]={started:Date.now(), base:{photos:photos.length, t:Date.now()}, done:null, stepDone:{}};
+  function qTrack(id){ var x=qGet(id); if(!x||qLockReason(x)) return false; if(typeof QU!=="undefined"&&QU.replay&&QU.replay.id!==id&&typeof qReplayEnd==="function") qReplayEnd(false); /* tracking another quest ends a replay */ if(Q.tracked!==id) sfx("qPick"); if(!Q.quests[id]) Q.quests[id]={started:Date.now(), base:{photos:photos.length, t:Date.now()}, done:null, stepDone:{}};
     Q.tracked=id; qSave(); if(typeof qUI==="function") qUI(); return true; }
   // once a second-ish: tick the tracked quest (and any started one) and finish what's finished
   var Q_EVENTS=[];

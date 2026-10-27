@@ -6,7 +6,7 @@
   // Everything lives in localStorage ("studium_v1") on this computer; Sync (sync.js) mirrors it to Supabase when a
   // school is connected.
   var LS_KEY="studium_v1";
-  var LS_PLACES={shoot:"Shoot", select:"Select", edit:"Edit", workshop:"Workbook", folio:"Folio", book:"Book", gallery:"Gallery", punctum:"Punctum"};
+  var LS_PLACES={shoot:"Shoot", select:"Library", edit:"Edit", workshop:"Workbook", folio:"Folio", book:"Book", gallery:"Gallery", punctum:"Punctum"};
   var LS_KIND={shoot:"shots", select:"picks", edit:"edits", workshop:"pages", folio:"picks", book:"book", gallery:"none", punctum:"none"};
   var LS_UNIT={shots:["frame shot","frames shot"], picks:["frame picked","frames picked"], edits:["frame edited","frames edited"], pages:["page made","pages made"], book:["frame in the book","frames in the book"], none:["",""]};
   var LS_VERB={shots:"SHOOT", picks:"PICK", edits:"EDIT", pages:"MAKE", book:"PLACE"};
@@ -74,7 +74,7 @@
   function lsDone(ph){ var k=lsKind(ph); return k!=="none"&&ph.n>0&&lsCount(k)>=ph.n; }
   // with no teacher's plan, a self-paced run through the whole workflow
   function lsSoloSteps(){ var place=(window.SPLAT_SCENES&&SPLAT_SCENES[0]&&SPLAT_SCENES[0].name)||"a location";
-    if(typeof gdIsDemo==="function"&&gdIsDemo())   // the ten-minute demo's smaller targets
+    if(typeof gdIsDemo==="function"&&gdIsDemo())   // the 40-minute demo's smaller targets
       return [{title:"Shoot "+place, does:"Shoot "+place, words:"Walk all the way round before you shoot anything.", opens:"shoot", n:7},
         {title:"Pick three", does:"Pick your three strongest frames", words:"Pick the frames you keep coming back to.", opens:"select", n:3},
         {title:"Edit one", does:"Edit one of your picks", words:"Edit it to match the mood you want.", opens:"edit", n:1},

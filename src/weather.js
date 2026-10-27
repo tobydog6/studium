@@ -89,43 +89,93 @@
   // into the canopy, so a whole tree leans together) and how much it flutters (leaves and grass). Solid things stay put:
   // a cell inside a wall, a fence post, the stump or the ground is dense across a wide neighbourhood, while a branch is a
   // thin thing with air all round it. Leafiness comes from each splat's colour (green over red and blue).
-  function weBlur(a, nx, ny, nz, r){ a=a.slice(); if(r<1) return a; var b=new Float32Array(a.length), st=[1,nx,nx*ny], ln=[nx,ny,nz], d, x, y, z;
-    for(d=0;d<3;d++){ var s=st[d], L=ln[d], w=1/(2*r+1), o=[nx,ny,nz]; o[d]=1;
-      for(z=0;z<o[2];z++) for(y=0;y<o[1];y++) for(x=0;x<o[0];x++){ var base=(z*ny+y)*nx+x, acc=0, k;
-        for(k=-r;k<=r;k++){ var q=Math.max(0,Math.min(L-1,k)); acc+=a[base+q*s]; }
-        for(k=0;k<L;k++){ b[base+k*s]=acc*w; var qa=Math.min(L-1,k+r+1), qr=Math.max(0,k-r); acc+=a[base+qa*s]-a[base+qr*s]; } }
-      var t=a; a=b; b=t; }
-    return a; }
-  function wePct(arr, p){ var v=[], st=Math.max(1,Math.floor(arr.length/200000)); for(var i=0;i<arr.length;i+=st) if(arr[i]>0) v.push(arr[i]); if(!v.length) return 1; v.sort(function(a,b){ return a-b; }); return v[Math.floor(v.length*p)]||1; }
-  function weField(){ var P=viewer&&viewer.P; if(!P) return null; if(WE.field&&WE.field.P===P) return WE.field;
-    var A=viewer.A, G=viewer.Gr, N=P.length/3, S=weS(), i, ax;
-    /* the box: almost everything (the treeline at the edge is what should move most), not the walls' tight 2 to 98% */
-    var lo=[0,0,0], hi=[0,0,0];
-    for(ax=0;ax<3;ax++){ var v=[], st=Math.max(1,Math.floor(N/150000)); for(i=0;i<N;i+=st) v.push(P[i*3+ax]); v.sort(function(a,b){ return a-b; }); lo[ax]=v[Math.floor(v.length*0.004)]; hi[ax]=v[Math.floor(v.length*0.996)]; }
-    var pad=0.4*S; for(ax=0;ax<3;ax++){ lo[ax]-=pad; hi[ax]+=pad; }
-    var ex=hi[0]-lo[0], ey=hi[1]-lo[1], ez=hi[2]-lo[2], cell=Math.max(Math.cbrt(ex*ey*ez/1.6e6), Math.max(ex,ey,ez)/256, 0.08*S);
-    var nx=Math.max(2,Math.ceil(ex/cell)), ny=Math.max(2,Math.ceil(ey/cell)), nz=Math.max(2,Math.ceil(ez/cell)), M=nx*ny*nz, occ=new Float32Array(M), grn=new Float32Array(M);
-    for(i=0;i<N;i++){ var a=A?A[i]:1; if(a<0.05) continue; var gx=((P[i*3]-lo[0])/cell)|0, gy=((P[i*3+1]-lo[1])/cell)|0, gz=((P[i*3+2]-lo[2])/cell)|0;
-      if(gx<0||gy<0||gz<0||gx>=nx||gy>=ny||gz>=nz) continue; var c=(gz*ny+gy)*nx+gx; occ[c]+=a; if(G) grn[c]+=a*G[i]/255; }
-    var occL=weBlur(occ,nx,ny,nz,1), grnL=weBlur(grn,nx,ny,nz,1), occW=weBlur(occ,nx,ny,nz,Math.max(2,Math.round(0.6*S/cell)));
-    var mL=wePct(occL,0.85), mW=wePct(occW,0.85), out=new Uint8Array(M*4), x, y, z;
-    for(z=0;z<nz;z++) for(x=0;x<nx;x++){ var wx=lo[0]+(x+0.5)*cell, wz=lo[2]+(z+0.5)*cell, g=WK.col&&typeof wkGround==="function"?wkGround(wx,wz):NaN;
-      if(!(g>-1e8&&g<1e8)){ g=lo[1]+pad; for(y=0;y<ny;y++){ if(occL[(z*ny+y)*nx+x]>0.15*mL){ g=lo[1]+(y+0.5)*cell; break; } } }   /* no walk map: the lowest solid thing in the column is the ground */
-      for(y=0;y<ny;y++){ var ci=(z*ny+y)*nx+x, h=(lo[1]+(y+0.5)*cell-g)/S;
-        var solidW=Math.min(1,occW[ci]/mW), solidL=Math.min(1,occL[ci]/mL), gf=occL[ci]>1e-6?grnL[ci]/occL[ci]:0;
-        var hf=Math.pow(Math.max(0,Math.min(1,(h-0.3)/6)),1.2);   /* rooted: nothing at the ground, most at the top of a tall tree */
-        var leafy=Math.max(0,Math.min(1,(gf-0.04)/0.2));
-        var rigid=Math.pow(solidW,1.5)*(1-leafy);   /* a wall or a post is dense all round and not leafy; a thick canopy is dense but leafy, so it still moves */
-        var bend=hf*(1-0.9*rigid);
-        var flut=leafy*(1-0.4*solidL)+0.45*hf*(1-0.5*solidL);   /* leaves and grass, and bare twigs up high */
-        flut*=0.35+0.65*Math.max(0,Math.min(1,(h-0.4)/1.6));   /* low things (ivy on a stump, grass) only shiver; it builds up into the canopy */
-        flut*=1-0.6*solidW;   /* stuck to something solid */
-        if(h<0.03) flut*=0.2;
-        out[ci*4]=Math.round(Math.max(0,Math.min(1,bend))*255); out[ci*4+1]=Math.round(Math.max(0,Math.min(1,flut))*255); out[ci*4+2]=Math.round(Math.min(1,Math.max(0,(solidL-0.25)/0.6))*255); } }   /* blue: how solid, so rain can tell it's behind the stump */
-    var tex=new THREE.Data3DTexture(out,nx,ny,nz); tex.format=THREE.RGBAFormat; tex.type=THREE.UnsignedByteType; tex.minFilter=tex.magFilter=THREE.LinearFilter;
-    tex.wrapS=tex.wrapT=tex.wrapR=THREE.ClampToEdgeWrapping; tex.unpackAlignment=1; tex.needsUpdate=true;
-    if(WE.field&&WE.field.tex) try{ WE.field.tex.dispose(); }catch(e){}
-    WE.field={P:P, tex:tex, out:out, nx:nx, ny:ny, nz:nz, cell:cell, lo:lo, o:new THREE.Vector3(lo[0],lo[1],lo[2]), inv:new THREE.Vector3(1/(nx*cell),1/(ny*cell),1/(nz*cell))}; return WE.field; }
+  // Worked out a little at a time in idle moments after the scan opens (no slice over ~8 ms), so turning wind or rain on
+  // never freezes the page. Turned on before it's ready, the wind fades in once it is.
+  var WE_BUDGET=6;   /* aim under 8 ms a slice, with room for the odd overrun */
+  /* a box blur, one axis at a time, resumable: J holds where it got to */
+  function weBlurJob(src, nx, ny, nz, r){ var J={a:src, b:null, d:0, line:0, out:null, done:false};
+    if(r<1){ J.out=src.slice(); J.done=true; return J; }
+    J.step=function(dl){ if(!J.b){ J.a=src.slice(); J.b=new Float32Array(src.length); if(performance.now()>dl) return false; }   /* the copies are made in their own slice */
+      var st=[1,nx,nx*ny], ln=[nx,ny,nz], w=1/(2*r+1), a=J.a, b=J.b;
+      while(J.d<3){ var d=J.d, s=st[d], L=ln[d], o=[nx,ny,nz]; o[d]=1; var lines=o[0]*o[1]*o[2];
+        while(J.line<lines){ var li=J.line++, x=li%o[0], y=((li/o[0])|0)%o[1], z=(li/(o[0]*o[1]))|0, base=(z*ny+y)*nx+x, acc=0, k;
+          for(k=-r;k<=r;k++){ var q=Math.max(0,Math.min(L-1,k)); acc+=a[base+q*s]; }
+          for(k=0;k<L;k++){ b[base+k*s]=acc*w; var qa=Math.min(L-1,k+r+1), qr=Math.max(0,k-r); acc+=a[base+qa*s]-a[base+qr*s]; }
+          if((li&15)===0&&performance.now()>dl) return false; }
+        var t=J.a; J.a=J.b; J.b=t; a=J.a; b=J.b; J.d++; J.line=0; }
+      J.out=J.a; J.b=null; J.done=true; return true; };
+    return J; }
+  /* the p-th value of the positive entries, from a log-spaced histogram (no big sort on the main thread) */
+  function wePctJob(arr, p){ var J={i:0, ph:0, lo:Infinity, hi:0, h:null, n:0, out:1, done:false}, st=Math.max(1,Math.floor(arr.length/200000)), B=4096;
+    J.step=function(dl){ var i, v;
+      if(J.ph===0){ for(i=J.i;i<arr.length;i+=st){ v=arr[i]; if(v>0){ if(v<J.lo) J.lo=v; if(v>J.hi) J.hi=v; } if(((i/st)&4095)===0&&performance.now()>dl){ J.i=i+st; return false; } }
+        if(!(J.hi>0)){ J.out=1; J.done=true; return true; } J.ph=1; J.i=0; J.h=new Float64Array(B); J.l0=Math.log(J.lo); J.lr=Math.max(1e-9,Math.log(J.hi)-J.l0); }
+      if(J.ph===1){ var h=J.h; for(i=J.i;i<arr.length;i+=st){ v=arr[i]; if(v>0){ h[Math.min(B-1,((Math.log(v)-J.l0)/J.lr*B)|0)]++; J.n++; } if(((i/st)&4095)===0&&performance.now()>dl){ J.i=i+st; return false; } }
+        var tgt=J.n*p, acc=0; for(var k=0;k<B;k++){ acc+=h[k]; if(acc>tgt){ J.out=Math.exp(J.l0+(k+0.5)/B*J.lr); break; } } if(acc<=tgt) J.out=J.hi; J.out=J.out||1; J.done=true; return true; }
+      return true; };
+    return J; }
+  /* the whole map, as a list of resumable stages; the last one hands over the texture */
+  function weFieldJob(){ var P=viewer&&viewer.P; if(!P) return null;
+    var A=viewer.A, G=viewer.Gr, N=P.length/3, S=weS(), V={}, J={P:P, k:0, done:false, field:null};
+    var stages=[
+      /* the box: almost everything (the treeline at the edge is what should move most), not the walls' tight 2 to 98%; from a histogram per axis */
+      function(dl){ if(!V.bx){ V.bx={ax:0, i:0, st:Math.max(1,Math.floor(N/150000)), mn:[Infinity,Infinity,Infinity], mx:[-Infinity,-Infinity,-Infinity], ph:0}; } var X=V.bx, i;
+        if(X.ph===0){ for(i=X.i;i<N;i+=X.st){ for(var a=0;a<3;a++){ var v=P[i*3+a]; if(v<X.mn[a]) X.mn[a]=v; if(v>X.mx[a]) X.mx[a]=v; } if(((i/X.st)&1023)===0&&performance.now()>dl){ X.i=i+X.st; return false; } }
+          X.ph=1; X.i=0; X.H=[new Float64Array(16384),new Float64Array(16384),new Float64Array(16384)]; X.n=0; }
+        for(i=X.i;i<N;i+=X.st){ for(var b=0;b<3;b++){ var r=(X.mx[b]-X.mn[b])||1; X.H[b][Math.min(16383,((P[i*3+b]-X.mn[b])/r*16384)|0)]++; } X.n++; if(((i/X.st)&1023)===0&&performance.now()>dl){ X.i=i+X.st; return false; } }
+        var lo=[0,0,0], hi=[0,0,0]; for(var c=0;c<3;c++){ var H=X.H[c], rr=(X.mx[c]-X.mn[c])||1, acc=0, k, tl=X.n*0.004, th=X.n*0.996; lo[c]=X.mn[c]; hi[c]=X.mx[c];
+          for(k=0;k<16384;k++){ acc+=H[k]; if(acc>tl){ lo[c]=X.mn[c]+k/16384*rr; break; } } acc=0; for(k=0;k<16384;k++){ acc+=H[k]; if(acc>=th){ hi[c]=X.mn[c]+(k+1)/16384*rr; break; } } }
+        var pad=0.4*S; for(c=0;c<3;c++){ lo[c]-=pad; hi[c]+=pad; }
+        var ex=hi[0]-lo[0], ey=hi[1]-lo[1], ez=hi[2]-lo[2], cell=Math.max(Math.cbrt(ex*ey*ez/1.6e6), Math.max(ex,ey,ez)/256, 0.08*S);
+        V.lo=lo; V.pad=pad; V.cell=cell; V.nx=Math.max(2,Math.ceil(ex/cell)); V.ny=Math.max(2,Math.ceil(ey/cell)); V.nz=Math.max(2,Math.ceil(ez/cell)); V.M=V.nx*V.ny*V.nz;
+        V.i=0; return true; },
+      /* every splat into its cell: how much is there, and how green */
+      function(dl){ if(!V.occ){ V.occ=new Float32Array(V.M); V.grn=new Float32Array(V.M); return false; }   /* the grids get their own slice */
+        var lo=V.lo, cell=V.cell, nx=V.nx, ny=V.ny, nz=V.nz, occ=V.occ, grn=V.grn;
+        for(var i=V.i;i<N;i++){ var a=A?A[i]:1; if(a>=0.05){ var gx=((P[i*3]-lo[0])/cell)|0, gy=((P[i*3+1]-lo[1])/cell)|0, gz=((P[i*3+2]-lo[2])/cell)|0;
+            if(gx>=0&&gy>=0&&gz>=0&&gx<nx&&gy<ny&&gz<nz){ var c=(gz*ny+gy)*nx+gx; occ[c]+=a; if(G) grn[c]+=a*G[i]/255; } }
+          if((i&2047)===0&&performance.now()>dl){ V.i=i+1; return false; } }
+        V.b1=weBlurJob(V.occ,V.nx,V.ny,V.nz,1); V.b2=weBlurJob(V.grn,V.nx,V.ny,V.nz,1); V.b3=weBlurJob(V.occ,V.nx,V.ny,V.nz,Math.max(2,Math.round(0.6*S/V.cell))); return true; },
+      function(dl){ return V.b1.done||V.b1.step(dl); },
+      function(dl){ return V.b2.done||V.b2.step(dl); },
+      function(dl){ if(V.b3.done||V.b3.step(dl)){ V.occL=V.b1.out; V.grnL=V.b2.out; V.occW=V.b3.out; V.occ=V.grn=null; V.p1=wePctJob(V.occL,0.85); V.p2=wePctJob(V.occW,0.85); return true; } return false; },
+      function(dl){ return V.p1.done||V.p1.step(dl); },
+      function(dl){ if(V.p2.done||V.p2.step(dl)){ V.mL=V.p1.out; V.mW=V.p2.out; V.out=new Uint8Array(V.M*4); V.col=0; return true; } return false; },
+      /* each column of cells: how much it bends and flutters */
+      function(dl){ var nx=V.nx, ny=V.ny, nz=V.nz, lo=V.lo, cell=V.cell, pad=V.pad, occL=V.occL, grnL=V.grnL, occW=V.occW, mL=V.mL, mW=V.mW, out=V.out, y;
+        for(var cc=V.col;cc<nx*nz;cc++){ var x=cc%nx, z=(cc/nx)|0, wx=lo[0]+(x+0.5)*cell, wz=lo[2]+(z+0.5)*cell, g=WK.col&&typeof wkGround==="function"?wkGround(wx,wz):NaN;
+          if(!(g>-1e8&&g<1e8)){ g=lo[1]+pad; for(y=0;y<ny;y++){ if(occL[(z*ny+y)*nx+x]>0.15*mL){ g=lo[1]+(y+0.5)*cell; break; } } }   /* no walk map: the lowest solid thing in the column is the ground */
+          for(y=0;y<ny;y++){ var ci=(z*ny+y)*nx+x, h=(lo[1]+(y+0.5)*cell-g)/S;
+            var solidW=Math.min(1,occW[ci]/mW), solidL=Math.min(1,occL[ci]/mL), gf=occL[ci]>1e-6?grnL[ci]/occL[ci]:0;
+            var hf=Math.pow(Math.max(0,Math.min(1,(h-0.3)/6)),1.2);   /* rooted: nothing at the ground, most at the top of a tall tree */
+            var leafy=Math.max(0,Math.min(1,(gf-0.04)/0.2));
+            var rigid=Math.pow(solidW,1.5)*(1-leafy);   /* a wall or a post is dense all round and not leafy; a thick canopy is dense but leafy, so it still moves */
+            var bend=hf*(1-0.9*rigid);
+            var flut=leafy*(1-0.4*solidL)+0.45*hf*(1-0.5*solidL);   /* leaves and grass, and bare twigs up high */
+            flut*=0.35+0.65*Math.max(0,Math.min(1,(h-0.4)/1.6));   /* low things (ivy on a stump, grass) only shiver; it builds up into the canopy */
+            flut*=1-0.6*solidW;   /* stuck to something solid */
+            if(h<0.03) flut*=0.2;
+            out[ci*4]=Math.round(Math.max(0,Math.min(1,bend))*255); out[ci*4+1]=Math.round(Math.max(0,Math.min(1,flut))*255); out[ci*4+2]=Math.round(Math.min(1,Math.max(0,(solidL-0.25)/0.6))*255); }   /* blue: how solid, so rain can tell it's behind the stump */
+          if((cc&3)===0&&performance.now()>dl){ V.col=cc+1; return false; } }
+        var nx2=V.nx, ny2=V.ny, nz2=V.nz, tex=new THREE.Data3DTexture(out,nx2,ny2,nz2); tex.format=THREE.RGBAFormat; tex.type=THREE.UnsignedByteType; tex.minFilter=tex.magFilter=THREE.LinearFilter;
+        tex.wrapS=tex.wrapT=tex.wrapR=THREE.ClampToEdgeWrapping; tex.unpackAlignment=1; tex.needsUpdate=true;
+        J.field={P:P, tex:tex, out:out, nx:nx2, ny:ny2, nz:nz2, cell:cell, lo:lo, o:new THREE.Vector3(lo[0],lo[1],lo[2]), inv:new THREE.Vector3(1/(nx2*cell),1/(ny2*cell),1/(nz2*cell))}; V=null; return true; }];
+    J.step=function(dl){ while(J.k<stages.length){ if(!stages[J.k](dl)) return false; J.k++; if(performance.now()>dl&&J.k<stages.length) return false; } J.done=true; return true; };
+    return J; }
+  function weFieldReady(){ return !!(WE.field&&viewer&&WE.field.P===viewer.P); }
+  function weFieldDone(J){ if(WE.job!==J) return; WE.job=null; if(!J.field) return; if(WE.field&&WE.field.tex) try{ WE.field.tex.dispose(); }catch(e){} WE.field=J.field; WE.fieldT=performance.now(); WE.dirty=true; }
+  /* run the job in slices: in idle time normally, sooner (every task, still in slices) once you've asked for wind or rain */
+  function weFieldPump(){ WE.pumpOn=false; var J=WE.job; if(!J||!viewer||J.P!==viewer.P){ if(J) WE.job=null; return; }
+    var go=function(dl){ WE.pumpOn=false; if(WE.job!==J) return; var ok=false; try{ ok=J.step(dl); }catch(e){ console.warn("wind field",e); WE.job=null; WE.fieldFail=J.P; return; } if(ok) weFieldDone(J); else weFieldPump(); };
+    WE.pumpOn=true; var want=WE.wind>0||WE.rain>0;
+    if(!want&&typeof requestIdleCallback==="function") requestIdleCallback(function(d){ go(performance.now()+Math.max(2,Math.min(WE_BUDGET,d.timeRemaining()))); },{timeout:1500});
+    else setTimeout(function(){ go(performance.now()+WE_BUDGET); }, want?0:30); }
+  function weFieldStart(){ if(WE.job||weFieldReady()||!viewer||!viewer.P||WE.fieldFail===viewer.P) return; WE.job=weFieldJob(); if(WE.job) weFieldPump(); }
+  /* sync, for the dev tools only: finish it now */
+  function weField(){ if(weFieldReady()) return WE.field; var J=WE.job&&WE.job.P===(viewer&&viewer.P)?WE.job:weFieldJob(); if(!J) return null; WE.job=J; J.step(Infinity); weFieldDone(J); return WE.field; }
+  /* a new scan: drop the old map, its texture and any half-made one */
+  function weForget(){ WE.job=null; WE.fieldFail=null; if(WE.field&&WE.field.tex) try{ WE.field.tex.dispose(); }catch(e){} WE.field=null; WE.scanMeshes=[]; WE.lastCam=null; WE.dirty=true;
+    if(WE.scanU) WE.scanU.fok.value=0; if(WE.U) WE.U.fok.value=0; if(WE.mesh&&WE.mesh.parent) WE.mesh.parent.remove(WE.mesh); }
 
   // ---- wind, wet and fog on the scan ----
   function weScanMod(){ var D=SPARK.dyno, U=WE.scanU;
@@ -176,24 +226,26 @@
   // The scan is only rebuilt when it has to be (each rebuild means Spark re-sorts millions of splats): every frame while
   // the wind blows, when a setting changes, and in fog every metre and a half you walk. Rain never touches it.
   function weTick(dt){ if(!viewer||!loaded||!scene||typeof SPARK==="undefined") return;
-    var S=weS(), gy=weGround(), t=(performance.now()-WE.t0)/1000, any=weAny();
-    WE.scanMeshes=WE.scanMeshes.filter(function(m){ return m===viewer.mesh||m===viewer.detail; });
+    var now=performance.now(), S=weS(), gy=weGround(), t=(now-WE.t0)/1000, any=weAny();
+    for(var si=WE.scanMeshes.length-1;si>=0;si--){ var sm=WE.scanMeshes[si]; if(sm!==viewer.mesh&&sm!==viewer.detail) WE.scanMeshes.splice(si,1); }   /* no new array every frame */
+    if(viewer.P&&!weFieldReady()) weFieldStart();
     if(any||WE.scanMeshes.length){ weHook(viewer.mesh); if(viewer.detail) weHook(viewer.detail); }
     var U=WE.scanU, wd=weWindDir(), ra=weAmt(WE.rain), wa=weAmt(WE.wind), fa=weAmt(WE.fog);
-    if(U){ var wasOn=U.on.value>0.5; U.on.value=any?1:0; U.t.value=t;
-      if(wa>0&&U.fok.value<0.5){ var F=null; try{ F=weField(); }catch(e){ console.warn("wind field",e); } if(F){ U.fld.value=F.tex; U.fo.value.copy(F.o); U.finv.value.copy(F.inv); U.fok.value=1; WE.dirty=true; } }
-      if(WE.field&&viewer.P!==WE.field.P){ U.fok.value=0; }
-      U.wind.value.set(wd[0]*wa,0,wd[1]*wa); U.wet.value=Math.max(Math.min(1,ra*1.1),WE.wetX||0); if(WE.fcol) U.fc.value.set(WE.fcol[0],WE.fcol[1],WE.fcol[2]); else U.fc.value.set(0.7,0.72,0.74);   /* wetX, fcol: the opening keeps the ground wet after the rain and tints the fog with the time of day */ U.fog.value=fa?0.035+fa*0.11:0; U.ovc.value=Math.min(1,ra*0.85+fa*0.4);
+    if(U){ var wasOn=U.on.value>0.5; U.on.value=any?1:0; U.t.value=WE.tAt!=null?WE.tAt:t;   /* tAt: a photo's slow shutter steps the wind through the exposure (weExposure); the rain keeps its own clock, its streaks already are the exposure */
+      if(wa>0&&U.fok.value<0.5&&weFieldReady()){ var F=WE.field; U.fld.value=F.tex; U.fo.value.copy(F.o); U.finv.value.copy(F.inv); U.fok.value=1; WE.dirty=true; WE.windIn=now; }   /* ready: the wind fades in over a second and a half */
+      if(!weFieldReady()){ U.fok.value=0; }
+      var wk=WE.windIn?Math.min(1,(now-WE.windIn)/1500):1; if(wk>=1) WE.windIn=0;
+      U.wind.value.set(wd[0]*wa*wk,0,wd[1]*wa*wk); U.wet.value=Math.max(Math.min(1,ra*1.1),WE.wetX||0); if(WE.fcol) U.fc.value.set(WE.fcol[0],WE.fcol[1],WE.fcol[2]); else U.fc.value.set(0.7,0.72,0.74);   /* wetX, fcol: the opening keeps the ground wet after the rain and tints the fog with the time of day */ U.fog.value=fa?0.035+fa*0.11:0; U.ovc.value=Math.min(1,ra*0.85+fa*0.4);
       U.S.value=S; var m0=viewer.mesh; U.q.value.set(m0.quaternion.x,m0.quaternion.y,m0.quaternion.z,m0.quaternion.w); U.s.value=m0.scale.x||1;
       var far=!WE.lastCam||(fa>0&&WE.lastCam.distanceToSquared(camera.position)>2.25*S*S);   /* only fog cares where you are, and it starts 2.5 m out: every metre and a half is plenty */
-      if(any&&(wa>0||far||WE.dirty)||(wasOn&&!any)){ if(far||WE.dirty||!WE.lastCam){ U.cam.value.copy(camera.position); WE.lastCam=(WE.lastCam||new THREE.Vector3()).copy(camera.position); }
+      var blow=wa>0&&U.fok.value>0.5&&now-(WE.verT||0)>=50;   /* the wind moves the scan 20 times a second: each rebuild re-sorts millions of splats */
+      if(any&&(blow||far||WE.dirty)||(wasOn&&!any)){ WE.verT=now; if(far||WE.dirty||!WE.lastCam){ U.cam.value.copy(camera.position); WE.lastCam=(WE.lastCam||new THREE.Vector3()).copy(camera.position); }
         WE.scanMeshes.forEach(function(m){ m.updateVersion(); }); } }
     /* the rain */
     if(ra>0&&!WE.mesh){ try{ weRainBuild(); }catch(e){ console.warn("rain",e); WE.rain=0; ra=0; } }
     if(WE.mesh){ if(WE.mesh.parent!==scene){ if(WE.mesh.parent) WE.mesh.parent.remove(WE.mesh); scene.add(WE.mesh); }
       WE.mesh.visible=ra>0;
-      if(ra>0){ var R=WE.U, fall=8.5*S, wv=(wa*3.2+0.35)*S, sh=weShutter(), lit=1, F2=WE.field&&WE.field.P===viewer.P?WE.field:null;
-        if(!F2&&viewer.P){ try{ F2=weField(); }catch(e){} }
+      if(ra>0){ var R=WE.U, fall=8.5*S, wv=(wa*3.2+0.35)*S, sh=weShutter(), lit=1, F2=weFieldReady()?WE.field:null;   /* until the map is ready, drops just don't hide behind things */
         if(F2){ R.fld.value=F2.tex; R.fo.value.copy(F2.o); R.finv.value.copy(F2.inv); R.fok.value=1; } else R.fok.value=0;
         if(typeof RL!=="undefined"&&RL.on&&typeof rlTimeIs==="function"){ lit=rlTimeIs("night")?0.25:rlTimeIs("blue")?0.45:rlTimeIs("golden")?0.85:1; }
         R.t.value=t; R.amt.value=ra; R.cam.value.copy(camera.position); R.gy.value=gy; R.box.value.set(11*S,6*S,11*S);
@@ -202,6 +254,13 @@
         var Hh=(renderer&&renderer.domElement&&renderer.domElement.height)||1080; R.pxk.value=2*Math.tan(camera.fov*Math.PI/360)/Math.max(1,Hh)/Math.max(0.01,camera.zoom||1); } }
     var sk=typeof SKY!=="undefined"&&SKY.mesh&&SKY.mesh.material.uniforms.wfog; if(sk){ var fcl=WE.fcol||[0.7,0.72,0.74]; sk.value.set(fcl[0],fcl[1],fcl[2], Math.max(fa*0.9, ra*0.42)); }
     WE.dirty=false; weSound(); }
+
+  // ---- a slow shutter blurs the leaves: the wind's moments across the exposure, for the capture to average ----
+  // How many moments: none at 1/500 and faster (the leaves freeze), 3 at 1/250 rising to 6 by about 1/8.
+  function weWindSteps(ts){ if(!(weAmt(WE.wind)>0)||!WE.scanU||WE.scanU.fok.value<0.5||!(ts>1/400)) return 0; return Math.max(3,Math.min(6,Math.round(3+Math.log2(ts*250)*0.6))); }
+  /* draw the scene with the wind as it was at offset u (0 to 1) through an exposure of ts seconds, starting now */
+  function weExposureAt(u, ts){ var now=(performance.now()-WE.t0)/1000; WE.tAt=now+u*ts; WE.dirty=true; }
+  function weExposureEnd(){ if(WE.tAt==null) return; WE.tAt=null; WE.dirty=true; }
 
   // ---- sound: rain on the ground and a soft wind, made from the same noise the interface sounds use ----
   function weSound(){ var now=performance.now(); if(now-WE.sndT<120) return; WE.sndT=now;

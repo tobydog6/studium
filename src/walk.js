@@ -5,7 +5,7 @@
   // movement but you still can't go under the ground or through anything solid.
   var WK={col:null, mode:(function(){ try{ return localStorage.getItem("studium_move")||"walk"; }catch(e){ return "walk"; } })(), eye:1.6, r:0.22, toastT:0};
   var WK_EYE_MIN=0.3, WK_EYE_MAX=2.4, WK_STEP=0.3;
-  function wkLoad(b64){ WK.col=null; if(!b64) return Promise.resolve();
+  function wkLoad(b64){ WK.col=null; WK.fok=false; if(!b64) return Promise.resolve();
     return assetBytes(b64)
       .then(function(ab){ return new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer(); })
       .then(function(buf){ var dv=new DataView(buf), nx=dv.getInt32(20,true), nz=dv.getInt32(24,true);
@@ -26,14 +26,23 @@
     return false; }
   function wkFeet(){ return WK.mode==="walk"?wkGround(camPos.x,camPos.z):camPos.y-0.15; }
   // move by velocity * dt, sliding along anything solid
+  // stuck inside something (spawned there, or pushed by the boundary): step back to the last clear spot if there is one,
+  // otherwise only take moves that come out clear, so you can't then walk on through everything
+  function wkFree(){ WK.fx=camPos.x; WK.fz=camPos.z; WK.fok=true; }
+  function wkUnstick(feet){ if(WK.fok&&!wkBlocked(WK.fx,WK.fz,feet)){ camPos.x=WK.fx; camPos.z=WK.fz; return true; } return false; }
   function wkMove(dt){ var nx=camPos.x+_vel.x*dt, nz=camPos.z+_vel.z*dt, feet=wkFeet(), stuck=wkBlocked(camPos.x,camPos.z,feet);
-    if(stuck||!wkBlocked(nx,nz,feet)){ camPos.x=nx; camPos.z=nz; }
+    if(stuck&&wkUnstick(feet)){ stuck=false; nx=camPos.x+_vel.x*dt; nz=camPos.z+_vel.z*dt; }
+    if(stuck){ if(!wkBlocked(nx,nz,feet)){ camPos.x=nx; camPos.z=nz; } else { var ex=wkEscape(feet); if(ex){ camPos.x=ex[0]; camPos.z=ex[1]; } } }   /* stuck with no clear spot on record: only a move that gets you out, or the nearest way out */
+    else if(!wkBlocked(nx,nz,feet)){ camPos.x=nx; camPos.z=nz; }
     else if(!wkBlocked(nx,camPos.z,feet)){ camPos.x=nx; _vel.z=0; }
     else if(!wkBlocked(camPos.x,nz,feet)){ camPos.z=nz; _vel.x=0; }
     else { _vel.x=0; _vel.z=0; }
     if(!stuck&&(camPos.x!==nx||camPos.z!==nz)&&Date.now()-(WK.bumpT||0)>900){ WK.bumpT=Date.now(); if(typeof achEvent==="function") achEvent("bump"); }   /* walked into something */
+    if(!wkBlocked(camPos.x,camPos.z,wkFeet())) wkFree();
     if(WK.mode==="walk"&&!stuck) sfxStepTick(dt, Math.hypot(_vel.x,_vel.z));
     if(WK.mode==="fly"){ camPos.y+=_vel.y*dt; var gmin=wkGround(camPos.x,camPos.z)+0.15; if(camPos.y<gmin){ camPos.y=gmin; _vel.y=0; } } }
+  /* the nearest clear spot, searched in rings out to a metre and a bit */
+  function wkEscape(feet){ for(var d=0.1;d<=1.3;d+=0.1) for(var a=0;a<16;a++){ var an=a/16*Math.PI*2, x=camPos.x+Math.cos(an)*d, z=camPos.z+Math.sin(an)*d; if(!wkBlocked(x,z,feet)) return [x,z]; } return null; }
   function wkSettle(dt){ if(!WK.col||WK.mode!=="walk") return; var tgt=wkGround(camPos.x,camPos.z)+WK.eye; camPos.y+=(tgt-camPos.y)*(1-Math.exp(-10*Math.min(dt,0.05))); }
   function wkEye(d, dt){ var e=Math.max(WK_EYE_MIN,Math.min(WK_EYE_MAX,WK.eye+d*dt*0.9)); if(e===WK.eye) return; WK.eye=e;
     var now=performance.now(); if(now-WK.toastT>500){ WK.toastT=now; toast(e<0.7?"Crouching · eyes "+e.toFixed(1)+" m":e>1.9?"Standing tall · eyes "+e.toFixed(1)+" m":"Eyes "+e.toFixed(1)+" m off the ground"); } }
@@ -41,7 +50,7 @@
   function wkSpawn(center){ if(!WK.col) return; var best=null;
     for(var d=3;d<=7&&!best;d+=0.5) for(var a=0;a<16;a++){ var an=a/16*Math.PI*2, x=center.x+Math.sin(an)*d, z=center.z+Math.cos(an)*d, g=wkGround(x,z);
       if(!wkBlocked(x,z,g)&&!wkBlocked(x,z,g-0.5)){ best={x:x,z:z,an:an}; break; } }
-    if(!best) return; camPos.x=best.x; camPos.z=best.z; camPos.y=wkGround(best.x,best.z)+(WK.mode==="walk"?WK.eye:1.6); yaw=best.an; pitch=-0.12; }
+    if(!best) return; camPos.x=best.x; camPos.z=best.z; camPos.y=wkGround(best.x,best.z)+(WK.mode==="walk"?WK.eye:1.6); yaw=best.an; pitch=-0.12; wkFree(); }
   function wkSetMode(m){ WK.mode=m; try{ localStorage.setItem("studium_move",m); }catch(e){} _vel.set(0,0,0); }
   if(/[?&]dev/.test(location.search)) window.__wk={ pos:function(){ return {x:camPos.x, y:camPos.y, z:camPos.z, yaw:yaw, mode:WK.mode, eye:WK.eye, col:!!WK.col, ground:WK.col?wkGround(camPos.x,camPos.z):null}; },
     top:function(x,z){ return wkTop(x,z); }, setPos:function(x,z,yw){ camPos.x=x; camPos.z=z; if(yw!=null) yaw=yw; _vel.set(0,0,0); }, mode:wkSetMode };

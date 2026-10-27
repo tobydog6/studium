@@ -532,7 +532,7 @@
       RLB.kdrag={fx:t.getAttribute("data-rb-fx"), x:e.clientX, y:e.clientY, moved:false, L:null}; gh.src=RLB_THUMB[RLB.kdrag.fx]||""; });
     var bz=document.createElement("div"); bz.id="rbBusy"; bz.textContent="BUILDING SHADOWS…"; document.body.appendChild(bz); }
   function rbShow(on){ var u=$("rbUI"); if(u) u.classList.toggle("show",!!on&&!viewfinderOn); }
-  function rbFmtStops(s){ return (s>0?"+":"")+s.toFixed(1)+" EV"; }
+  function rbFmtStops(s){ return (typeof evText==="function"?evText(s):(s>0?"+":"")+s.toFixed(1))+" EV"; }
   function rbDist(L){ var T=rbTarget(); return Math.hypot(L.x-T.x,L.y-T.y,L.z-T.z)/RL.S; }
   function rbSec(id,title,body,extra){ var col=RLB.coll&&RLB.coll[id]; return '<section class="lr-sec'+(col?' collapsed':'')+'" data-rb-sec="'+id+'"><header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">'+title+'</span>'+(extra||'')+'</header><div class="lr-body">'+body+'</div></section>'; }
   function rbRow(k,label,v,mn,mx,step,txt,trk){ return '<div class="lr-row"><span class="lr-n">'+label+'</span><input type="range" data-rb-k="'+k+'"'+(trk?' class="trk-var" style="--trk:'+trk+'"':'')+' min="'+mn+'" max="'+mx+'" step="'+step+'" value="'+v+'"><span class="lr-v">'+txt+'</span></div>'; }

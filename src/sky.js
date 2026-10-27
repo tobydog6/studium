@@ -14,3 +14,7 @@
     var mat=new THREE.ShaderMaterial({uniforms:{map:{value:tex}, dim:{value:1}, tint:{value:new THREE.Vector3(1,1,1)}, wfog:{value:new THREE.Vector4(0.7,0.72,0.74,0)}}, vertexShader:SKY_VS, fragmentShader:SKY_FS, side:THREE.BackSide, depthWrite:false, depthTest:false});
     var m=new THREE.Mesh(new THREE.SphereGeometry(1,48,24), mat); m.frustumCulled=false; m.renderOrder=-1000; sc.add(m); SKY.mesh=m; SKY.tex=tex; }
   function skyFollow(){ if(!SKY.mesh) return; SKY.mesh.position.copy(camera.position); var r=camera.far*0.5; SKY.mesh.scale.set(r,r,r); }
+  /* the old scan's sky goes with it: sphere, material and map (worlds.js keeps its own cache of other skies) */
+  function skyDispose(){ var m=SKY.mesh; if(m){ if(m.parent) m.parent.remove(m); try{ m.geometry.dispose(); m.material.dispose(); }catch(e){} }
+    var cached=false; if(typeof WX!=="undefined") for(var k in WX.sky) if(WX.sky[k]===SKY.tex) cached=true;
+    if(SKY.tex&&!cached) try{ SKY.tex.dispose(); }catch(e){} SKY.mesh=null; SKY.tex=null; }

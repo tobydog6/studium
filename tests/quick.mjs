@@ -33,8 +33,8 @@ let fail = '';
 try {
   if (!TOUR) { await page.goto(BASE + '?dev&quick&noauto'); await page.waitForTimeout(10000); await shot('load'); }
   else {
-    await page.goto(BASE + '?dev'); await page.waitForSelector('#signin [data-si="demo"]', { state: 'visible', timeout: 90000 });
-    await page.click('#signin [data-si="demo"]');
+    /* ?demo starts a fresh demo straight away (past the launch page and sign-in) */
+    await page.goto(BASE + '?dev&demo');
     await page.waitForFunction(() => window.__cb && __cb.state() === 'scene' && window.__q && __q.state().tracked === 'd1', null, { timeout: 300000, polling: 500 });
     await page.evaluate(() => { __qu.closeAll(); __qu.how(); }); await page.waitForTimeout(1500);
     const st = () => page.evaluate(() => __co.state());

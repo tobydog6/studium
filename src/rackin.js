@@ -10,7 +10,7 @@
   function rfEl(){ var e=$("rackin"); if(e) return e; e=document.createElement("div"); e.id="rackin";
     e.innerHTML='<canvas class="rf-cv"></canvas><div class="rf-dark"></div>'
       +'<h1 class="rf-sr">Studium. '+RF_SUB+'.</h1>'
-      +'<button class="rf-go" type="button"><span class="face sharp"><span class="t">Launch the demo</span><span class="s">ABOUT 30 MIN</span></span><span class="face soft" aria-hidden="true"><span class="t">Launch the demo</span><span class="s">ABOUT 30 MIN</span></span></button>'
+      +'<button class="rf-go" type="button"><span class="face sharp"><span class="t">Launch the demo</span><span class="s">ABOUT 40 MIN</span></span><span class="face soft" aria-hidden="true"><span class="t">Launch the demo</span><span class="s">ABOUT 40 MIN</span></span></button>'
       +'<div class="rf-hint">MOVE TO FOCUS</div><div class="rf-wait">OPENING THE STUMP</div>';
     document.body.appendChild(e);
     e.addEventListener("pointermove",function(ev){ RF.px=ev.clientX; RF.py=ev.clientY; RF.idle=false; });
@@ -103,8 +103,9 @@
     var gl=G.gl, d=Math.min(window.devicePixelRatio||1,1), w=Math.max(2,Math.round(innerWidth*d)), h=Math.max(2,Math.round(innerHeight*d));
     if(G.cv.width!==w||G.cv.height!==h){ G.cv.width=w; G.cv.height=h; } gl.viewport(0,0,w,h);
     var sa=w/h; if(sa>RF_IA) gl.uniform2f(G.u("px"),1/w,(1/h)*(RF_IA/sa)); else gl.uniform2f(G.u("px"),(1/w)*(sa/RF_IA),1/h);
-    var still=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var still=RF_STILL?RF_STILL.matches:false;
     gl.uniform4f(G.u("wr"),RF_WR[0],RF_WR[1],RF_WR[2],RF_WR[3]); gl.uniform2f(G.u("res"),w,h); gl.uniform1f(G.u("focus"),RF.f); gl.uniform1f(G.u("scale"),30*w/1440); gl.uniform1f(G.u("wordD"),RF_WORD); gl.uniform1f(G.u("time"),still?0:now/1000); gl.uniform1f(G.u("fade"),fade);
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
-    rfSoft(e.querySelector(".rf-go"), Math.min(1,rfCoc(RF_BTN)/7)); }
+    rfSoft(RF.go||(RF.go=e.querySelector(".rf-go")), Math.min(1,rfCoc(RF_BTN)/7)); }
+  var RF_STILL=window.matchMedia?matchMedia("(prefers-reduced-motion: reduce)"):null;   /* asked once; .matches stays live */
   if(/[?&]dev/.test(location.search)) window.__rf={ show:rfShow, close:rfClose, play:rfPlay, state:function(){ return {on:RF.on, f:+RF.f.toFixed(2), ft:+RF.ft.toFixed(2), ready:!!(RF.gl&&RF.gl.ready), loaded:loaded}; }, focus:function(d){ RF.idle=false; RF.px=-1; RF.ft=d; } };

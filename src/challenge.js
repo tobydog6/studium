@@ -21,7 +21,9 @@
   function chDoneSet(){ var d={}; photos.forEach(function(p){ if(p.challenge) d[p.challenge]=1; }); return d; }
   function chEquivMM(){ var b=curBody(); return Math.round(focalMM*36/(b.sensorW||36)); }
   function chFStop(){ return APERTURES[apIdx]; }
-  function chAttach(){ CH.fx=new THREE.Scene(); CH.pads=[]; CH.active=-1; CH.cardFor=-1; CH.pull=-1; CH.locked=false; CH.cool=-1; chCard(null);
+  /* the gold frames' meshes, materials and geometry, freed when the scan changes or the frames are rebuilt */
+  function chDispose(){ if(CH.fx){ CH.fx.traverse(function(o){ if(o.isMesh){ try{ o.geometry.dispose(); o.material.dispose(); }catch(e){} } }); CH.fx.clear(); } CH.fx=null; CH.pads=[]; }
+  function chAttach(){ chDispose(); CH.fx=new THREE.Scene(); CH.pads=[]; CH.active=-1; CH.cardFor=-1; CH.pull=-1; CH.locked=false; CH.cool=-1; chCard(null);
     var spec=(CH.spec&&CH.spec.challenges)||[]; if(typeof gdIsDemo==="function"&&gdIsDemo()) spec=gdDemoChallenges(spec);   // the demo has three, one per camera
     if(typeof bndAttach==="function") bndAttach();
     CH.list=spec; if(!spec.length||!WK.col){ chMarkers(); chFramesBtn(); return; }   // a scan with no frames clears the last one's markers
@@ -139,7 +141,7 @@
     (c.need||[]).forEach(function(n){ var ok=false, nw="";
       if(n.k==="mm"){ ok=(n.max==null||mm<=n.max)&&(n.min==null||mm>=n.min); nw=mm+" MM"; }
       else if(n.k==="f"){ ok=(n.max==null||f<=n.max)&&(n.min==null||f>=n.min); nw="f/"+f; }
-      else if(n.k==="ev"){ ok=n.tol!=null?Math.abs(evStops)<=n.tol:(evStops>=n.min&&evStops<=n.max); nw=(evStops>=0?"+":"")+evStops.toFixed(1)+" EV"; }
+      else if(n.k==="ev"){ ok=n.tol!=null?Math.abs(evStops)<=n.tol:(evStops>=n.min&&evStops<=n.max); nw=(typeof evText==="function"?evText(evStops):(evStops>=0?"+":"")+evStops.toFixed(1))+" EV"; }
       else if(n.k==="body"){ var b=curBody(); ok=b.id===n.id; nw=(b.fmt||b.name).toUpperCase(); }
       else if(n.k==="lens"){ ok=Math.round(focalMM)===n.mm; nw=Math.round(focalMM)+" MM"; }
       else if(n.k==="vert"){ ok=!!vertical; nw=vertical?"VERTICAL":"HORIZONTAL"; }

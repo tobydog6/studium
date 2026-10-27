@@ -797,7 +797,7 @@
     refreshCount(); }
   function sessionData(){ return { v:1, savedAt:Date.now(), studentName:studentName, briefDone:briefDone,
     photos:photos.map(function(p){ return {url:p.url,orig:p.orig||null,dev:p.dev||null,id:p.id||null,copy:!!p.copy,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,baked:p.baked||null,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order,challenge:p.challenge||null,lens:p.lens||null,shake:p.shake||0,research:!!p.research,credit:p.credit||null,light:p.light||null,ev:p.ev==null?null:p.ev,cap:p.cap||null}; }),
-    quests:(typeof Q!=="undefined"?Q:null),
+    quests:(typeof Q!=="undefined"?Q:null), presets:(typeof prData==="function"?prData():null),
     workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), projects:(typeof st!=="undefined"?st.projects:[]), lightTable:(typeof st!=="undefined"?st.lightTable||null:null), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title,list:ga.list,label:ga.label}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
@@ -809,6 +809,7 @@
   function applySession(d){ try{
     if(d.studentName){ studentName=d.studentName; var nm=$("mName"); if(nm) nm.value=studentName; }
     if(d.briefDone) briefDone=d.briefDone;
+    if(d.presets&&typeof prLoad==="function"){ prLoad(d.presets); try{ localStorage.setItem("studium_presets_v1",JSON.stringify(prData())); }catch(e){} }
     if(d.workshop&&d.workshop.length&&typeof st!=="undefined") st.wsPages=d.workshop;
     if(d.book&&d.book.pages&&typeof bk!=="undefined"){ bk.size=d.book.size||"20x25"; bk.pages=d.book.pages; }
     if(d.galleryPrefs&&typeof ga!=="undefined"){ ga.frame=d.galleryPrefs.frame||"black"; ga.gap=d.galleryPrefs.gap||250; ga.sizes=d.galleryPrefs.sizes||{}; ga.pos=d.galleryPrefs.pos||{}; ga.title=d.galleryPrefs.title||""; ga.list=d.galleryPrefs.list||null; ga.label=d.galleryPrefs.label||{x:null,y:null,style:"card",size:1}; }
@@ -1159,6 +1160,7 @@
 @@include heal.js@@
 @@include histdrag.js@@
 @@include develop.js@@
+@@include presets.js@@
 @@include crop.js@@
 @@include library.js@@
 @@include import.js@@

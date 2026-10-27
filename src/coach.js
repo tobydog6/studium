@@ -105,19 +105,19 @@
     target:'#camback .cb-meter', place:"side", targets:function(){ return Array.prototype.slice.call(document.querySelectorAll('#camback .cb-scale')); }, nodim:true,
     start:function(){ meterBias=bias; computeCam(); if(typeof cbRender==="function") cbRender(); },
     done:function(){ return Math.abs(evStops)<=0.5&&(!extra||extra()); } }; }
-  // edit tour: drag a slider to the gold mark. It ticks once you've let go on it, so you can wiggle it back and
-  // forth as much as you like first.
-  function coMark(id,val){ coUnmark(); var inp=$(id); if(!inp) return; var row=inp.closest(".lr-row"); if(!row) return; row.classList.add("co-markrow");
-    var mn=+inp.min, mx=+inp.max, f=(val-mn)/(mx-mn), th=7, m=document.createElement("i"); m.className="co-mark";
-    m.style.left=(inp.offsetLeft+th+f*(inp.offsetWidth-2*th)).toFixed(1)+"px"; m.style.top=(inp.offsetTop+inp.offsetHeight/2)+"px"; row.appendChild(m); }
+  // edit tour: drag a slider into the gold band. It ticks once you've let go inside it, so you can wiggle it back and
+  // forth as much as you like first. A band, not a point: it's about seeing what the slider does, not hitting a number.
+  function coMark(id,lo,hi){ coUnmark(); var inp=$(id); if(!inp) return; var row=inp.closest(".lr-row"); if(!row) return; row.classList.add("co-markrow");
+    var mn=+inp.min, mx=+inp.max, th=7, span=inp.offsetWidth-2*th, fa=(lo-mn)/(mx-mn), fb=(hi-mn)/(mx-mn), m=document.createElement("i"); m.className="co-mark co-band";
+    m.style.left=(inp.offsetLeft+th+fa*span).toFixed(1)+"px"; m.style.width=Math.max(6,(fb-fa)*span).toFixed(1)+"px"; m.style.top=(inp.offsetTop+inp.offsetHeight/2)+"px"; row.appendChild(m); }
   function coUnmark(){ Array.prototype.forEach.call(document.querySelectorAll(".co-mark"),function(m){ m.parentNode.removeChild(m); }); Array.prototype.forEach.call(document.querySelectorAll(".co-markrow"),function(r){ r.classList.remove("co-markrow"); }); }
   function coFmt(key,v){ return key==="exposure"?fmtExp(v):(v>0?"+":"")+v; }
-  function coSet(sec,id,key,val,tol,name,what){ return {ch:sec==="light"?"LIGHT":sec==="color"?"COLOUR":"EFFECTS",
-      line:function(){ var v=edState?edState[key]:0, ok=Math.abs(v-val)<=tol; return 'Drag <b>'+name+'</b> to the gold mark: <b>'+coFmt(key,val)+'</b>'+(ok&&CO.down?' <span class="co-now ok">let go</span>':''); },
-      sub:name+" "+what, target:coRow(id), mark:[id,val], dwell:500,
-      prep:function(){ coSec(sec); coShow(coRow(id)); setTimeout(function(){ coMark(id,val); },120); },
-      done:function(){ return !CO.down&&Math.abs(edState[key]-val)<=tol; },
-      bar:function(){ var v=edState[key]; return Math.max(0,1-Math.abs(v-val)/Math.max(Math.abs(val),20)); }}; }
+  function coSet(sec,id,key,lo,hi,name,what){ return {ch:sec==="light"?"LIGHT":sec==="color"?"COLOUR":"EFFECTS",
+      line:function(){ var v=edState?edState[key]:0, ok=v>=lo&&v<=hi; return 'Drag <b>'+name+'</b> into the gold band <span class="co-rng">'+coFmt(key,lo)+' to '+coFmt(key,hi)+'</span>'+(ok&&CO.down?' <span class="co-now ok">let go</span>':''); },
+      sub:name+" "+what, target:coRow(id), mark:[id,lo,hi], dwell:500,
+      prep:function(){ coSec(sec); coShow(coRow(id)); setTimeout(function(){ coMark(id,lo,hi); },120); },
+      done:function(){ var v=edState[key]; return !CO.down&&v>=lo&&v<=hi; },
+      bar:function(){ var v=edState[key], d=v<lo?lo-v:v>hi?v-hi:0, far=Math.max(Math.abs(lo),Math.abs(hi),20); return Math.max(0,1-d/far); }}; }
   function coEditTotal(){ return typeof devList==="function"?devList().length:0; }
   function coEditedN(){ var L=typeof devList==="function"?devList():[]; return L.filter(function(i){ if(edState&&edState.i===i) return !devIsDefault(edState); var p=photos[i]; return p&&!!p.dev; }).length; }
   document.addEventListener("pointerdown",function(){ CO.down=true; },true);
@@ -186,21 +186,21 @@
         target:'#st-select [data-st-act="reject"]', place:"column", start:function(){ CO.s.r=photos.filter(function(p){ return p.reject; }).length; }, done:function(){ return photos.filter(function(p){ return p.reject; }).length>CO.s.r; }},
       {ch:"CHOOSE", line:function(){ return 'Now pick your best <b>'+coPickN()+'</b>'; }, sub:"Click a photo, then Pick. Click Pick again to change your mind.",
         target:'#st-select .st-loupe .brief', place:"column", nodim:true, done:function(){ return coPicks()>=coPickN(); }, bar:function(){ return coPicks()/coPickN(); }}]},
-    // One photo, every slider to a gold mark (the photo stays bright, and it only ticks once you let go on the mark),
+    // One photo, every slider into a gold band (the photo stays bright, and it only ticks once you let go on the mark),
     // then the image resets and it's yours: edit, Copy, next photo, Paste, and the rest of the picks.
     edit:{where:coInEditor, nodim:true, steps:[
-      {ch:"LIGHT", line:function(){ return 'These are the <b>Light</b> sliders'; }, sub:"We'll set each one to its gold mark on this photo, so you see what it does. After that you can edit it however you like.",
+      {ch:"LIGHT", line:function(){ return 'These are the <b>Light</b> sliders'; }, sub:"Drag each one into its gold band on this photo, so you see what it does. After that you can edit it however you like.",
         target:'#editor .lr-sec[data-sec="light"]', prep:function(){ coSec("light"); coShow('#editor .lr-sec[data-sec="light"]'); }, info:true},
-      coSet("light","pExposure","exposure",15,3,"Exposure","brightens or darkens everything at once."),
-      coSet("light","pContrast","contrast",20,4,"Contrast","pushes the darks darker and the brights brighter."),
-      coSet("light","pHighlights","highlights",-60,5,"Highlights","brings back detail in the brightest parts, like the sky."),
-      coSet("light","pShadows","shadows",45,5,"Shadows","opens up the dark parts without touching the rest."),
-      coSet("light","pWhites","whites",15,4,"Whites","sets how bright the very brightest point is."),
-      coSet("light","pBlacks","blacks",-25,4,"Blacks","sets how deep the very darkest point is."),
-      coSet("color","pTemp","temp",12,4,"Temperature","warms the photo up (right) or cools it down (left)."),
-      coSet("color","pVibrance","vibrance",25,5,"Vibrance","lifts the dull colours more than the strong ones, so skin and sky stay natural."),
-      coSet("effects","pClarity","clarity",20,4,"Clarity","adds contrast to the mid-tones, so texture like bark shows up more."),
-      coSet("effects","pVignette","vignette",-25,5,"Vignette","darkens the corners to pull the eye in."),
+      coSet("light","pExposure","exposure",10,30,"Exposure","brightens or darkens everything at once."),
+      coSet("light","pContrast","contrast",15,40,"Contrast","pushes the darks darker and the brights brighter."),
+      coSet("light","pHighlights","highlights",-80,-40,"Highlights","brings back detail in the brightest parts, like the sky."),
+      coSet("light","pShadows","shadows",30,60,"Shadows","opens up the dark parts without touching the rest."),
+      coSet("light","pWhites","whites",5,25,"Whites","sets how bright the very brightest point is."),
+      coSet("light","pBlacks","blacks",-40,-15,"Blacks","sets how deep the very darkest point is."),
+      coSet("color","pTemp","temp",8,25,"Temperature","warms the photo up (right) or cools it down (left)."),
+      coSet("color","pVibrance","vibrance",15,40,"Vibrance","lifts the dull colours more than the strong ones, so skin and sky stay natural."),
+      coSet("effects","pClarity","clarity",15,35,"Clarity","adds contrast to the mid-tones, so texture like bark shows up more."),
+      coSet("effects","pVignette","vignette",-40,-15,"Vignette","darkens the corners to pull the eye in."),
       {ch:"GRADE", line:function(){ return '<b>Colour Grading</b> tints the shadows, midtones and highlights'; }, sub:"Use it gently. A small tint is usually enough.",
         target:'#lrGrade', prep:function(){ coSec("grading"); if(typeof cgTab!=="undefined"&&cgTab!=="3"){ cgTab="3"; edpGrade(); } coShow('#lrGrade .cg-pair'); }, info:true},
       {ch:"GRADE", line:function(){ return 'Drag in the <b>Shadows</b> wheel towards blue'; }, sub:"Further from the middle is stronger.",
@@ -225,7 +225,15 @@
         target:'#dvNext', start:function(){ CO.s.i=coEdIdx(); }, done:function(){ return coEdIdx()!==CO.s.i; }},
       {ch:"YOURS", line:function(){ return '<b>Paste</b> your look onto this one'; }, sub:"Using the same edit on each photo helps them look like a set.",
         target:'#dvPaste', start:function(){ CO.s.n=devPasteN; }, done:function(){ return devPasteN>CO.s.n; }},
-      {ch:"YOURS", line:function(){ return 'Now edit <b>the rest of your picks</b>'; }, sub:"Click each one in the strip. Paste is a good start, then tweak each so it works on its own.",
+      {ch:"PRESETS", line:function(){ return 'Open <b>Presets</b>'; }, sub:"A preset is a look you save once and use on any photo, today or next term.",
+        target:'#prRailBtn', place:"left", done:function(){ return typeof prOpen!=="undefined"&&prOpen; }},
+      {ch:"PRESETS", line:function(){ return 'Press <b>+</b>, give your look a name and <b>Save preset</b>'; }, sub:"Pick a folder like My looks, or make a new one such as B&W or Film.",
+        target:'#prDrawer', place:"left", nodim:true, start:function(){ CO.s.n=prSavedN; if(!prOpen) prToggle(true); }, done:function(){ return prSavedN>CO.s.n; }},
+      {ch:"PRESETS", line:function(){ return 'On to the next photo: <b>›</b>'; }, sub:"",
+        target:'#dvNext', start:function(){ CO.s.i=coEdIdx(); }, done:function(){ return coEdIdx()!==CO.s.i; }},
+      {ch:"PRESETS", line:function(){ return '<b>Hover</b> the presets to preview them, then <b>click yours</b>'; }, sub:"Ctrl+Z takes it off again. Right-click a preset to rename it, move it to another folder or delete it.",
+        target:'#prList', place:"left", nodim:true, start:function(){ CO.s.n=prAppliedN; if(!prOpen) prToggle(true); }, done:function(){ return prAppliedN>CO.s.n; }},
+      {ch:"YOURS", line:function(){ return 'Now edit <b>the rest of your picks</b>'; }, sub:"Click each one in the strip. Paste or your preset is a good start, then tweak each so it works on its own. With frames selected, a preset goes on all of them.",
         target:'#dvFilm', done:function(){ return coEditedN()>=coEditTotal(); }, bar:function(){ return coEditedN()/Math.max(1,coEditTotal()); }},
       {ch:"YOURS", line:function(){ return '<b>Done</b> takes you on to the workbook'; }, sub:"Your edits stay on each photo. Come back any time and the sliders are where you left them.",
         target:'#eSave', away:true, done:function(){ return !coInEditor(); }}]},
@@ -439,14 +447,14 @@
     var t=s.target&&!pre?(typeof s.target==="function"?s.target():document.querySelector(s.target)):null, r=t?t.getBoundingClientRect():null;
     if(CO.tgt!==t){ if(CO.tgt) CO.tgt.classList.remove("co-target"); CO.tgt=t; if(t) t.classList.add("co-target"); }
     ring.classList.toggle("nodim", !!(s.nodim||(CO_TOURS[CO.tour]||{}).nodim));
-    if(s.mark&&!document.querySelector(".co-mark")) coMark(s.mark[0],s.mark[1]);
+    if(s.mark&&!document.querySelector(".co-mark")) coMark(s.mark[0],s.mark[1],s.mark[2]);
     /* several things to choose between: each gets its own ring; things that can be clicked bob gently */
     if(!pre&&s.targets){ var ts=s.targets()||[]; Array.prototype.forEach.call(document.querySelectorAll('.co-multi'),function(x){ if(ts.indexOf(x)<0) x.classList.remove('co-multi'); }); ts.forEach(function(x){ x.classList.add('co-multi'); }); }
     if(!pre&&s.float) Array.prototype.forEach.call(document.querySelectorAll(s.float),function(x){ x.classList.add('co-float'); });
     if(r&&r.width>2&&r.bottom>0&&r.top<window.innerHeight){ var p=6; ring.style.left=(r.left-p)+"px"; ring.style.top=(r.top-p)+"px"; ring.style.width=(r.width+2*p)+"px"; ring.style.height=(r.height+2*p)+"px"; ring.classList.add("show");
       var W=window.innerWidth, H=window.innerHeight, cw=e.offsetWidth||440, chh=e.offsetHeight||130, x, y;
       var pl=typeof s.place==="function"?s.place():s.place;
-      var beside=r.left>W*0.55&&r.left-p-20-360>12; e.classList.toggle("beside", !!beside);
+      var beside=(pl==="left"&&r.left-p-20-360>12)||(r.left>W*0.55&&r.left-p-20-360>12); e.classList.toggle("beside", !!beside);   /* left: beside a drawer or rail, the photo's middle stays clear */
       if(beside){ e.style.width="360px"; cw=360; chh=e.offsetHeight||chh; x=r.left-p-20-cw; y=Math.max(12,Math.min(H-chh-12,r.top+r.height/2-chh/2)); }   /* beside a panel row: narrow, so the photo stays mostly clear */
       else { var below=r.bottom+p+16+chh<H-10; x=Math.max(12,Math.min(W-cw-12,r.left+r.width/2-cw/2)); y=below?r.bottom+p+16:Math.max(12,r.top-p-16-chh); }
       /* column: stay in the target's own column (its right edge), below it if there's room, else above: the light table stays clear */
@@ -458,7 +466,7 @@
       if(pl==="side"){ var rr=0; Array.prototype.forEach.call(document.querySelectorAll('#camback .cb-scale'),function(x){ rr=Math.max(rr,x.getBoundingClientRect().right); }); rr=Math.max(rr,r.right);
         var sw=Math.max(260,Math.min(440,W-rr-40)); e.style.width=sw+"px"; e.classList.add("side"); cw=sw; chh=e.offsetHeight||chh; x=Math.min(W-sw-12,rr+24); y=Math.max(12,Math.min(H-chh-12,H/2-chh/2)); }
       else if(e.classList.contains("side")){ e.classList.remove("side"); e.style.width=""; }
-      else if(pl!=="column"&&!(r.left>W*0.55&&r.left-p-20-360>12)) e.style.width="";
+      else if(pl!=="column"&&!beside) e.style.width="";
       /* top: under the daylight bar in Lighting, clear of the kit strip and the floor where the lights go */
       if(pl==="top"){ var db=document.querySelector("#rbDay"), dr=db?db.getBoundingClientRect():{bottom:90}, sw2=typeof RLB_SIDE!=="undefined"?RLB_SIDE:0; e.style.width=""; cw=e.offsetWidth||cw; chh=e.offsetHeight||chh;
         x=Math.max(12,Math.min(W-sw2-cw-12,(W-sw2)/2-cw/2)); y=dr.bottom+14; e.classList.remove("beside"); }

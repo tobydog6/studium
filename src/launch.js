@@ -9,7 +9,7 @@
   var LA_KEY="studium_launch_seen";
   var LA_ROOMS=[["select","Pick","asset:assets/launch/select.jpg"],["edit","Edit","asset:assets/launch/edit.jpg"],["workbook","Make","asset:assets/launch/workbook.jpg"],["folio","Folio","asset:assets/launch/folio.jpg"],["gallery","Show","asset:assets/launch/gallery.jpg"]];
   var LA_NOFILM=!/[?&]film/.test(location.search);   /* straight from the photo to the spin; ?film brings the strip back */
-  var LA_T={detail:3.2, scan:2.6, shoot:2.6, iris:0.9, settle:0.95, crawl:1.0, move:0.5, exit:1.05, spin:4.6, word:1.7};
+  var LA_T={detail:8.0, scan:2.6, shoot:2.6, iris:0.9, settle:0.95, crawl:1.0, move:0.5, exit:1.05, spin:4.6, word:1.7};
   function laSeen(){ try{ return localStorage.getItem(LA_KEY)==="1"; }catch(e){ return false; } }
   function laEl(){ var e=$("launch"); if(e) return e; e=document.createElement("div"); e.id="launch";
     var fr='<div class="la-fr still"><canvas></canvas><em>1</em><i>1</i><u>E26</u></div>'+LA_ROOMS.map(function(m,i){ return '<div class="la-fr"><img alt="" decoding="async" src="'+m[2]+'"><span>'+m[1].toUpperCase()+'</span><em>'+(i+2)+'</em><i>'+(i+2)+'</i><u>E26</u></div>'; }).join("");
@@ -199,23 +199,24 @@
   //      a light wind throughout. A soft LED panel keeps the stump lit through the dark and fades as the sun comes up.
   //      Shadows off, and the rig is applied ten times a second (the light moves slowly), so it stays smooth ----
   var LAG={on:false, e:1, w:0, s:1, c:1};   /* (a frame grade, read by renderFrame; not used now) */
-  var LA_TOD=[[0,0.05,9500,0,-12,3000],[0.25,0.06,9500,0,-10,3000],[0.52,0.2,11000,0,-3,3000],[0.8,0.3,8400,0.7,3,2700],[1,0.42,7600,1.1,10,3100]];   /* u, dusk, ambient K, sun, sun height, sun K */
+  var LA_TOD=[[0,0.07,9500,0,-12,3000],[0.42,0.08,9500,0,-10,3000],[0.62,0.2,11000,0,-3,3000],[0.84,0.3,8400,0.7,3,2700],[1,0.42,7600,1.1,10,3100]];   /* u, dusk, ambient K, sun, sun height, sun K */
   function laTodInit(){ if(typeof RL==="undefined"||typeof rlPrepare!=="function"||!viewer||!viewer.P||!viewer.mesh) return; try{ if(!RL.ready) rlPrepare();
       LA.tod={was:{on:RL.on, dusk:RL.dusk, ambK:RL.ambK, sunPow:RL.sunPow, sunEl:RL.sunEl, sunK:RL.sunK, sunAz:RL.sunAz, exp:RL.exp, shadows:RL.shadows, sel:RL.sel, lon:RL.lights.map(function(L){ return L.on; })}, t:0};
       RL.on=true; RL.exp=0; RL.shadows=false; RL.lights.forEach(function(L){ L.on=false; });
       var S=laSubject(), c=laShotSpec(), gy=wkGround(S[0],S[1]); RL.sunAz=((c.az+180-55)%360+360)%360;   /* the sun comes up behind and to the side of the shot: a rim on the stump */
       var a=(c.az+38)*Math.PI/180, d=1.7*RL.S, L={id:RL.nid++, on:true, fx:"led", name:"Opening lamp", type:"bulb", power:8, k:4300, gel:"#ffffff", soft:0.6, cone:90, h:1.35, dir:[0,-1,0]};
       rlSetPos(L, S[0]+Math.sin(a)*d, S[1]+Math.cos(a)*d); rlAimAt(L,{x:S[0], y:gy+0.45, z:S[1]}); RL.lights.push(L); LA.tod.L=L;
-      if(typeof WE!=="undefined"){ LA.tod.we={rain:WE.rain, wind:WE.wind, fog:WE.fog}; WE.rain=1; WE.fog=1; WE.wind=Math.max(1,WE.wind); WE.dirty=true; }   /* the weather comes in behind the dark, so it's built before you see it */
+      if(typeof WE!=="undefined"){ LA.tod.we={rain:WE.rain, wind:WE.wind, fog:WE.fog}; WE.rain=0; WE.fog=0; WE.wind=Math.max(1,WE.wind); WE.dirty=true; }   /* the weather comes in behind the dark, so it's built before you see it */
       laTod(0,0,true); }catch(e){ console.warn("time of day",e); LA.tod=null; } }
   function laTodAt(u){ var K=LA_TOD, i=0; while(i<K.length-2&&u>K[i+1][0]) i++; var a=K[i], b=K[i+1], k=laE(Math.max(0,Math.min(1,(u-a[0])/(b[0]-a[0]))));
     return a.map(function(v,j){ return v+(b[j]-v)*k; }); }
   function laTod(u,day,now){ var T=LA.tod; if(!T) return; var v=laTodAt(u);
     if(day){ var d=laE(day); v=[1, v[1]+(1-v[1])*d, v[2]+(6500-v[2])*d, v[3]*(1-d), v[4]+(30-v[4])*d, v[5]+(5600-v[5])*d]; }   /* golden into the plain day the scan was made in */
-    if(typeof WE!=="undefined"&&T.we){ var rn=u<0.36?1:0, fg=u<0.58?1:0; if(day) rn=fg=0; if(WE.rain!==rn||WE.fog!==fg){ WE.rain=rn; WE.fog=fg; WE.dirty=true; } }   /* rain then fog, clearing as the sun comes up */
+    if(typeof WE!=="undefined"&&T.we){ var bump=function(a,b,c,d){ return u<a||u>d?0:u<b?laE((u-a)/(b-a)):u<c?1:1-laE((u-c)/(d-c)); }, fg=1.5*bump(0.02,0.24,0.42,0.72), rn=1.4*bump(0.14,0.26,0.42,0.56); if(day) rn=fg=0;   /* fog creeps in, rain comes and goes, the fog lifts as the sun comes up */
+      if(Math.abs(WE.rain-rn)>0.005||Math.abs(WE.fog-fg)>0.005){ WE.rain=rn; WE.fog=fg; WE.dirty=true; } }
     var t=performance.now(); if(!now&&t-T.t<100) return; T.t=t;
     RL.dusk=v[1]; RL.ambK=Math.round(v[2]); RL.sunPow=v[3]>0.01?v[3]:0; RL.sunEl=Math.max(2,v[4]); RL.sunK=Math.round(v[5]);
-    T.L.power=8*(day?0:1-laE(Math.max(0,Math.min(1,(u-0.55)/0.45)))); T.L.on=T.L.power>0.05;   /* the lamp fades as the light comes up */
+    T.L.power=8*(day?0:1-laE(Math.max(0,Math.min(1,(u-0.62)/0.33)))); T.L.on=T.L.power>0.05;   /* the lamp fades as the light comes up */
     try{ rlApply(); }catch(e){} }
   function laTodEnd(){ var T=LA.tod; if(!T) return; LA.tod=null; try{ var w=T.was; RL.lights=RL.lights.filter(function(x){ return x!==T.L; }); if(typeof rlDrop==="function") rlDrop(T.L);
       RL.lights.forEach(function(L,i){ L.on=w.lon[i]!==false; }); RL.dusk=w.dusk; RL.ambK=w.ambK; RL.sunPow=w.sunPow; RL.sunEl=w.sunEl; RL.sunK=w.sunK; RL.sunAz=w.sunAz; RL.exp=w.exp; RL.shadows=w.shadows; RL.sel=w.sel; RL.on=w.on;
@@ -234,7 +235,7 @@
   function laCamInit(){ var c=laShotSpec(); LA.a0=c.az*Math.PI/180; LA.r0=c.dist; LA.h0=c.h; LA.look=c.look; laDetail(0); }
   var laE=function(u){ return u<0?0:u>1?1:u*u*(3-2*u); };
   function laFov(v){ if(viewfinderOn||!camera) return; camera.fov=v; camera.updateProjectionMatrix(); }       /* a longer lens for the slow motion; the viewfinder sets its own, and lowering it goes back to the walking eye */
-  function laDetail(u){ laPlace(LA.a0-0.11+u*0.14, LA.r0+0.12-0.14*u, LA.h0+0.02-0.03*u, LA.look); laFov(31-7*u); }   /* slow motion: a creep round into the frame, pushing in */
+  function laDetail(u){ var k=laE(u); laPlace(LA.a0-0.55+k*0.58, LA.r0+2.4-2.42*k, LA.h0+0.7-0.71*k, LA.look); laFov(40-16*k); }   /* slow: the clearing first, wide, then a long move in to the stump while the weather passes */   /* slow motion: a creep round into the frame, pushing in */
   function laShootCam(u){ laPlace(LA.a0+0.03+u*0.015, LA.r0-0.02-0.01*u, LA.h0-0.01, LA.look); if(!LA.vf) laFov(24); }              /* the camera comes up: all but still */
   var LA_WIDE={r:4.1, eye:1.9};
   function laDrift(t){ laPlace(LA.a0+0.9+t*0.07, LA_WIDE.r, LA_WIDE.eye); }                                  /* wide and slow behind the film */
@@ -281,7 +282,7 @@
   // ---- the clock ----
   function laTick(now){ if(!LA.on) return; LA.raf=requestAnimationFrame(laTick); laDetWatch(); var t=(now-LA.t0)/1000, p=LA.phase, pt=(now-(LA.pt||LA.t0))/1000, e=LA.el;
     if(p==="dark"){ if(t>2.5&&!LA.skipAsked){ LA.skipAsked=true; e.classList.add("skip"); }
-      if(loaded&&!LA.scanTried){ LA.scanTried=true; LA.scanT=t; if(!LA.fast){ laTodInit(); laScanOn(); laCamInit(); laVfOn(); LA.warm=true; } }   /* the point cloud's shader and the viewfinder's compile behind the dark: raised once, unseen */
+      if(loaded&&!LA.scanTried){ LA.scanTried=true; LA.scanT=t; if(!LA.fast){ laTodInit(); laCamInit(); laVfOn(); LA.warm=true; } }   /* the point cloud's shader and the viewfinder's compile behind the dark: raised once, unseen */
       if(LA.warm&&t-LA.scanT>0.32){ LA.warm=false; laVfOff(); }   /* the point cloud's shader compiles behind the dark */
       if(loaded&&t>(LA.fast?0.6:1.0)&&(LA.fast||(!LA.warm&&t-LA.scanT>0.5))){ laCamInit(); if(typeof updateCamera==="function") updateCamera(0); if(LA.fast){ laDrift(0); laLockStart(); return; } laPhase("detail"); sdScan(); if(typeof setScale==="function"&&typeof dynTop==="function"){ try{ setScale(Math.max(0.5,dynTop()*0.85)); }catch(x){} } } return; }
     if(p==="detail"){ laTod(Math.min(1,pt/(LA_T.detail+2.3))); laDetail(Math.min(1,pt/LA_T.detail)); laScanSet(Math.min(1,pt/LA_T.scan));  if(pt>LA_T.detail&&!laHeld()) laPhase("shoot"); return; }
@@ -292,7 +293,7 @@
       if(LA_NOFILM&&LA.fired&&!LA.firedT) LA.firedT=pt; if(LA_NOFILM&&LA.firedT&&pt-LA.firedT>0.42&&!laHeld()){ LA.el.classList.add("nofilm"); laSpinStart(); return; }   /* the still holds a breath, then the world pulls away from it */
       if(!LA_NOFILM&&pt>LA_T.shoot&&!laHeld()){ laPhase("film"); sdFilm(); e.classList.add("held"); Array.prototype.forEach.call(e.querySelectorAll("video"),function(v){ try{ v.currentTime=0; v.play(); }catch(x){} }); } return; }
     if(p==="film"){ laDrift(pt); var q=laStrip(pt); if(q.end&&!laHeld()) laSpinStart(); return; }
-    if(p==="spin"){ var su=Math.min(1,pt/(LA.quick?1.6:LA_T.spin)); laSpin(su); if(LA.tod) laTod(1,Math.min(1,su*1.4)); if(su>=1&&(LA.quick||!laHeld())) laEnd(); return; } }
+    if(p==="spin"){ var su=Math.min(1,pt/(LA.quick?1.6:LA_T.spin)); laSpin(su); if(LA.tod){ laTod(1,Math.min(1,su*2.2)); if(su>0.5) laTodEnd(); }   /* back to the plain scan mid-circle, while it's moving fast */ if(su>=1&&(LA.quick||!laHeld())) laEnd(); return; } }
   function laEnd(){ if(!LA.on) return; LA.on=false; laTodEnd(); cancelAnimationFrame(LA.raf); var e=LA.el; LA.welcome=Date.now(); laVfOff(); laScanOff(); (CH.pads||[]).forEach(function(P){ P.vis=0; });   /* the gold frames fade in once the wordmark has gone */
     if(loaded){ hubShow("hud"); App.go("scene"); if(typeof updatePrompt==="function") updatePrompt(); } else showHub();
     sdAmbStop(sdNow()+1.6,1.2); if(LA.first&&loaded) LA.wcard=true;   /* first time: hold the tour and the gold frames for the welcome */

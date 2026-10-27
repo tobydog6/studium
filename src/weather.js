@@ -13,7 +13,7 @@
     fog:'<svg viewBox="0 0 24 24"><path d="M4 8h16M3 12h18M5 16h14M8 20h8"/></svg>'};
   function weAny(){ return WE.rain>0||WE.wind>0||WE.fog>0; }
   function weState(){ return {rain:WE.rain, wind:WE.wind, fog:WE.fog}; }
-  function weAmt(k){ return k===0?0:k===1?0.45:1; }
+  function weAmt(k){ return k<=0?0:k<=1?0.45*k:0.45+0.55*Math.min(1,k-1); }   /* levels 0, 1, 2; in between too, so weather can creep in and out */
   function weSet(k, lv){ WE[k]=Math.max(0,Math.min(2,lv|0)); WE.dirty=true; if(typeof sfx==="function") sfx("toggle"); weKitMark(); }
   function weCycle(k){ weSet(k, (WE[k]+1)%3); }
   function weS(){ return typeof rlScale==="function"?rlScale():1; }

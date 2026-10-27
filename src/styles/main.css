@@ -3113,3 +3113,4 @@ body.rackin #loader,body.rackin #hud,body.rackin #navTop,body.rackin #navActs,bo
 
 /* the opening: a soft warm haze where the sun breaks through the fog */
 .la-sun{position:absolute;left:50%;top:50%;width:90vmax;height:90vmax;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;opacity:0;mix-blend-mode:screen;z-index:1;transition:left .12s linear,top .12s linear,opacity .2s linear;background:radial-gradient(circle,rgba(255,214,150,.55) 0%,rgba(255,170,90,.22) 12%,rgba(255,150,70,.08) 30%,rgba(255,140,60,0) 55%)}
+#launch.hand .la-dark{display:none}   /* coming from the launch page the scan is already in: no dark title to flash */

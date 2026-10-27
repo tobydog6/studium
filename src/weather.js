@@ -98,6 +98,8 @@
         var rigid=Math.pow(solidW,1.5)*(1-leafy);   /* a wall or a post is dense all round and not leafy; a thick canopy is dense but leafy, so it still moves */
         var bend=hf*(1-0.9*rigid);
         var flut=leafy*(1-0.4*solidL)+0.45*hf*(1-0.5*solidL);   /* leaves and grass, and bare twigs up high */
+        flut*=0.35+0.65*Math.max(0,Math.min(1,(h-0.4)/1.6));   /* low things (ivy on a stump, grass) only shiver; it builds up into the canopy */
+        flut*=1-0.6*solidW;   /* stuck to something solid */
         if(h<0.03) flut*=0.2;
         out[ci*4]=Math.round(Math.max(0,Math.min(1,bend))*255); out[ci*4+1]=Math.round(Math.max(0,Math.min(1,flut))*255); } }
     var tex=new THREE.Data3DTexture(out,nx,ny,nz); tex.format=THREE.RGBAFormat; tex.type=THREE.UnsignedByteType; tex.minFilter=tex.magFilter=THREE.LinearFilter;
@@ -144,7 +146,7 @@
           "    col=mix(col,rich,wk*0.9);",
           "    vec3 V=normalize("+i.cam+"-cw); float fr2=pow(1.0-abs(dot(n,V)),4.0); col+=vec3(0.62,0.66,0.7)*fr2*upf*"+i.wet+"*0.32*(0.4+lum); }",
           "  col*=mix(vec3(1.0),vec3(0.84,0.87,0.92),"+i.ovc+");",
-          "  if("+i.fog+">0.0){ float d=length(cw-"+i.cam+")/"+i.S+"; float ff=1.0-exp(-d*"+i.fog+"); col=mix(col,"+i.fc+",ff*0.94); }",
+          "  if("+i.fog+">0.0){ float d=max(0.0,length(cw-"+i.cam+")/"+i.S+"-2.5); float ff=1.0-exp(-d*"+i.fog+"); col=mix(col,"+i.fc+",ff*0.94); }",   /* clear air for the first couple of metres: what you're photographing stays crisp */
           "  "+o+".rgba.rgb=clamp(col,0.0,1.0);",
           "}"]; } });
       return {gsplat:dd.outputs.gsplat}; }); }
@@ -161,7 +163,7 @@
     if(U){ var wasOn=U.on.value>0.5; U.on.value=any?1:0; U.t.value=t;
       if(wa>0&&U.fok.value<0.5){ var F=null; try{ F=weField(); }catch(e){ console.warn("wind field",e); } if(F){ U.fld.value=F.tex; U.fo.value.copy(F.o); U.finv.value.copy(F.inv); U.fok.value=1; WE.dirty=true; } }
       if(WE.field&&viewer.P!==WE.field.P){ U.fok.value=0; }
-      U.wind.value.set(wd[0]*wa,0,wd[1]*wa); U.wet.value=Math.min(1,ra*1.1); U.fog.value=fa?0.035+fa*0.11:0; U.ovc.value=Math.min(1,ra*0.85+fa*0.6);
+      U.wind.value.set(wd[0]*wa,0,wd[1]*wa); U.wet.value=Math.min(1,ra*1.1); U.fog.value=fa?0.035+fa*0.11:0; U.ovc.value=Math.min(1,ra*0.85+fa*0.4);
       U.S.value=S; var m0=viewer.mesh; U.q.value.set(m0.quaternion.x,m0.quaternion.y,m0.quaternion.z,m0.quaternion.w); U.s.value=m0.scale.x||1;
       var far=!WE.lastCam||WE.lastCam.distanceToSquared(camera.position)>0.0625*S*S;   /* a quarter of a metre */
       if(any&&(wa>0||far||WE.dirty)||(wasOn&&!any)){ if(far||WE.dirty||!WE.lastCam){ U.cam.value.copy(camera.position); WE.lastCam=(WE.lastCam||new THREE.Vector3()).copy(camera.position); }

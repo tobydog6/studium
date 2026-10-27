@@ -1676,7 +1676,7 @@ body.nav-looking .nav-coach{opacity:0}
 .nav-coach i{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
 .nav-coach span{position:absolute;left:50%;bottom:128px;transform:translateX(-50%);white-space:nowrap}
 .nav-top #navLoad,.nav-top #navFrames{display:none}
-body.dev .nav-top #navLoad,body.dev .nav-top #navFrames:not(.hidden){display:flex}
+body.dev .nav-top #navLoad,.nav-top #navFrames:not(.hidden){display:flex}   /* HIDE FRAMES: for everyone for now, so Sam can test without the gold frames */
 .nav-acts{left:50%;bottom:36px;transform:translateX(-50%);display:flex;gap:8px}
 .nav-acts button{display:flex;align-items:center;gap:10px;white-space:nowrap;height:46px;padding:0 18px;border-radius:8px;cursor:pointer;border:1px solid rgba(var(--bone-rgb),.14);background:rgba(23,20,15,.85);color:var(--text);font-family:var(--mono);font-size:11px;letter-spacing:.14em;backdrop-filter:blur(10px)}
 .nav-acts button span{font-size:10px;opacity:.55}

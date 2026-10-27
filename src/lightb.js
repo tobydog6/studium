@@ -689,12 +689,13 @@
   function rbSpotTick(){ var p=rbTourSpot(); RLB.spotNow=p; if(!p){ if(RLB.spotM) RLB.spotM.visible=false; return; } if(typeof scene==="undefined"||!scene) return;
     var G=rbSpotMesh(), S=RL.S, pu=0.5+0.5*Math.sin(performance.now()/260), disc=G.getObjectByName("disc"), lab=G.getObjectByName("lab"), ln=G.getObjectByName("post"), lh=0.75*S;
     G.visible=true; G.position.set(p.x,p.y,p.z); disc.position.y=0.014*S; disc.scale.setScalar((0.62+0.06*pu)*S);
-    if(lab.material.map!==rbLabTex(p.label)){ lab.material.map=rbLabTex(p.label); lab.material.needsUpdate=true; } lab.position.y=lh; lab.scale.set(0.13,0.046,1); lab.material.opacity=0.8+0.2*pu;
+    if(lab.material.map!==rbLabTex(p.label)){ lab.material.map=rbLabTex(p.label); lab.material.needsUpdate=true; } lab.position.y=lh; lab.scale.set(0.1,0.035,1); lab.material.opacity=0.8+0.2*pu;
     ln.scale.set(1,lh,1); }
   /* step back to a view that shows the subject and the floor round it: for the tour, or when you've zoomed right in */
   function rbFrame(dir){ if(!RLB.open||viewfinderOn) return; var T=rbTarget(), S=RL.S, h=dir;
     if(!h){ var ax=camPos.x-T.x, az=camPos.z-T.z, al=Math.hypot(ax,az); h=al>0.05*S?{x:ax/al,z:az/al}:rbHome(); }
-    var gy=rlGround(T.x,T.z), to={x:T.x+h.x*3.0*S, y:Math.max(T.y,gy)+2.1*S, z:T.z+h.z*3.0*S};   /* high and back, looking down on the floor round the subject */
+    var gy=rlGround(T.x,T.z), vf=(camera.fov||50)*Math.PI/360, asp=Math.max(0.5,(innerWidth-RLB_SIDE)/Math.max(200,innerHeight-260)), half=Math.min(vf,Math.atan(Math.tan(vf)*asp));
+    var dd=Math.max(2.6,Math.min(14,2.0/Math.tan(half)))*S, el=0.6, to={x:T.x+h.x*dd*Math.cos(el), y:(T.y+gy)/2+dd*Math.sin(el), z:T.z+h.z*dd*Math.cos(el)};   /* far enough for this lens to take in 2 m round the subject, looking down about 35° */
     if(typeof boundsOn!=="undefined"&&boundsOn){ to.x=Math.min(Math.max(to.x,boxMin.x),boxMax.x); to.y=Math.min(Math.max(to.y,boxMin.y),boxMax.y); to.z=Math.min(Math.max(to.z,boxMin.z),boxMax.z); }
     if(Math.hypot(to.x-camPos.x,to.y-camPos.y,to.z-camPos.z)<0.15*S) return; RLB.frame={a:{x:camPos.x,y:camPos.y,z:camPos.z}, b:to, t:0, t0:performance.now()}; RLB.fly=true; }
   function rbFrameStep(dt){ var F=RLB.frame; if(!F) return; if(!RLB.open||viewfinderOn){ RLB.frame=null; return; }

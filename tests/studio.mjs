@@ -111,7 +111,7 @@ try {
   let book = (await cb(() => window.__cb.studio())).book;
   ok(book.pages[0].tpl === 'bleed' && book.pages[0].imgs[0] === 3, 'cover should be the highest-rated pick, full bleed');
   ok(book.pages.length === 12 && book.spread === 1, 'a new book has 12 pages and opens on spread 2–3');
-  ok((await page.$$('.bk-pic')).length === 4, 'tray should hold the four picks');
+  ok(await page.$('.bk-tray .lib-f') && (await page.$$('.bk-tray [data-bd-pic]')).length >= 4, 'the book should have the library rail, with frames to drag in');
   await key('ArrowRight', 300);
   ok((await page.$$('.bk-page')).length === 2, 'a spread shows two pages');
   const s0 = await page.$eval('.bk-page.l .bk-slot', (e) => e.getAttribute('data-bk-slot'));

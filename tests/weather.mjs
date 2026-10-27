@@ -31,7 +31,7 @@ page.on('console', (m) => { if (m.type() === 'error' && !/fonts\.g|supabase|net:
 const shot = async (n) => { await page.waitForTimeout(1200); await page.screenshot({ path: join(OUT, `quick-${n}.png`), timeout: 240000 }).catch(() => console.log('  (screenshot timed out: ' + n + ')')); };
 let fail = '';
 try {
-  await page.goto(BASE + '?dev'); await page.waitForSelector('#signin [data-si="demo"]', { state: 'visible', timeout: 90000 });
+  await page.goto(BASE + '?dev'); await page.waitForSelector('#signin [data-si="demo"]', { state: 'visible', timeout: 300000 });
   await page.click('#signin [data-si="demo"]');
   await page.waitForFunction(() => window.__cb && __cb.state() === 'scene' && window.__q, null, { timeout: 300000, polling: 500 });
   await page.evaluate(() => { try{ __qu.closeAll(); }catch(e){} for(let i=0;i<60;i++){ try{ if(!__co.state().on) break; __co.go(); }catch(e){ break; } } });

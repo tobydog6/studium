@@ -658,16 +658,16 @@
   function rbSpotTick(){ var p=rbTourSpot(); RLB.spotNow=p; if(!p){ if(RLB.spotM) RLB.spotM.visible=false; return; } if(typeof scene==="undefined"||!scene) return;
     var G=rbSpotMesh(), S=RL.S, pu=0.5+0.5*Math.sin(performance.now()/260), disc=G.getObjectByName("disc"), lab=G.getObjectByName("lab"), ln=G.getObjectByName("post"), lh=0.75*S;
     G.visible=true; G.position.set(p.x,p.y,p.z); disc.position.y=0.014*S; disc.scale.setScalar((0.62+0.06*pu)*S);
-    if(lab.material.map!==rbLabTex(p.label)){ lab.material.map=rbLabTex(p.label); lab.material.needsUpdate=true; } lab.position.y=lh; lab.scale.set(0.085,0.03,1); lab.material.opacity=0.8+0.2*pu;
+    if(lab.material.map!==rbLabTex(p.label)){ lab.material.map=rbLabTex(p.label); lab.material.needsUpdate=true; } lab.position.y=lh; lab.scale.set(0.13,0.046,1); lab.material.opacity=0.8+0.2*pu;
     ln.scale.set(1,lh,1); }
   /* step back to a view that shows the subject and the floor round it: for the tour, or when you've zoomed right in */
   function rbFrame(dir){ if(!RLB.open||viewfinderOn) return; var T=rbTarget(), S=RL.S, h=dir;
     if(!h){ var ax=camPos.x-T.x, az=camPos.z-T.z, al=Math.hypot(ax,az); h=al>0.05*S?{x:ax/al,z:az/al}:rbHome(); }
-    var gy=rlGround(T.x,T.z), to={x:T.x+h.x*3.1*S, y:Math.max(T.y,gy)+1.5*S, z:T.z+h.z*3.1*S};
+    var gy=rlGround(T.x,T.z), to={x:T.x+h.x*3.0*S, y:Math.max(T.y,gy)+2.1*S, z:T.z+h.z*3.0*S};   /* high and back, looking down on the floor round the subject */
     if(typeof boundsOn!=="undefined"&&boundsOn){ to.x=Math.min(Math.max(to.x,boxMin.x),boxMax.x); to.y=Math.min(Math.max(to.y,boxMin.y),boxMax.y); to.z=Math.min(Math.max(to.z,boxMin.z),boxMax.z); }
     if(Math.hypot(to.x-camPos.x,to.y-camPos.y,to.z-camPos.z)<0.15*S) return; RLB.frame={a:{x:camPos.x,y:camPos.y,z:camPos.z}, b:to, t:0, t0:performance.now()}; RLB.fly=true; }
   function rbFrameStep(dt){ var F=RLB.frame; if(!F) return; if(!RLB.open||viewfinderOn){ RLB.frame=null; return; }
-    F.t=Math.min(1,(performance.now()-F.t0)/900); var e=F.t<0.5?2*F.t*F.t:1-Math.pow(-2*F.t+2,2)/2, T=rbTarget();
+    F.t=Math.min(1,(performance.now()-F.t0)/900); var e=F.t<0.5?2*F.t*F.t:1-Math.pow(-2*F.t+2,2)/2, T0=rbTarget(), T={x:T0.x, y:(T0.y+rlGround(T0.x,T0.z))/2, z:T0.z};
     camPos.set(F.a.x+(F.b.x-F.a.x)*e, F.a.y+(F.b.y-F.a.y)*e, F.a.z+(F.b.z-F.a.z)*e);
     if(typeof boundsOn!=="undefined"&&boundsOn&&typeof bndClamp==="function") bndClamp();
     var dX=T.x-camPos.x, dY=T.y-camPos.y, dZ=T.z-camPos.z, dl=Math.hypot(dX,dY,dZ)||1; yaw=Math.atan2(-dX,-dZ); pitch=Math.asin(dY/dl); RLB.fly=true; if(typeof _vel!=="undefined") _vel.set(0,0,0);

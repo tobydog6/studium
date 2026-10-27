@@ -184,7 +184,7 @@
     if(L.kind===1||L.kind===3){ var ca=(lx*L.dir[0]+ly*L.dir[1]+lz*L.dir[2])/d; E*=rbSmooth(Math.cos(L.cone*Math.PI/360), Math.cos(L.cone*Math.PI/360*0.55), ca); }
     var p=L.kind===3?L.bounceP:L.power; return rbLum(rbEmitRGB(L))*p*E; }
   function rbRoles(){ var T=rbTarget(), cx=camPos.x-T.x, cz=camPos.z-T.z, cl=Math.hypot(cx,cz)||1, front=[], out={};
-    RL.lights.forEach(function(L,i){ if(L.fx==="candle"||L.fx==="sodium"||L.fx==="rgb"){ out[i]="Practical"; return; } if(L.kind===2){ out[i]="Flag"; return; }
+    RL.lights.forEach(function(L,i){ if(L.fx==="sodium"||L.fx==="rgb"){ out[i]="Practical"; return; } if(L.kind===2){ out[i]="Flag"; return; }
       var lx=L.x-T.x, lz=L.z-T.z, ll=Math.hypot(lx,lz)||1, ang=Math.acos(Math.max(-1,Math.min(1,(cx*lx+cz*lz)/(cl*ll))))*180/Math.PI;
       var tx=T.x-L.x, ty=T.y-L.y, tz=T.z-L.z, tl=Math.hypot(tx,ty,tz)||1, aimed=(tx*L.dir[0]+ty*L.dir[1]+tz*L.dir[2])/tl>0.6||L.kind===0;
       L.ang=Math.round(ang); if(!aimed){ out[i]="Background"; return; } if(ang>110){ out[i]="Rim"; return; } if(L.kind===3){ out[i]="Bounce"; return; } front.push(i); });
@@ -197,11 +197,11 @@
   function rbRatioWord(r){ if(r<1.6) return "flat and even"; if(r<2.6) return "soft and open"; if(r<5) return "classic, with shape"; if(r<9) return "moody"; return "dramatic, deep shadows"; }
 
   function rbAim(L,p){ var dx=p.x-L.x, dy=p.y-L.y, dz=p.z-L.z, d=Math.hypot(dx,dy,dz)||1; L.dir=[dx/d,dy/d,dz/d]; L.aimT={x:p.x,y:p.y,z:p.z}; }
-  function rbPlace(L,x,z){ L.x=x; L.z=z; L.g=rlGround(x,z); L.y=L.g+L.h*RL.S; if(L.aimT) rbAim(L,L.aimT); }
+  function rbPlace(L,x,z){ L.h=Math.max(L.h,(RLB_MOUNT[L.fx]||0)+0.15); L.x=x; L.z=z; L.g=rlGround(x,z); L.y=L.g+L.h*RL.S; if(L.aimT) rbAim(L,L.aimT); }
   var RLB_SPOTS=[[45,1.5],[-55,1.9],[155,1.6],[-150,1.8],[100,2.2],[-100,2.2],[20,2.6],[-20,2.6]];
   function rbAdd(fx){ if(RL.lights.length>=RLB_MAX){ toast("That's "+RLB_MAX+" pieces of kit, the most for now"); return; }
     var F=RLB_FX[fx]||RLB_FX.softbox, T=rbTarget(), S=RL.S, ax=camPos.x-T.x, az=camPos.z-T.z, al=Math.hypot(ax,az)||1; ax/=al; az/=al;
-    var sp=fx==="reflector"?[-70,1.0]:fx==="flag"?[-80,1.1]:RLB_SPOTS[RL.lights.length%RLB_SPOTS.length];
+    var sp=fx==="reflector"?[-70,1.0]:RLB_SPOTS[RL.lights.length%RLB_SPOTS.length];
     var a=sp[0]*Math.PI/180, d=sp[1]*S, ca=Math.cos(a), sa=Math.sin(a);
     var L={id:RL.nid++, on:true, fx:fx, name:F.n, kind:F.kind, type:F.kind===1?"spot":"bulb", power:F.power, base:F.power, stops:0, k:F.k, gel:F.gel||"#ffffff", R:F.R, cone:F.cone||180, h:F.h, surf:F.surf||null, soft:F.R, dir:[0,-1,0], bounceP:0};
     rbPlace(L, T.x+(ax*ca-az*sa)*d, T.z+(ax*sa+az*ca)*d); rbAim(L, fx==="sodium"?{x:L.x,y:L.g,z:L.z}:T);
@@ -212,7 +212,7 @@
   function rbDirty(){ RLB.dirty=true; }
   function rbIdentity(){ return !RLB.sunMode&&!RL.lights.some(function(L){ return L.on; }); }
   function rbApply(){ RLB.dirty=false; RLB.nApply=(RLB.nApply||0)+1; if(!RL.ready||!RLB.gpu) return; var G0=RLB.gpu, U=G0.U;
-    if(rbIdentity()){ rbRestore(); RLB.eye=1; return; }
+    if(rbIdentity()){ rbRestore(); RLB.eye=1; if(typeof rbKitLevel==="function") rbKitLevel(); return; }
     if(G0.mesh.maxSh>0){ G0.mesh.__sh=G0.mesh.maxSh; G0.mesh.maxSh=0; G0.mesh.updateGenerator(); setTimeout(function(){ G0.mesh.updateGenerator(); G0.mesh.updateVersion(); },300); }
     var amb=[1,1,1], sunOn=false;
     if(RLB.sunMode){ var so=rbSolar(RLB.mins), sk=rbSky(so.el); RLB.el=so.el; RLB.az=so.az; amb=sk.amb; RLB.sunLin=sk.sun;
@@ -259,14 +259,21 @@
   function rbKitPart(n){ var o=RLB_KIT&&RLB_KIT.getObjectByName(n); return o?o.clone(true):null; }
   /* the kit is lit like the scene it stands in: the scan's own sky to reflect, sky fill and the sun at the time you've picked */
   function rbKitLights(){ if(!scene) return; var U=scene.userData; if(U.rbLit) return; U.rbLit=true;
+    if(RLB.envTex){ try{ RLB.envTex.dispose(); }catch(e){} RLB.envTex=null; }   /* the last scene's reflections */
     U.rbHemi=new THREE.HemisphereLight(0xdfe6ee,0x2a251e,0.6); scene.add(U.rbHemi);
     U.rbSun=new THREE.DirectionalLight(0xffffff,0); scene.add(U.rbSun); scene.add(U.rbSun.target);
     try{ var pm=new THREE.PMREMGenerator(renderer), t=typeof SKY!=="undefined"&&SKY.tex;
       if(t&&t.image&&t.image.width){ var m0=t.mapping; t.mapping=THREE.EquirectangularReflectionMapping; scene.environment=pm.fromEquirectangular(t).texture; t.mapping=m0; }
       pm.dispose(); }catch(e){ console.warn("lighting kit: sky reflections", e); }
     if(!scene.environment&&typeof RoomEnvironment!=="undefined"){ try{ var pm2=new THREE.PMREMGenerator(renderer); scene.environment=pm2.fromScene(new RoomEnvironment(),0.04).texture; pm2.dispose(); }catch(e){} }
+    else U.rbSky=true;
+    if(!U.rbSky&&!U.rbRoom){ U.rbRoom=true; }   /* the sky wasn't ready: try it again once it is */
+    RLB.envTex=scene.environment||null;
     rbKitLevel(); }
-  function rbKitLevel(){ if(!scene||!scene.userData.rbLit) return; var U=scene.userData, a=rbLum(RLB.sunMode?RLB.amb:[1,1,1]), k=Math.max(0.04,Math.min(1,a*1.25));
+  function rbKitSkyRetry(){ var U=scene&&scene.userData, t=typeof SKY!=="undefined"&&SKY.tex; if(!U||!U.rbRoom||!t||!t.image||!t.image.width) return; U.rbRoom=false;
+    try{ var pm=new THREE.PMREMGenerator(renderer), m0=t.mapping; t.mapping=THREE.EquirectangularReflectionMapping; var env=pm.fromEquirectangular(t).texture; t.mapping=m0; pm.dispose();
+      if(RLB.envTex) RLB.envTex.dispose(); scene.environment=env; RLB.envTex=env; U.rbSky=true; }catch(e){} }
+  function rbKitLevel(){ if(!scene||!scene.userData.rbLit) return; rbKitSkyRetry(); var U=scene.userData, a=rbLum(RLB.sunMode?RLB.amb:[1,1,1]), k=Math.max(0.04,Math.min(1,a*1.25));
     scene.environmentIntensity=k; U.rbHemi.intensity=(RLB.sunMode?0.6:1.1)*k;
     var sunOn=RLB.sunMode&&RLB.el>-1&&rbLum(RLB.sunLin)>0.002, T=rbTarget();
     U.rbSun.intensity=sunOn?2.4*Math.min(1.5,rbLum(RLB.sunLin)):RLB.sunMode?0:0.9;   /* as scanned: soft overcast light from above */
@@ -285,7 +292,7 @@
         else if(mn==="Surf"){ o.material=o.material.clone(); P.surf.push(o.material); }
         else if(o.material&&o.material.side!==THREE.DoubleSide&&/Fabric|WhiteIn|Silver/.test(mn||"")){ o.material=o.material.clone(); o.material.side=THREE.DoubleSide; } }); }
     else { var hd=new THREE.Group(); hd.add(new THREE.Mesh(new THREE.SphereGeometry(0.05,16,12), new THREE.MeshBasicMaterial({color:0xfff4e0}))); g.add(hd); P.head=hd; P.fx=hd; P.basic=hd.children[0].material; }
-    var sh=new THREE.Mesh(new THREE.PlaneGeometry(1.25,1.25), new THREE.MeshBasicMaterial({map:rbShadowTex(), transparent:true, depthWrite:false, opacity:0.85})); sh.rotation.x=-Math.PI/2; sh.position.y=0.008; sh.name="cshadow"; sh.renderOrder=4; g.add(sh); P.shadow=sh;
+    var sh=new THREE.Mesh(new THREE.PlaneGeometry(1.25,1.25), new THREE.MeshBasicMaterial({map:rbShadowTex(), transparent:true, depthWrite:false, opacity:0.85})); sh.rotation.x=-Math.PI/2; sh.position.y=0.008; sh.name="cshadow"; sh.renderOrder=4; sh.raycast=function(){}; g.add(sh); P.shadow=sh;
     var aim=new THREE.Mesh(new THREE.SphereGeometry(0.035,16,12), new THREE.MeshBasicMaterial({color:0xe3ad57})); aim.name="aim"; g.add(aim);
     var ring=new THREE.Mesh(new THREE.RingGeometry(0.5,0.54,48), new THREE.MeshBasicMaterial({color:0xe3ad57, side:THREE.DoubleSide, transparent:true, opacity:0.9})); ring.rotation.x=-Math.PI/2; ring.name="ring"; g.add(ring);
     var beamG=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(0,0,1)]); var beam=new THREE.Line(beamG, new THREE.LineDashedMaterial({color:0xe3ad57, dashSize:0.06, gapSize:0.05, transparent:true, opacity:0.7})); beam.name="beam"; g.add(beam);
@@ -298,7 +305,7 @@
     RL.lights.forEach(function(L,i){ if(L.stand&&L.stand.userData.fx!==L.fx+"|"+(RLB_KIT?1:0)){ rbDropStand(L); }
       if(!L.stand){ L.stand=rbStandFor(L); L.stand.userData.fx=L.fx+"|"+(RLB_KIT?1:0); scene.add(L.stand); }
       var st=L.stand, P=st.userData.P, top=(L.y-L.g)/S; st.visible=show; st.position.set(L.x,L.g,L.z); st.scale.setScalar(S);
-      var ts=top-(RLB_MOUNT[L.fx]||0), tri=L.fx!=="sodium", k=Math.min(1,Math.max(0.15,ts/0.9));   /* a low light gets a shorter stand, not one through the floor */
+      var ts=Math.max(0.12,top-(RLB_MOUNT[L.fx]||0)), tri=L.fx!=="sodium", k=Math.min(1,Math.max(0.15,ts/0.9));   /* a low light gets a shorter stand, not one through the floor */
       if(P.stand_base){ P.stand_base.visible=P.stand_top.visible=tri; P.stand_base.scale.setScalar(k);
         var pl=ts-0.13-0.7*k; P.stand_pole.position.y=0.7*k; P.stand_pole.scale.y=Math.max(0.001,pl+0.02); P.stand_pole.visible=tri&&pl>0; P.stand_top.position.y=ts-0.03; }
       if(P.street_post){ P.street_post.visible=L.fx==="sodium"; P.street_post.scale.y=Math.max(0.01,ts); }
@@ -327,15 +334,17 @@
   function rbOrbit(dx,dy,zoom){ var T=rbTarget(), S=RL.S, ox=camPos.x-T.x, oy=camPos.y-T.y, oz=camPos.z-T.z, r=Math.hypot(ox,oy,oz)||1;
     var th=Math.atan2(ox,oz)-dx*0.0065, ph=Math.asin(Math.max(-1,Math.min(1,oy/r)))+dy*0.005; r=Math.max(0.6*S,Math.min(14*S,r*(zoom||1)));
     ph=Math.max(-0.05,Math.min(1.45,ph)); var nx=T.x+r*Math.cos(ph)*Math.sin(th), nz=T.z+r*Math.cos(ph)*Math.cos(th), ny=T.y+r*Math.sin(ph), gy=rlGround(nx,nz)+0.12*S;
-    if(ny<gy) ny=gy; camPos.set(nx,ny,nz); var dX=T.x-nx, dY=T.y-ny, dZ=T.z-nz, dl=Math.hypot(dX,dY,dZ)||1;
+    if(ny<gy) ny=gy; camPos.set(nx,ny,nz);
+    if(typeof boundsOn!=="undefined"&&boundsOn){ camPos.x=Math.min(Math.max(camPos.x,boxMin.x),boxMax.x); camPos.y=Math.min(Math.max(camPos.y,boxMin.y),boxMax.y); camPos.z=Math.min(Math.max(camPos.z,boxMin.z),boxMax.z); if(typeof bndClamp==="function") bndClamp(); nx=camPos.x; ny=camPos.y; nz=camPos.z; } var dX=T.x-nx, dY=T.y-ny, dZ=T.z-nz, dl=Math.hypot(dX,dY,dZ)||1;
     yaw=Math.atan2(-dX,-dZ); pitch=Math.asin(dY/dl); RLB.fly=true; if(typeof _vel!=="undefined") _vel.set(0,0,0); }
   function rlbFly(){ if(!RLB||!RLB.fly) return false; if(!RLB.open||viewfinderOn){ RLB.fly=false; return false; }
     var k=typeof keys!=="undefined"?keys:{}; if(k.KeyW||k.KeyA||k.KeyS||k.KeyD){ RLB.fly=false; return false; } return true; }   /* walking puts you back on your feet */
   window.addEventListener("pointerdown",function(e){ if(!rbOnCanvas(e)) return; e.stopImmediatePropagation(); e.preventDefault(); var ae=document.activeElement; if(ae&&ae.closest&&ae.closest("#rbPanel,#rbTime")) ae.blur();
-    if(e.button===2){ RLB.fly=false; toggleViewfinder(); try{ renderer.domElement.requestPointerLock(); }catch(er){} return; }   /* right-click: up to your eye, ready to shoot, same as everywhere else */
+    if(e.button===2){ RLB.rcT=Date.now(); RLB.fly=false; toggleViewfinder(); try{ renderer.domElement.requestPointerLock(); }catch(er){} return; }   /* right-click: up to your eye, ready to shoot, same as everywhere else */
     if(e.button!==0) return; var h=rbHit(e);
     if(h){ var i=RL.lights.indexOf(h.L); RLB.sel=i; var L=h.L, p=rbOnPlane(e,L.g); RLB.drag={L:L, aim:h.aim, ox:p?L.x-p.x:0, oz:p?L.z-p.z:0, moved:false}; rbPanel(true); rbStands(); }
     else { RLB.drag={orbit:true, x:e.clientX, y:e.clientY, moved:false}; renderer.domElement.style.cursor="grabbing"; }
+    try{ renderer.domElement.setPointerCapture(e.pointerId); }catch(er){}   /* let go outside the window and the drag still ends */
   },true);
   window.addEventListener("pointermove",function(e){ if(!RLB.open||viewfinderOn) return;
     var D=RLB.drag; if(!D){ if(e.target===renderer.domElement){ var h=rbHit(e); renderer.domElement.style.cursor=h?(h.aim?"crosshair":"grab"):"move"; } return; }
@@ -347,7 +356,7 @@
     if(D.orbit){ renderer.domElement.style.cursor=""; if(!D.moved&&RLB.sel>=0){ RLB.sel=-1; rbStands(); rbPanel(true); } return; }   /* a click on empty space lets go of the light */
     if(D.L&&D.moved) RL.moved=(RL.moved||0)+1; },true);
   window.addEventListener("click",function(e){ if(rbOnCanvas(e)){ e.stopImmediatePropagation(); e.preventDefault(); } },true);
-  window.addEventListener("mousedown",function(e){ if(rbOnCanvas(e)){ e.stopImmediatePropagation(); } },true);
+  window.addEventListener("mousedown",function(e){ if(rbOnCanvas(e)||(e.button===2&&RLB.rcT&&Date.now()-RLB.rcT<200)){ e.stopImmediatePropagation(); } },true);
   window.addEventListener("contextmenu",function(e){ if(RLB.open&&e.target===renderer.domElement){ e.preventDefault(); e.stopImmediatePropagation(); } },true);
   /* scroll on a light raises or lowers it; anywhere else it zooms the orbit */
   window.addEventListener("wheel",function(e){ if(!rbOnCanvas(e)) return; e.preventDefault(); e.stopImmediatePropagation(); var h=rbHit(e);
@@ -447,7 +456,7 @@
     t.addEventListener("pointermove",function(e){ if(RLB.tdrag) rbTimeAt(e); }); t.addEventListener("pointerup",function(){ RLB.tdrag=false; });
     var dw=document.createElement("div"); dw.id="rbDiagW"; dw.innerHTML='<canvas id="rbDiag"></canvas><p>DRAG LIGHTS · DRAG N TO TURN NORTH</p>'; document.body.appendChild(dw);
     var cv=$("rbDiag"); cv.addEventListener("pointerdown",rbDiagDown); cv.addEventListener("pointermove",rbDiagMove); cv.addEventListener("pointerup",function(){ RLB.ddrag=null; });
-    var tip=document.createElement("div"); tip.id="rbTip"; tip.innerHTML='<b>Drag</b> to orbit · <b>scroll</b> to zoom · <b>drag a stand</b> to move it · <b>its gold dot</b> to aim · <b>right-click</b> to raise the camera'; document.body.appendChild(tip);
+    var tip=document.createElement("div"); tip.id="rbTip"; tip.innerHTML='<b>Drag</b> to orbit · <b>scroll</b> to zoom · <b>drag a stand</b> to move it · <b>its gold dot</b> to aim · <b>right-click</b> to raise the camera · <b>WASD</b> to walk'; document.body.appendChild(tip);
     var bz=document.createElement("div"); bz.id="rbBusy"; bz.textContent="BUILDING SHADOWS…"; document.body.appendChild(bz); }
   function rbShow(on){ ["rbPanel","rbTime","rbDiagW","rbTip"].forEach(function(id){ var e=$(id); if(e) e.classList.toggle("show",!!on&&!viewfinderOn); }); }
   function rbFmtStops(s){ return s===0?"as it comes":(s>0?"+":"")+s.toFixed(1)+" stop"+(Math.abs(s)===1?"":"s"); }

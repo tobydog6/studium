@@ -79,8 +79,8 @@
      shot:function(p){ var g={}; achL(p).forEach(function(L){ if(achBold(L)) g[L.gel]=1; }); return achDark(p)&&Object.keys(g).length>=2; }},
     {id:"streetlight", cat:"light", name:"Under the Streetlight", how:"At night, only streetlights on.", learn:"Sodium streetlights glow one orange colour, which is why old night photos of cities look orange.",
      shot:function(p){ var L=achL(p); return achT(p)==="night"&&L.length&&L.every(function(x){ return x.fx==="sodium"; }); }},
-    {id:"candlelight", cat:"light", name:"By Candlelight", how:"Only candles on, exposed within a stop.", learn:"Candles are dim, so you open up, slow down and raise the ISO all at once. Every setting is a trade.",
-     shot:function(p){ var L=achL(p); return L.length&&L.every(function(x){ return x.fx==="candle"; })&&achEv(p,1); }},
+    {id:"candlelight", cat:"light", name:"Lamplight", how:"Only bare bulbs on, at 2700 K or warmer, exposed within a stop.", learn:"A warm household bulb is dim and orange, so you open up, slow down and raise the ISO all at once. Every setting is a trade.",
+     shot:function(p){ var L=achL(p); return L.length&&L.every(function(x){ return x.fx==="candle"||(x.fx==="bare"&&x.k&&x.k<=2700); })&&achEv(p,1); }},   /* id kept so earlier progress stays */
     {id:"flash-freeze", cat:"light", name:"Flash Freeze", how:"At night, a speedlight on, at 1/250 or faster.", learn:"A flash lasts about a thousandth of a second, so it freezes motion even in the dark.",
      shot:function(p){ var s=achSec(p); return achT(p)==="night"&&achL(p).some(function(L){ return L.fx==="speed"; })&&s!=null&&s<=1/250+1e-6; }},
     {id:"director", cat:"light", name:"Lighting Director", how:"Lights on in one frame.", tiers:[2,4,6], learn:"Most professional lighting starts with two: a key light and a fill.",

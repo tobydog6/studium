@@ -78,14 +78,53 @@
     copier:  ["A",function(b,t){ sxThump(b,t,110,0.07); sxTick(b,t,1200,0.05); sxTone(b,t+0.2,SN.A2,"sawtooth",0.2,0.008,1.6,0.3); sxNoise(b,t+0.2,"bandpass",500,1.2,0.3,0.02,1.4,0.3,2500,-0.6,0.6);
       sxPaper(b,t+2.1,0.035,true,0.5); sxFelt(b,t+2.2,SN.E5,0.03,0.4,1.2); }],   /* fired as the lid shuts: hum under the scan bar, the copy slides out at ~2.1 s */
     reject:  ["C",function(b,t){ sxNoise(b,t,"bandpass",3000,1.2,0.04,0.02,0.04,0.3,700); }],
-    binder:  ["C",function(b,t){ sxNoise(b,t,"highpass",3500,0.6,0.15,0.015,0.1,0.15,7000,-0.3,0.3); }]
+    binder:  ["C",function(b,t){ sxNoise(b,t,"highpass",3500,0.6,0.15,0.015,0.1,0.15,7000,-0.3,0.3); }],
+    /* ---- test 2 picks (28 Oct). The number is the reverb send. ---- */
+    chPull:  [0.55,function(b,t){ sxTone(b,t,SN.A2,"sine",0.5,0.04,0.7,0.5,SN.E3); sxNoise(b,t,"lowpass",300,0.6,0.6,0.012,0.4,0.6,900); sxFelt(b,t+1.5,SN.A3,0.035,0,2); }],   /* drone draw */
+    chIntro: [0.6,function(b,t){ sxNoise(b,t,"bandpass",200,0.7,4,0.025,1,2,900); sxFelt(b,t,SN.A2,0.03,0,3); }],   /* slow swell, the 7 s orbit */
+    chDone:  [0.6,function(b,t){ [SN.A2,SN.E3,SN.A3].forEach(function(f,i){ sxTone(b,t+i*0.05,f,"sine",0.25,[0.05,0.035,0.025][i],0.5,1.4,null,(i-1)*0.3); }); }],   /* drone resolve */
+    chMiss:  [0.2,function(b,t){ sxTick(b,t,900,0.05); sxTick(b,t+0.09,800,0.04); }],
+    step:    [0.25,function(b,t,o){ var p=o&&o.right?0.25:-0.25; sxNoise(b,t,"bandpass",900,1.5,0.002,0.04,0.005,0.06,null,p); sxThump(b,t,140,0.05); sxTick(b,t+0.09,1300,0.012,p); }],   /* concrete */
+    crouch:  [0.5,function(b,t){ sxNoise(b,t,"bandpass",400,0.8,0.12,0.015,0.02,0.2,800); }],
+    arrive:  [0.2,function(b,t){ sxTick(b,t,1100,0.07); sxThump(b,t,120,0.07); sxNoise(b,t+0.05,"bandpass",300,1,0.3,0.012,0.6,0.8); sxTick(b,t+0.25,1400,0.04); }],   /* slide projector */
+    lPlace:  [0.25,function(b,t){ sxTick(b,t,1700,0.04); sxThump(b,t,150,0.08); sxTone(b,t,410,"sine",0.002,0.012,0.01,0.35); sxTone(b,t,1130,"sine",0.002,0.004,0.01,0.25); }],
+    lOn:     [0.2,function(b,t,o){ var on=!(o&&o.off); sxTick(b,t,on?1500:1100,0.06); sxThump(b,t,on?120:90,0.07); }],
+    lRemove: [0.2,function(b,t){ for(var i=0;i<3;i++) sxTick(b,t+i*0.06,1600-i*250,0.03); sxThump(b,t+0.2,110,0.05); }],
+    lTime:   [0.3,function(b,t){ sxWood(b,t,1000+Math.random()*240,0.02); }],
+    lGolden: [0.5,function(b,t){ sxTone(b,t,SN.A2,"sine",0.4,0.04,0.6,1.2); sxTone(b,t+0.3,SN.E3,"sine",0.5,0.03,0.5,1.2); }],
+    stMark:  [0.2,function(b,t,o){ sxNoise(b,t,"lowpass",o&&o.k==="reject"?350:o&&o.k==="star"?600:500,0.7,0.003,0.04,0.01,0.07); }],   /* soft press */
+    bkTurn:  [0.3,function(b,t){ sxNoise(b,t,"bandpass",800,0.8,0.15,0.03,0.05,0.2,1600,-0.5,0.5); sxThump(b,t+0.38,80,0.06); sxTick(b,t+0.38,900,0.03); }],   /* heavy card */
+    gaHang:  [0.2,function(b,t){ sxNoise(b,t,"lowpass",450,0.7,0.003,0.04,0.01,0.08); }],
+    crop:    [0.35,function(b,t){ sxWood(b,t,1100,0.04); }],
+    heal:    [0.5,function(b,t){ sxNoise(b,t,"lowpass",500,0.7,0.05,0.014,0.03,0.12); }],
+    imported:[0.5,function(b,t){ [SN.A3,SN.Cs4,SN.E4].forEach(function(f,i){ sxFelt(b,t+i*0.09,f,0.03,(i-1)*0.3,1.6); }); }],
+    cullPick:[0.35,function(b,t){ sxWood(b,t,1200,0.035); }],
+    cullEnd: [0.5,function(b,t){ sxTone(b,t,SN.A2,"sine",0.3,0.04,0.5,1.2); sxTone(b,t,SN.E3,"sine",0.35,0.025,0.5,1.2); }],
+    lsMove:  [0.45,function(b,t){ [[1,1],[2.76,0.3],[5.4,0.08]].forEach(function(h){ sxTone(b,t,SN.A3*h[0],"sine",0.003,0.05*h[1],0.02,1.8); sxTone(b,t+0.9,SN.E3*h[0],"sine",0.003,0.05*h[1],0.02,1.8); }); }],   /* low bell */
+    capture: [0.6,function(b,t){ sxNoise(b,t,"bandpass",400,0.9,0.03,0.03,0.02,0.4,2400); }]   /* air flash */
   };
-  var SFX_GAP={hover:45, detent:22, grab:60, select:60, back:60, toggle:40, lift:60, drop:60};   /* ms between repeats of the same cue */
+  var SFX_GAP={step:150, lTime:35, heal:70, stMark:50, hover:45, detent:22, grab:60, select:60, back:60, toggle:40, lift:60, drop:60};   /* ms between repeats of the same cue */
   var SFX_GAIN={ach:0.75};   /* per-cue trims Sam asked for: the achievement a touch quieter */
   function sfx(id, o){ var cue=SFX_CUES[id]; if(!cue||!soundOn) return; if(navigator.userActivation&&!navigator.userActivation.hasBeenActive) return;   /* nothing before the first click, or it all plays late in a burst */ var now=performance.now(); if(SFX.at[id]&&now-SFX.at[id]<(SFX_GAP[id]||30)) return;
     SFX.at[id]=now; if(id!=="hover") SFX.last=now;
-    var c=sfxCtx(); if(!c) return; try{ var b=sxBus(SFX_SEND[cue[0]]); if(SFX_GAIN[id]) b.gain.value=SFX_GAIN[id]; var t=c.currentTime+0.005+((o&&o.delay)||0); cue[1](b,t,o); setTimeout(function(){ try{ b.disconnect(); }catch(e){} },(((o&&o.delay)||0)+6)*1000); }catch(e){} }
+    var c=sfxCtx(); if(!c) return; try{ var b=sxBus(typeof cue[0]==="number"?cue[0]:SFX_SEND[cue[0]]); if(SFX_GAIN[id]) b.gain.value=SFX_GAIN[id]; var t=c.currentTime+0.005+((o&&o.delay)||0); cue[1](b,t,o); setTimeout(function(){ try{ b.disconnect(); }catch(e){} },(((o&&o.delay)||0)+6)*1000); }catch(e){} }
   window.studiumSfx=sfx;
+
+  // ---- scene ambience: soft air and the odd bird under a scan (Sam's pick, "Birds and air"); weather.js drives it with the scene's on/off ----
+  function sfxAmbTick(on){ SFX.ambSeen=performance.now(); if(on&&soundOn&&!SFX.amb){ var c=sfxCtx(); if(!c||(navigator.userActivation&&!navigator.userActivation.hasBeenActive)) return;
+      var s=c.createBufferSource(); s.buffer=SFX.nb; s.loop=true; var lp=c.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=500; lp.Q.value=0.5; var g=c.createGain(); g.gain.value=0.0001; g.gain.setTargetAtTime(0.014,c.currentTime,0.8);
+      s.connect(lp); lp.connect(g); g.connect(SFX.out); s.start(0,Math.random()*1.5); var bb=sxBus(0.35);
+      SFX.amb={s:s, g:g, bb:bb, iv:setInterval(function(){ if(!SFX.amb||Math.random()>=0.55) return; var t=c.currentTime+0.03, f=1800+Math.random()*900, n=2+Math.floor(Math.random()*3), p=Math.random()*1.4-0.7;
+        for(var i=0;i<n;i++) sxTone(bb,t+i*0.11,f*(1+i*0.04),"sine",0.01,0.006,0.02,0.07,f*(1.18+i*0.04),p); },1700)}; }
+    else if((!on||!soundOn)&&SFX.amb){ var A=SFX.amb; SFX.amb=null; clearInterval(A.iv); try{ A.g.gain.setTargetAtTime(0.0001,SFX.ctx.currentTime,0.5); setTimeout(function(){ try{ A.s.stop(); A.bb.disconnect(); }catch(e){} },3000); }catch(e){} } }
+
+  /* if the scene stops drawing (hub, studio rooms), nothing calls the tick: fade the ambience and any weather out */
+  setInterval(function(){ if(performance.now()-(SFX.ambSeen||0)<700) return; if(SFX.amb) sfxAmbTick(false);
+    if(typeof WE!=="undefined"&&WE&&WE.snd){ try{ var t=WE.snd.c.currentTime; ["rain","patter","wind"].forEach(function(k){ WE.snd[k].g.gain.setTargetAtTime(0.0001,t,0.4); }); }catch(e){} } },500);
+
+  // ---- footsteps: one every stride while walking on the ground ----
+  function sfxStepTick(dt, speed){ if(!(speed>0.4)){ SFX.stride=0; return; } SFX.stride=(SFX.stride||0)+dt*speed; var L=0.75*(typeof sceneScale==="function"?sceneScale():1);
+    if(SFX.stride>=L){ SFX.stride=0; SFX.foot=!SFX.foot; sfx("step",{right:SFX.foot}); } }
 
   // ---- the generic layer: every button gets hover, click and back; specific cues above take over where they fire ----
   (function sfxWire(){

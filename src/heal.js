@@ -95,7 +95,7 @@
       if(healDragSrc){ e.stopImmediatePropagation(); var st=edState.heals[healDragSrc.i]; if(st){ st.s=g.fromEv(e); healDragSrc.moved=true; } return; }
       if(healStroke){ e.stopImmediatePropagation(); var uv=g.fromEv(e), L=healStroke.p[healStroke.p.length-1], d=Math.hypot((uv[0]-L[0])*g.iw/g.m,(uv[1]-L[1])*g.ih/g.m); if(d>=healStroke.r*0.45) healStroke.p.push(uv); } },true);
     var up=function(e){ if(!healOn) return; if(healDragSrc){ var mv=healDragSrc.moved; healDragSrc=null; if(mv) healCommit(); return; }
-      if(healStroke){ var st=healStroke; healStroke=null; st.s=healPick(st,edSrc); edState.heals.push(st); healSel=edState.heals.length-1; healCommit(); } };
+      if(healStroke){ var st=healStroke; healStroke=null; st.s=healPick(st,edSrc); edState.heals.push(st); healSel=edState.heals.length-1; sfx("heal"); healCommit(); } };
     cnv.addEventListener("pointerup",up,true); cnv.addEventListener("pointercancel",up,true); cnv.addEventListener("mouseleave",function(){ healCur=null; });
     window.addEventListener("keydown",function(e){ if(!editor||editor.classList.contains("hidden")) return; var t=e.target, typing=t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)&&t.type!=="range"); if(typing||e.ctrlKey||e.metaKey||e.altKey) return;
       if(e.key==="b"||e.key==="B"){ e.preventDefault(); e.stopImmediatePropagation(); if(healOn) healEnd(); else healStart(); return; }

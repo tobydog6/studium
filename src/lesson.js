@@ -123,7 +123,7 @@
       +'<p>'+cbEsc(ph.does)+'.'+(ph.words?' <em>“'+cbEsc(ph.words)+'”</em>':'')+'</p><div class="rows">'+rows+'</div>'
       +'<div class="bt"><button class="ls-b1" data-ls="go">GO TO '+LS_PLACES[ph.opens].toUpperCase()+' <kbd>↵</kbd></button>'+fin+'</div>'
       +'<div class="ft">'+(ph.firm?'THE WHOLE CLASS MOVES ON TOGETHER':'YOU CAN STAY IF YOU’RE MID-SHOT')+(nextFirm?' · '+nextFirm:'')+'</div></div>'; }
-  function lsShowMove(pl,c){ var m=$("lsMove"); if(!m) return; if(!ls.cardAt){ ls.cardAt=Date.now(); if(looking){ try{ document.exitPointerLock(); }catch(e){} } }
+  function lsShowMove(pl,c){ var m=$("lsMove"); if(!m) return; if(!ls.cardAt){ ls.cardAt=Date.now(); sfx("lsMove"); if(looking){ try{ document.exitPointerLock(); }catch(e){} } }
     var left=60-(Date.now()-ls.cardAt)/1000; if(left<=0&&c.ph.firm){ lsGo(c.ph.opens); return; }
     m.innerHTML=lsMoveHTML(pl,c); m.classList.add("show"); document.body.classList.add("ls-moving"); }
   function lsHideMove(){ var m=$("lsMove"); if(m&&m.classList.contains("show")){ m.classList.remove("show"); document.body.classList.remove("ls-moving"); } }

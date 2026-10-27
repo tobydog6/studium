@@ -98,9 +98,9 @@
       +'<label class="why"><span class="eb">WHY THIS ONE?</span><textarea id="stWhy" rows="3" placeholder="'+(p.pick?"Say what this frame does that the others don’t.":"Pick this frame, then write why you chose it.")+'">'+cbEsc(p.note||"")+'</textarea></label>'
       +'<button class="st-punctum" data-st-act="punctum"><span><b>Send picks to Punctum</b><i>Your class critiques them anonymously</i></span><svg width="8" height="12" viewBox="0 0 8 12" fill="none" stroke="#e3ad57" stroke-width="1.6" aria-hidden="true"><path d="M1.5 1l5 5-5 5"/></svg></button>';
     var w=$("stWhy"); if(w){ w.oninput=function(){ var ph=photos[st.cur]; if(ph){ ph.note=this.value; saveSession(); } }; w.onkeydown=function(e){ e.stopPropagation(); if(e.key==="Escape") this.blur(); }; } }
-  function stTogglePick(){ var p=photos[st.cur]; if(!p) return; p.pick=!p.pick; if(p.pick) p.reject=false; saveSession(); stRenderSelect(); }
-  function stToggleReject(){ var p=photos[st.cur]; if(!p) return; p.reject=!p.reject; if(p.reject) p.pick=false; saveSession(); stRenderSelect(); }
-  function stRate(s){ var p=photos[st.cur]; if(!p) return; p.rating=(p.rating===s?0:s); saveSession(); stRenderSelect(); }
+  function stTogglePick(){ var p=photos[st.cur]; if(!p) return; p.pick=!p.pick; sfx("stMark",{k:"pick"}); if(p.pick) p.reject=false; saveSession(); stRenderSelect(); }
+  function stToggleReject(){ var p=photos[st.cur]; if(!p) return; p.reject=!p.reject; sfx("stMark",{k:"reject"}); if(p.reject) p.pick=false; saveSession(); stRenderSelect(); }
+  function stRate(s){ var p=photos[st.cur]; if(!p) return; p.rating=(p.rating===s?0:s); sfx("stMark",{k:"star"}); saveSession(); stRenderSelect(); }
   function stCompare(){ if(!photos.length) return; if(st.cmp===st.cur) st.cmp=-1; else st.cmp=st.cur; stRenderSelect(); }
   function stZoom(on){ st.zoom=on==null?!st.zoom:!!on; document.body.classList.toggle("st-zoom", !!(st.zoom&&photos.length)); }   /* Z: the frame fills the screen */   /* V: hold this frame; V again on it lets go; V on another makes that the select */
   function stMove(d){ if(!photos.length) return; var L=libItems(LIB.key); if(st.hideRej){ var L2=L.filter(function(i){ return !photos[i].reject; }); if(L2.length) L=L2; } if(!L.length) return; var j=L.indexOf(st.cur); st.cur=L[Math.max(0,Math.min(L.length-1,(j<0?0:j)+d))]; stRenderSelect(); }
@@ -208,7 +208,7 @@
   // what's on the wall: your own list once you've added or taken anything down, until then your picks
   function gaPrints(){ if(ga.list) return ga.list.map(stById).filter(function(i){ return i>=0; }); return gaDefault(); }
   function gaListInit(){ if(!ga.list) ga.list=gaDefault().map(stId); }
-  function gaAdd(i, at){ gaListInit(); var u=stId(i); if(ga.list.indexOf(u)<0) ga.list.push(u); else if(!at){ toast("That one's already on the wall"); return; }
+  function gaAdd(i, at){ gaListInit(); var u=stId(i); if(ga.list.indexOf(u)<0){ ga.list.push(u); sfx("gaHang"); } else if(!at){ toast("That one's already on the wall"); return; }
     if(at) ga.pos[u]={x:at.x, y:at.y}; saveSession(); gaRender(); }
   function gaRemove(i){ gaListInit(); var u=stId(i); ga.list=ga.list.filter(function(x){ return x!==u; }); delete ga.pos[u]; delete ga.sizes[u]; ga.removed=(ga.removed||0)+1; saveSession(); gaRender(); }
   function gaDefault(){ var pk=stPicks(); if(!pk.length) pk=photos.map(function(_,i){ return i; }).filter(function(i){ return (photos[i].rating||0)>=3; });
@@ -297,7 +297,7 @@
       else if(c==="KeyP") stTogglePick(); else if(c==="KeyX") stToggleReject(); else if(c==="KeyV") stCompare(); else if(c==="KeyZ") stZoom(); else if(/^Digit[0-5]$/.test(c)){ var s=+c.slice(5); if(s===0){ var p=photos[st.cur]; if(p){ p.rating=0; saveSession(); stRenderSelect(); } } else stRate(s); }
       else if(c==="Enter"&&photos.length) stRoom("edit"); else return true; e.preventDefault(); return true; }
     if(st.room==="book"){ var sn=bkSpreads().length;
-      if(c==="ArrowRight"){ bk.spread=Math.min(sn-1,bk.spread+1); bk.sel=null; bkRender(); } else if(c==="ArrowLeft"){ bk.spread=Math.max(0,bk.spread-1); bk.sel=null; bkRender(); }
+      if(c==="ArrowRight"){ if(bk.spread<sn-1) sfx("bkTurn"); bk.spread=Math.min(sn-1,bk.spread+1); bk.sel=null; bkRender(); } else if(c==="ArrowLeft"){ if(bk.spread>0) sfx("bkTurn"); bk.spread=Math.max(0,bk.spread-1); bk.sel=null; bkRender(); }
       else if(c==="KeyT") bkCycleTpl(); else if(c==="KeyB"){ bkSetTpl(bk.pages[bk.focus].tpl==="bleed"?"centre":"bleed"); }
       else if((c==="Delete"||c==="Backspace")&&bk.sel){ bk.pages[bk.sel[0]].imgs[bk.sel[1]]=null; bk.sel=null; bkSave(); } else return true; e.preventDefault(); return true; }
     if(st.room==="gallery"){ if(c==="KeyF") gaCycleFrame(); else if(c==="ArrowRight"){ ga.gap=Math.min(500,ga.gap+50); gaRender(); } else if(c==="ArrowLeft"){ ga.gap=Math.max(100,ga.gap-50); gaRender(); }
@@ -311,7 +311,7 @@
     if(t.hasAttribute("data-bk-slot")){ var q=t.getAttribute("data-bk-slot").split(":"); return bkSlotClick(+q[0],+q[1]); }
     if(t.hasAttribute("data-bk-page")){ bk.focus=+t.getAttribute("data-bk-page"); bk.sel=null; return bkRender(); }
     if(t.hasAttribute("data-bk-pic")) return bkPlace(+t.getAttribute("data-bk-pic"));
-    if(t.hasAttribute("data-bk-spread")){ bk.spread=+t.getAttribute("data-bk-spread"); bk.sel=null; return bkRender(); }
+    if(t.hasAttribute("data-bk-spread")){ if(+t.getAttribute("data-bk-spread")!==bk.spread) sfx("bkTurn"); bk.spread=+t.getAttribute("data-bk-spread"); bk.sel=null; return bkRender(); }
     if(t.hasAttribute("data-bk-size")){ bk.size=t.getAttribute("data-bk-size"); return bkSave(); }
     if(t.hasAttribute("data-bk-tpl")) return bkSetTpl(t.getAttribute("data-bk-tpl"));
     if(t.hasAttribute("data-bk-act")){ var ba=t.getAttribute("data-bk-act"); if(ba==="add") bkAddSpread(); else if(ba==="export") bkExport(); else if(ba==="rebuild"){ bk.pages=[]; bkSave(); } return; }

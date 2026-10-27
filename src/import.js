@@ -64,7 +64,7 @@
       impOne(o.file, function(m){ if(!m){ skipped++; next(); return; }
         var p={url:m.url, t:m.t||new Date(o.file.lastModified||Date.now()), f:m.f, sh:m.sh, iso:m.iso, mm:m.mm, body:m.body||"Imported", place:T.place, uploaded:true, imported:true, note:"", pick:T.pick, rating:0};
         photos.push(p); added.push(photos.length-1); if(k%4===0) toast("Importing "+k+" of "+n+"…"); setTimeout(next,0); }); })();
-    function finish(){ if(T.proj) libAddTo(T.proj, added);
+    function finish(){ if(added&&added.length) sfx("imported"); if(T.proj) libAddTo(T.proj, added);
       if(added.length&&(key==="all"||key==="picks")&&folderName&&T.place===folderName) LIB.key="place:"+folderName;
       if(added.length&&typeof st!=="undefined"&&st.room==="select") st.cur=added[0];
       refreshCount(); saveSession(); if(typeof stRenderBar==="function") stRenderBar(); libRefresh();

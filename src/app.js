@@ -408,7 +408,7 @@
         var walking=!!(WK.col&&WK.mode==="walk"), fw=walking?_fwd.clone().setY(0).normalize():_fwd;
         if(keys["KeyW"]) _mv.addScaledVector(fw,1); if(keys["KeyS"]) _mv.addScaledVector(fw,-1);
         if(keys["KeyD"]) _mv.addScaledVector(_right,rs); if(keys["KeyA"]) _mv.addScaledVector(_right,-rs);
-        if(walking){ if(keys["KeyE"]) wkEye(us,dt); if(keys["KeyQ"]) wkEye(-us,dt); }
+        if(walking){ if(keys["KeyE"]) wkEye(us,dt); if(keys["KeyQ"]) wkEye(-us,dt); var qe=!!(keys["KeyE"]||keys["KeyQ"]); if(qe&&!SFX.qe) sfx("crouch"); SFX.qe=qe; }
         else { if(keys["KeyE"]) _mv.addScaledVector(UPY,us); if(keys["KeyQ"]) _mv.addScaledVector(UPY,-us); }
       }
       if(_mv.lengthSq()>0) _mv.normalize().multiplyScalar(maxV);   // target velocity
@@ -580,7 +580,7 @@
           try{ ps.dispose(); }catch(e){} viewer.P=P; viewer.A=A; viewer.Gr=Gr; viewer.q=q.clone(); });
     }).then(function(){
       frameScene(); if(typeof wxArrival==="function"&&wxArrival()){} else if(keepCol&&CH.spec&&CH.spec.spawn){ var sp=CH.spec.spawn; if(sp[4]&&WK.mode==="walk") WK.eye=sp[4]; camPos.set(sp[0], WK.col?wkGround(sp[0],sp[1])+WK.eye:camPos.y, sp[1]); yaw=sp[2]||0; pitch=sp[3]||-0.1; }   // a scene can say where to stand first
-      chAttach(); loaded=true; updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
+      chAttach(); loaded=true; sfx("arrive"); updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       /* no toast on arrival: the coach's first prompt and the look-around pill already say it (ux-scene) */
     }).catch(function(err){

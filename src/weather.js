@@ -206,14 +206,17 @@
   // ---- sound: rain on the ground and a soft wind, made from the same noise the interface sounds use ----
   function weSound(){ var now=performance.now(); if(now-WE.sndT<120) return; WE.sndT=now;
     var want=(typeof App!=="undefined"&&(App.is("scene")||(typeof LA!=="undefined"&&LA.on))&&loaded&&soundOn)?1:0, ra=weAmt(WE.rain)*want, wa=weAmt(WE.wind)*want;
+    if(typeof sfxAmbTick==="function") sfxAmbTick(!!want&&App.is("scene"));   /* birds and air under the scan */
     if(!WE.snd){ if(!(ra||wa)) return; var c=typeof sfxCtx==="function"?sfxCtx():null; if(!c||!SFX.nb) return;
       if(navigator.userActivation&&!navigator.userActivation.hasBeenActive) return;
       var mk=function(type,f,q){ var s=c.createBufferSource(); s.buffer=SFX.nb; s.loop=true; var fl=c.createBiquadFilter(); fl.type=type; fl.frequency.value=f; fl.Q.value=q; var g=c.createGain(); g.gain.value=0.0001; s.connect(fl); fl.connect(g); g.connect(SFX.out); s.start(0,Math.random()*1.5); return {f:fl,g:g}; };
-      WE.snd={c:c, rain:mk("bandpass",2600,0.45), patter:mk("highpass",5200,0.7), wind:mk("lowpass",420,1.6)}; }
+      WE.snd={c:c, rain:mk("bandpass",2500,0.5), patter:mk("highpass",5000,0.5), wind:mk("bandpass",500,1.2), drops:sxBus(0.3)}; }
+    /* Sam's picks (28 Oct): rain = light drizzle (a soft hiss and scattered drops), wind = gusty (a band of air that swells and moves) */
     var S2=WE.snd, t=S2.c.currentTime, k=now/1000;
-    S2.rain.g.gain.setTargetAtTime(0.0001+ra*0.16,t,0.4); S2.patter.g.gain.setTargetAtTime(0.0001+ra*0.05*(0.8+0.2*Math.sin(k*3.1)),t,0.2);
-    var gust=0.55+0.45*Math.sin(k*0.55)*Math.sin(k*0.23+1);
-    S2.wind.g.gain.setTargetAtTime(0.0001+wa*0.13*gust,t,0.5); S2.wind.f.frequency.setTargetAtTime(260+340*gust,t,0.6); }
+    S2.rain.g.gain.setTargetAtTime(0.0001+ra*0.03,t,0.4); S2.patter.g.gain.setTargetAtTime(0.0001+ra*0.014,t,0.3);
+    if(ra>0){ var nd=Math.round(ra*3); for(var i=0;i<nd;i++) if(Math.random()<0.6) sxTick(S2.drops,t+0.03+Math.random()*0.12,2500+Math.random()*2500,(0.006+Math.random()*0.012)*Math.min(1,ra*1.6),Math.random()*1.6-0.8); }
+    var gust=0.5+0.5*Math.sin(k*2*Math.PI*0.13);
+    S2.wind.g.gain.setTargetAtTime(0.0001+wa*0.05*(0.6+0.4*gust),t,0.5); S2.wind.f.frequency.setTargetAtTime(220+560*gust,t,0.6); }
 
   // ---- the strip of weather squares under the kit ----
   function weKitHTML(){ return '<div class="kit-wx"><span class="kit-wx-l">WEATHER</span>'+WE_ITEMS.map(function(it){ var lv=WE[it[0]];

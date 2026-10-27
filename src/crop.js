@@ -24,6 +24,7 @@
     var R=r==="orig"?rcW/rcH:r; if(Math.abs(R-1)<1e-3) return; cropSetRatio(1/R); }
   function cropReset(){ if(!edCrop) return; edCrop.x=0; edCrop.y=0; edCrop.w=1; edCrop.h=1; edCrop.ratio="free"; cropUI(); }
   function cropEnd(apply){ if(!edCrop) return; var c=edCrop; edCrop=null; editor.classList.remove("cropping");
+    if(apply) sfx("crop");
     if(apply){ var pw=c.w*rcW, ph=c.h*rcH, A=pw/ph, full=c.w>0.995&&c.h>0.995;
       if(full){ edState.aspect="free"; edState.zoom=1; edState.cx=0.5; edState.cy=0.5; edState.cropRatio="free"; }
       else { var fw, fh; if(rcW/rcH>A){ fh=rcH; fw=rcH*A; } else { fw=rcW; fh=rcW/A; }

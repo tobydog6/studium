@@ -665,9 +665,9 @@
     if(!h){ var ax=camPos.x-T.x, az=camPos.z-T.z, al=Math.hypot(ax,az); h=al>0.05*S?{x:ax/al,z:az/al}:rbHome(); }
     var gy=rlGround(T.x,T.z), to={x:T.x+h.x*3.1*S, y:Math.max(T.y,gy)+1.5*S, z:T.z+h.z*3.1*S};
     if(typeof boundsOn!=="undefined"&&boundsOn){ to.x=Math.min(Math.max(to.x,boxMin.x),boxMax.x); to.y=Math.min(Math.max(to.y,boxMin.y),boxMax.y); to.z=Math.min(Math.max(to.z,boxMin.z),boxMax.z); }
-    if(Math.hypot(to.x-camPos.x,to.y-camPos.y,to.z-camPos.z)<0.15*S) return; RLB.frame={a:{x:camPos.x,y:camPos.y,z:camPos.z}, b:to, t:0}; RLB.fly=true; }
+    if(Math.hypot(to.x-camPos.x,to.y-camPos.y,to.z-camPos.z)<0.15*S) return; RLB.frame={a:{x:camPos.x,y:camPos.y,z:camPos.z}, b:to, t:0, t0:performance.now()}; RLB.fly=true; }
   function rbFrameStep(dt){ var F=RLB.frame; if(!F) return; if(!RLB.open||viewfinderOn){ RLB.frame=null; return; }
-    F.t=Math.min(1,F.t+dt/0.9); var e=F.t<0.5?2*F.t*F.t:1-Math.pow(-2*F.t+2,2)/2, T=rbTarget();
+    F.t=Math.min(1,(performance.now()-F.t0)/900); var e=F.t<0.5?2*F.t*F.t:1-Math.pow(-2*F.t+2,2)/2, T=rbTarget();
     camPos.set(F.a.x+(F.b.x-F.a.x)*e, F.a.y+(F.b.y-F.a.y)*e, F.a.z+(F.b.z-F.a.z)*e);
     if(typeof boundsOn!=="undefined"&&boundsOn&&typeof bndClamp==="function") bndClamp();
     var dX=T.x-camPos.x, dY=T.y-camPos.y, dZ=T.z-camPos.z, dl=Math.hypot(dX,dY,dZ)||1; yaw=Math.atan2(-dX,-dZ); pitch=Math.asin(dY/dl); RLB.fly=true; if(typeof _vel!=="undefined") _vel.set(0,0,0);

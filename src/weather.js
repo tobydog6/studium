@@ -81,7 +81,7 @@
     var dummy=new THREE.Data3DTexture(new Uint8Array(4),1,1,1); dummy.format=THREE.RGBAFormat; dummy.type=THREE.UnsignedByteType; dummy.needsUpdate=true;
     var u={t:{value:0}, amt:{value:0}, len:{value:0.1}, th:{value:0.002}, al:{value:0.5}, S:{value:1}, gy:{value:0}, pxk:{value:0.001}, fok:{value:0}, lit:{value:1},
       cam:{value:new THREE.Vector3()}, box:{value:new THREE.Vector3(11,6,11)}, vel:{value:new THREE.Vector3(0,-8,0)}, fo:{value:new THREE.Vector3()}, finv:{value:new THREE.Vector3(1,1,1)}, fld:{value:dummy}};
-    var m=new THREE.ShaderMaterial({uniforms:u, vertexShader:WE_RAIN_VS, fragmentShader:WE_RAIN_FS, transparent:true, depthWrite:false, depthTest:false});   /* splats write no depth anyway; the solidity check does the hiding */
+    var m=new THREE.ShaderMaterial({uniforms:u, vertexShader:WE_RAIN_VS, fragmentShader:WE_RAIN_FS, transparent:true, depthWrite:false, depthTest:false, side:THREE.DoubleSide});   /* splats write no depth anyway; the solidity check does the hiding */
     var mesh=new THREE.Mesh(g,m); mesh.frustumCulled=false; mesh.renderOrder=20; WE.mesh=mesh; WE.U=u; }
 
   // ---- what bends in the wind: a map of the scan, worked out once from its own splats ----

@@ -8,6 +8,7 @@
   var LA={on:false, t0:0, raf:0, phase:"", fast:false, after:null, el:null, cam:null, hold:false};
   var LA_KEY="studium_launch_seen";
   var LA_ROOMS=[["select","Pick","asset:assets/launch/select.jpg"],["edit","Edit","asset:assets/launch/edit.jpg"],["workbook","Make","asset:assets/launch/workbook.jpg"],["folio","Folio","asset:assets/launch/folio.jpg"],["gallery","Show","asset:assets/launch/gallery.jpg"]];
+  var LA_NOFILM=!/[?&]film/.test(location.search);   /* straight from the photo to the spin; ?film brings the strip back */
   var LA_T={detail:3.2, scan:2.6, shoot:2.6, iris:0.9, settle:0.95, crawl:1.0, move:0.5, exit:1.05, spin:4.6, word:1.7};
   function laSeen(){ try{ return localStorage.getItem(LA_KEY)==="1"; }catch(e){ return false; } }
   function laEl(){ var e=$("launch"); if(e) return e; e=document.createElement("div"); e.id="launch";
@@ -21,7 +22,7 @@
     return e; }
   function laPhase(p){ if(LA.phase===p) return; LA.phase=p; LA.pt=performance.now(); LA.log=(LA.log||[]).concat([p]); LA.held=false; if(LA.el){ LA.el.className="on p-"+p+(LA.skipAsked?" skip":"")+(LA.el.classList.contains("held")?" held":""); } }
   function laHeld(){ if(!LA.hold) return false; if(!LA.held){ LA.held=true; if(LA.pass){ LA.pass=false; return false; } LA.wait=true; } return LA.wait; }   /* tests: ?lahold parks a phase until __la.go() */
-  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.fast=laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.vf=false; LA.af=false; LA.fired=false; LA.racked=false; LA.focused=-1; LA.quick=false; LA.scanTried=false; LA.scanHold=false; LA.first=!LA.fast; LA.eye0=WK.eye; LA.warm=false; laWelClose(true); SD.seq=null;
+  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.fast=laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.vf=false; LA.af=false; LA.fired=false; LA.racked=false; LA.focused=-1; LA.firedT=0; LA.quick=false; LA.scanTried=false; LA.scanHold=false; LA.first=!LA.fast; LA.eye0=WK.eye; LA.warm=false; laWelClose(true); SD.seq=null;
     var e=laEl(); LA.el=e; document.body.classList.add("launching"); laPhase("dark");
     ["hub","landing","studio","punctum","signin","teacher"].forEach(hubHide);
     if(!loaded){ var sc=(window.SPLAT_SCENES||[])[0]; if(sc){ App.go("landing"); loadBundled(sc); } }   /* the scan loads behind the dark */
@@ -159,7 +160,7 @@
     var eye=sp[4]||1.65, aS=Math.atan2(sp[0]-S[0], sp[1]-S[1]), rS=Math.hypot(sp[0]-S[0], sp[1]-S[1]), d=aS-a0; d=Math.atan2(Math.sin(d),Math.cos(d)); if(d<0) d+=Math.PI*2;
     if(!walk) eye=LA.eye0!=null?LA.eye0:WK.eye; LA.sp={x:sp[0], z:sp[1], yaw:sp[2]||0, pitch:sp[3]||-0.1, eye:eye, y:WK.col?wkGround(sp[0],sp[1])+eye:camPos.y};   /* exactly where the app's own start puts you */ LA.spinA=a0; LA.spinR=r0; LA.spinE=e0; LA.spinD=d+Math.PI*2*(d>Math.PI*0.5?0:1); LA.spinRS=rS; }
   function laSpin(u){ var k=laE(u), T=LA.sp; if(!T){ laPlace(LA.spinA+k*LA.spinD, LA.spinR, LA.spinE); return; }
-    laPlace(LA.spinA+k*LA.spinD, LA.spinR+(LA.spinRS-LA.spinR)*k, LA.spinE+(T.eye-LA.spinE)*k);   /* round, drawing in, looking at the stump all the way */
+    var sw=LA.el.classList.contains("nofilm")?Math.sin(Math.PI*Math.min(1,k*1.15)):0; laPlace(LA.spinA+k*LA.spinD, LA.spinR+(LA.spinRS-LA.spinR)*k+sw*2.8, LA.spinE+(T.eye-LA.spinE)*k+sw*1.1);   /* from close: it swings out wide on the way round */   /* round, drawing in, looking at the stump all the way */
     var m=laE((u-0.72)/0.28); if(m<=0) return;   /* the last stretch eases onto the exact spot and the way it faces */
     var dy=T.yaw-yaw; dy=Math.atan2(Math.sin(dy),Math.cos(dy)); yaw+=dy*m; pitch+=(T.pitch-pitch)*m; camPos.x+=(T.x-camPos.x)*m; camPos.z+=(T.z-camPos.z)*m; camPos.y+=(T.y-camPos.y)*m; if(WK.col&&WK.mode==="walk") WK.eye+=(T.eye-WK.eye)*m; if(typeof basis==="function") basis(); }
   function laLockStart(){ laScanOff(); sdSeqCut(); LA.quick=true; laSpinStart(); }   /* a skip: the same landing, just the short way round */
@@ -183,7 +184,7 @@
     Array.prototype.forEach.call(cs,function(c,i){ c.width=w; c.height=h; var g=c.getContext("2d"); if(i===0) g.drawImage(src,sx,sy,cw,ch,0,0,w,h); else g.drawImage(cs[0],0,0); }); }
   function laFire(){ try{ laGrab(); }catch(e){}   /* straight from the frame into the strip: no JPEG encode on the shutter, which was the hitch */
     LA.el.classList.add("snap"); sdShutter(null,true);
-    setTimeout(function(){ laVfOff(); LA.el.classList.add("held"); laDrift(0); },110); }   /* behind the black: the lens goes down and the scan jumps wide, the still covers it */
+    setTimeout(function(){ laVfOff(); LA.el.classList.add("held"); if(!LA_NOFILM) laDrift(0); },110); }   /* behind the black: the lens goes down and the scan jumps wide, the still covers it */
   // ---- the film: frame by frame, easing to rest on each ----
   function laStripPos(t){ t=Math.max(0,t-LA_T.settle); var n=1+LA_ROOMS.length, Cw=LA_T.crawl, M=LA_T.move, P=Cw+M, c=0.09/P, end=(n-1)*P;   /* a slow crawl across each frame, then a woosh to the next: never a dead stop */
     var sm=function(w){ return w<=0?0:w>=1?1:w*w*w*(w*(w*6-15)+10); }, dsm=function(w){ return w<=0||w>=1?0:30*w*w*(w-1)*(w-1); };
@@ -202,7 +203,8 @@
       if(LA.vf&&!LA.fired) laIris(Math.min(1,(pt-0.05)/LA_T.iris));
       if(LA.vf&&pt>0.75){ if(!LA.racked){ LA.racked=true; sdRack(null,1.4); } laRack(Math.min(1,(pt-0.75)/1.4)); }
       if(LA.focused>=0) LA.focused++; if(LA.vf&&!LA.fired&&pt>2.3&&LA.focused>=3){ LA.fired=true; laFire(); }   /* fire only once the focus has been on screen a few frames */
-      if(pt>LA_T.shoot&&!laHeld()){ laPhase("film"); sdFilm(); e.classList.add("held"); Array.prototype.forEach.call(e.querySelectorAll("video"),function(v){ try{ v.currentTime=0; v.play(); }catch(x){} }); } return; }
+      if(LA_NOFILM&&LA.fired&&!LA.firedT) LA.firedT=pt; if(LA_NOFILM&&LA.firedT&&pt-LA.firedT>0.42&&!laHeld()){ LA.el.classList.add("nofilm"); laSpinStart(); return; }   /* the still holds a breath, then the world pulls away from it */
+      if(!LA_NOFILM&&pt>LA_T.shoot&&!laHeld()){ laPhase("film"); sdFilm(); e.classList.add("held"); Array.prototype.forEach.call(e.querySelectorAll("video"),function(v){ try{ v.currentTime=0; v.play(); }catch(x){} }); } return; }
     if(p==="film"){ laDrift(pt); var q=laStrip(pt); if(q.end&&!laHeld()) laSpinStart(); return; }
     if(p==="spin"){ var su=Math.min(1,pt/(LA.quick?1.6:LA_T.spin)); laSpin(su); if(su>=1&&(LA.quick||!laHeld())) laEnd(); return; } }
   function laEnd(){ if(!LA.on) return; LA.on=false; cancelAnimationFrame(LA.raf); var e=LA.el; LA.welcome=Date.now(); laVfOff(); laScanOff(); (CH.pads||[]).forEach(function(P){ P.vis=0; });   /* the gold frames fade in once the wordmark has gone */

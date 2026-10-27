@@ -3057,19 +3057,6 @@ body[data-state="studio.table"] #stHints{display:none}
 @media (max-width:1100px){.q-grid.n4{grid-template-columns:repeat(2,1fr)}}
 .q-trychip{display:inline-block;margin:10px 0 2px;padding:6px 11px;border:1px solid var(--accent);border-radius:999px;font:500 10.5px var(--mono);letter-spacing:.14em;color:var(--accent);cursor:pointer;position:relative;z-index:1}
 .q-trychip:hover{background:var(--accent);color:var(--accent-ink)}
-
-/* the other beginnings (?open=1..5) */
-#launch.p-open{background:transparent}
-#launch.p-open .la-dark{opacity:1;animation:laFade .5s ease-out forwards}
-#launch.p-open::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 50%,rgba(0,0,0,.55) 100%)}
-#launch.p-open.o1{animation:laDawn 3.8s cubic-bezier(.45,0,.2,1) both}
-@keyframes laDawn{from{background:#000}to{background:rgba(0,0,0,0)}}
-#launch.p-open.o2,#launch.p-open.o4{animation:laClear 1.3s ease-in-out both}
-#launch.p-open.o5{background:#0c0b0a}
-#launch.p-open.o5.lit{background:transparent}
-#launch.flash .la-snap{animation:laFlash .14s ease-out both}
-@keyframes laFlash{from{opacity:1}to{opacity:0}}
-body.la-nochrome #viewfinder,body.la-nochrome #vfFrame,body.la-nochrome #vfAF{visibility:hidden!important}
 /* weather squares under the kit */
 #kitMenu .kit-wx{display:flex;align-items:center;gap:10px;margin:16px 4px 0}
 #kitMenu .kit-wx-l{font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;color:var(--ink-4);margin-right:6px}

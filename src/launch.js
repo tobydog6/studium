@@ -268,9 +268,8 @@
   function laCamInit(){ var c=laShotSpec(); LA.a0=c.az*Math.PI/180; LA.r0=c.dist; LA.h0=c.h; LA.look=c.look; laDetail(0); }
   var laE=function(u){ return u<0?0:u>1?1:u*u*(3-2*u); };
   function laFov(v){ if(viewfinderOn||!camera) return; camera.fov=v; camera.updateProjectionMatrix(); }       /* a longer lens for the slow motion; the viewfinder sets its own, and lowering it goes back to the walking eye */
-  function laDetail(u){ var p=laE(Math.min(1,u/0.66)), q=laE(Math.max(0,(u-0.6)/0.4)), L0=LA.look||[0,0.3,0], Lc=[L0[0],(L0[1]||0.3)+0.12,L0[2]];   /* a close, slow pan along the bark and the ivy, at full detail, then an easy pull back to where the shot is taken */
-    var ca=LA.a0-0.62+0.5*p, cr=0.95-0.08*p, ce=0.62-0.06*p, sa=LA.a0+0.03, sr=LA.r0-0.02, se=LA.h0-0.01;
-    laPlace(ca+(sa-ca)*q, cr+(sr-cr)*q, ce+(se-ce)*q, q>0?[Lc[0]+(L0[0]-Lc[0])*q, Lc[1]+((L0[1]||0.3)-Lc[1])*q, Lc[2]+(L0[2]-Lc[2])*q]:Lc); laFov(32-6*p-2*q); }   /* slow: the clearing first, wide, then a long move in to the stump while the weather passes */   /* slow motion: a creep round into the frame, pushing in */
+  function laDetail(u){ var k=0.5-0.5*Math.cos(Math.PI*Math.min(1,Math.max(0,u))), L0=LA.look||[0,0.3,0], ly=(L0[1]||0.3)+0.08*(1-k);   /* one long, even arc round the stump: close enough to read the bark, easing out to where the shot is taken */
+    laPlace(LA.a0-0.5+0.53*k, 1.6+(LA.r0-0.02-1.6)*k, 0.72+(LA.h0-0.01-0.72)*k, [L0[0],ly,L0[2]]); laFov(30-5*k); }
   function laShootCam(u){ laPlace(LA.a0+0.03+u*0.015, LA.r0-0.02-0.01*u, LA.h0-0.01, LA.look); if(!LA.vf) laFov(24); }              /* the camera comes up: all but still */
   var LA_WIDE={r:4.1, eye:1.9};
   function laDrift(t){ laPlace(LA.a0+0.9+t*0.07, LA_WIDE.r, LA_WIDE.eye); }                                  /* wide and slow behind the film */

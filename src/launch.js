@@ -199,7 +199,7 @@
   //      a light wind throughout. A soft LED panel keeps the stump lit through the dark and fades as the sun comes up.
   //      Shadows off, and the rig is applied ten times a second (the light moves slowly), so it stays smooth ----
   var LAG={on:false, e:1, w:0, s:1, c:1};   /* (a frame grade, read by renderFrame; not used now) */
-  var LA_TOD=[[0,0.17,9000,0,-12,3000],[0.42,0.18,9000,0,-10,3000],[0.62,0.26,10500,0,-3,3000],[0.84,0.3,8400,0.4,3,2700],[1,0.42,7600,0.6,10,3100]];   /* u, dusk, ambient K, sun, sun height, sun K */
+  var LA_TOD=[[0,0.22,9000,0,-12,3000],[0.18,0.25,10000,0,-8,3000],[0.36,0.3,11000,0,-4,3000],[0.5,0.36,8200,0.15,0,2200],[0.64,0.42,7600,0.32,3,2500],[0.8,0.5,7200,0.48,6,2800],[1,0.56,7000,0.6,10,3100]];   /* u, dusk, ambient K, sun, sun height, sun K */
   function laTodInit(){ if(typeof RL==="undefined"||typeof rlPrepare!=="function"||!viewer||!viewer.P||!viewer.mesh) return; try{ if(!RL.ready) rlPrepare();
       LA.tod={was:{on:RL.on, dusk:RL.dusk, ambK:RL.ambK, sunPow:RL.sunPow, sunEl:RL.sunEl, sunK:RL.sunK, sunAz:RL.sunAz, exp:RL.exp, shadows:RL.shadows, sel:RL.sel, lon:RL.lights.map(function(L){ return L.on; })}, t:0};
       RL.on=true; RL.exp=0; RL.shadows=false; RL.lights.forEach(function(L){ L.on=false; });
@@ -209,7 +209,7 @@
         rlSetPos(L, S[0]+Math.sin(a)*v[1]*RL.S, S[1]+Math.cos(a)*v[1]*RL.S); rlAimAt(L,{x:S[0], y:gy+0.45, z:S[1]}); RL.lights.push(L); return L; });
       if(typeof WE!=="undefined"){ LA.tod.we={rain:WE.rain, wind:WE.wind, fog:WE.fog}; WE.rain=0; WE.fog=0; WE.wind=Math.max(1,WE.wind); WE.dirty=true; }   /* the weather comes in behind the dark, so it's built before you see it */
       laTod(0,0,true); LA.detM=null; laDetWatch(); }catch(e){ console.warn("time of day",e); LA.tod=null; } }
-  function laTodAt(u){ var K=LA_TOD, i=0; while(i<K.length-2&&u>K[i+1][0]) i++; var a=K[i], b=K[i+1], k=laE(Math.max(0,Math.min(1,(u-a[0])/(b[0]-a[0]))));
+  function laTodAt(u){ var K=LA_TOD, i=0; while(i<K.length-2&&u>K[i+1][0]) i++; var a=K[i], b=K[i+1], k=Math.max(0,Math.min(1,(u-a[0])/(b[0]-a[0])));   /* straight between the keys: one steady shift, no pauses at each one */
     return a.map(function(v,j){ return v+(b[j]-v)*k; }); }
   function laTod(u,day,now){ var T=LA.tod; if(!T) return; var v=laTodAt(u);
     if(day){ var d=laE(day); v=[1, v[1]+(1-v[1])*d, v[2]+(6500-v[2])*d, v[3]*(1-d), v[4]+(30-v[4])*d, v[5]+(5600-v[5])*d]; }   /* golden into the plain day the scan was made in */

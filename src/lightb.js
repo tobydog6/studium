@@ -226,7 +226,7 @@
       if(typeof SKY!=="undefined"&&SKY.mesh){ var su=SKY.mesh.material.uniforms; su.dim.value=sk.skyDim; if(su.tint) su.tint.value.set(sk.skyTint[0],sk.skyTint[1],sk.skyTint[2]); } }
     else { RL.sunPow=0; if(typeof SKY!=="undefined"&&SKY.mesh){ var su2=SKY.mesh.material.uniforms; su2.dim.value=RL.lights.some(function(L){ return L.on; })?1:1; if(su2.tint) su2.tint.value.set(1,1,1); } }
     RLB.amb=amb; if(typeof rbKitLevel==='function') rbKitLevel();
-    U.on.value=1; U.amb.value.set(amb[0],amb[1],amb[2]); U.cam.value.set(camPos.x,camPos.y,camPos.z); U.is2.value=1/(RL.S*RL.S);
+    U.on.value=RLB.onK==null?1:RLB.onK; U.amb.value.set(amb[0],amb[1],amb[2]); U.cam.value.set(camPos.x,camPos.y,camPos.z); U.is2.value=1/(RL.S*RL.S);
     U.sunOn.value=sunOn?1:0; if(sunOn){ U.sunDir.value.set(RLB.sunDir[0],RLB.sunDir[1],RLB.sunDir[2]); U.sunCol.value.set(RLB.sunLin[0],RLB.sunLin[1],RLB.sunLin[2]); U.sunAng.value=RLB.el<8?0.03:0.012; }
     /* reflectors: work out what lands on each, then it becomes a soft light of that strength */
     RL.lights.forEach(function(L){ if(L.kind!==3) return; var S=RLB_SURF[L.surf||"silver"], inc=rbIncident({x:L.x,y:L.y,z:L.z}, L.dir), f=S.a;   /* a silver disc a metre off fills to about 3 : 1, like the real thing */
@@ -637,6 +637,7 @@
     if(RLB.open&&viewfinderOn){ rbShow(false); rbStands(); RLB.hidden=true; } else if(RLB.open&&RLB.hidden){ RLB.hidden=false; if(looking){ try{ document.exitPointerLock(); }catch(er){} } rbShow(true); rbStands(); }
     if(RLB.play&&RLB.open&&dt>0){ RLB.mins+=dt*40; if(RLB.mins>RLB_T1){ RLB.mins=RLB_T0+60; } rbDirty(); if(((t/250)|0)!==RLB.pt){ RLB.pt=(t/250)|0; rbTimeline(); } }
     rbViewTick(); rbFrameStep(dt); rbSpotTick();
+    if(RLB.fadeT&&RLB.gpu){ var fk=Math.min(1,(performance.now()-RLB.fadeT)/1100); RLB.onK=fk*fk*(3-2*fk); RLB.gpu.U.on.value=RLB.onK; try{ RLB.gpu.mesh.updateVersion(); if(viewer&&viewer.detail) viewer.detail.updateVersion(); }catch(e){} if(fk>=1){ RLB.fadeT=0; RLB.onK=null; } }   /* the default look fading in as the opening lands */
     if(RLB.dirty&&RLB.built) rbApply();
     else if(RLB.gpu&&RLB.gpu.U.on.value>0){ var cm=RLB.camP; if(!cm||Math.hypot(camPos.x-cm.x,camPos.y-cm.y,camPos.z-cm.z)>0.4*RL.S){ RLB.camP={x:camPos.x,y:camPos.y,z:camPos.z}; if(cm) rbDirty(); } }
     if(RLB.open&&!viewfinderOn) rbDiagDraw(); })();
@@ -720,7 +721,7 @@
   /* the slow part (the light grid) built ahead, behind the opening's dark */
   function rbDefaultPrep(){ if(!(loaded&&viewer&&viewer.P&&viewer.mesh&&CH.spec&&CH.spec.id==="stump")||RLB.built) return;   /* the opening's own rig may be up: the grid doesn't mind */ try{ if(!RL.ready){ RL.P=viewer.P; RL.A=viewer.A; RL.N=RL.P.length/3; RL.S=rlScale(); RL.ready=true; } if(!RL.target) RL.target=rlTarget();
       if(!RLB.built){ rlGrid(); rbGridSharp(); RLB.built=true; } }catch(e){ console.warn("default look prep",e); } }   /* grids only: installing the daylight shader here would take the scan away from the opening's rig */
-  function rbDefaultLook(){ if(!rbDefaultOk()) return; rbDefaultPrep(); try{ rbInstall(); }catch(e){ console.warn("default look install",e); return; }
+  function rbDefaultLook(fade){ if(!rbDefaultOk()) return; if(fade){ RLB.onK=0; RLB.fadeT=performance.now(); } rbDefaultPrep(); try{ rbInstall(); }catch(e){ console.warn("default look install",e); return; }
     try{ var sp=CH.spec.spawn; if(sp&&RLB.north==null){ var yw=sp[2]||0, view=Math.atan2(-Math.sin(yw),-Math.cos(yw))*180/Math.PI, M=rbMarks(), sa=rbSolar(M.goldPm||19*60+30).az; RLB.north=((view+140-sa)%360+360)%360; }   /* the sun is set from the starting view, wherever the camera happens to be */
       RLB.day="today"; RLB.mins=13*60+35; RLB.boost=1.3; RLB.sat=1.2; rbSunOn(); rbDirty(); }catch(e){ console.warn("default look",e); } }
   if(/[?&]dev/.test(location.search)) window.__rlb={ RLB:RLB, RL:RL, deflook:rbDefaultLook, why:function(){ return {loaded:loaded, P:!!(viewer&&viewer.P), id:CH.spec&&CH.spec.id, sun:RLB.sunMode, lights:RL.lights.length}; }, deflook:rbDefaultLook, why:function(){ return {loaded:loaded, P:!!(viewer&&viewer.P), id:CH.spec&&CH.spec.id, sun:RLB.sunMode, lights:RL.lights.length}; }, open:rlOpen, close:rlClose, add:rbAdd, sel:function(i){ RLB.sel=i; rbStands(); rbPanel(true); },

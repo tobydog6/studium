@@ -13,7 +13,7 @@
   function achCapture(){ try{
     var f=new THREE.Vector3(); camera.getWorldDirection(f); var hl=Math.hypot(f.x,f.z)||1, fx=f.x/hl, fz=f.z/hl, S=(typeof RL!=="undefined"&&RL.S)||1;
     var c={pos:[+camPos.x.toFixed(3),+camPos.y.toFixed(3),+camPos.z.toFixed(3)], yaw:+(Math.atan2(fx,fz)*180/Math.PI).toFixed(1), pitch:+(pitch*180/Math.PI).toFixed(1),
-      low:typeof WK!=="undefined"&&WK.mode==="walk"&&WK.eye<=WK_EYE_MIN+0.03, focus:+focusDist.toFixed(3), vert:!!vertical, ms:Date.now(), still:achStill(), body:curBody().id, eq:Math.round(camEquiv()), S:S, lights:[], sunAng:null};
+      low:typeof WK!=="undefined"&&WK.mode==="walk"&&WK.eye<=WK_EYE_MIN+0.03, focus:+focusDist.toFixed(3), vert:!!vertical, ms:Date.now(), still:achStill(), body:curBody().id, eq:Math.round(camEquiv()), S:S, lights:[], sunAng:null, wx:typeof weState==="function"?weState():null};
     if(typeof RL!=="undefined"&&RL.on){
       if(RL.sunPow>0&&RL.sunAz!=null){ var a=RL.sunAz*Math.PI/180; c.sunAng=Math.round(Math.acos(Math.max(-1,Math.min(1,fx*Math.sin(a)+fz*Math.cos(a))))*180/Math.PI); }
       var on=RL.lights.filter(function(L){ return L.on&&L.power>0; });
@@ -44,135 +44,141 @@
   // near(p): a nudge when a frame just misses. hint: shown on an undeveloped secret.
   var ACH=[
     // Light
-    {id:"golden-hour", cat:"light", name:"Golden Hour", how:"Take a frame at golden hour.", learn:"The hour after sunrise and before sunset. Low sun means long, warm, soft light, so photographers plan whole shoots around it.",
+    {id:"golden-hour", cat:"light", name:"Golden hour", how:"Take a frame at golden hour.", learn:"Golden hour is the hour after sunrise and the hour before sunset. The sun is low, so the light is warm and soft and the shadows are long, and photographers often plan whole shoots around it.",
      shot:function(p){ return achT(p)==="golden"; }},
-    {id:"into-the-sun", cat:"light", name:"Into the Sun", how:"At golden hour, point the camera within 35° of the sun.", learn:"Backlight. Shooting into a low sun turns edges gold and can flatten your subject to a silhouette, so watch the meter.",
+    {id:"into-the-sun", cat:"light", name:"Backlight", how:"At golden hour, point the camera within 35° of the sun.", learn:"Shooting into a low sun is called backlight. It makes edges glow gold and can turn your subject into a silhouette, so keep an eye on the meter.",
      shot:function(p){ return achT(p)==="golden"&&p.cap&&p.cap.sunAng!=null&&p.cap.sunAng<=35; },
-     near:function(p){ return achT(p)==="golden"&&p.cap&&p.cap.sunAng!=null&&p.cap.sunAng>35&&p.cap.sunAng<=55?"So close to Into the Sun: turn a little more towards the sun.":""; }},
-    {id:"long-shadows", cat:"light", name:"Long Shadows", how:"At golden hour, keep the sun 60–120° off where you point.", learn:"Side light shows texture. Every bump throws a shadow, which is why landscape photographers love it.",
+     near:function(p){ return achT(p)==="golden"&&p.cap&&p.cap.sunAng!=null&&p.cap.sunAng>35&&p.cap.sunAng<=55?"Nearly backlit. Turn a little more towards the sun.":""; }},
+    {id:"long-shadows", cat:"light", name:"Side light", how:"At golden hour, keep the sun 60 to 120° off where you point.", learn:"When the sun is off to the side, every bump casts a small shadow, so texture shows up. Landscape photographers use it a lot.",
      shot:function(p){ var a=p.cap&&p.cap.sunAng; return achT(p)==="golden"&&a!=null&&a>=60&&a<=120; },
-     near:function(p){ var a=p.cap&&p.cap.sunAng; return achT(p)==="golden"&&a!=null&&((a>=45&&a<60)||(a>120&&a<=135))?"Almost Long Shadows: put the sun more to your side.":""; }},
-    {id:"blue-hour", cat:"light", name:"Blue Hour", how:"At blue hour with no lights of your own: 1/15 or slower, within a stop, and sharp.", learn:"The short blue glow after sunset. It needs slow shutters, so photographers brace themselves or use a tripod.",
+     near:function(p){ var a=p.cap&&p.cap.sunAng; return achT(p)==="golden"&&a!=null&&((a>=45&&a<60)||(a>120&&a<=135))?"Almost side light. Put the sun more to your side.":""; }},
+    {id:"blue-hour", cat:"light", name:"Blue hour", how:"At blue hour with no lights of your own: 1/15 or slower, within a stop, and sharp.", learn:"Blue hour is the short time after sunset when the sky glows blue. There isn't much light, so you need a slow shutter and something to brace against, or a tripod.",
      shot:function(p){ var s=achSec(p); return achT(p)==="blue"&&!achL(p).length&&s!=null&&s>=1/15-1e-6&&achEv(p,1)&&achSharp(p); },
-     near:function(p){ var s=achSec(p); return achT(p)==="blue"&&!achL(p).length&&s!=null&&s>=1/15-1e-6&&achEv(p,1)&&!achSharp(p)?"So close to Blue Hour: brace and try again, or go a touch faster.":""; }},
-    {id:"night-owl", cat:"light", name:"Night Owl", how:"Frames at night.", tiers:[5,25,75], learn:"Night photography is about controlling tiny amounts of light.",
+     near:function(p){ var s=achSec(p); return achT(p)==="blue"&&!achL(p).length&&s!=null&&s>=1/15-1e-6&&achEv(p,1)&&!achSharp(p)?"That blue hour frame came out a bit blurry. Brace and try again, or go a touch faster.":""; }},
+    {id:"night-owl", cat:"light", name:"Night frames", how:"Frames at night.", tiers:[5,25,75], learn:"At night there's very little light, so every setting you choose makes a bigger difference.",
      tier:function(){ return achCount(achOwn().filter(function(p){ return achT(p)==="night"; }), [5,25,75]); }},
-    {id:"rembrandt", cat:"light", name:"Rembrandt", how:"After dark, one hard light only, 30–60° round from the camera and 0.4 m or more above your subject.", learn:"Named after the painter, who lit faces from high and to one side. Look for the small triangle of light on the shadow side.",
+    {id:"rembrandt", cat:"light", name:"Rembrandt", how:"After dark, one hard light only, 30 to 60° round from the camera and 0.4 m or more above your subject.", learn:"Named after the painter, who lit faces from high and to one side. Look for the small triangle of light on the shadow side.",
      shot:function(p){ var L=achL(p); return achDark(p)&&L.length===1&&achHard(L[0])&&L[0].ang>=30&&L[0].ang<=60&&L[0].h>=0.4; },
      near:function(p){ var L=achL(p); if(!achDark(p)||L.length!==1||!achHard(L[0])) return ""; var a=L[0].ang;
-       if(a>=30&&a<=60&&L[0].h<0.4&&L[0].h>=0) return "So close to Rembrandt: raise the light higher.";
-       if(a>=18&&a<30) return "So close to Rembrandt: bring the light further round."; if(a>60&&a<=75) return "So close to Rembrandt: bring the light back towards the camera."; return ""; }},
-    {id:"split", cat:"light", name:"Split", how:"After dark, exactly one light, square to the side (75–105°).", learn:"Half lit, half in shadow. Split light is dramatic and a little mysterious, a favourite of film noir.",
+       if(a>=30&&a<=60&&L[0].h<0.4&&L[0].h>=0) return "Nearly Rembrandt light. Raise the light higher.";
+       if(a>=18&&a<30) return "For Rembrandt light, bring the light further round."; if(a>60&&a<=75) return "For Rembrandt light, bring the light back towards the camera."; return ""; }},
+    {id:"split", cat:"light", name:"Split light", how:"After dark, exactly one light, square to the side (75 to 105°).", learn:"With split light, half the subject is lit and half is in shadow. Old black and white crime films used it a lot.",
      shot:function(p){ var L=achL(p); return achDark(p)&&L.length===1&&L[0].ang>=75&&L[0].ang<=105; },
-     near:function(p){ var L=achL(p); return achDark(p)&&L.length===1&&((L[0].ang>=62&&L[0].ang<75)||(L[0].ang>105&&L[0].ang<=118))?"Almost Split: put the light square to the side.":""; }},
-    {id:"halo", cat:"light", name:"Halo", how:"Any light 150° or more round, behind your subject.", learn:"Rim light traces the edge of a subject and lifts it off a dark background.",
+     near:function(p){ var L=achL(p); return achDark(p)&&L.length===1&&((L[0].ang>=62&&L[0].ang<75)||(L[0].ang>105&&L[0].ang<=118))?"Nearly split light. Put the light square to the side.":""; }},
+    {id:"halo", cat:"light", name:"Rim light", how:"Any light 150° or more round, behind your subject.", learn:"Rim light comes from behind and lights the edge of your subject, which helps it stand out from a dark background.",
      shot:function(p){ return achL(p).some(function(L){ return L.ang>=150; }); },
-     near:function(p){ var L=achL(p); return !L.some(function(x){ return x.ang>=150; })&&L.some(function(x){ return x.ang>=128; })?"Almost a Halo: the light needs to be more behind.":""; }},
-    {id:"moonlight", cat:"light", name:"Moonlight", how:"At night, every light gelled blue, one at least 1.5 m above your subject.", learn:"Film crews fake moonlight with blue light from above. Your eye reads cool and high as night.",
+     near:function(p){ var L=achL(p); return !L.some(function(x){ return x.ang>=150; })&&L.some(function(x){ return x.ang>=128; })?"For rim light, move the light further behind your subject.":""; }},
+    {id:"moonlight", cat:"light", name:"Moonlight", how:"At night, every light gelled blue, one at least 1.5 m above your subject.", learn:"Film crews fake moonlight with blue light from above, because we tend to read cool light from high up as night.",
      shot:function(p){ var L=achL(p); return achT(p)==="night"&&L.length&&L.every(function(x){ return x.gel==="Blue"; })&&L.some(function(x){ return x.h>=1.5; }); },
-     near:function(p){ var L=achL(p); return achT(p)==="night"&&L.length&&L.every(function(x){ return x.gel==="Blue"; })&&!L.some(function(x){ return x.h>=1.5; })&&L.some(function(x){ return x.h>=0.9; })?"So close to Moonlight: lift a blue light higher.":""; }},
-    {id:"campfire", cat:"light", name:"Campfire", how:"At night, a warm light at or below your subject's height.", learn:"Light from below feels intimate or eerie, because we're used to light from above.",
+     near:function(p){ var L=achL(p); return achT(p)==="night"&&L.length&&L.every(function(x){ return x.gel==="Blue"; })&&!L.some(function(x){ return x.h>=1.5; })&&L.some(function(x){ return x.h>=0.9; })?"Nearly moonlight. Lift a blue light higher.":""; }},
+    {id:"campfire", cat:"light", name:"Light from below", how:"At night, a warm light at or below your subject's height.", learn:"Light from below feels intimate or eerie, because we're used to light from above.",
      shot:function(p){ return achT(p)==="night"&&achL(p).some(function(L){ return achWarm(L)&&L.h<=0; }); }},
-    {id:"two-tone", cat:"light", name:"Two-Tone", how:"A warm light and a blue-gelled light, both on.", learn:"Warm against cool is one of the strongest colour contrasts there is. Cinematographers use it constantly.",
+    {id:"two-tone", cat:"light", name:"Warm and cool", how:"A warm light and a blue-gelled light, both on.", learn:"Warm and cool light together make a strong colour contrast, and film makers use it all the time.",
      shot:function(p){ var L=achL(p); return L.some(achWarm)&&L.some(function(x){ return x.gel==="Blue"; }); }},
-    {id:"neon-noir", cat:"light", name:"Neon Noir", how:"After dark, two different bold gels on.", learn:"Coloured gels on hard lights are the look of music videos and neon-lit city films.",
+    {id:"neon-noir", cat:"light", name:"Two colour gels", how:"After dark, two different bold gels on.", learn:"Coloured gels on hard lights give the look you see in a lot of music videos and films set in cities at night.",
      shot:function(p){ var g={}; achL(p).forEach(function(L){ if(achBold(L)) g[L.gel]=1; }); return achDark(p)&&Object.keys(g).length>=2; }},
-    {id:"streetlight", cat:"light", name:"Under the Streetlight", how:"At night, only streetlights on.", learn:"Sodium streetlights glow one orange colour, which is why old night photos of cities look orange.",
+    {id:"streetlight", cat:"light", name:"Streetlight only", how:"At night, only streetlights on.", learn:"Sodium streetlights glow one orange colour, which is why old night photos of cities look orange.",
      shot:function(p){ var L=achL(p); return achT(p)==="night"&&L.length&&L.every(function(x){ return x.fx==="sodium"; }); }},
-    {id:"candlelight", cat:"light", name:"Lamplight", how:"Only bare bulbs on, at 2700 K or warmer, exposed within a stop.", learn:"A warm household bulb is dim and orange, so you open up, slow down and raise the ISO all at once. Every setting is a trade.",
+    {id:"candlelight", cat:"light", name:"Lamplight", how:"Only bare bulbs on, at 2700 K or warmer, exposed within a stop.", learn:"A warm household bulb is dim and orange, so you need a wider aperture, a slower shutter and a higher ISO, and each one costs you something.",
      shot:function(p){ var L=achL(p); return L.length&&L.every(function(x){ return x.fx==="candle"||(x.fx==="bare"&&x.k&&x.k<=2700); })&&achEv(p,1); }},   /* id kept so earlier progress stays */
-    {id:"flash-freeze", cat:"light", name:"Flash Freeze", how:"At night, a speedlight on, at 1/250 or faster.", learn:"A flash lasts about a thousandth of a second, so it freezes motion even in the dark.",
+    {id:"flash-freeze", cat:"light", name:"Freeze it with flash", how:"At night, a speedlight on, at 1/250 or faster.", learn:"A flash lasts about a thousandth of a second, so it freezes motion even in the dark.",
      shot:function(p){ var s=achSec(p); return achT(p)==="night"&&achL(p).some(function(L){ return L.fx==="speed"; })&&s!=null&&s<=1/250+1e-6; }},
-    {id:"director", cat:"light", name:"Lighting Director", how:"Lights on in one frame.", tiers:[2,4,6], learn:"Most professional lighting starts with two: a key light and a fill.",
+    {id:"director", cat:"light", name:"Lights on", how:"Lights on in one frame.", tiers:[2,4,6], learn:"Most professional lighting starts with two: a key light and a fill.",
      tier:function(){ var best=null, n=0; achOwn().forEach(function(p){ var k=achL(p).length; if(k>n){ n=k; best=p; } }); return achLv(n,[2,4,6],function(t){ return achOwn().filter(function(p){ return achL(p).length>=t; })[0]; }); }},
-    {id:"four-skies", cat:"light", name:"One Spot, Four Skies", frame:"gold", how:"Four frames from one spot (within 0.5 m and 15°): day, golden hour, blue hour and night.", learn:"Light is the subject. Monet painted the same haystacks again and again for the same reason.",
+    {id:"four-skies", cat:"light", name:"One spot, four times of day", frame:"gold", how:"Four frames from one spot (within 0.5 m and 15°): day, golden hour, blue hour and night.", learn:"Monet painted the same haystacks again and again because the light changed them every time. Shooting one spot at four times of day shows you the same thing.",
      once:function(){ var P=achOwn().filter(function(p){ return p.cap; }), T=["day","golden","blue","night"];
        for(var i=0;i<P.length;i++){ var a=P[i], hit={}; hit[achT(a)]=a;
          P.forEach(function(b){ var t=achT(b); if(hit[t]) return; var d=Math.hypot(a.cap.pos[0]-b.cap.pos[0],a.cap.pos[2]-b.cap.pos[2])/(a.cap.S||1), dy=Math.abs(((a.cap.yaw-b.cap.yaw+540)%360)-180); if(d<=0.5&&dy<=15) hit[t]=b; });
          if(T.every(function(t){ return hit[t]; })) return {p:T.map(function(t){ return hit[t]; }).sort(function(x,y){ return x.cap.ms-y.cap.ms; })[3]}; } return null; }},
     // Camera
-    {id:"lens-collector", cat:"camera", name:"Lens Collector", how:"Use different lenses: 2, then all four 35 mm lenses, then every lens.", tiers:[2,4,7], learn:"Every lens sees differently. Wide pushes things apart, long pulls them together.",
+    {id:"lens-collector", cat:"camera", name:"Every lens", how:"Use different lenses: 2, then all four 35 mm lenses, then every lens.", tiers:[2,4,7], learn:"A wide lens makes distances look bigger and a long lens makes them look smaller.",
      tier:function(){ var seen={}, firsts=[]; achOwn().forEach(function(p){ if(p.lens&&!seen[p.lens]){ seen[p.lens]=1; firsts.push(p); } });
        var all=[].concat(LENS_KITS["35"],LENS_KITS["67"]).map(function(l){ return l.id; }), f35=LENS_KITS["35"].map(function(l){ return l.id; }), n=Object.keys(seen).length;
        var lv=n>=2?1:0; if(lv&&f35.every(function(k){ return seen[k]; })) lv=2; if(lv===2&&all.every(function(k){ return seen[k]; })) lv=3;
        return {lv:lv, n:n, next:[2,4,7][Math.min(lv,2)], p:achLast(firsts)}; }},
-    {id:"body-double", cat:"camera", name:"Body Double", how:"A frame on every camera body in your bag.", learn:"A camera changes how you shoot. Film makes you careful, a small mirrorless makes you quick.",
+    {id:"body-double", cat:"camera", name:"Every camera", how:"A frame on every camera body in your bag.", learn:"Different cameras change how you shoot. Film slows you down and a small mirrorless is quick to use.",
      once:function(){ var need=BAG_BODIES.filter(function(b){ return b.id; }).map(function(b){ return b.id; }), seen={}, last=null; achOwn().forEach(function(p){ var id=p.cap&&p.cap.body; if(id&&!seen[id]){ seen[id]=1; last=p; } });
        return need.every(function(k){ return seen[k]; })?{p:last}:null; }},
-    {id:"no-regrets", cat:"camera", name:"Ten Frames, No Regrets", how:"Ten frames in a row on the 6×7, each within a third of a stop.", learn:"Film photographers metered every frame because every frame cost money. It makes you slow down and look.",
+    {id:"no-regrets", cat:"camera", name:"Ten frames on the 6×7", how:"Ten frames in a row on the 6×7, each within a third of a stop.", learn:"Film photographers metered every frame carefully because every frame cost money, and working that way slows you down.",
      once:function(){ var run=0, P=achOwn().filter(function(p){ return p.cap&&p.cap.body==="67"; }); for(var i=0;i<P.length;i++){ run=achEv(P[i],0.34)?run+1:0; if(run>=10) return {p:P[i]}; } return null; }},
-    {id:"whisper", cat:"camera", name:"Whisper", how:"The 85 mm wide open at f/1.4, focused as close as it goes.", learn:"The closer you focus, the thinner the slice that's sharp. At f/1.4 up close it can be millimetres.",
+    {id:"whisper", cat:"camera", name:"Closest focus at f/1.4", how:"The 85 mm wide open at f/1.4, focused as close as it goes.", learn:"The closer you focus, the less of the photo is sharp. At f/1.4 up close, the sharp part can be just a few millimetres deep.",
      shot:function(p){ return p.lens==="85"&&p.f<=1.4&&p.cap&&p.cap.focus<=0.1; },
-     near:function(p){ return p.lens==="85"&&p.f<=1.4&&p.cap&&p.cap.focus>0.1&&p.cap.focus<=0.22?"So close to Whisper: focus even closer.":""; }},
-    {id:"front-to-back", cat:"camera", name:"Front to Back", how:"f/16 on a lens as wide as 28 mm or wider.", learn:"Landscape photographers like Ansel Adams stopped right down so the rock at their feet and the mountain behind were both sharp.",
+     near:function(p){ return p.lens==="85"&&p.f<=1.4&&p.cap&&p.cap.focus>0.1&&p.cap.focus<=0.22?"Nearly there. Focus even closer.":""; }},
+    {id:"front-to-back", cat:"camera", name:"Deep focus", how:"f/16 on a lens as wide as 28 mm or wider.", learn:"Landscape photographers like Ansel Adams stopped right down so the rock at their feet and the mountain behind were both sharp.",
      shot:function(p){ return p.f>=16&&p.cap&&p.cap.eq<=28; }},
-    {id:"steady-hands", cat:"camera", name:"Steady Hands", how:"1/8 or slower, and still sharp.", learn:"The old rule: your slowest safe shutter is about one over your focal length. Brace and breathe out.",
+    {id:"steady-hands", cat:"camera", name:"Handheld at 1/8", how:"1/8 or slower, and still sharp.", learn:"A common rule is that the slowest shutter speed you can safely hand hold is about one over your focal length, so 1/50 on a 50 mm lens. Bracing yourself and breathing out helps.",
      shot:function(p){ var s=achSec(p); return s!=null&&s>=1/8-1e-6&&achSharp(p); }},
-    {id:"long-reach", cat:"camera", name:"Long Reach", how:"The 135 mm on the APS-C mirrorless.", learn:"The crop sensor turns a 135 mm into about 216 mm. Long lenses compress distance, stacking near and far together.",
+    {id:"freeze-rain", cat:"camera", name:"Frozen rain", how:"In the rain, 1/500 or faster.", learn:"A fast shutter stops falling drops mid-air as little beads. Sports and nature photographers use the same trick on anything that moves.",
+     shot:function(p){ var s=achSec(p); return p.cap&&p.cap.wx&&p.cap.wx.rain>0&&s!=null&&s<=1/500+1e-6; },
+     near:function(p){ var s=achSec(p); return p.cap&&p.cap.wx&&p.cap.wx.rain>0&&s!=null&&s<=1/125+1e-6&&s>1/500+1e-6?"To freeze the rain, go faster, 1/500 or quicker.":""; }},
+    {id:"drag-rain", cat:"camera", name:"Rain streaks", how:"In the rain, 1/30 or slower, and still sharp.", learn:"A slow shutter lets each drop fall while the shutter is open, so rain turns into streaks. Hold still, and the scene stays crisp while the rain moves.",
+     shot:function(p){ var s=achSec(p); return p.cap&&p.cap.wx&&p.cap.wx.rain>0&&s!=null&&s>=1/30-1e-6&&achSharp(p); },
+     near:function(p){ var s=achSec(p); return p.cap&&p.cap.wx&&p.cap.wx.rain>0&&s!=null&&s>=1/30-1e-6&&!achSharp(p)?"The rain streaks are there but the frame is blurry. Brace and breathe out, or use a wider lens.":""; }},
+    {id:"long-reach", cat:"camera", name:"135 mm on the crop sensor", how:"The 135 mm on the APS-C mirrorless.", learn:"The crop sensor turns a 135 mm into about 216 mm. Long lenses make near and far things look closer together.",
      shot:function(p){ return p.lens==="135"&&p.cap&&p.cap.body==="ml"; }},
-    {id:"grain", cat:"camera", name:"Grain", how:"ISO 6400, exposed spot on.", learn:"Grain isn't always a mistake. Daido Moriyama made rough, grainy black and white his signature.",
+    {id:"grain", cat:"camera", name:"ISO 6400", how:"ISO 6400, exposed spot on.", learn:"High ISO adds grain. Daido Moriyama used rough, grainy black and white on purpose and it became his style.",
      shot:function(p){ return p.iso===6400&&achEv(p,0.5); }},
     // Seeing
-    {id:"worms-eye", cat:"seeing", name:"Worm's Eye", how:"Crouch as low as you go and tilt up 35° or more.", learn:"Low angles make things loom. Alexander Rodchenko shot up at buildings to make them feel new.",
+    {id:"worms-eye", cat:"seeing", name:"Worm's eye", how:"Crouch as low as you go and tilt up 35° or more.", learn:"Shooting from low down makes things look bigger. Alexander Rodchenko shot up at buildings to show them from an unfamiliar angle.",
      shot:function(p){ return p.cap&&p.cap.low&&p.cap.pitch>=35; },
-     near:function(p){ return p.cap&&p.cap.pitch>=35&&!p.cap.low?"So close to Worm's Eye: crouch right down (Q) and shoot up.":p.cap&&p.cap.low&&p.cap.pitch>=20&&p.cap.pitch<35?"Almost Worm's Eye: tilt further up.":""; }},
-    {id:"birds-eye", cat:"seeing", name:"Bird's Eye", how:"Point 70° or more straight down.", learn:"Looking straight down flattens the world into pattern and shape.",
+     near:function(p){ return p.cap&&p.cap.pitch>=35&&!p.cap.low?"Nearly a worm's eye view. Crouch right down (Q) and shoot up.":p.cap&&p.cap.low&&p.cap.pitch>=20&&p.cap.pitch<35?"Tilt further up for a worm's eye view.":""; }},
+    {id:"birds-eye", cat:"seeing", name:"Bird's eye", how:"Point 70° or more straight down.", learn:"Looking straight down makes things look flat, so you notice patterns and shapes more.",
      shot:function(p){ return p.cap&&p.cap.pitch<=-70; }},
-    {id:"full-house", cat:"seeing", name:"Full House", how:"Every composition brief: once each, then 3 frames each, then each on 3 different lenses.", tiers:[1,3,3], learn:"Composition rules are starting points. Learn them, then break them on purpose.",
+    {id:"full-house", cat:"seeing", name:"Every brief", how:"Every composition brief: once each, then 3 frames each, then each on 3 different lenses.", tiers:[1,3,3], learn:"The composition briefs are starting points. Once you know them you can choose when to ignore them.",
      tier:function(){ var o=achBriefStat(), k=Object.keys(o), lv=0; if(k.every(function(b){ return o[b].n>=1; })) lv=1; if(lv&&k.every(function(b){ return o[b].n>=3; })) lv=2; if(lv===2&&k.every(function(b){ return Object.keys(o[b].L).length>=3; })) lv=3;
        var done=k.filter(function(b){ return lv>=2?Object.keys(o[b].L).length>=3:lv>=1?o[b].n>=3:o[b].n>=1; }).length;
        return {lv:lv, n:done, next:k.length, p:achLast(achOwn().filter(function(p){ return p.brief; }))}; }},
-    {id:"sideways", cat:"seeing", name:"Sideways", how:"Ten vertical frames.", learn:"Tall things and people often want a vertical frame, and a folio panel needs both.",
+    {id:"sideways", cat:"seeing", name:"Ten vertical frames", how:"Ten vertical frames.", learn:"Tall things and people often want a vertical frame, and a folio panel needs both.",
      once:function(){ var V=achOwn().filter(function(p){ return p.cap&&p.cap.vert; }); return V.length>=10?{p:V[9]}:null; }, prog:function(){ return [achOwn().filter(function(p){ return p.cap&&p.cap.vert; }).length,10]; }},
     // Choosing and editing
-    {id:"ruthless", cat:"choosing", name:"Ruthless", how:"Frames rejected.", tiers:[10,50,150], learn:"Most photographers keep a tiny fraction of what they shoot. Choosing is half the job.",
+    {id:"ruthless", cat:"choosing", name:"Rejects", how:"Frames rejected.", tiers:[10,50,150], learn:"Most photographers keep only a small part of what they shoot.",
      tier:function(){ return achCount(achOwn().filter(function(p){ return p.reject; }), qDemo()?[5,50,150]:[10,50,150]); }},   /* the demo is short, so bronze comes sooner */
-    {id:"one-in-ten", cat:"choosing", name:"One in Ten", how:"At one place, 50 or more frames and only 1 to 5 picks.", learn:"Contact sheets from the greats are mostly misses. The skill is knowing the one.",
+    {id:"one-in-ten", cat:"choosing", name:"Fifty frames, a few picks", how:"At one place, 50 or more frames and only 1 to 5 picks.", learn:"Famous photographers' contact sheets are mostly misses. The hard part is picking the good one.",
      once:function(){ var by={}; achOwn().forEach(function(p){ var k=p.place||"?"; (by[k]=by[k]||[]).push(p); });
        for(var k in by){ var pk=by[k].filter(function(p){ return p.pick; }); if(by[k].length>=50&&pk.length>=1&&pk.length<=5) return {p:pk[0]}; } return null; }},
-    {id:"film-look", cat:"choosing", name:"Film Look", how:"Grade the shadows towards blue and the highlights towards orange.", learn:"Teal and orange is everywhere in film because skin and sky sit on opposite sides of the colour wheel.",
+    {id:"film-look", cat:"choosing", name:"Film look", how:"Grade the shadows towards blue and the highlights towards orange.", learn:"Teal and orange is everywhere in film because skin and sky sit on opposite sides of the colour wheel.",
      once:function(){ var p=photos.filter(function(q){ var d=q.dev; return d&&d.secGrade!==0&&achIn(d.gShH||0,170,260)&&(d.gShS||0)>=12&&achIn(d.gHiH||0,15,60)&&(d.gHiS||0)>=12; })[0]; return p?{p:p}:null; }},
-    {id:"monochrome", cat:"choosing", name:"Monochrome", how:"Five photos edited to black and white.", learn:"Without colour, light, shape and texture have to carry the photograph.",
+    {id:"monochrome", cat:"choosing", name:"Monochrome", how:"Five photos edited to black and white.", learn:"Without colour, the light and shapes in the photo have to do the work.",
      once:function(){ var M=photos.filter(function(q){ return q.dev&&(q.dev.mono>0||/mono|bw/i.test(q.dev.profile||"")); }); return M.length>=5?{p:M[4]}:null; },
      prog:function(){ return [photos.filter(function(q){ return q.dev&&(q.dev.mono>0||/mono|bw/i.test(q.dev.profile||"")); }).length,5]; }},
-    {id:"family-likeness", cat:"choosing", name:"Family Likeness", how:"One look pasted or synced onto six photos.", learn:"A series should feel like it belongs together, and consistent editing is a big part of that.",
+    {id:"family-likeness", cat:"choosing", name:"Matching edits", how:"One look pasted or synced onto six photos.", learn:"A series should feel like it belongs together, and consistent editing is a big part of that.",
      once:function(){ var by={}; photos.forEach(function(q){ var k=achDevKey(q.dev); if(k) (by[k]=by[k]||[]).push(q); }); for(var k in by) if(by[k].length>=6) return {p:by[k][5]}; return null; }},
-    {id:"published", cat:"choosing", name:"Published", how:"Export your book as a PDF.", learn:"Photographers have made books for over a century. Sequence turns photos into a story.",
+    {id:"published", cat:"choosing", name:"Book as a PDF", how:"Export your book as a PDF.", learn:"Photographers have made books for over a century. The order of the pages changes how the photos read together.",
      once:function(){ return Q.flags.bookPdf?{p:achLast(qPicks())||achAny()}:null; }},
-    {id:"opening-night", cat:"choosing", name:"Opening Night", how:"A gallery show with 12 or more prints and a title.", learn:"Hanging a show is editing in space: what goes next to what, and what gets left out.",
+    {id:"opening-night", cat:"choosing", name:"Gallery show", how:"A gallery show with 12 or more prints and a title.", learn:"Hanging a show is still choosing, deciding which prints go next to each other and which ones you leave out.",
      once:function(){ var P=typeof gaPrints==="function"?gaPrints():[]; return P.length>=12&&String(ga.title||"").trim()?{p:photos[P[0]]}:null; }},
     // Looking at others
-    {id:"gut-instinct", cat:"looking", name:"Gut Instinct", how:"Finish a Culling Game in under 90 seconds.", learn:"Your first reaction is information. The next step is asking why.",
+    {id:"gut-instinct", cat:"looking", name:"Quick cull", how:"Finish a Culling Game in under 90 seconds.", learn:"Your first reaction is worth noticing. Then try to work out why you felt it.",
      once:function(){ return achS().ev.culls.some(function(c){ return c.s<90; })?{p:achAny()}:null; }},
-    {id:"great-minds", cat:"looking", name:"Great Minds", sync:true, how:"Your #1 in a Culling Game is the class's #1 too.", learn:"Sometimes a photograph just works on everyone. Work out what it's doing.",
+    {id:"great-minds", cat:"looking", name:"Same #1 as the class", sync:true, how:"Your #1 in a Culling Game is the class's #1 too.", learn:"Sometimes lots of people like the same photograph. Try to work out why.",
      once:function(){ return achS().ev.culls.some(function(c){ return c.same; })?{p:achAny()}:null; }},
-    {id:"contrarian", cat:"looking", name:"Contrarian", sync:true, how:"Your #1 is the photograph the class ranked lowest (5 or more plays).", learn:"Taste is personal. Saying why you love what nobody else chose is a real skill.",
+    {id:"contrarian", cat:"looking", name:"Against the class", sync:true, how:"Your #1 is the photograph the class ranked lowest (5 or more plays).", learn:"If you're the only one who picked it, try to say why you like it.",
      once:function(){ return achS().ev.culls.some(function(c){ return c.contra; })?{p:achAny()}:null; }},
-    {id:"every-pack", cat:"looking", name:"Every Pack", how:"Play every research pack there is.", learn:"The more photographs you've looked at, the more you have to draw on.",
+    {id:"every-pack", cat:"looking", name:"Every pack", how:"Play every research pack there is.", learn:"Looking at lots of photographs gives you more ideas for your own.",
      once:function(){ var P=(typeof rs!=="undefined"&&rs.packs||[]).filter(function(p){ return !p.sample; }); if(P.length<2) return null;
        var played=function(id){ return (Q.rs.cull&&Q.rs.cull[id])||(Q.rs.punctum&&Q.rs.punctum[id]); }; return P.every(function(p){ return played(p.id); })?{p:achAny()}:null; }},
     // Your own way
-    {id:"noticer", cat:"own", name:"Noticer", how:"Picks with a why note of 20 or more characters.", tiers:[5,25,50], learn:"Writing down why a photo works is how you find out what you actually care about.",
+    {id:"noticer", cat:"own", name:"Why notes", how:"Picks with a why note of 20 or more characters.", tiers:[5,25,50], learn:"Writing down why a photo works is how you find out what you actually care about.",
      tier:function(){ return achCount(qPicks().filter(function(p){ return String(p.note||"").trim().length>=20; }), [5,25,50]); }},
-    {id:"return-visit", cat:"own", name:"Return Visit", how:"Frames at the same place on three different days.", learn:"Photographers return to the same places for years. Each visit you see something new.",
+    {id:"return-visit", cat:"own", name:"Return visit", how:"Frames at the same place on three different days.", learn:"Photographers go back to the same places for years. Going back lets you see a place in different light and seasons.",
      once:function(){ var by={}; achOwn().forEach(function(p){ var d=new Date(p.t), k=(p.place||"?"), day=d.getFullYear()+"-"+d.getMonth()+"-"+d.getDate(); by[k]=by[k]||{}; if(!by[k][day]) by[k][day]=p; });
        for(var k in by){ var D=Object.keys(by[k]); if(D.length>=3) return {p:by[k][D[2]]}; } return null; }},
-    {id:"own-project", cat:"own", name:"Your Own Project", how:"A project folder of your own with 20 or more frames.", learn:"A project is a question you keep asking with a camera.",
+    {id:"own-project", cat:"own", name:"Your own project", how:"A project folder of your own with 20 or more frames.", learn:"A project is a group of photos about one idea that you keep coming back to.",
      once:function(){ var pr=((typeof st!=="undefined"&&st.projects)||[]).filter(function(x){ return (x.ids||[]).length>=20; })[0]; if(!pr) return null; var i=stById(pr.ids[0]); return {p:photos[i]||achAny()}; }},
     // Secret
-    {id:"off-the-map", cat:"secret", hidden:true, name:"Off the Map", hint:"There's an edge to every world", how:"Walk to the edge of the scan.", learn:"A scan only holds what the camera saw. Everything past here was never captured.",
+    {id:"off-the-map", cat:"secret", hidden:true, name:"Edge of the scan", hint:"Walk as far as you can go", how:"Walk to the edge of the scan.", learn:"A scan only holds what the camera saw when it was made, so there's nothing past this point.",
      once:function(){ return achS().ev.bounds>0?{p:achAny()}:null; }},
-    {id:"lens-cap", cat:"secret", hidden:true, name:"Lens Cap", hint:"Some photographs are better unseen", how:"Four stops under.", learn:"Four stops under is 1/16 of the light the meter wanted.",
+    {id:"lens-cap", cat:"secret", hidden:true, name:"Four stops under", hint:"A very dark frame", how:"Four stops under.", learn:"Four stops under is 1/16 of the light the meter wanted.",
      shot:function(p){ return p.ev!=null&&p.ev<=-4; }},
-    {id:"burnt", cat:"secret", hidden:true, name:"Burnt", hint:"Too much of a good thing", how:"Four stops over.", learn:"Blown highlights hold no detail at all. Editing can't bring back what was never recorded.",
+    {id:"burnt", cat:"secret", hidden:true, name:"Four stops over", hint:"A very bright frame", how:"Four stops over.", learn:"Blown highlights have no detail left in them, and editing can't get it back.",
      shot:function(p){ return p.ev!=null&&p.ev>=4; }},
-    {id:"jelly-hands", cat:"secret", hidden:true, name:"Jelly Hands", hint:"Hold still. Or don't.", how:"A frame with four times the blur that reads as shake.", learn:"Some photographers use camera movement on purpose, painting with blur.",
+    {id:"jelly-hands", cat:"secret", hidden:true, name:"Camera shake", hint:"Something to do with camera shake", how:"A frame with four times the blur that reads as shake.", learn:"Some photographers move the camera on purpose to get blur they like.",
      shot:function(p){ return (p.shake||0)>=ACH_BLUR*4; }},
-    {id:"decisive-moment", cat:"secret", hidden:true, name:"The Decisive Moment", hint:"The best photographers wait", how:"Hold the viewfinder up and still for a minute, then shoot.", learn:"Henri Cartier-Bresson waited for the instant everything in the frame lined up. He called it the decisive moment.",
+    {id:"decisive-moment", cat:"secret", hidden:true, name:"The decisive moment", hint:"Hold the camera still for a while", how:"Hold the viewfinder up and still for a minute, then shoot.", learn:"Henri Cartier-Bresson waited for the instant everything in the frame lined up. He called it the decisive moment.",
      shot:function(p){ return p.cap&&p.cap.still>=60; }},
-    {id:"blink", cat:"secret", hidden:true, name:"Blink", hint:"Spray and pray", how:"Five frames inside two seconds.", learn:"Bursts help with fast action, but timing still beats volume.",
+    {id:"blink", cat:"secret", hidden:true, name:"Burst", hint:"Lots of frames, very fast", how:"Five frames inside two seconds.", learn:"Bursts help with fast action, but pressing the shutter at the right moment still matters more.",
      shot:function(p){ var P=achOwn(), n=P.length; if(n<5) return false; return +new Date(P[n-1].t)-(+new Date(P[n-5].t))<=2000; }},
-    {id:"tree-hugger", cat:"secret", hidden:true, name:"Tree Hugger", hint:"Some things won't move for you", how:"Walk into the scenery ten times.", learn:"Sometimes the shot you want isn't possible from where you can stand. Change lens instead.",
+    {id:"tree-hugger", cat:"secret", hidden:true, name:"Walked into the scenery", hint:"Bump into things", how:"Walk into the scenery ten times.", learn:"Sometimes the shot you want isn't possible from where you can stand. Change lens instead.",
      once:function(){ return achS().ev.bumps>=10?{p:achAny()}:null; }}
   ];
   var ACH_BY={}; ACH.forEach(function(a){ ACH_BY[a.id]=a; });
@@ -204,8 +210,7 @@
     else if(k==="cull") s.ev.culls.push(v);
     if(achSweep(false)) qSave(); }
   function achCountAll(){ return ACH.filter(function(a){ return achLevel(a.id)>0; }).length; }
-  function achSound(){ if(typeof soundOn!=="undefined"&&!soundOn) return; try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); var c=audioCtx, t=c.currentTime;
-      [659.25,987.77].forEach(function(f,i){ var o=c.createOscillator(), g=c.createGain(); o.type="sine"; o.frequency.value=f; g.gain.setValueAtTime(0,t+i*0.09); g.gain.linearRampToValueAtTime(0.06,t+i*0.09+0.02); g.gain.exponentialRampToValueAtTime(0.0008,t+i*0.09+0.9); o.connect(g); g.connect(c.destination); o.start(t+i*0.09); o.stop(t+i*0.09+1); }); }catch(e){} }
+  function achSound(){ sfx("ach"); }
 
   // ---- the unlock card: small while the viewfinder's up, the full print when it's down or clicked ----
   function achPrintUrl(key){ var e=achS().earned[key]; if(!e) return null; var i=stById(e.pid); return i>=0?photos[i].url:null; }
@@ -215,7 +220,7 @@
     return '<div class="ach-full'+(fresh?' fresh':'')+'"><div class="ach-print '+achTierCls(a,lv)+'"><div class="pp">'+(url?'<img src="'+url+'" alt="">':'<span class="nophoto">'+qEsc(a.name)+'</span>')+'<i class="dev"></i></div></div>'
       +'<div class="ach-tx"><span class="k">ACHIEVEMENT'+(lv?' · '+ACH_TIER[lv].toUpperCase():'')+(a.frame==="gold"?' · GOLD':'')+'</span><b class="t">'+qEsc(a.name)+'</b><p>'+qEsc(a.learn)+'</p>'
       +(rare!=null?'<span class="ach-rare">'+rare+'% of your class has this</span>':'')
-      +'<div class="ach-acts"><button class="gd-skip" data-ach="show" data-ach-id="'+id+'">'+(sh?'On your profile ✓':'Show on my profile')+'</button><button class="gd-skip" data-ach="pin" data-ach-id="'+id+'" data-ach-lv="'+lv+'"'+(url?'':' disabled')+'>Pin to workbook</button><button class="gd-go" data-ach="close">NICE ›</button></div></div></div>'; }
+      +'<div class="ach-acts"><button class="gd-skip" data-ach="show" data-ach-id="'+id+'">'+(sh?'On your profile ✓':'Show on my profile')+'</button><button class="gd-skip" data-ach="pin" data-ach-id="'+id+'" data-ach-lv="'+lv+'"'+(url?'':' disabled')+'>Pin to workbook</button><button class="gd-go" data-ach="close">Close</button></div></div></div>'; }
   /* the unlock: one big flash, centred, that develops in and leaves by itself about two and a half seconds later. Nothing to click,
      the camera stays up, the pointer stays locked. The wall (quest board › Achievements) has the full card with its buttons. */
   var ACH_FLASH_MS=2600;
@@ -247,7 +252,7 @@
 
   // ---- the wall: a tab in the quest log ----
   function achWallHtml(){ var n=achCountAll();
-    var h='<div class="ach-wall"><div class="ach-wh"><b>'+n+' / '+ACH.length+'</b><span>Every print here is one of your own frames. Blank paper says how to earn it.</span></div>';
+    var h='<div class="ach-wall"><div class="ach-wh"><b>'+n+' / '+ACH.length+'</b><span>Every print here is one of your own frames. Blank ones show you how to earn them.</span></div>';
     ACH_CATS.forEach(function(c){ var L=ACH.filter(function(a){ return a.cat===c[0]; }), got=L.filter(function(a){ return achLevel(a.id); }).length;
       h+='<div class="ach-cat"><span class="q-sh">'+c[1].toUpperCase()+' · '+got+' / '+L.length+'</span><div class="ach-grid">'+L.map(function(a){ var lv=achLevel(a.id), key=a.tier?a.id+":"+lv:a.id, url=lv?achPrintUrl(key):null, cls=lv?achTierCls(a,a.tier?lv:0):"blank";
         var r=null; if(a.tier){ try{ r=a.tier(); }catch(e){} } var pr=a.prog?a.prog():null;

@@ -37,7 +37,7 @@
     var obj=D7_OBJ[ph.opens]||"studio", place=(window.SPLAT_SCENES&&SPLAT_SCENES[0]&&SPLAT_SCENES[0].name)||"The location";
     h.setAttribute("data-next", obj);
     h.querySelector(".h6-eb").textContent=pl?(c.i<0?"STARTS "+lsHM(pl.start):c.i>=pl.phases.length?"THAT’S THE PERIOD":"TODAY"):(photos.length?"NEXT":"START HERE");
-    h.querySelector(".h6-h").textContent=ph.title+".";
+    h.querySelector(".h6-h").textContent=ph.title;
     h.querySelector(".h6-words").textContent=ph.words?"“"+ph.words.replace(/\.$/,"")+"”":"";
     // the camera
     var shots=lsCount("shots"); h.querySelector(".d7-cam .kit").src=D7_KIT;
@@ -49,7 +49,7 @@
       html+='<span class="pr" style="left:'+P[0]+'px;top:'+P[1]+'px;width:'+P[2]+'px;height:'+Math.round(P[2]*2/3)+'px;transform:rotate('+P[3]+'deg);z-index:'+(q===2?3:q===1?2:1)+'">'
         +(pic?'<img src="'+hubThumb(i)+'" alt="" draggable="false">'+(photos[i].pick?'<svg class="ring" viewBox="0 0 100 66" preserveAspectRatio="none" aria-hidden="true"><path d="M18 9 C50 -3 104 6 103 36 C102 72 30 74 3 46 C-2 23 25 3 60 5" fill="none" stroke="#d2462a" stroke-width="2.2" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>':''):'<i></i>')+'</span>'; }
     h.querySelector(".d7-stack").innerHTML=html;
-    var sl=h.querySelector(".d7-studio-lbl small"), npk=stPicks().length; if(sl) sl.textContent=photos.length?photos.length+" FRAME"+(photos.length===1?"":"S")+" · "+npk+" PICK"+(npk===1?"":"S"):"YOUR PRINTS LAND HERE";
+    var sl=h.querySelector(".d7-studio-lbl small"), npk=stPicks().length; if(sl) sl.textContent=photos.length?photos.length+" FRAME"+(photos.length===1?"":"S")+" · "+npk+" PICK"+(npk===1?"":"S"):"YOUR PHOTOS WILL SHOW UP HERE";
     // the loupe
     var lp=stPicks(), li=lp.length?lp[lp.length-1]:(photos.length?photos.length-1:-1); h.querySelector(".d7-loupe img").src=li>=0?hubThumb(li):HUB_FILL[1]; h.querySelector(".d7-loupe").classList.toggle("empty", li<0);
     var crit=""; if(pl){ var T=lsTimes(pl); pl.phases.forEach(function(p,j){ if(!crit&&p.opens==="punctum"&&j>=cur) crit=j===cur?"OPEN NOW":"OPENS AT "+lsHM(T[j].s); }); }
@@ -94,14 +94,15 @@
     App.on(function(next){ if(next==="hub") hubRender(); }); })();
 
   // ---- sign-in (a shared school computer) ----
-  function siShow(){ ["hub","landing","studio","punctum","teacher","hud"].forEach(hubHide); var s=$("signin"); if(!s) return; s.classList.remove("hidden"); App.go("signin");
+  function siShow(){ ["hub","landing","studio","punctum","teacher","hud"].forEach(hubHide); var s=$("signin"); if(!s) return;
+    if(SI_DEMO_ONLY&&!(typeof bootDemo!=="undefined"&&bootDemo)&&typeof rfShow==="function"&&!RF.failed){ s.classList.add("hidden"); App.go("signin"); rfShow(); return; }   /* the playtest build opens on the rack-focus launch page (src/rackin.js) */ s.classList.remove("hidden"); App.go("signin");
     var cls=null; Object.keys(lsDB.classes).forEach(function(k){ cls=lsDB.classes[k]; });
     var pl=cls?lsPlanFor(cls.code):null;
-    s.querySelector(".si-eb").textContent=cls?((cls.period?"PERIOD "+cls.period+" · ":"")+cls.name+" WITH "+(cls.teacher||"")).toUpperCase():"A PHOTOGRAPHY STUDIO FOR YEARS 11–13";
+    s.querySelector(".si-eb").textContent=cls?((cls.period?"PERIOD "+cls.period+" · ":"")+cls.name+" WITH "+(cls.teacher||"")).toUpperCase():"A PHOTOGRAPHY STUDIO FOR YEARS 11 TO 13";
     s.querySelector(".si-sub").textContent=pl?"Starts "+lsHM(pl.start)+". Sign in with your school account.":"Sign in with your school account.";
     // the playtest build: only the demo. ?full brings back school sign-in, class codes and the teacher view
     s.classList.toggle("demo-only", SI_DEMO_ONLY);
-    if(SI_DEMO_ONLY){ s.querySelector(".si-eb").textContent="A PHOTOGRAPHY STUDIO FOR YEARS 11–13"; s.querySelector(".si-sub").textContent="Walk into a real place, shoot it with a real camera, then edit your photos and lay out a folio."; }
+    if(SI_DEMO_ONLY){ s.querySelector(".si-eb").textContent="A PHOTOGRAPHY STUDIO FOR YEARS 11 TO 13"; s.querySelector(".si-sub").textContent="Walk into a real place, shoot it with a real camera, then edit your photos and lay out a folio."; }
     s.querySelector(".si-name").classList.add("hidden"); s.querySelector(".si-code").classList.remove("hidden"); $("siCode").value=""; siTime(); }
   function siTime(){ var t=$("signin")&&$("signin").querySelector(".si-time"); if(!t) return; var d=lsNow(); t.textContent=d.toLocaleDateString("en-NZ",{weekday:"short",day:"numeric",month:"short"}).toUpperCase()+" · "+lsHM(lsMinOf(d)); }
   var siPending=null, siDemoAsk=false, SI_DEMO_ONLY=!/[?&]full(&|=|$)/.test(location.search);
@@ -115,7 +116,7 @@
     if(a==="name"){ var nm=($("siName").value||"").trim(); if(nm.length<2){ toast("Type your name the way your teacher knows it."); return; }
       lsSetWho({role:"student", name:nm, code:siPending}); return siDone(); }
     if(a==="solo"){ lsSetWho({role:"solo", name:studentName||""}); return siDone(); }
-    if(a==="demo"){   // the ten-minute demo for playtesters: a clean start, straight into the Stump
+    if(a==="demo"){ if(typeof rfClose==="function") rfClose();   // the ten-minute demo for playtesters: a clean start, straight into the Stump
       var b=s.querySelector('[data-si="demo"]');
       siDemoAsk=false; b.classList.remove("ask"); b.innerHTML=SI_DEMO_LABEL;
       if(typeof saveSessionNow==="function") saveSessionNow(); wipeWorkspace(); lsSetWho({role:"solo", name:"", demo:true}); siDone(); qDemoStart(); return; }   // a fresh demo every time; a real student's saved work is left alone

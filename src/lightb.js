@@ -17,14 +17,14 @@
   var RLB_FX={
     bare:{n:"Bare bulb", g:"light", d:"Small and hard, lights everything", kind:0, R:0.04, k:3200, power:4.4, h:1.7},
     fresnel:{n:"Fresnel", g:"light", d:"A focused, hard beam", kind:1, R:0.09, k:3200, power:11, h:1.6, cone:34},
-    speed:{n:"Speedlight", g:"light", d:"Small flash, punchy", kind:1, R:0.05, k:5500, power:10, h:1.5, cone:70},
-    softbox:{n:"Softbox 90 cm", g:"soften", d:"Big, soft, wraps round", kind:1, R:0.45, k:5500, power:10, h:1.6, cone:150},
+    speed:{n:"Speedlight", g:"light", d:"Small flash, hard light", kind:1, R:0.05, k:5500, power:10, h:1.5, cone:70},
+    softbox:{n:"Softbox 90 cm", g:"soften", d:"Big and soft, wraps round your subject", kind:1, R:0.45, k:5500, power:10, h:1.6, cone:150},
     umbrella:{n:"Umbrella", g:"soften", d:"Soft and spills everywhere", kind:1, R:0.5, k:5500, power:9, h:1.8, cone:190},
-    strip:{n:"Stripbox", g:"soften", d:"Tall and narrow, for edges", kind:1, R:0.22, k:5500, power:8, h:1.5, cone:130},
+    strip:{n:"Stripbox", g:"soften", d:"Tall and narrow, good for lighting edges", kind:1, R:0.22, k:5500, power:8, h:1.5, cone:130},
     reflector:{n:"Reflector", g:"shape", d:"Bounces light back in", kind:3, R:0.4, k:5500, power:0, h:0.9, cone:160, surf:"silver"},
     sodium:{n:"Streetlight", g:"practical", d:"Sodium, overhead", kind:1, R:0.15, k:2000, power:18, h:4, cone:120, gel:"#ffb050"},
     rgb:{n:"RGB tube", g:"practical", d:"Any colour", kind:0, R:0.12, k:6500, power:3.2, h:1, gel:"#ff3df0"}};
-  var RLB_GROUPS=[["light","Lights"],["soften","Soft lights"],["shape","Shape the light"],["practical","Practicals"]];
+  var RLB_GROUPS=[["light","Lights"],["soften","Soft lights"],["shape","Reflectors"],["practical","Practicals"]];
   var RLB_SURF={white:{n:"White", a:0.55, c:[1,1,1]}, silver:{n:"Silver", a:0.85, c:[1,1,1]}, gold:{n:"Gold", a:0.8, c:[1,0.78,0.5]}};
   var RLB_ROLEC={Key:"#e3ad57", Fill:"#d8d2c6", Rim:"#8fb3e8", Background:"#b48fe8", Bounce:"#cfc6b5", Flag:"#6f695d", Practical:"#ffb35c"};
 
@@ -194,7 +194,7 @@
     RL.lights.forEach(function(L,i){ if(!L.on) return; var v=rbAtSubject(L); if(roles[i]==="Key") key+=v; else if(roles[i]==="Fill") fill+=v; });
     if(RLB.sunMode&&RLB.el>0){ var sk=rbLum(RLB.sunLin)*0.8; if(sk>key){ fill+=key; key=sk; } else fill+=0; }
     fill+=amb; if(key<=0) return null; return (key+fill)/Math.max(fill,1e-3); }
-  function rbRatioWord(r){ if(r<1.6) return "flat and even"; if(r<2.6) return "soft and open"; if(r<5) return "classic, with shape"; if(r<9) return "moody"; return "dramatic, deep shadows"; }
+  function rbRatioWord(r){ if(r<1.6) return "flat and even"; if(r<2.6) return "soft and open"; if(r<5) return "some shadow, good shape"; if(r<9) return "deep shadows"; return "very deep shadows"; }
 
   function rbAim(L,p){ var dx=p.x-L.x, dy=p.y-L.y, dz=p.z-L.z, d=Math.hypot(dx,dy,dz)||1; L.dir=[dx/d,dy/d,dz/d]; L.aimT={x:p.x,y:p.y,z:p.z}; }
   /* the lowest each piece can go before it meets its own stand or the ground: a 1.1 m stripbox hangs well below its bracket */
@@ -466,12 +466,12 @@
     if(tl.getAttribute("data-day")!==RLB.day||!tl.firstChild){ tl.setAttribute("data-day",RLB.day);   /* the track only changes with the day */
       var marks=[["rise","Sunrise"],["goldPm","Golden hour"],["set","Sunset"]].filter(function(k){ return M[k[0]]!=null; });
       tl.innerHTML='<div class="rb-dh"><span class="lr-secname">Daylight</span><div class="rb-pills"><button class="lr-pill" data-rb="scan">As scanned</button>'+Object.keys(RLB_DAYS).map(function(k){ return '<button class="lr-pill" data-rb-day="'+k+'">'+RLB_DAYS[k].n+'</button>'; }).join("")+'</div>'
-        +'<b class="rb-now"></b><button class="lr-pill" data-rb="play">Play the day</button></div>'
+        +'<b class="rb-now"></b><button class="lr-pill" data-rb="play">Run through the day</button></div>'
         +'<div class="rb-track" style="background:'+rbDayTrack()+'">'+marks.map(function(k){ return '<i style="left:'+pct(M[k[0]])+'"><span'+(k[0]==="goldPm"?' class="lo"':'')+'>'+k[1]+' '+rbHM(M[k[0]])+'</span></i>'; }).join("")+'<em></em></div>'; }
     tl.classList.toggle("off",!RLB.sunMode); var em=tl.querySelector(".rb-track em"); if(em) em.style.left=pct(RLB.mins);
     var nw=tl.querySelector(".rb-now"); if(nw) nw.textContent=RLB.sunMode?rbHM(RLB.mins)+' · '+rbDayLabel():rbDayLabel();
     Array.prototype.forEach.call(tl.querySelectorAll("[data-rb-day],[data-rb=scan]"),function(b){ var k=b.getAttribute("data-rb-day"); b.classList.toggle("on", k?RLB.sunMode&&RLB.day===k:!RLB.sunMode); });
-    var pl=tl.querySelector("[data-rb=play]"); if(pl){ pl.classList.toggle("on",!!RLB.play); pl.textContent=RLB.play?"Pause":"Play the day"; } }
+    var pl=tl.querySelector("[data-rb=play]"); if(pl){ pl.classList.toggle("on",!!RLB.play); pl.textContent=RLB.play?"Pause":"Run through the day"; } }
   function rbTimeAt(e){ var tr=document.querySelector("#rbDay .rb-track"); if(!tr) return; var r=tr.getBoundingClientRect(), t=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
     RLB.mins=Math.round((RLB_T0+t*(RLB_T1-RLB_T0))/5)*5; RLB.play=false; if(!RLB.sunMode) rbSunOn(); rbDirty(); rbTimeline(); rbPanel(false); }
 
@@ -546,12 +546,12 @@
     h+='<div class="lr-edithdr"><span class="lr-h">Lighting</span><div class="lr-hbtns"><button class="lr-pill" data-rb="fit" title="Step back so the whole set fits (F)">Fit</button><button class="lr-pill'+(RL.shadows?' on':'')+'" data-rb="shadows" title="Shadows on or off">Shadows</button><button class="lr-save" data-rb="done" title="Done (Esc)">Done</button></div></div>';
     var set=RL.lights.length?RL.lights.map(function(l,i){ return '<div class="rb-li'+(i===RLB.sel?' on':'')+(l.on?'':' off')+'" data-rb-pick="'+i+'"><img src="'+(RLB_THUMB[l.fx]||'')+'" alt=""><span class="rb-nm">'+l.name+'<small style="color:'+(RLB_ROLEC[roles[i]]||'')+'">'+(roles[i]||'').toUpperCase()+'</small></span>'
       +'<button class="rb-ic'+(l.on?'':' off')+'" data-rb-on="'+i+'" title="'+(l.on?'Turn it off':'Turn it on')+'">'+(l.on?'◉':'○')+'</button><button class="rb-ic" data-rb-del="'+i+'" title="Take it off the set">✕</button></div>'; }).join("")
-      :'<p class="rb-note">Nothing on the set yet. Pick a piece from the kit along the bottom. A softbox is a good first light.</p>';
+      :'<p class="rb-note">Nothing on the set yet. Pick a piece from the kit along the bottom. Try a softbox first.</p>';
     h+=rbSec("set","On the set",set,'<span class="rb-cnt">'+RL.lights.length+' / '+RLB_MAX+'</span>');
     if(L){ var b='<div class="rb-facts">'+rbFacts(L,roles[RLB.sel])+'</div>';
       if(L.kind<2) b+=rbRow("stops","Power",L.stops,-4,3,0.5,rbFmtStops(L.stops))+rbRow("k","Colour",L.k,1800,10000,100,Math.round(L.k/100)*100+" K",RLB_KTRK);
       b+=rbRow("h","Height",L.h,rbMinH(L.fx),5,0.05,L.h.toFixed(2)+" m");
-      if(L.kind===3) b+='<div class="rb-pills">'+Object.keys(RLB_SURF).map(function(k){ return '<button class="lr-pill'+(L.surf===k?' on':'')+'" data-rb-surf="'+k+'">'+RLB_SURF[k].n+'</button>'; }).join("")+'</div><p class="rb-note">A reflector only bounces what lands on it. Angle it between the light and your subject.</p>';
+      if(L.kind===3) b+='<div class="rb-pills">'+Object.keys(RLB_SURF).map(function(k){ return '<button class="lr-pill'+(L.surf===k?' on':'')+'" data-rb-surf="'+k+'">'+RLB_SURF[k].n+'</button>'; }).join("")+'</div><p class="rb-note">A reflector bounces back the light that hits it, so angle it between the light and your subject.</p>';
       if(L.kind<2) b+='<div class="rb-pills">'+RL_GELS.map(function(g){ return '<button class="lr-pill'+(L.gel===g[0]?' on':'')+'" data-rb-gel="'+g[0]+'" style="--g:'+g[0]+'"><i></i>'+(g[1]==="None"?"No gel":g[1])+'</button>'; }).join("")+'</div>';
       if(L.kind!==0) b+='<div class="rb-pills"><button class="lr-pill" data-rb="aimsub">Aim at the subject</button></div>';
       h+=rbSec("light",L.name,b); }

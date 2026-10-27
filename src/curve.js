@@ -32,7 +32,7 @@
         +'<path class="grid" d="M64 0V256M128 0V256M192 0V256M0 64H256M0 128H256M0 192H256"/><path class="diag" d="M0 256L256 0"/>'
         +'<path class="line" d="'+cvPath(pts)+'" style="stroke:'+col+'"/>'
         +pts.map(function(p,i){ return '<circle class="pt'+(i===cvSel?' sel':'')+'" data-cv-pt="'+i+'" cx="'+p[0]+'" cy="'+(256-p[1])+'" r="5"/>'; }).join("")+'</svg>'
-        +'<div class="cv-read"><span>Input <b data-cv-in>–</b></span><span>Output <b data-cv-out>–</b></span><span class="cv-hint">Click to add · drag to shape · double-click to remove</span></div>'
+        +'<div class="cv-read"><span>Input <b data-cv-in>–</b></span><span>Output <b data-cv-out>–</b></span><span class="cv-hint">Click to add a point, drag to move it, double-click to remove it</span></div>'
         +'<div class="lr-row cv-preset"><span class="lr-n">Point curve</span><select class="lr-sel" data-cv-preset><option value="custom">Custom</option><option value="linear">Linear</option><option value="medium">Medium contrast</option><option value="strong">Strong contrast</option></select></div>'; }
     else { h+='<svg class="cv-box small" viewBox="0 0 256 256" preserveAspectRatio="none"><rect x="0" y="0" width="256" height="256" class="bg"/>'+(hist?'<path class="hist" d="'+hist+'"/>':'')+'<path class="grid" d="M64 0V256M128 0V256M192 0V256M0 64H256M0 128H256M0 192H256"/><path class="diag" d="M0 256L256 0"/><path class="line" d="'+cvParamPath()+'"/></svg>'
         +CV_PARAM.map(function(r){ var v=edState?(edState[r[0]]||0):0; return '<div class="lr-row'+(v?' touched':'')+'"><span class="lr-n">'+r[1]+'</span><input type="range" data-cv="'+r[0]+'" min="-100" max="100" value="'+v+'"><span class="lr-v" data-cvv="'+r[0]+'">'+v+'</span></div>'; }).join(""); }

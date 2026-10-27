@@ -54,21 +54,21 @@
     cbBuildBody(); cbLayout(); cbOpen=true; cbReview=photos.length-1; if(activeBrief>=0) cbBriefSel=activeBrief+1;
     clearTimeout(cbHideT); el.classList.remove("hidden","cb-out"); void el.offsetWidth; el.classList.add("cb-in");
     App.go("back"); computeCam(); cbRender(); updatePrompt(); }
-  function closeBack(toViewfinder){ if(!cbOpen) return; var el=$("camback"); cbOpen=false;
+  function closeBack(toViewfinder){ if(!cbOpen) return; var el=$("camback"); cbOpen=false; sfx("kitClose");
     var nm=document.getElementById("cbName"); if(nm && document.activeElement===nm) nm.blur();
     el.classList.remove("cb-in"); el.classList.add("cb-out"); clearTimeout(cbHideT); cbHideT=setTimeout(function(){ el.classList.add("hidden"); el.classList.remove("cb-out"); },220);
     App.go("scene");
     if(toViewfinder!==false){ try{ renderer.domElement.requestPointerLock(); }catch(e){} if(cbWasVF) raiseCamera(); }
     updatePrompt(); }
   function toggleBack(){ if(cbOpen) closeBack(); else openBack(); }
-  function cbSetTab(t){ if(CB_TABS.some(function(x){ return x[0]===t; })){ cbTab=t; cbPress(t); cbRender(); } }
+  function cbSetTab(t){ if(CB_TABS.some(function(x){ return x[0]===t; })){ if(cbTab!==t) sfx("tab"); cbTab=t; cbPress(t); cbRender(); } }
   function cbCycleTab(d){ var i=0; CB_TABS.forEach(function(x,j){ if(x[0]===cbTab) i=j; }); cbSetTab(CB_TABS[(i+d+CB_TABS.length)%CB_TABS.length][0]); }
 
   // ---- the exposure the meter reads, in plain words ----
   function cbThirds(ev){ var n=Math.round(Math.abs(ev)*3), w=Math.floor(n/3), r=n%3;
     var s=(w?String(w):"")+(r===1?"⅓":r===2?"⅔":""); return (ev<0?"−":"+")+(s||"0"); }
   function cbMeterWords(){ var ev=evStops, n=Math.round(Math.abs(ev)*3), t=SHUTTERS[shIdx], head, body, F=cbFrameHold();
-    if(n===0){ head="Spot on"; body=F?"The meter is happy and the frame's settings hold. Flip back and shoot.":"The meter is happy. Frame it and shoot."; }
+    if(n===0){ head="Spot on"; body=F?"The exposure's right and the frame's settings hold. Go back and take the photo.":"The exposure's right. Frame it and take the photo."; }
     else if(F&&F.free.length){   // a gold frame pins some settings: set those first, then trade with the ones it leaves free
       var dark=ev<0, names={sh:"the shutter", ap:"the aperture", iso:"the ISO"}, moves={sh:dark?"a slower shutter":"a faster shutter", ap:dark?"a wider aperture (smaller f-number)":"a smaller aperture (bigger f-number)", iso:dark?"a higher ISO":"a lower ISO"};
       head=(dark?"Too dark, ":"Too bright, ")+cbThirds(ev);
@@ -79,7 +79,7 @@
     else if(ev>0){ head="Too bright, "+cbThirds(ev); body="Highlights will blow out. Try a faster shutter or a lower ISO first."; }
     else if(n<=2){ head="A touch dark, "+cbThirds(ev); body="Open up a little: a slower shutter, a wider aperture or a higher ISO."; }
     else { head="Too dark, "+cbThirds(ev); body="Shadows will turn to mud. Raise the ISO or open the aperture."; }
-    var shake = t>1/Math.max(focalMM,1)+1e-9 ? "Slower than 1/"+focalMM+" at "+focalMM+" mm, so brace yourself or it will blur." : "";
+    var shake = t>1/Math.max(focalMM,1)+1e-9 ? "Slower than 1/"+focalMM+" at "+focalMM+" mm, so hold still or it will blur." : "";
     return {head:head, body:body, shake:shake}; }
   function cbFmtKey(k){ return k==="sh"?SHUTTER_LABELS[shIdx]:k==="ap"?"f/"+APERTURES[apIdx]:"ISO "+ISOS[isoIdx]; }
   // the gold frame you're standing in, and which of shutter / aperture / ISO it pins (held) and leaves to you (free)
@@ -138,8 +138,8 @@
         return '<span class="r'+(x.ok?' ok':'')+(j===next?' next':'')+'"><i>'+(x.ok?'✓':'')+'</i><em>'+cbEsc(x.label.replace(/[:(].*$/,""))+'</em>'+chip+'<b>'+cbEsc(x.now||"")+'</b></span>'; }).join("")
       +(all?'<span class="go">ALL SET · SPACE, THEN SHOOT</span>':'')+'</div>'; }
   function cbShootStep(d){ var r=cbShootRows()[cbRow]; var i=Math.max(0,Math.min(r.vals.length-1,r.idx+d)); if(i===r.idx) return;
-    if(r.key==="sh") shIdx=i; else if(r.key==="ap") apIdx=i; else isoIdx=i; computeCam(); cbRender(); }
-  function cbShootSet(key,i){ if(key==="sh") shIdx=i; else if(key==="ap") apIdx=i; else isoIdx=i;
+    sfx("detent"); if(r.key==="sh") shIdx=i; else if(r.key==="ap") apIdx=i; else isoIdx=i; computeCam(); cbRender(); }
+  function cbShootSet(key,i){ sfx("detent"); if(key==="sh") shIdx=i; else if(key==="ap") apIdx=i; else isoIdx=i;
     cbRow=key==="sh"?0:key==="ap"?1:2; computeCam(); cbRender(); }
 
   // ---- 02 REVIEW: the latest frames, a real histogram, ratings and picks ----
@@ -165,7 +165,7 @@
       +'<div class="cb-side"><span class="lbl">Histogram</span><svg width="198" height="70" viewBox="0 0 198 70" role="img" aria-label="Histogram of this frame"><path d="M0 69.5H198" stroke="rgba(240,232,214,0.2)"/><path d="M66 0V70M132 0V70" stroke="rgba(240,232,214,0.07)"/>'
       +(h&&h.d?'<path d="'+h.d+'" fill="rgba(227,173,87,0.22)" stroke="#e3ad57" stroke-width="1"/>':'')+'</svg>'
       +'<div class="cb-hl"><span>SHADOWS</span><span>HIGHLIGHTS</span></div>'
-      +'<div class="cb-exif"><span>'+cbEsc(ph.sh||"—")+'</span><span>'+(ph.f?"f/"+ph.f:"—")+'</span><span>'+(ph.iso?"ISO "+ph.iso:"—")+'</span><span>'+(ph.mm?ph.mm+" mm":"—")+'</span></div>'
+      +'<div class="cb-exif"><span>'+cbEsc(ph.sh||"-")+'</span><span>'+(ph.f?"f/"+ph.f:"-")+'</span><span>'+(ph.iso?"ISO "+ph.iso:"-")+'</span><span>'+(ph.mm?ph.mm+" mm":"-")+'</span></div>'
       +'<div class="cb-rate"><div class="stars">'+stars+'</div><button class="cb-pick'+(picked?' on':'')+'" data-cb-pick="1"><svg width="10" height="12" viewBox="0 0 10 12" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M1.5 11.5V1M1.5 1.5h7l-1.8 2.5 1.8 2.5h-7"/></svg>'+(picked?"PICKED":"PICK")+'</button></div></div></div>'
       +'<div class="cb-strip">'+thumbs+'<span class="hint">← → step · 1–5 rate · P pick</span></div>';
     return cbChrome(cbCounter("FRAME",cbPad(cbReview+1),cbPad(n)), cbEsc(cbPlace.toUpperCase()), nPicked+" PICKED · SAVED AS YOU GO", body); }
@@ -180,10 +180,10 @@
       +(b?'<div class="cb-checks"><div class="row"><span class="box'+(shot>0?' done':'')+'"></span><span>Shoot it</span><span class="note">'+shot+' frame'+(shot===1?'':'s')+'</span></div>'
         +'<div class="row"><span class="box'+(shot>=3?' done':'')+'"></span><span>Try three different angles</span><span class="note">'+Math.min(shot,3)+' / 3</span></div></div>':'')
       +'<div class="cb-set'+(active?' on':'')+'">'+(active?'<span class="dot"></span>THIS IS YOUR ACTIVE BRIEF':'↵ MAKE THIS MY BRIEF')+'</div></div>';
-    var rows='<button class="cb-brow'+(cbBriefSel===0?' sel':'')+(activeBrief<0?' act':'')+'" data-cb-brief="0"><span class="n">—</span><span class="t">Free shoot</span><span class="c"></span></button>';
+    var rows='<button class="cb-brow'+(cbBriefSel===0?' sel':'')+(activeBrief<0?' act':'')+'" data-cb-brief="0"><span class="n">-</span><span class="t">Free shoot</span><span class="c"></span></button>';
     BRIEFS.forEach(function(x,i){ var c=briefDone[x.id]||0;
       rows+='<button class="cb-brow'+(cbBriefSel===i+1?' sel':'')+(activeBrief===i?' act':'')+'" data-cb-brief="'+(i+1)+'"><span class="n">'+cbPad(i+1)+'</span><span class="t">'+cbEsc(x.t)+'</span><span class="c'+(c?' done':'')+'">'+(c?"✓ "+c:"")+'</span></button>'; });
-    return cbChrome(cbCounter("BRIEF",b?cbPad(sel+1):"—",cbPad(BRIEFS.length)), done+" OF "+BRIEFS.length+" BRIEFS SHOT", "↑ ↓ CHOOSE · ↵ SET",
+    return cbChrome(cbCounter("BRIEF",b?cbPad(sel+1):"-",cbPad(BRIEFS.length)), done+" OF "+BRIEFS.length+" BRIEFS SHOT", "↑ ↓ CHOOSE · ↵ SET",
       left+'<div class="cb-blist">'+rows+'</div>'); }
   function cbBriefPick(){ var i=cbBriefSel-1; setBrief(i); cbRender(); }
 
@@ -195,7 +195,7 @@
     {k:"move",  g:"HANDLING", label:"Move speed",         val:Math.round(moveScale*100), bar:moveScale},
     {k:"invert",g:"HANDLING", label:"Invert look",        val:invertY?"ON":"OFF", on:invertY},
     {k:"bounds",g:"HANDLING", label:"Stay inside the scan",val:boundsOn?"ON":"OFF", on:boundsOn},
-    {k:"sound", g:"HANDLING", label:"Shutter sound",      val:soundOn?"ON":"OFF", on:soundOn},
+    {k:"sound", g:"HANDLING", label:"Sound",              val:sfxLevelName(), on:soundOn},
     {k:"grid",  g:"HANDLING", label:"Grid while walking", val:grid.classList.contains("hidden")?"OFF":"ON", on:!grid.classList.contains("hidden")},
     {k:"walk",  g:"HANDLING", label:"Getting about",      val:WK.mode==="walk"?"WALK":"FLY", on:WK.mode==="walk"},
     {k:"detail",g:"HANDLING", label:"Scan detail",        val:(DETAIL[sceneDetail]||DETAIL.full).label, on:sceneDetail!=="light"},
@@ -213,16 +213,17 @@
     return cbChrome('<span class="cb-saved"></span><span>SAVED</span>', cbEsc((studentName||"Not signed in").toUpperCase()), "↑ ↓ CHOOSE · ← → CHANGE · ↵ DO", '<div class="cb-setup">'+html+'</div>'); }
   function cbSetupChange(d, enter){ var r=cbSetupRows()[cbSetupRow]; if(!r) return;
     if(r.k==="name"){ var nm=$("cbName"); if(nm){ nm.focus(); nm.select(); } return; }
+    if(r.k==="look"||r.k==="move") sfx("detent"); else if(r.k!=="recentre"&&r.k!=="photos"&&r.k!=="leave"&&r.k!=="sound") sfx("toggle");
     if(r.k==="look"){ var v=Math.max(1,Math.min(100,cbLookVal()+d*4)); sens=0.0006+v*0.00004; }
     else if(r.k==="move"){ moveScale=Math.max(0.01,Math.min(1,Math.round(moveScale*100+d*4)/100)); }
     else if(r.k==="invert") invertY=!invertY;
     else if(r.k==="bounds") boundsOn=!boundsOn;
-    else if(r.k==="sound") soundOn=!soundOn;
+    else if(r.k==="sound"){ sfxLevelStep(d, !!enter); sfx("toggle"); }
     else if(r.k==="grid") toggleGrid();
-    else if(r.k==="upscale"){ upOn=!upOn; try{ localStorage.setItem("studium_upscale",upOn?"on":"off"); }catch(e){} setScale(dynTop()); toast(upOn?"Upscaling on: drawn smaller, sharpened back up. Smoother on slower computers.":"Upscaling off: every pixel drawn in full."); }
+    else if(r.k==="upscale"){ upOn=!upOn; try{ localStorage.setItem("studium_upscale",upOn?"on":"off"); }catch(e){} setScale(dynTop()); toast(upOn?"Upscaling on. This helps slower computers run smoothly.":"Upscaling off. Everything is drawn at full size."); }
     else if(r.k==="walk"){ wkSetMode(WK.mode==="walk"?"fly":"walk"); toast(WK.mode==="walk"?"Walking: feet on the ground. Q and E crouch and stand tall.":"Flying: Q and E go down and up. You still can't go through things."); }
     else if(r.k==="detail"){ var LV=["light","balanced","full"], li=LV.indexOf(sceneDetail); sceneDetail=LV[li<0?1:(li+(d<0?-1:1)+3)%3]; try{ localStorage.setItem("studium_detail",sceneDetail); }catch(e){}
-      var sc=(window.SPLAT_SCENES||[]).filter(function(s){ return s.name===cbPlace; })[0]; if(sc&&loaded){ closeBack(false); toast({light:"Light detail: smoothest, for slower computers", balanced:"Balanced detail: smooth and still sharp", full:"Full detail: every splat, for fast computers"}[sceneDetail]); loadBundled(sc); return; } }
+      var sc=(window.SPLAT_SCENES||[]).filter(function(s){ return s.name===cbPlace; })[0]; if(sc&&loaded){ closeBack(false); toast({light:"Light detail, for slower computers", balanced:"Balanced detail, smooth and still sharp", full:"Full detail, for fast computers"}[sceneDetail]); loadBundled(sc); return; } }
     else if(enter && r.k==="recentre"){ closeBack(false); frameScene(); updateCamera(0); toast("Back to the start point"); return; }
     else if(enter && r.k==="photos"){ closeBack(false); openStudio("select"); return; }
     else if(enter && r.k==="leave"){ closeBack(false); showHub(); return; }

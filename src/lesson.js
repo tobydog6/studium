@@ -13,15 +13,15 @@
   var LS_WORDS=["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve"];
   var LS_TEMPLATES={
     shoot:{name:"Shoot day", phases:[
-      {title:"Shoot the place", does:"Shoot The Stump, all the way round", words:"Shoot it from places nobody else stands.", opens:"shoot", n:20, dur:30},
+      {title:"Shoot the place", does:"Shoot The Stump, all the way round", words:"Try angles other people might not think of.", opens:"shoot", n:20, dur:30},
       {title:"First look", does:"Pick your five strongest frames", words:"Pick with your gut first, then check.", opens:"select", n:5, dur:15},
-      {title:"Edit one", does:"Edit one of your picks", words:"Small moves, then stop.", opens:"edit", n:1, dur:15}]},
+      {title:"Edit one", does:"Edit one of your picks", words:"Make small changes and don't overdo it.", opens:"edit", n:1, dur:15}]},
     edit:{name:"Edit day", phases:[
-      {title:"Pick five", does:"Finish your Stump picks", words:"Pick the frames that feel uneasy.", opens:"select", n:5, dur:20},
-      {title:"Edit two", does:"Edit two of your picks", words:"Edit for mood, not for correctness.", opens:"edit", n:2, dur:20},
+      {title:"Pick five", does:"Finish your Stump picks", words:"Pick the frames that feel a bit unsettling.", opens:"select", n:5, dur:20},
+      {title:"Edit two", does:"Edit two of your picks", words:"Edit it to match the mood you want.", opens:"edit", n:2, dur:20},
       {title:"Critique", does:"Read each other's work in Punctum", words:"Say what you see before what you think.", opens:"punctum", n:0, dur:20, firm:true}]},
     critique:{name:"Critique day", phases:[
-      {title:"Make a page", does:"Build a workbook page from your picks", words:"Show your thinking, not just your best frame.", opens:"workshop", n:1, dur:15},
+      {title:"Make a page", does:"Build a workbook page from your picks", words:"Show how you got there, as well as your best frame.", opens:"workshop", n:1, dur:15},
       {title:"Critique", does:"Critique in Punctum", words:"Say what you see before what you think.", opens:"punctum", n:0, dur:30, firm:true},
       {title:"Respond", does:"Answer the critique on a second page", words:"What will you try next time?", opens:"workshop", n:2, dur:15}]}
   };
@@ -76,14 +76,14 @@
   function lsSoloSteps(){ var place=(window.SPLAT_SCENES&&SPLAT_SCENES[0]&&SPLAT_SCENES[0].name)||"a location";
     if(typeof gdIsDemo==="function"&&gdIsDemo())   // the ten-minute demo's smaller targets
       return [{title:"Shoot "+place, does:"Shoot "+place, words:"Walk all the way round before you shoot anything.", opens:"shoot", n:7},
-        {title:"Pick three", does:"Pick your three strongest frames", words:"Pick the frames that make you look twice.", opens:"select", n:3},
-        {title:"Edit one", does:"Edit one of your picks", words:"Edit for mood, not for correctness.", opens:"edit", n:1},
-        {title:"Make a workbook page", does:"Make a workbook page from your picks", words:"Show your thinking, not just your best frame.", opens:"workshop", n:1}];
+        {title:"Pick three", does:"Pick your three strongest frames", words:"Pick the frames you keep coming back to.", opens:"select", n:3},
+        {title:"Edit one", does:"Edit one of your picks", words:"Edit it to match the mood you want.", opens:"edit", n:1},
+        {title:"Make a workbook page", does:"Make a workbook page from your picks", words:"Show how you got there, as well as your best frame.", opens:"workshop", n:1}];
     return [{title:"Shoot "+place, does:"Shoot "+place, words:"Walk all the way round before you shoot anything.", opens:"shoot", n:12},
-      {title:"Pick five", does:"Pick your five strongest frames", words:"Pick the frames that make you look twice.", opens:"select", n:5},
-      {title:"Edit two", does:"Edit two of your picks", words:"Edit for mood, not for correctness.", opens:"edit", n:2},
-      {title:"Make a workbook page", does:"Make a workbook page from your picks", words:"Show your thinking, not just your best frame.", opens:"workshop", n:1},
-      {title:"Lay out the book", does:"Put six frames in your book", words:"Pairs matter. Think in spreads.", opens:"book", n:6}]; }
+      {title:"Pick five", does:"Pick your five strongest frames", words:"Pick the frames you keep coming back to.", opens:"select", n:5},
+      {title:"Edit two", does:"Edit two of your picks", words:"Edit it to match the mood you want.", opens:"edit", n:2},
+      {title:"Make a workbook page", does:"Make a workbook page from your picks", words:"Show how you got there, as well as your best frame.", opens:"workshop", n:1},
+      {title:"Lay out the book", does:"Put six frames in your book", words:"Pages sit in pairs, so think about which two go together.", opens:"book", n:6}]; }
   function lsCta(ph){ var k=lsKind(ph), have=lsCount(k), r=ph.n-have;
     if(k==="none"||ph.n<=0) return "OPEN "+LS_PLACES[ph.opens].toUpperCase();
     if(r<=0) return ph.opens==="shoot"?"KEEP SHOOTING":"OPEN "+LS_PLACES[ph.opens].toUpperCase();

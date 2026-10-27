@@ -88,7 +88,7 @@
         statements:(STM=function(c){ var i=c.inputs, o=c.outputs.gsplat; return [
           o+" = "+i.gsplat+";",
           "if(length("+o+".center.xz-"+i.dcut+".xy)<"+i.dcut+".z && "+o+".center.y>"+i.dcy+".x && "+o+".center.y<"+i.dcy+".y) "+o+".rgba.a=0.0;",   // the subject's own full-detail piece draws this part
-          "if("+i.on+" > 0.5 && isGsplatActive("+o+".flags)){",
+          "if("+i.on+" > 0.001 && isGsplatActive("+o+".flags)){",   /* on can sit between 0 and 1: the light fades in and out */
           "  vec3 c="+o+".center; vec3 s=abs("+o+".scales);",
           "  int k=(s.x<=s.y && s.x<=s.z)?0:((s.y<=s.z)?1:2); vec3 ax=k==0?vec3(1.0,0.0,0.0):(k==1?vec3(0.0,1.0,0.0):vec3(0.0,0.0,1.0));",
           "  vec3 n=normalize(rlRot("+o+".quaternion, ax));",
@@ -102,21 +102,21 @@
           "    ao=clamp(exp(-o1*0.7),0.35,1.0); }",   // corners and the undersides of things get less of the sky
           "  vec3 V=normalize("+i.cam+"-c); vec3 Ls=vec3(0.0);",
           "  vec3 Lt="+i.amb+"*ao;",
-          "  if("+i.sunOn+">0.5){ float sl=max(dot(n,"+i.sunDir+"),0.0); float ss=sl*f+0.45*(1.0-f); if(ss>0.002){ if("+i.shad+">0.5) ss*=rlMarchD("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c,"+i.sunDir+"); Lt+=ss*"+i.sunCol+"; Ls+=pow(max(dot(n,normalize("+i.sunDir+"+V)),0.0),40.0)*0.18*f*ss*"+i.sunCol+"; } }",
+          "  if("+i.sunOn+">0.5){ float sl=max(dot(n,"+i.sunDir+"),0.0); float ss=sl*f+0.45*(1.0-f); if(ss>0.002){ if("+i.shad+">0.001) ss*=mix(1.0,rlMarchD("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c,"+i.sunDir+"),min("+i.shad+",1.0)); Lt+=ss*"+i.sunCol+"; Ls+=pow(max(dot(n,normalize("+i.sunDir+"+V)),0.0),40.0)*0.18*f*ss*"+i.sunCol+"; } }",
           "  for(int m=0;m<"+RL_MAX+";m++){ if(m>="+i.nl+") break;",
           "    vec4 la=texelFetch("+i.lt+",ivec2(0,m),0), lb=texelFetch("+i.lt+",ivec2(1,m),0), le=texelFetch("+i.lt+",ivec2(2,m),0), lf=texelFetch("+i.lt+",ivec2(3,m),0);",
           "    vec3 l=la.xyz-c; float r2=dot(l,l); float d=max(sqrt(r2),1e-6); float lam=max(dot(n,l)/d,0.0); float sh=lam*f+0.45*(1.0-f);",   // blobby splats get a soft half-light
           "    if(lb.a>0.5){ float ca=-dot(l,le.xyz)/d; if(ca<=le.w) continue; if(ca<lf.x){ float u=(ca-le.w)/(lf.x-le.w); sh*=u*u*(3.0-2.0*u); } }",
-          "    if("+i.shad+">0.5) sh*=rlMarchP("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c,la.xyz);",
+          "    if("+i.shad+">0.001) sh*=mix(1.0,rlMarchP("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c,la.xyz),min("+i.shad+",1.0));",   /* shadows can fade in and out */
           "    vec3 li=sh/(r2*"+i.is2+"+la.w)*lb.rgb; Lt+=li; Ls+=pow(max(dot(n,normalize(l/d+V)),0.0),32.0)*0.22*f*li; }",   // a soft sheen on flat surfaces: floors, paint, glass
-          "  "+o+".rgba.rgb=min("+o+".rgba.rgb*Lt+Ls, vec3(1.0));",
+          "  "+o+".rgba.rgb=mix("+o+".rgba.rgb, min("+o+".rgba.rgb*Lt+Ls, vec3(1.0)), min("+i.on+",1.0));",
           "  if(c.y>"+i.cut+") "+o+".rgba.a=0.0;",   // plan view: hide everything above head height
           "}"]; }) });
       return {gsplat:dd.outputs.gsplat}; });
     var cut=viewer.cut; if(cut){ U.dcut.value.set(cut[0],cut[1],cut[2],0); U.dcy.value.set(cut[3],cut[4]); }
     mesh.worldModifier=mod; mesh.updateGenerator(); RL.gpu={mesh:mesh, U:U, lt:lt, dummy:dummy, mk:function(){ var U2={}; for(var k in U) U2[k]=U[k]; return U2; }};
     /* the detail piece gets the same lighting, without the cut */
-    RL.gpu.modFor=function(){ var U2=RL.gpu.mk(); U2.dcut=D.dynoVec4(new THREE.Vector4(0,0,-1,0));
+    RL.gpu.modFor=function(over){ var U2=RL.gpu.mk(); U2.dcut=D.dynoVec4(new THREE.Vector4(0,0,-1,0)); if(over) for(var ok in over) U2[ok]=over[ok];   /* over: own uniforms for this piece (the opening keeps the stump in its own light) */
       var m2=D.dynoBlock({gsplat:D.Gsplat},{gsplat:D.Gsplat},function(io){ var ins={gsplat:io.gsplat}; for(var k in U2) ins[k]=U2[k];
         var d2=D.dyno({inTypes:types, outTypes:{gsplat:D.Gsplat}, inputs:ins, globals:function(){ return [RL_GLSL]; }, statements:STM}); return {gsplat:d2.outputs.gsplat}; }); return m2; };
     rlDetail(); }
@@ -157,8 +157,8 @@
   // ---- the kit: real fixtures are presets ----
   var RL_FX={ fresnel:{n:"Fresnel",d:"Hard, warm spot",type:"spot",k:3200,power:12,soft:0.05,cone:35,h:1.6},
     led:{n:"LED panel",d:"Big and soft",type:"bulb",k:5600,power:9,soft:0.6,cone:90,h:1.4},
-    speed:{n:"Speedlight",d:"Punchy flash",type:"spot",k:5500,power:16,soft:0.15,cone:70,h:1.5},
-    torch:{n:"Torch",d:"Tight little beam",type:"spot",k:4500,power:7,soft:0.03,cone:18,h:1.2},
+    speed:{n:"Speedlight",d:"Fast flash, hard light",type:"spot",k:5500,power:16,soft:0.15,cone:70,h:1.5},
+    torch:{n:"Torch",d:"Narrow beam",type:"spot",k:4500,power:7,soft:0.03,cone:18,h:1.2},
     candle:{n:"Candle",d:"Low and orange",type:"bulb",k:1900,power:1.8,soft:0.08,cone:90,h:0.3},
     sodium:{n:"Streetlight",d:"Sodium, overhead",type:"bulb",k:2000,power:14,soft:0.3,cone:90,h:2.4,gel:"#ffb050"},
     rgb:{n:"RGB tube",d:"Any colour",type:"bulb",k:6500,power:7,soft:0.2,cone:90,h:1,gel:"#ff3df0"}};
@@ -283,7 +283,7 @@
   function rlPanel(){ var p=$("rlPanel"); if(!p){ p=document.createElement("div"); p.id="rlPanel"; document.body.appendChild(p); p.addEventListener("input",rlInput); p.addEventListener("click",rlClick); p.addEventListener("keydown",function(e){ e.stopPropagation(); }); }
     p.classList.toggle("show", !!RL.ui); if(!RL.ui) return; var ae=document.activeElement; if(p.contains(ae)&&ae.type==="range") return;   // don't rebuild under a dragging slider
     var L=rlCur(), h='<div class="rl-h"><div><span class="rl-eb">LIGHTING</span><b>Light the scene</b></div><button class="rl-done" data-rl="done" title="Keep these lights (Esc)">DONE</button></div>'+(RL.status?'<p class="rl-s">'+RL.status+'</p>':'');
-    h+='<div class="rl-seg"><button data-rl-view="plan" class="'+(RL.view==="plan"?'on':'')+'">FROM ABOVE</button><button data-rl-view="eye" class="'+(RL.view==="eye"?'on':'')+'">THROUGH MY EYES</button></div>';
+    h+='<div class="rl-seg"><button data-rl-view="plan" class="'+(RL.view==="plan"?'on':'')+'">FROM ABOVE</button><button data-rl-view="eye" class="'+(RL.view==="eye"?'on':'')+'">EYE LEVEL</button></div>';
     h+='<div class="rl-sec">TIME OF DAY</div><div class="rl-times">'+Object.keys(RL_TIMES).map(function(t){ var T=RL_TIMES[t]; return '<button data-rl-time="'+t+'" class="t-'+t+(rlTimeIs(t)?' on':'')+'"><i></i>'+T.n+'</button>'; }).join("")+'</div>'
       +(RL.sunPow>0?'<div class="rl-sun">'+rlSl("g","sunAz","SUN FROM",RL)+rlSl("g","sunEl","SUN HEIGHT",RL)+'</div>':'');
     h+='<div class="rl-sec">ADD A LIGHT</div><div class="rl-fx">'+Object.keys(RL_FX).map(function(f){ return '<button data-rl-fx="'+f+'"><b>'+RL_FX[f].n+'</b><span>'+RL_FX[f].d+'</span></button>'; }).join("")+'</div>';

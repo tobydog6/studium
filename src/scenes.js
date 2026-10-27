@@ -1,4 +1,4 @@
-var SPLAT_SCENES=[{id:"stump",name:"The Stump",desc:"An old stump gone to ivy, in a park clearing. Outdoor, overcast, full-detail scan.",up:"ydown",ext:"stm",ground:0.03,spawn:[-1.58,0.88,5.236,-0.15,0.8],   /* start low, in front of the stump, the fence either side and the dead tree behind (x, z, yaw, pitch, eye height) */
+var SPLAT_SCENES=[{id:"stump",name:"The Stump",desc:"An old stump gone to ivy, in a park clearing. It’s outdoors on an overcast day.",up:"ydown",ext:"stm",ground:0.03,spawn:[-1.58,0.88,5.236,-0.15,0.8],   /* start low, in front of the stump, the fence either side and the dead tree behind (x, z, yaw, pitch, eye height) */
  thumb:"asset:assets/scenes/stump-card.webp",data:"asset-b64:assets/scenes/stump-hd.stm",collide:"asset-b64:assets/scenes/stump-collide.bin",sky:"asset:assets/scenes/stump-sky.webp",
  detail:{data:"asset-b64:assets/scenes/stump-subject.stm", ext:"stm", cut:[0.15,-0.12,0.8,0.09,1.9]},   /* the stump and its ivy, always at full detail; starts just above the ground so no disc of sharper ground shows (cut with tools/cut_subject.py) */
 subject:[0.15,-0.12],
@@ -16,7 +16,7 @@ challenges:[
   {id:"stump-tele",title:"Telephoto detail",brief:"Stand back with the 135 on the crop body and pick out the new growth on top of the stump. At this length you need a fast shutter to keep it sharp.",az:-120,dist:3.0,h:1.0,look:[0,0.4,0],mm:216,
    need:[{k:"body",id:"ml",label:"APS-C mirrorless (camera bag, B)"},{k:"lens",mm:135,label:"135 mm f/2 (camera bag, B)"},{k:"sh",max:1/250,label:"1/250 or faster, to hold a long lens steady"},{k:"f",min:5.6,label:"f/5.6 or smaller"},{k:"ev",tol:1,label:"Exposure within a stop"}]}]},
 /* Saint Maurice (Pavel Tanhäuser, CC BY-NC-ND 4.0) is off the bundle for now: its assets and licence stay in the repo, see git history for the scene entry. */
-{id:"carpark",fullRes:true,clarity:0.4,contrast:true,name:"The Car Park",desc:"A car park scanned at full detail, about four million splats. Bring your own lights and watch the shadows fall.",up:"zup",scale:5,ext:"sog",thumb:"asset:assets/scenes/carpark-card.webp",data:"asset-b64:assets/scenes/carpark.sog",collide:"asset-b64:assets/scenes/carpark-collide.bin",preview:"asset-b64:assets/scenes/carpark-preview.stm",
+{id:"carpark",fullRes:true,clarity:0.4,contrast:true,name:"The Car Park",desc:"A car park scanned in full detail. You can add your own lights here and see how the shadows change.",up:"zup",scale:5,ext:"sog",thumb:"asset:assets/scenes/carpark-card.webp",data:"asset-b64:assets/scenes/carpark.sog",collide:"asset-b64:assets/scenes/carpark-collide.bin",preview:"asset-b64:assets/scenes/carpark-preview.stm",
  detail:{data:"asset-b64:assets/scenes/carpark-subject.sog", ext:"sog", cut:[0,0.4,0.85,0.6,2.75]},   /* the man on the block, always at full detail (world units: x, z, radius, y from, y to) */
 ground:-0.096,
  spots:[[2.5,7.5,0,"the shopfront"],[1.29,5.14,0,"by the red car"],[-3.49,0.36,0,"from the kerb"]],

@@ -43,7 +43,7 @@
     chMarkers(); chFramesBtn(); }
   function chAlign(P){ var dp=P.E.clone().sub(camPos), hz=Math.hypot(dp.x,dp.z), dy=dp.y, ang=Math.acos(Math.max(-1,Math.min(1,P.d.dot(_fwd))))*180/Math.PI;
     return {hz:hz, dy:dy, ang:ang, ok:hz<0.3&&Math.abs(dy)<0.2&&ang<6}; }
-  function chOff(){ return CH.hidden||(typeof LA!=="undefined"&&(LA.on||LA.wcard||LA.toTour||(LA.welcome&&Date.now()-LA.welcome<LA_T.word*1000+400)))||(typeof coHidesFrames==="function"&&coHidesFrames()); }   /* the opening shows the place, not the frames */
+  function chOff(){ return CH.hidden||(typeof RF!=="undefined"&&RF.on)||(typeof LA!=="undefined"&&(LA.on||LA.wcard||LA.toTour||(LA.welcome&&Date.now()-LA.welcome<LA_T.word*1000+400)))||(typeof coHidesFrames==="function"&&coHidesFrames()); }   /* the opening shows the place, not the frames */
   // HIDE FRAMES in the top bar: the gold frames and their markers go, until you bring them back (remembered)
   try{ CH.hidden=localStorage.getItem("studium_frames_off")==="1"; }catch(e){}
   function chSetHidden(on){ CH.hidden=!!on; try{ localStorage.setItem("studium_frames_off",on?"1":"0"); }catch(e){} chFramesBtn(); chMarkers(); }
@@ -122,7 +122,7 @@
   function chTick(dt){ if(!loaded) return; if(typeof LA!=="undefined"&&LA.on){ CH.wasOff=false; chMarkers(); return; }   /* the opening drives the camera; it is not the unlock */ if(!CH.pads.length){ chMarkers(); return; }   /* no frames here, but the subject ring still needs placing each frame */
     var off=chOff(); if(off){ CH.wasOff=true; if(CH.active>=0){ CH.active=-1; chCard(null); } chMarkers(); return; }
     if(CH.wasOff){ CH.wasOff=false; CH.pads.forEach(function(P){ P.vis=0; });   // the warm-up's done: the frames fade in
-      var f=$("chFlash"); if(f){ f.innerHTML='<span>UNLOCKED</span><b>The gold frames are out</b>'; f.classList.remove("show"); void f.offsetWidth; f.classList.add("show"); }
+      var f=$("chFlash"); if(f){ f.innerHTML='<span>READY</span><b>You can try the gold frames now</b>'; f.classList.remove("show"); void f.offsetWidth; f.classList.add("show"); }
       if(typeof LA!=="undefined"&&LA.noIntro){ LA.noIntro=false; } else chIntroStart(); }   /* after the opening's own big circle, no second orbit: the frames just fade in */
     if(CH.intro){ chIntroTick(dt||1/30); chMarkers(); return; }
     chTractor(dt||1/30);
@@ -184,7 +184,7 @@
       var at=b.getAttribute("data-ch-open"); if(at==="bag"&&typeof openBag==="function") openBag(); else if(at==="back"&&typeof openBack==="function") openBack(); }); })();
   function chFlash(P){ var f=$("chFlash"); if(!f) return; f.innerHTML='<span>CHALLENGE</span><b>'+cbEsc(P.c.title)+'</b>'; f.classList.remove("show"); void f.offsetWidth; f.classList.add("show"); }
   function chOnShot(p){ if(CH.active<0) return; var P=CH.pads[CH.active], checks=chChecks(P), miss=checks.filter(function(x){ return !x.ok; });
-    if(miss.length){ toast("Close. Still to do: "+miss.map(function(x){ return x.label.toLowerCase(); }).join(", ")); return; }
+    if(miss.length){ toast("Nearly there. Still to do: "+miss.map(function(x){ return x.label.toLowerCase(); }).join(", ")); return; }
     p.challenge=P.c.id; var first=!CH.done[P.c.id]; CH.done[P.c.id]=1; P.frame.material.uniforms.done.value=1; saveSession();
     var n=Object.keys(CH.done).filter(function(k){ return CH.list.some(function(c){ return c.id===k; }); }).length, s=$("chDone");
     s.innerHTML='<span class="k">'+(first?'CHALLENGE COMPLETE':'DONE AGAIN')+'</span><b>'+cbEsc(P.c.title)+'</b><img src="'+p.url+'" alt=""><span class="n">'+n+' OF '+CH.pads.length+' AT '+cbEsc((cbPlace||"").toUpperCase())+'</span>';

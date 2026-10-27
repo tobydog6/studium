@@ -7,6 +7,7 @@ const OPTS = { board:{ A:'Magnetic rows', B:'Free layout' }, marker:{ A:'Mat', B
 const LABEL = { board:'Sequence board', marker:'Pair marker' };
 const pick = { board:'B', marker:'A' };
 const HOST=(()=>{ try{ return window.parent!==window&&window.parent.LT_BRIDGE||null; }catch(e){ return null; } })();
+function SFX(id){ try{ if(HOST&&HOST.sfx) HOST.sfx(id); }catch(e){} }
 if(!HOST) try{ const s=JSON.parse(localStorage.getItem('lt_pick7')||'null'); if(s) Object.keys(pick).forEach(k=>{ if(s[k]&&OPTS[k][s[k]]) pick[k]=s[k]; }); }catch(e){}
 const TOP=78;
 const F={ lift:0.55, tiltK:0.10, maxTilt:0.32, k:170, c:13, follow:20, jitter:0.05, sag:0.035 };
@@ -370,7 +371,7 @@ function freeSpot(g){ const w=groupWidth(g), h=groupHeight(g), cx=wallFocusX(), 
     const d=(x-cx)*(x-cx)+(y-cy)*(y-cy)*2; if(d<bd){ bd=d; best={ x, y }; } }
   return best||{ x:cx, y:cy }; }
 function wallFocusX(){ if(!wallGroups.length) return -2; return wallGroups.reduce((a,g)=>a+g.x,0)/wallGroups.length; }
-function pinGroup(members, note, kind, at, silent){
+function pinGroup(members, note, kind, at, silent){ if(!silent) SFX('pin');
   members.forEach(p=>{ removeFromBoard(p); if(p.rejected) unreject(p); });
   const g={ id:++wgN, members:members.slice(), note:note?{ why:new Set(note.why), text:note.text||'' }:null, kind, date:new Date().toLocaleDateString('en-NZ',{ day:'numeric', month:'short' }), x:0, y:0 };
   members.forEach(p=>{ p.wg=g; p.inspT=0; });
@@ -531,7 +532,7 @@ canvas.addEventListener('wheel', e=>{ e.preventDefault(); setNDC(e); closeCtx();
   ['bTable','bBoard'].forEach(id=>$(id).classList.remove('on'));
 },{ passive:false });
 
-function startDrag(p){ pushUndo(); hideActs(); drag.p=p; p.order=++orderN; drag.wx=p.x; drag.wz=p.z; drag.pileYaw=p.onBoard||p.rejected?(Math.random()-0.5)*0.4:p.yawT;
+function startDrag(p){ SFX('lift'); pushUndo(); hideActs(); drag.p=p; p.order=++orderN; drag.wx=p.x; drag.wz=p.z; drag.pileYaw=p.onBoard||p.rejected?(Math.random()-0.5)*0.4:p.yawT;
   if(p.rejected) unreject(p);
   const was=p.onBoard; removeFromBoard(p); if(was) layoutBoard(null); canvas.style.cursor='grabbing'; updateChains(false); }
 function inScanner(x,z){ return Math.abs(x-SC.x)<SC.w/2+0.2 && Math.abs(z-SC.z)<SC.d/2+0.2; }
@@ -545,12 +546,12 @@ function updatePreview(){ const p=drag.p; let pv=null; drag.target=null;
   if(pv){ p.yawT=0; ghost.visible=true; ghost.position.set(pv.x,BOARD_Y+0.003,pv.z); ghost.scale.set(pv.w+0.08,pv.h+0.08,1); }
   else { p.yawT=drag.pileYaw; ghost.visible=false; } }
 function endDrag(){ const p=drag.p, pv=drag.preview, tg=drag.target; ghost.visible=false; drag.p=null; drag.preview=null; drag.target=null;
-  if(pv){ if(pv.free) placeFree(p,pv.x,pv.z); else { placeOnBoard(p,pv.row,pv.index); p.tx=pv.x; p.tz=pv.z; } tourEv('board'); }
-  else if(tg==='binder'){ p.x=drag.wx; p.z=drag.wz; fileBack(p); return; }
-  else if(tg==='box'){ p.x=drag.wx; p.z=drag.wz; reject(p); return; }
-  else if(tg==='scan'){ p.x=drag.wx; p.z=drag.wz; undoStack.pop(); copyPrint(p); return; }
+  if(pv){ SFX('drop'); if(pv.free) placeFree(p,pv.x,pv.z); else { placeOnBoard(p,pv.row,pv.index); p.tx=pv.x; p.tz=pv.z; } tourEv('board'); }
+  else if(tg==='binder'){ SFX('binder'); p.x=drag.wx; p.z=drag.wz; fileBack(p); return; }
+  else if(tg==='box'){ SFX('reject'); p.x=drag.wx; p.z=drag.wz; reject(p); return; }
+  else if(tg==='scan'){ SFX('drop'); p.x=drag.wx; p.z=drag.wz; undoStack.pop(); copyPrint(p); return; }
   else if(tg==='wall'){ p.tx=drag.wx; p.tz=drag.wz; pinGroup([p], null, 'single'); return; }
-  else { p.tx=drag.wx; p.tz=drag.wz; p.yawT=drag.pileYaw+(Math.random()-0.5)*F.jitter; }
+  else { SFX('drop'); p.tx=drag.wx; p.tz=drag.wz; p.yawT=drag.pileYaw+(Math.random()-0.5)*F.jitter; }
   layoutBoard(null); restack(); updateChains(true); saveAll(); }
 
 /* ================= inspect ================= */
@@ -850,7 +851,7 @@ function binderHit(e){ setNDC(e); ray.setFromCamera(ndc,camera); return ray.inte
 function importImage(img){ const c=borderCanvas(img,1600,null); const k=Math.min(1,900/Math.max(c.width,c.height)), s=document.createElement('canvas'); s.width=c.width*k; s.height=c.height*k; s.getContext('2d').drawImage(c,0,0,s.width,s.height);
   const it=libAdd(c,'own',img.width<img.height?2.35:2.2,null,s.toDataURL('image/jpeg',0.84)); it.name='Imported'; it.place='Uploads'; saveAll(); drawBinderCover(); return it; }
 function pullOut(ids){ if(!ids.length) return; prepare(ids,()=>pullOutNow(ids.filter(id=>{ const it=libById(id); return it&&it.canvas; }))); }
-function pullOutNow(ids){ if(!ids.length) return; pushUndo(); if(cam.view==='wall') focus('table'); binderBump=0.06;
+function pullOutNow(ids){ if(!ids.length) return; SFX('binder'); pushUndo(); if(cam.view==='wall') focus('table'); binderBump=0.06;
   ids.forEach((id,i)=>{ const p=ensurePrint(id); if(!p) return; p.order=++orderN; p.x=p.tx=BINDER.x+(Math.random()-0.5)*0.8; p.z=p.tz=BINDER.z-0.3; p.y=BINDER.h+0.2+i*0.02; p.vy=2.5; p.yaw=p.yawT=BINDER.rot+(Math.random()-0.5)*0.2; p.base=BINDER.h; p.locked=true;
     setTimeout(()=>{ p.locked=false; toPile(p); restack(); }, 120+i*70); });
   setTimeout(()=>{ restack(); drawBinderCover(); saveAll(); }, 160+ids.length*70); tourEv('pull');
@@ -914,7 +915,7 @@ $('bBinder').onclick=openBinder;
 
 /* ================= the copier ================= */
 const SCAN={ busy:false, t:0, p:null, q:null, made:false, done:false };
-function copyPrint(p){ if(SCAN.busy){ toast('The copier is busy. One at a time.'); return; } if(!p||p.wg) return;
+function copyPrint(p){ if(SCAN.busy){ toast('The copier is still printing. Wait for it to finish first.'); return; } if(!p||p.wg) return;
   pushUndo(); SCAN.busy=true; SCAN.made=false; SCAN.done=false; SCAN.q=null; SCAN.p=p; SCAN.t=-0.9; hideActs();
   if(p.rejected) unreject(p); removeFromBoard(p); layoutBoard(null); updateChains(false);
   p.locked=true; p.order=++orderN; p.tx=GLASS.x; p.tz=GLASS.z; p.yawT=0; p.base=scanner.userData.top+0.022; restack();
@@ -924,6 +925,7 @@ function scanFrame(dt){ const top=scanner.userData.top, open=-1.95;
   if(SCAN.busy){ SCAN.t+=dt/1.35; const t=SCAN.t;
     if(t>-0.5&&t<1.12) lidT=0;
     scanBar.visible=t>=0&&t<=1; if(scanBar.visible){ scanBar.position.x=GLASS.x-GLASS.w/2+t*GLASS.w; leak=0.55+0.25*Math.sin(t*30); }
+    if(t>-0.5&&!SCAN.lid){ SCAN.lid=true; SFX('copier'); }
     if(t>-0.05&&!SCAN.lcd1){ SCAN.lcd1=true; drawLCD('SCANNING'); }
     if(t>1&&!SCAN.made){ SCAN.made=true; drawLCD('PRINTING'); const p=SCAN.p, src=libById(p.id);
       const nth=library.filter(i=>(i.copyOf||i.id)===(src.copyOf||src.id)).length+1, base=(src.copyOf?libById(src.copyOf):src)||src;
@@ -932,7 +934,7 @@ function scanFrame(dt){ const top=scanner.userData.top, open=-1.95;
     if(t>1.6&&SCAN.q&&SCAN.q.base>0.1){ SCAN.q.base=0; SCAN.q.tz=SC.z+0.4; SCAN.q.yawT=0.06; }
     if(t>1.95&&!SCAN.done){ SCAN.done=true; const p=SCAN.p, q=SCAN.q;
       q.locked=false; p.locked=false; p.tx=SC.x+0.2; p.tz=SC.z+SC.d/2+0.4+p.h/2; p.yawT=(Math.random()-0.5)*0.12; restack();
-      SCAN.busy=false; SCAN.lcd1=false; drawLCD('READY'); saveAll(); tourEv('copy'); drawBinderCover(); toast('Printed another copy. It’s filed in the binder too.','Undo',undo); } }
+      SCAN.busy=false; SCAN.lcd1=false; SCAN.lid=false; drawLCD('READY'); saveAll(); tourEv('copy'); drawBinderCover(); toast('Printed another copy. It’s filed in the binder too.','Undo',undo); } }
   else scanBar.visible=false;
   lidHinge.rotation.x+=(lidT-lidHinge.rotation.x)*(1-Math.exp(-dt*(lidT===0?6:4.5)));
   lidLeak.material.opacity+=(leak-lidLeak.material.opacity)*(1-Math.exp(-dt*12)); }
@@ -966,7 +968,7 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden) recordHis
 /* ================= photobook + workbook ================= */
 let BOOK=[]; try{ BOOK=JSON.parse(localStorage.getItem(BOOK_KEY)||'[]'); }catch(e){ BOOK=[]; }
 function sendToBook(ids, note){
-  if(HOST){ const own=ids.map(realId).filter(Boolean); if(!own.length){ toast('Hmm, those prints couldn\u2019t go to the book. Try pulling them out of the binder again.'); return; }
+  if(HOST){ const own=ids.map(realId).filter(Boolean); if(!own.length){ toast('Those prints couldn\u2019t be sent to the book. Try pulling them out of the binder again.'); return; }
     HOST.sendToBook(own, note?noteSummary(note):''); toast('Added to your photobook in this order.','Open book',()=>HOST.room('book')); return; }
   BOOK.push({ ids:ids.slice(), date:new Date().toLocaleDateString('en-NZ',{ day:'numeric', month:'short' }), note:note?noteSummary(note):'' }); try{ localStorage.setItem(BOOK_KEY, JSON.stringify(BOOK)); }catch(e){}
   renderWorkbook(); const b=$('bBook'); b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump'); toast('Sent to the photobook in this order. The builder lays it out as spreads.'); }
@@ -975,7 +977,7 @@ const capCam=new THREE.OrthographicCamera(-BW/2*1.03, BW/2*1.03, BH/2*1.03, -BH/
 capCam.position.set(BX,30,BZ); capCam.up.set(0,0,-1); capCam.lookAt(BX,0,BZ); capCam.updateMatrixWorld();
 function captureBoard(){
   if(!prints.some(p=>p.onBoard)){ toast('Put some prints on the board first.'); return; }
-  if(HOST){ closeNote(); hideActs(); const pg=hostPage(); if(!pg){ toast('Hmm, those prints couldn\u2019t go to your workbook. Try pulling them out of the binder again.'); return; }
+  if(HOST){ closeNote(); hideActs(); const pg=hostPage(); if(!pg){ toast('Those prints couldn\u2019t be sent to your workbook. Try pulling them out of the binder again.'); return; }
     HOST.addWorkbookPage(pg); const fl=$('flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go'); tourEv('capture');
     toast('Added to your workbook as a new page. Write on it there.','Open workbook',()=>HOST.room('workshop')); return; }
   tourEv('capture');
@@ -1199,22 +1201,22 @@ function hostPage(){ const on=prints.filter(p=>p.onBoard&&realId(p.id)); if(!on.
 
 /* ================= the tour: one prompt at a time, ticks over when you've done it (Studium's coach style) ================= */
 const TSTEPS=[
-  { ch:'PULL', line:'This is your <b>light table</b>.', sub:'Every frame you shoot lives in the binder, the glowing folder at the front. Pull prints out, try them next to each other, and pin the keepers to the wall.', hot:'binder', next:true },
+  { ch:'PULL', line:'This is your <b>light table</b>.', sub:'All your photos are in the binder, the glowing folder at the front. You can pull prints out, try them next to each other, and pin the ones you like to the wall.', hot:'binder', next:true },
   { ch:'PULL', line:'Open the <b>binder</b>.', sub:'Click it, or press <kbd>B</kbd>.', hot:'binder', ev:'binder' },
   { ch:'PULL', line:'Pick a few frames, then <b>Pull out</b>.', sub:'Click to pick. The tabs down the side are your folders.', hot:'pull', ev:'pull' },
   { ch:'PAIR', line:'Drag a print onto the <b>board</b>.', sub:'It straightens and lines up when you let go.', hot:'board', ev:'board' },
   { ch:'PAIR', line:'Put another one <b>right beside it</b>.', sub:'Side by side or one above the other. Touching makes a pair.', hot:'board', ev:'pair' },
   { ch:'PAIR', line:'Say <b>what joins them</b>.', sub:'Hover the pair and click the cog above it, or right-click one of them.', hot:'chain', ev:'note' },
   { ch:'PAIR', line:'Make one <b>bigger</b>.', sub:'Hover a print and press <kbd>]</kbd>. <kbd>[</kbd> makes it smaller.', hot:'chain', ev:'size' },
-  { ch:'CULL', line:'Not working? Drop one in the <b>reject box</b>.', sub:'Drag a print into the glowing box. Nothing is lost, you can pull it back out any time.', hot:'box', ev:'reject', skip:true },
-  { ch:'CULL', line:'Want it twice? Use the <b>copier</b>.', sub:'Drag a print onto its glass. A copy prints out beside it.', hot:'scan', ev:'copy', skip:true },
+  { ch:'CULL', line:'Drop a print you don\u2019t want in the <b>reject box</b>.', sub:'Drag it into the glowing box. You can pull it back out later.', hot:'box', ev:'reject', skip:true },
+  { ch:'CULL', line:'Make a second copy with the <b>copier</b>.', sub:'Drag a print onto its glass and a copy prints out beside it.', hot:'scan', ev:'copy', skip:true },
   { ch:'WALL', line:'<b>Pin</b> your pair to the wall.', sub:'Hover the pair and click the pin next to the cog.', hot:'chain', ev:'pin' },
   { ch:'WALL', line:'Make <b>another series</b> and pin that too.', sub:'Another pair or a run of three on the board, then the pin. Strings need two things to join.', hot:'board', ev:'pin2', skip:true, ok:()=>wallSeries()>=2 },
   { ch:'WALL', line:'Push the mouse to the <b>top edge</b> to look up.', sub:'Or press <kbd>W</kbd>.', hot:'edge', ev:'wall' },
   { ch:'WALL', line:'Run a <b>string</b> between your series.', sub:'Click a spool on the ledge, then click a print in each series.', hot:'spools', ev:'string', skip:true },
   { ch:'WALL', line:'Come back down to the <b>table</b>.', sub:'Move the mouse to the bottom of the screen.', hot:'edgeDown', ev:'table' },
   { ch:'KEEP', line:'Add the board to your <b>workbook</b>.', sub:'It becomes a new page with a caption under each pair for you to write in.', hot:'capture', ev:'capture', skip:true },
-  { ch:'KEEP', line:'That’s the <b>light table</b>.', sub:'Live with your series on the wall for a while. Press <kbd>?</kbd> to see this again.', next:true, last:true } ];
+  { ch:'KEEP', line:'That’s the end of the <b>light table</b> tour.', sub:'Leave your series up on the wall and come back to it later. Press <kbd>?</kbd> to see this tour again.', next:true, last:true } ];
 const wallSeries=()=>wallGroups.filter(g=>g.members.length>1).length;
 const TOUR={ on:false, i:0, done:false, okT:0, seen:{} };
 const CHAPS=['PULL','PAIR','CULL','WALL','KEEP'];

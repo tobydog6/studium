@@ -38,8 +38,8 @@ try {
   console.log('  before:', JSON.stringify(n)); await fr.evaluate(() => __lt.focus('board')); await page.waitForTimeout(2500); await shot('felt-board'); await fr.evaluate(() => __lt.focus('table')); await page.waitForTimeout(1500); await shot('shred-0-box');
   await fr.evaluate(() => __lt.shredAll()); await page.waitForTimeout(1000); console.log('  cam:', JSON.stringify(await fr.evaluate(() => ({ tx:__lt.cam.tx, ty:__lt.cam.ty, tz:__lt.cam.tz, p:__lt.cam.pitch, d:__lt.cam.d, dT:__lt.cam.dT, cp:__lt.cam.curPitch, view:__lt.cam.view, busy:__lt.SH.busy })))); await page.waitForTimeout(1100); await shot('shred-1-feeding');
   await fr.evaluate(() => { const c=__lt.cam; c.cx=c.tx; c.cy=c.ty; c.cz=c.tz; c.curPitch=c.pitch; c.d=c.dT; }); await fr.evaluate(() => { const c=__lt.cam; c.cx=c.tx; c.cy=c.ty; c.cz=c.tz; c.curPitch=c.pitch; c.d=c.dT; }); await page.waitForTimeout(2500); await shot('shred-2-strips'); await fr.evaluate(() => { const c=__lt.cam; c.cx=c.tx; c.cy=c.ty; c.cz=c.tz; c.curPitch=c.pitch; c.d=c.dT; }); await page.waitForTimeout(3000); await shot('shred-2b-pile');
-  await page.waitForTimeout(9000); await shot('shred-3-back');
-  const m = await fr.evaluate(() => ({ prints: __lt.prints.length, rejects: __lt.rejects.length, lib: __lt.library.length, strips: __lt.SH.strips.length, busy: __lt.SH.busy }));
+  await page.waitForTimeout(9000); await fr.evaluate(() => { const c=__lt.cam; c.tx=-16; c.ty=-1.9; c.tz=14.1; c.pitch=24; c.dT=15.5; c.cx=c.tx; c.cy=c.ty; c.cz=c.tz; c.curPitch=c.pitch; c.d=c.dT; }); await page.waitForTimeout(800); await shot('shred-3-pile');
+  const m = await fr.evaluate(() => ({ prints: __lt.prints.length, rejects: __lt.rejects.length, lib: __lt.library.length, strips: __lt.SH.strips.length, rest: __lt.SH.strips.filter(s=>s.rest).length, ys: __lt.SH.strips.slice(0,6).map(s=>+s.m.position.y.toFixed(2)), busy: __lt.SH.busy }));
   console.log('  after:', JSON.stringify(m));
   if (m.rejects !== 0 || m.busy) fail = 'shred did not finish';
 } catch (e) { fail = String(e); }

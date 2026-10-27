@@ -45,7 +45,7 @@ const radTex=(stops)=>{ const c=document.createElement('canvas'); c.width=c.heig
 const softShadow=radTex([50,[[0,'rgba(0,0,0,0.55)'],[1,'rgba(0,0,0,0)']]]);
 function blobShadow(w,d,parent,ox,oz){ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d), new THREE.MeshBasicMaterial({ map:softShadow, transparent:true, depthWrite:false })); m.rotation.x=-Math.PI/2; m.position.set(ox||0.2,0.002,oz||0.3); parent.add(m); return m; }
 
-const floor=new THREE.Mesh(new THREE.PlaneGeometry(400,400), new THREE.MeshBasicMaterial({ color:0x1b1a19 })); floor.rotation.x=-Math.PI/2; floor.position.y=-1.2; scene.add(floor);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(400,400), new THREE.MeshBasicMaterial({ color:0x1b1a19 })); floor.rotation.x=-Math.PI/2; floor.position.y=-4.6;   /* deep enough for the shredder's glass bin under the table edge */ scene.add(floor);
 const spill=new THREE.Mesh(new THREE.PlaneGeometry(W_T*2.6,H_T*3.2), new THREE.MeshBasicMaterial({ map:radTex([10,[[0,'rgba(255,255,255,1)'],[0.45,'rgba(255,255,255,0.35)'],[1,'rgba(255,255,255,0)']]]), transparent:true, opacity:0.1, depthWrite:false, blending:THREE.AdditiveBlending }));
 spill.rotation.x=-Math.PI/2; spill.position.y=-1.19; scene.add(spill);
 const bodyMat=new THREE.MeshLambertMaterial({ color:0x1b1a19 });
@@ -640,7 +640,7 @@ function drawBoxBtn(){ if(boxBtn){ boxBtn.el.remove(); tags=tags.filter(t=>t!==b
 function emptyBox(){ if(!rejects.length) return; pushUndo(); const L=rejects.slice(); L.forEach((p,i)=>setTimeout(()=>fileBack(p,true),i*80)); setTimeout(()=>toast('Emptied '+L.length+' back into the binder.','Undo',undo), L.length*80+360); }
 
 /* ================= the shredder: beside the table's front edge, under the reject box. Only the print is shredded; the photo stays in the binder ================= */
-const SHR={ x:BOX.x+0.2, z:H_T/2+2.4, w:3.3, d:2.3, headH:0.55, top:1.5 }; SHR.binH=SHR.top-SHR.headH-(-1.2)-0.02;   /* stands on the floor (y -1.2), cutting head just above the table top */
+const SHR={ x:BOX.x+0.2, z:H_T/2+2.4, w:3.3, d:2.3, headH:0.5, top:-0.25 }; SHR.binH=SHR.top-SHR.headH-(-4.6)-0.02;   /* stands on the floor, its head just below the table top */
 const SH={ busy:false, items:[], strips:[], prev:null, pile:0 };
 const shredder=new THREE.Group(); shredder.position.set(SHR.x,0,SHR.z); scene.add(shredder);
 { const std=(c,r,m)=>new THREE.MeshStandardMaterial({ color:c, roughness:r??0.6, metalness:m??0 });
@@ -660,51 +660,67 @@ const shredder=new THREE.Group(); shredder.position.set(SHR.x,0,SHR.z); scene.ad
   const shine=new THREE.Mesh(new THREE.PlaneGeometry(0.35,bh*0.9), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.07, depthWrite:false })); shine.position.set(-bw*0.25,by,bd/2+0.02); shine.rotation.z=0.12; shredder.add(shine); }
 function shredTex(p){ if(!SH.tex) SH.tex=new Map(); let T=SH.tex.get(p.id); if(!T){ const it=libById(p.id); if(!it||!it.canvas) return null; T={ tex:makeTex(it.canvas), n:0 }; SH.tex.set(p.id,T); } return T; }
 function shredRelease(id){ const T=SH.tex&&SH.tex.get(id); if(T&&--T.n<=0){ T.tex.dispose(); SH.tex.delete(id); } }
-/* cut pieces drop out under the head as the print is eaten: each piece is a real slice of the photo, the band that just went through the cutter */
-function shredChunks(it, v0, v1){ const T=shredTex(it.p); if(!T) return; const W=it.p.w*it.s, H=it.p.h*it.s, N=5;
-  for(let i=0;i<N;i++){ const u0=Math.random()*0.9, uw=0.06+Math.random()*0.05, len=Math.max(0.06,(v1-v0)*H);
-    const g=new THREE.PlaneGeometry(uw*W*0.95,len); const uv=g.attributes.uv; for(let k=0;k<uv.count;k++){ uv.setX(k,u0+uv.getX(k)*uw); uv.setY(k,v0+uv.getY(k)*(v1-v0)); } uv.needsUpdate=true;
-    const m=new THREE.Mesh(g,new THREE.MeshBasicMaterial({ map:T.tex, side:THREE.DoubleSide })); T.n++;
-    m.position.set(SHR.x+(u0+uw/2-0.5)*Math.min(W,SHR.w-0.6), SHR.binTop-0.08, SHR.z+(Math.random()-0.5)*0.5); m.rotation.set((Math.random()-0.5)*0.4,(Math.random()-0.5)*0.6,(Math.random()-0.5)*0.4); scene.add(m);
-    SH.strips.push({ m, id:it.p.id, vy:-0.3-Math.random()*0.6, vx:(Math.random()-0.5)*0.5, vz:(Math.random()-0.5)*0.4, rest:false, spin:(Math.random()-0.5)*6 }); }
-  while(SH.strips.length>420){ const o=SH.strips.shift(); scene.remove(o.m); o.m.geometry.dispose(); o.m.material.dispose(); if(o.rest) SH.pile=Math.max(0,SH.pile-1); shredRelease(o.id); } }
+/* the pile: a height field over the bin floor, so strips stack where they land and the heap builds up properly */
+const HF={ nx:12, nz:8 }; HF.h=new Float32Array(HF.nx*HF.nz);
+function hfCell(x,z){ const ix=THREE.MathUtils.clamp(Math.floor((x-(SHR.x-SHR.w/2+0.2))/((SHR.w-0.4)/HF.nx)),0,HF.nx-1), iz=THREE.MathUtils.clamp(Math.floor((z-(SHR.z-SHR.d/2+0.2))/((SHR.d-0.4)/HF.nz)),0,HF.nz-1); return iz*HF.nx+ix; }
+function hfAt(x,z){ return HF.h[hfCell(x,z)]; }
+function hfAdd(x,z,len,yaw,dh){ const n=6; for(let k=0;k<=n;k++){ const u=k/n-0.5, c=hfCell(x+Math.cos(yaw)*u*len, z+Math.sin(yaw)*u*len); HF.h[c]=Math.min(SHR.binH*0.8, HF.h[c]+dh); } }
+/* a strip-cut ribbon: a band of the photo, a little wavy, N segments along its length */
+const RIB_SEG=10;
+function ribbonGeo(w,len,v0,v1,u0,u1,crumple){ const g=new THREE.PlaneGeometry(w,1,1,RIB_SEG); const P=g.attributes.position, uv=g.attributes.uv, ph=Math.random()*6;
+  for(let k=0;k<P.count;k++){ const t=uv.getY(k);   /* 0 at the bottom (cut first), 1 at the top */
+    P.setY(k,(t-0.5)*len*(crumple?0.55:1)); P.setZ(k,crumple?Math.sin(t*Math.PI*5+ph)*0.06:Math.sin(t*Math.PI*2.2+ph)*0.03); uv.setX(k,u0+uv.getX(k)*(u1-u0)); uv.setY(k,v0+t*(v1-v0)); }
+  P.needsUpdate=true; uv.needsUpdate=true; g.computeBoundingSphere(); return g; }
 function shredAll(){ if(SH.busy||!rejects.length) return; SH.busy=true; pushUndo(); hideActs(); closeCtx();
   if(cam.view==='wall'){ SH.busy=false; focus('table'); SH.busy=true; }
   SH.prev={ tx:cam.tx, ty:cam.ty, tz:cam.tz, dT:cam.dT, pitch:cam.pitch, view:cam.view };
-  cam.tx=SHR.x+2.2; cam.ty=0.2; cam.tz=SHR.z-0.4; cam.pitch=20; cam.dT=14; SFX('shPan');   /* down the table edge, low and in front: the glass bin in full view */
-  shredder.userData.led.material.color.setHex(0xe3ad57);
-  const L=rejects.slice(); SH.n=L.length; SH.queue=L.length; SH.ran=false; SH.endT=-1; SH.done=0;
+  cam.tx=SHR.x+2.4; cam.ty=-1.9; cam.tz=SHR.z-0.3; cam.pitch=24; cam.dT=15.5; SFX('shPan');   /* down past the table edge: the head and the glass bin in view */
+  const L=rejects.slice(); SH.n=L.length; SH.queue=L.length; SH.endT=-1; SH.done=0;
   L.forEach(p=>{ p.locked=true; p.shredding=true; });   /* nothing in the box can be grabbed while it waits its turn */
   L.forEach((p,i)=>setTimeout(()=>{ SH.queue--; if(!prints.includes(p)) return; unreject(p); removeFromBoard(p); p.order=++orderN;
-    SH.items.push({ p, t:0, s:Math.min(1,(SHR.w-0.8)/Math.max(p.w,0.01)), from:p.group.position.clone(), fromQ:p.group.quaternion.clone(), fed:false, f:1, cut:1, sheet:null }); }, 900+i*2300)); }
+    SH.items.push({ p, t:0, s:Math.min(1,(SHR.w-0.8)/Math.max(p.w,0.01)), from:p.group.position.clone(), fromQ:p.group.quaternion.clone(), fed:false, f:1, sheet:null, ribs:[] }); }, 1000+i*2800)); }
 function shredFinish(){ const P=SH.prev; if(P&&cam.view===P.view){ cam.tx=P.tx; cam.ty=P.ty; cam.tz=P.tz; cam.dT=P.dT; cam.pitch=P.pitch; } SH.prev=null; SH.busy=false;
   shredder.userData.led.material.color.setHex(0x63c27a); saveAll();
   toast('Shredded '+SH.done+' print'+(SH.done===1?'':'s')+'. The photos are still in your binder.','Undo',undo); }
 const _shQ=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),Math.PI/2), _shV=new THREE.Vector3();   /* upright, the photo facing the front */
+const RIBS=14;
 function shredFrame(dt){
-  for(let i=SH.items.length-1;i>=0;i--){ const it=SH.items[i], p=it.p, H=p.h*it.s; it.t+=dt;
+  let feeding=false;
+  for(let i=SH.items.length-1;i>=0;i--){ const it=SH.items[i], p=it.p, W=p.w*it.s, H=p.h*it.s; it.t+=dt;
     if(!it.fed){ /* lift off the box, swing over the edge, turn upright above the slot */
-      const k=Math.min(1,it.t/0.85), e=k*k*(3-2*k);
-      _shV.set(SHR.x, SHR.top+H/2+0.02, SHR.z); const pos=it.from.clone().lerp(_shV,e); pos.y+=Math.sin(Math.PI*e)*1.4;
+      const k=Math.min(1,it.t/0.9), e=k*k*(3-2*k);
+      _shV.set(SHR.x, SHR.top+H/2+0.02, SHR.z); const pos=it.from.clone().lerp(_shV,e); pos.y+=Math.sin(Math.PI*e)*1.2;
       p.shredPose={ pos, q:it.fromQ.clone().slerp(_shQ,e), sc:1+(it.s-1)*e };
       if(k>=1){ it.fed=true; p.shredPose=null; p.group.visible=false; p.shadow.visible=false; const T=shredTex(p);
-        if(T){ T.n++; const g=new THREE.PlaneGeometry(p.w*it.s,H); it.sheet=new THREE.Mesh(g,new THREE.MeshBasicMaterial({ map:T.tex, side:THREE.DoubleSide })); it.sheet.position.copy(_shV); scene.add(it.sheet); }
-        if(!SH.ran){ SH.ran=true; SFX('shRun',{D:SH.n*2.3+0.4}); } } }
-    else { /* fed down into the cutter: the photo shortens from the bottom, the slot shudders a little */
-      const prev=it.f; it.f=Math.max(0,it.f-dt/1.25*(0.75+0.5*Math.abs(Math.sin(it.t*13))));
+        if(T){ T.n++; it.sheet=new THREE.Mesh(new THREE.PlaneGeometry(W,H),new THREE.MeshBasicMaterial({ map:T.tex, side:THREE.DoubleSide })); it.sheet.position.copy(_shV); scene.add(it.sheet);
+          const rw=W/RIBS; for(let r=0;r<RIBS;r++){ T.n++; const m=new THREE.Mesh(ribbonGeo(rw*0.94,0.001,0,0.001,r/RIBS,(r+1)/RIBS,false),new THREE.MeshBasicMaterial({ map:T.tex, side:THREE.DoubleSide }));
+            m.position.set(SHR.x-W/2+rw*(r+0.5), SHR.binTop, SHR.z+(Math.random()-0.5)*0.06); scene.add(m); it.ribs.push(m); } }
+        SFX('shRun',{D:1.5}); } }   /* every photo gets its own run, and the light comes on while it goes through */
+    else { feeding=true;
+      it.f=Math.max(0,it.f-dt/1.4*(0.75+0.5*Math.abs(Math.sin(it.t*13))));
+      const fedLen=H*(1-it.f);
       if(it.sheet){ const hh=Math.max(0.0001,H*it.f), g=it.sheet.geometry, P=g.attributes.position, uv=g.attributes.uv;
-        for(let k=0;k<P.count;k++){ const top=P.getY(k)>0||uv.getY(k)>0.5; P.setY(k,top?hh/2:-hh/2); uv.setY(k,top?1:1-it.f); } P.needsUpdate=true; uv.needsUpdate=true;
+        for(let k=0;k<P.count;k++){ const top=uv.getY(k)>0.5||P.getY(k)>0; P.setY(k,top?hh/2:-hh/2); uv.setY(k,top?1:1-it.f); } P.needsUpdate=true; uv.needsUpdate=true;
         it.sheet.position.set(SHR.x+(Math.random()-0.5)*0.012, SHR.top+hh/2+0.01, SHR.z); }
-      if(it.cut-it.f>=0.08||it.f<=0){ shredChunks(it, 1-it.cut, 1-it.f); it.cut=it.f; }
+      /* the ribbons grow out under the head as the print goes in: the bottom of the photo comes out first and hangs lowest */
+      it.ribs.forEach((m,r)=>{ const L=Math.max(0.001,fedLen); m.geometry.dispose(); m.geometry=ribbonGeo((W/RIBS)*0.94,L,0,1-it.f,r/RIBS,(r+1)/RIBS,false); m.position.y=SHR.binTop-L/2; m.rotation.z=Math.sin(it.t*3+r)*0.02*(L/H); });
       if(it.f<=0){ SH.items.splice(i,1); if(it.sheet){ scene.remove(it.sheet); it.sheet.geometry.dispose(); it.sheet.material.dispose(); shredRelease(p.id); }
+        it.ribs.forEach((m,r)=>{ SH.strips.push({ m, id:p.id, len:H, w:W/RIBS, r, vy:-0.2-Math.random()*0.4, delay:Math.random()*0.25, rest:false, yaw:(Math.random()-0.5)*1.2, spin:(Math.random()-0.5)*2.5 }); });
+        while(SH.strips.length>RIBS*30){ const o=SH.strips.shift(); scene.remove(o.m); o.m.geometry.dispose(); o.m.material.dispose(); shredRelease(o.id); }
         p.shredding=false; p.group.visible=true; p.shadow.visible=true; removePrint(p); SH.done++; } } }
-  const floor=SHR.binBot+0.06;
-  for(const st of SH.strips){ if(st.rest) continue;
-    st.vy-=8*dt; st.m.position.y+=st.vy*dt; st.m.position.x+=st.vx*dt; st.m.position.z+=st.vz*dt; st.m.rotation.x+=st.spin*dt; st.m.rotation.z+=st.spin*dt*0.4;
-    const hx=(SHR.w-0.45)/2, hz=(SHR.d-0.45)/2; st.m.position.x=THREE.MathUtils.clamp(st.m.position.x,SHR.x-hx,SHR.x+hx); st.m.position.z=THREE.MathUtils.clamp(st.m.position.z,SHR.z-hz,SHR.z+hz);
-    const pileY=floor+Math.min(SHR.binH*0.75, SH.pile*0.006);
-    if(st.m.position.y<pileY){ st.m.position.y=pileY+Math.random()*0.08; st.rest=true; st.m.rotation.x=-Math.PI/2+(Math.random()-0.5)*1.1; st.m.rotation.z=Math.random()*Math.PI; SH.pile++; } }
-  /* the end follows the animation, not a clock: last piece in, a beat to watch them land, then back to the table */
+  shredder.userData.led.material.color.setHex(feeding?0xe3ad57:0x63c27a);
+  /* falling ribbons drop, tip over and crumple onto the pile where they land */
+  const floorY=SHR.binBot+0.05, hx=(SHR.w-0.6)/2, hz=(SHR.d-0.6)/2;
+  for(const st of SH.strips){ if(st.rest) continue; if(st.delay>0){ st.delay-=dt; continue; }
+    if(!st.crumpled){ st.crumpled=true; const g=st.m.geometry, uv=g.attributes.uv; const u0=uv.getX(0), u1=uv.getX(1);
+      g.dispose(); st.m.geometry=ribbonGeo(st.w*0.94,st.len,0,1,Math.min(u0,u1),Math.max(u0,u1),true); }
+    st.vy-=9*dt; st.m.position.y+=st.vy*dt;
+    const tip=Math.min(1,(SHR.binTop-st.m.position.y)/1.6); st.m.rotation.x=-tip*(Math.PI/2-0.25); st.m.rotation.y+= (st.yaw-st.m.rotation.y)*Math.min(1,dt*3); st.m.rotation.z+=st.spin*dt*0.3;
+    st.m.position.x=THREE.MathUtils.clamp(st.m.position.x,SHR.x-hx,SHR.x+hx); st.m.position.z=THREE.MathUtils.clamp(st.m.position.z+(Math.random()-0.5)*dt*0.6,SHR.z-hz,SHR.z+hz);
+    const ground=floorY+hfAt(st.m.position.x,st.m.position.z);
+    if(st.m.position.y<=ground+0.03&&tip>0.6){ st.m.position.y=ground+0.03; st.rest=true; st.m.rotation.x=-Math.PI/2+(Math.random()-0.5)*0.25;
+      hfAdd(st.m.position.x,st.m.position.z,st.len*0.55,st.m.rotation.y,0.035); SH.pile++; } }
+  /* the end follows the animation, not a clock: last strip down, a beat to watch it settle, then back to the table */
   if(SH.busy&&SH.queue<=0&&!SH.items.length){ if(SH.endT<0){ SH.endT=0; SFX('shFall'); } SH.endT+=dt; if(SH.endT>2.4) shredFinish(); } }
 
 const pop=$('notePop');

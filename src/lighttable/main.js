@@ -663,7 +663,7 @@ const shredder=new THREE.Group(); shredder.position.set(SHR.x,0,SHR.z); scene.ad
   const alu=std(0x8d8a85,0.35,0.6), base=new THREE.Mesh(new RoundedBoxGeometry(bw+0.08,0.08,bd+0.08,2,0.02), std(0x1c1a18,0.5)); base.position.y=binBot+0.02; shredder.add(base);
   [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([a,c])=>{ const post=new THREE.Mesh(new THREE.BoxGeometry(0.05,bh,0.05), alu); post.position.set(a*bw/2,by,c*bd/2); shredder.add(post); });   /* thin metal corners frame the glass */
   const shine=new THREE.Mesh(new THREE.PlaneGeometry(0.35,bh*0.9), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.07, depthWrite:false })); shine.position.set(-bw*0.25,by,bd/2+0.02); shine.rotation.z=0.12; shredder.add(shine); }
-function shredTex(p){ if(!SH.tex) SH.tex=new Map(); let T=SH.tex.get(p.id); if(!T){ const it=libById(p.id); if(!it||!it.canvas) return null; T={ tex:makeTex(it.canvas), n:0 }; SH.tex.set(p.id,T); } return T; }
+function shredTex(p){ if(!SH.tex) SH.tex=new Map(); let T=SH.tex.get(p.id); if(!T&&p.noteTex){ T={ tex:p.noteTex, n:0 }; SH.tex.set(p.id,T); } if(!T){ const it=libById(p.id); if(!it||!it.canvas) return null; T={ tex:makeTex(it.canvas), n:0 }; SH.tex.set(p.id,T); } return T; }
 function shredRelease(id){ const T=SH.tex&&SH.tex.get(id); if(T&&--T.n<=0){ T.tex.dispose(); SH.tex.delete(id); } }
 /* the pile: a height field over the bin floor, so strips stack where they land and the heap builds up properly */
 const HF={ nx:12, nz:8 }; HF.h=new Float32Array(HF.nx*HF.nz);
@@ -677,7 +677,7 @@ function ribbonGeo(w,len,v0,v1,u0,u1,crumple){ const g=new THREE.PlaneGeometry(w
     P.setY(k,(t-0.5)*len*(crumple?0.55:1)); P.setZ(k,crumple?Math.sin(t*Math.PI*5+ph)*0.06:Math.sin(t*Math.PI*2.2+ph)*0.03); uv.setX(k,u0+uv.getX(k)*(u1-u0)); uv.setY(k,v0+t*(v1-v0)); }
   P.needsUpdate=true; uv.needsUpdate=true; g.computeBoundingSphere(); return g; }
 const shredBtn=new THREE.Group(); shredBtn.position.set(BOX.x+BOX.w/2+0.78,0,BOX.z+0.55); scene.add(shredBtn);
-{ const blk=new THREE.MeshStandardMaterial({ color:0x222120, roughness:0.55 }), red=new THREE.MeshStandardMaterial({ color:0xc8452a, roughness:0.35 }), steel=new THREE.MeshStandardMaterial({ color:0x9a968e, roughness:0.35, metalness:0.6 });
+{ const blk=new THREE.MeshStandardMaterial({ color:0x222120, roughness:0.55 }), red=new THREE.MeshStandardMaterial({ color:0xc8452a, roughness:0.35, emissive:0xff5a2e, emissiveIntensity:0 }), steel=new THREE.MeshStandardMaterial({ color:0x9a968e, roughness:0.35, metalness:0.6 });
   const base=new THREE.Mesh(new RoundedBoxGeometry(1.0,0.34,1.0,3,0.08), blk); base.position.y=0.17; shredBtn.add(base);
   const bez=new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.36,0.06,32), steel); bez.position.y=0.37; shredBtn.add(bez);
   const cap=new THREE.Mesh(new THREE.CylinderGeometry(0.27,0.29,0.14,32), red); cap.position.y=0.45; shredBtn.add(cap); shredBtn.userData.cap=cap;
@@ -687,15 +687,17 @@ const shredBtn=new THREE.Group(); shredBtn.position.set(BOX.x+BOX.w/2+0.78,0,BOX
   blobShadow(1.5,1.5,shredBtn,0.12,0.18); }
 const RING_SHRED=hotRing(1.0,1.0,0.45); RING_SHRED.position.y=0.012; shredBtn.add(RING_SHRED);
 let shredPress=0;
-function boxHas(){ try{ return rejects.length>0||STICKY.some(n=>n.box&&n.shred==null); }catch(e){ return rejects.length>0; } }
+function boxHas(){ try{ return rejects.length>0||STICKY.some(n=>n.box&&!n.shredding&&n.shred==null); }catch(e){ return rejects.length>0; } }
 function shredBtnHit(e){ setNDC(e); ray.setFromCamera(ndc,camera); return ray.intersectObject(shredBtn,true).some(h=>h.object!==RING_SHRED); }
 function pressShred(){ shredPress=1; SFX('detent'); if(!boxHas()){ toast('The reject box is empty. Drop prints in it first.'); return; } setTimeout(shredAll,180); }
 function shredAll(){ if(SH.busy||!boxHas()) return; SH.busy=true; pushUndo(); hideActs(); closeCtx();
   if(cam.view==='wall'){ SH.busy=false; focus('table'); SH.busy=true; }
   SH.prev={ tx:cam.tx, ty:cam.ty, tz:cam.tz, dT:cam.dT, pitch:cam.pitch, view:cam.view };
   cam.tx=SHR.x+2.4; cam.ty=-1.9; cam.tz=SHR.z-0.3; cam.pitch=24; cam.dT=15.5; SFX('shPan');   /* down past the table edge: the head and the glass bin in view */
-  const L=rejects.slice(), NB=STICKY.filter(n=>n.box&&n.shred==null); SH.n=L.length; SH.queue=L.length+NB.length; SH.endT=-1; SH.done=0; SH.notes=NB.length;
-  NB.forEach((n,i)=>setTimeout(()=>{ SH.queue--; if(STICKY.includes(n)) shredSticky(n); }, 1000+L.length*2800+i*1100));
+  const L=rejects.slice(), NB=STICKY.filter(n=>n.box&&n.shred==null); SH.n=L.length; SH.queue=L.length+NB.length; SH.endT=-1; SH.done=0; SH.notes=NB.length; SH.notesDone=0;
+  NB.forEach(n=>{ n.shredding=true; n.box=false; if(NE.n===n) closeEdit(true); });
+  NB.forEach((n,i)=>setTimeout(()=>{ SH.queue--; if(!STICKY.includes(n)) return; const fake={ id:'note:'+n.id, w:NS, h:NS, group:n.mesh, shadow:n.sh, noteTex:n.tex };
+    SH.items.push({ p:fake, note:n, t:0, s:Math.min(1,(SHR.w-0.8)/NS), from:n.mesh.position.clone(), fromQ:n.mesh.quaternion.clone(), fed:false, f:1, sheet:null, ribs:[] }); }, 1000+L.length*2800+i*2200));
   L.forEach(p=>{ p.locked=true; p.shredding=true; });   /* nothing in the box can be grabbed while it waits its turn */
   L.forEach((p,i)=>setTimeout(()=>{ SH.queue--; if(!prints.includes(p)) return; unreject(p); removeFromBoard(p); p.order=++orderN;
     SH.items.push({ p, t:0, s:Math.min(1,(SHR.w-0.8)/Math.max(p.w,0.01)), from:p.group.position.clone(), fromQ:p.group.quaternion.clone(), fed:false, f:1, sheet:null, ribs:[] }); }, 1000+i*2800)); }
@@ -704,14 +706,14 @@ function shredFinish(){ const P=SH.prev; if(P&&cam.view===P.view){ cam.tx=P.tx; 
   tourEv('shred'); const nn=SH.notes||0; if(!SH.done&&nn){ toast('Shredded '+nn+' note'+(nn===1?'':'s')+'.'); return; }
   toast('Shredded '+SH.done+' print'+(SH.done===1?'':'s')+(nn?' and '+nn+' note'+(nn===1?'':'s'):'')+'. The photos are still in your binder.','Undo',undo); }
 const _shQ=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),Math.PI/2), _shV=new THREE.Vector3();   /* upright, the photo facing the front */
-const RIBS=14;
+const RIBS=14, _shQn=new THREE.Quaternion();
 function shredFrame(dt){
   let feeding=false;
   for(let i=SH.items.length-1;i>=0;i--){ const it=SH.items[i], p=it.p, W=p.w*it.s, H=p.h*it.s; it.t+=dt;
     if(!it.fed){ /* lift off the box, swing over the edge, turn upright above the slot */
       const k=Math.min(1,it.t/0.9), e=k*k*(3-2*k);
       _shV.set(SHR.x, SHR.top+H/2+0.02, SHR.z); const pos=it.from.clone().lerp(_shV,e); pos.y+=Math.sin(Math.PI*e)*1.2;
-      p.shredPose={ pos, q:it.fromQ.clone().slerp(_shQ,e), sc:1+(it.s-1)*e };
+      p.shredPose={ pos, q:it.fromQ.clone().slerp(it.note?_shQn:_shQ,e), sc:1+(it.s-1)*e }; if(it.note){ const m=it.note.mesh; m.position.copy(pos); m.quaternion.copy(p.shredPose.q); m.scale.setScalar(p.shredPose.sc); p.shredPose=null; }
       if(k>=1){ it.fed=true; p.shredPose=null; p.group.visible=false; p.shadow.visible=false; const T=shredTex(p);
         if(T){ T.n++; it.sheet=new THREE.Mesh(new THREE.PlaneGeometry(W,H),new THREE.MeshBasicMaterial({ map:T.tex, side:THREE.DoubleSide })); it.sheet.position.copy(_shV); scene.add(it.sheet);
           const rw=W/RIBS; for(let r=0;r<RIBS;r++){ T.n++; const m=new THREE.Mesh(ribbonGeo(rw*0.94,0.001,0,0.001,r/RIBS,(r+1)/RIBS,false),new THREE.MeshBasicMaterial({ map:T.tex, side:THREE.DoubleSide }));
@@ -729,7 +731,7 @@ function shredFrame(dt){
       if(it.f<=0){ if(it.motor){ try{ it.motor.gain.setTargetAtTime(0.0001,it.motor.context.currentTime,0.08); }catch(e){} it.motor=null; } SH.items.splice(i,1); if(it.sheet){ scene.remove(it.sheet); it.sheet.geometry.dispose(); it.sheet.material.dispose(); shredRelease(p.id); }
         it.ribs.forEach((m,r)=>{ SH.strips.push({ m, id:p.id, len:H, w:W/RIBS, r, vy:-0.2-Math.random()*0.4, delay:Math.random()*0.25, rest:false, yaw:(Math.random()-0.5)*1.2, spin:(Math.random()-0.5)*2.5 }); });
         while(SH.strips.length>RIBS*30){ const o=SH.strips.shift(); scene.remove(o.m); o.m.geometry.dispose(); o.m.material.dispose(); shredRelease(o.id); }
-        p.shredding=false; p.group.visible=true; p.shadow.visible=true; removePrint(p); SH.done++; } } }
+        if(it.note){ removeSticky(it.note,true); SH.notesDone=(SH.notesDone||0)+1; } else { p.shredding=false; p.group.visible=true; p.shadow.visible=true; removePrint(p); SH.done++; } } } }
   shredder.userData.led.material.color.setHex(feeding?0xe3ad57:0x63c27a);
   /* falling ribbons drop, tip over and crumple onto the pile where they land */
   const floorY=SHR.binBot+0.05, hx=(SHR.w-0.6)/2, hz=(SHR.d-0.6)/2;
@@ -766,6 +768,7 @@ function hoverKey(p){ if(p.wg) return 'g'+p.wg.id; if(p.onBoard){ const ch=chain
 function nearCog(){ if(!ACTS.el.classList.contains('on')) return false; const r=ACTS.el.getBoundingClientRect(); const dx=Math.max(r.left-mouse.x,0,mouse.x-r.right), dy=Math.max(r.top-mouse.y,0,mouse.y-r.bottom); return Math.hypot(dx,dy)<46; }
 function tourActsTarget(){ const s=TOUR.on&&TSTEPS[TOUR.i]; if(!s||!(s.ev==='note'||s.ev==='pin'||s.ev==='pin2')||cam.view!=='table') return null; const ch=chains[chains.length-1]; return ch?ch[0]:null; }
 function setHover(p){ HOV.p=p; if(!p){ const t=tourActsTarget(); if(t) p=t; } if(inspected||drag.p||drag.wall||histIdx>=0||STR.hold||CTX.classList.contains('on')){ hideActs(); return; }
+  if(p&&!p.onBoard&&!p.wg) p=null;   /* loose prints on the table: right-click only */
   if(p&&!p.locked){ clearTimeout(ACTS.t); const key=hoverKey(p); ACTS.p=p;
     if(key!==ACTS.key){ ACTS.key=key; ACTS.el.innerHTML='';
       if(key[0]==='c'&&FREE()){ const ch=chains.find(c=>c.includes(p)); const g=ib('grip','Drag to move the whole '+(ch.length===2?'pair':'sequence'),()=>{}); g.classList.add('grip'); g.onpointerdown=e=>{ e.stopPropagation(); e.preventDefault(); startGroupDrag(ch,e); }; ACTS.el.appendChild(g); }
@@ -1238,7 +1241,7 @@ function frame(now){
   tourPlace(); spoolGlow.material.opacity+=((hot==='spools'&&cam.view==='wall'?tp*1.4:0)-spoolGlow.material.opacity)*kk;
   binder.scale.setScalar(1+binderBump); binderBump*=Math.exp(-dt*9);
   scanner.userData.led.material.color.setHex(SCAN.busy?((now%500<250)?0xe3ad57:0x7a5a22):0x63c27a);
-  scanFrame(dt); shredFrame(dt); standFrame(dt); trayFrame(dt); stickyFrame(dt); shredBtn.userData.cap.position.y=0.45-0.06*shredPress; shredPress*=Math.exp(-dt*8); if(boxHas()&&!SH.busy&&cam.view==='table') RING_SHRED.material.opacity+=((0.5+0.3*Math.sin(now/320))-RING_SHRED.material.opacity)*0.25; updateStrings(); holdFrame(); edgeFrame(dt);
+  scanFrame(dt); shredFrame(dt); standFrame(dt); trayFrame(dt); stickyFrame(dt); shredBtn.userData.cap.position.y=0.45-0.06*shredPress; shredPress*=Math.exp(-dt*8); { const hot=tourHot()==='shred', want=SH.busy?0:hot?0.75+0.25*Math.sin(now/200):boxHas()?0.45+0.3*Math.sin(now/320):0; const cm=shredBtn.userData.cap.material; cm.emissiveIntensity+=(want-cm.emissiveIntensity)*0.2; } updateStrings(); holdFrame(); edgeFrame(dt);
   threads.children.forEach(m=>{ if(m.userData.fade!==undefined) m.material.opacity+=(m.userData.fade-m.material.opacity)*(1-Math.exp(-dt*5)); });
   const past=histIdx>=0;
   for(const p of prints){
@@ -1295,7 +1298,7 @@ function frame(now){
 /* ================= the copy stand: a white boom arm that clamps to the table's right edge and swings a camera in over the board ================= */
 const KIT={ x:18.7, z:9.3, w:2.8, d:2.0, h:0.8 };
 const CL={ x:W_T/2+0.45, z:-2.2 }, POLE=3.3, L1=7.0, L2=6.6;
-const AIM_AT=V(BX,0,BZ), HEAD=V(BX-1.4,6.4,BZ-4.9);   /* the camera hangs off the board's far edge, so it never sits over the prints from where you look */
+const AIM_AT=V(BX,0,BZ), HEAD=V(BX-1.4,6.1,BZ-5.3);   /* the camera hangs off the board's far edge, so it never sits over the prints from where you look */
 const STAND={ up:false, t:0, dir:0, dur:2.6, yaw:0, a1:0, a2:0, solved:null, flashT:0, hov:false };
 const stdM=(c,r,m)=>new THREE.MeshStandardMaterial({ color:c, roughness:r??0.5, metalness:m??0 });
 const kit=new THREE.Group(); kit.position.set(KIT.x,0,KIT.z); kit.rotation.y=-0.06; scene.add(kit);
@@ -1333,14 +1336,14 @@ const camShutter=(()=>{ const white=stdM(0xeceae5,0.35,0.15), grey=stdM(0xb9b6ae
   const pkn=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.11,0.22,16), knob); pkn.rotation.z=Math.PI/2; pkn.position.set(0.32,0.4,0); clampG.add(pkn);
   /* pole */
   poleG.position.set(0.06,0.5,0);
-  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.085,0.085,POLE,20), grey); pole.position.y=POLE/2; poleG.add(pole);
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,POLE,20), grey); pole.position.y=POLE/2; poleG.add(pole);
   yawJ.position.y=POLE;
   const collar=new THREE.Mesh(new RoundedBoxGeometry(0.42,0.5,0.5,3,0.08), white); collar.position.y=-0.05; yawJ.add(collar);
   const ck=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.2,16), knob); ck.rotation.x=Math.PI/2; ck.position.set(0,-0.05,0.3); yawJ.add(ck);
   /* arm sections: a pair of flat bars each, like the real thing */
-  const section=(parent,L)=>{ [-0.11,0.11].forEach(z=>{ const b=new THREE.Mesh(new RoundedBoxGeometry(L,0.13,0.06,2,0.025), white); b.position.set(L/2,0,z); parent.add(b); });
+  const section=(parent,L)=>{ [-0.11,0.11].forEach(z=>{ const b=new THREE.Mesh(new RoundedBoxGeometry(L,0.2,0.09,2,0.035), white); b.position.set(L/2,0,z*1.35); parent.add(b); });
     const rod=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,L*0.85,8), grey); rod.rotation.z=Math.PI/2; rod.position.set(L/2,0.16,0); parent.add(rod);
-    const k=new THREE.Mesh(new RoundedBoxGeometry(0.5,0.42,0.36,3,0.08), white); k.position.set(L,0,0); parent.add(k);
+    const k=new THREE.Mesh(new RoundedBoxGeometry(0.68,0.58,0.5,3,0.1), white); k.position.set(L,0,0); parent.add(k);
     const kk=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,0.44,16), knob); kk.rotation.x=Math.PI/2; kk.position.set(L,0,0); parent.add(kk); };
   section(j1,L1); j2.position.x=L1; section(j2,L2);
   /* springs: a stretched coil between two points on the arm */
@@ -1360,7 +1363,7 @@ const camShutter=(()=>{ const white=stdM(0xeceae5,0.35,0.15), grey=stdM(0xb9b6ae
   const btn=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.13,0.08,24), stdM(0xc9c5bd,0.3,0.5)); btn.position.set(0.46,0.54,0.1); aim.add(btn);
   const btnRing=new THREE.Mesh(new THREE.TorusGeometry(0.15,0.03,8,28), new THREE.MeshBasicMaterial({ color:0xe4552e })); btnRing.rotation.x=Math.PI/2; btnRing.position.set(0.46,0.585,0.1); aim.add(btnRing);
   const glow=new THREE.Mesh(new THREE.CircleGeometry(0.42,28), new THREE.MeshBasicMaterial({ color:0xe3ad57, transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending })); glow.rotation.x=-Math.PI/2; glow.position.set(0.46,0.6,0.1); aim.add(glow);
-  aim.scale.setScalar(1.15); aim.visible=false; return { btn, glow }; })();
+  aim.scale.setScalar(1.6); aim.visible=false; return { btn, glow }; })();
 
 function solveArm(){ const o=new THREE.Vector3(CL.x+0.06,0.5+POLE,CL.z), dx=HEAD.x-o.x, dz=HEAD.z-o.z, r=Math.hypot(dx,dz), h=HEAD.y-o.y, d=Math.min(Math.hypot(r,h),L1+L2-0.05);
   const yaw=Math.atan2(-dz,dx), b=Math.acos(THREE.MathUtils.clamp((L1*L1+d*d-L2*L2)/(2*L1*d),-1,1)), c=Math.acos(THREE.MathUtils.clamp((L1*L1+L2*L2-d*d)/(2*L1*L2),-1,1));
@@ -1474,10 +1477,10 @@ function sendShot(){ const s=SHOTS[TRV.i]; if(!s||TRV.busy) return; TRV.busy=tru
     if(HOST){ const page=s.lay?layoutPage(s.lay):s.page||null; if(!page||!page.items||!page.items.length){ TRV.el.classList.remove('sending','away'); TRV.busy=false; toast('That photo couldn\u2019t go to your workbook. Pull those prints out of the binder again and take another.'); return; } try{ HOST.addWorkbookPage(page); }catch(e){} }
     else loadImg(s.url,img=>{ if(!img) return; const P=buildPage(img); workbook.push(P); renderWorkbook(); });
     s.sent=true; saveAll(); TRV.el.classList.remove('sending','away'); TRV.busy=false; trRender(); tourEv('workbook');
-    const ob=$('trOpen'); ob.hidden=false; ob.classList.remove('bump'); void ob.offsetWidth; ob.classList.add('bump'); }, 1900); }
+    const ob=$('trOpen'); ob.hidden=false; ob.classList.remove('bump'); void ob.offsetWidth; ob.classList.add('bump'); tourHotDom(); }, 1900); }
 function delShot(){ const s=SHOTS[TRV.i]; if(!s) return; SHOTS.splice(TRV.i,1); saveAll(); drawTray(); trRender(); toast('Board photo thrown away.'); }
 $('trPrev').onclick=()=>{ TRV.i--; trRender(); }; $('trNext').onclick=()=>{ TRV.i++; trRender(); };
-$('trSend').onclick=sendShot; $('trOpen').onclick=()=>{ closeTray(); if(HOST) HOST.room('workshop'); else { renderWorkbook(); $('wb').classList.add('on'); } }; $('trDel').onclick=delShot; $('trClose').onclick=closeTray; TRV.el.querySelector('.tr-backdrop').onclick=closeTray;
+$('trSend').onclick=sendShot; $('trOpen').onclick=()=>{ const last=TOUR.on&&TSTEPS[TOUR.i]&&TSTEPS[TOUR.i].ev==='openwb'; if(last){ clearTimeout(TOUR.okT); TOUR.okT=0; tourEnd(true); } closeTray(); if(HOST) HOST.room('workshop'); else { renderWorkbook(); $('wb').classList.add('on'); } }; $('trDel').onclick=delShot; $('trClose').onclick=closeTray; TRV.el.querySelector('.tr-backdrop').onclick=closeTray;
 
 /* ================= sticky notes: a pad on the table and one on the wall; tear one off, write on it, stick it anywhere ================= */
 const NOTE_COLS=[['#f6edbf','#3d3316'],['#dfe8d2','#2b3524'],['#f7dccd','#45281b'],['#dde6ee','#22303b']];
@@ -1545,7 +1548,7 @@ function dropSticky(){ const n=SD.n; if(!n) return false; SD.n=null; canvas.styl
   if(n.box){ n.box=false; drawBoxBtn(); } SFX('drop');
   if(SD.fresh){ setTimeout(()=>editSticky(n),120); tourEv('sticky'); }
   saveAll(); return true; }
-function removeSticky(n){ const i=STICKY.indexOf(n); if(i<0) return; STICKY.splice(i,1); disposeSticky(n); if(NE.n===n) closeEdit(false); saveAll(); }
+function removeSticky(n,keepTex){ const i=STICKY.indexOf(n); if(i<0) return; STICKY.splice(i,1); if(keepTex){ stickyGroup.remove(n.mesh); stickyGroup.remove(n.sh); n.mesh.material.dispose(); n.sh.geometry.dispose(); n.sh.material.dispose(); } else disposeSticky(n); if(NE.n===n) closeEdit(false); saveAll(); }
 
 /* writing on a note: a textarea laid over it, drawn onto the paper when you're done */
 const NE={ el:null, n:null };
@@ -1563,15 +1566,15 @@ function placeEdit(){ const ta=NE.el, n=NE.n; if(!ta||!n) return; const W=window
   let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9; [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([a,b],i)=>{ const v=_nc[i].set(a*NS/2,b*NS/2,0).applyMatrix4(n.mesh.matrixWorld).project(camera); const sx=(v.x+1)/2*W, sy=(1-v.y)/2*H; x0=Math.min(x0,sx); x1=Math.max(x1,sx); y0=Math.min(y0,sy); y1=Math.max(y1,sy); });
   const s=Math.max(150,Math.min(x1-x0,y1-y0)), fit=stickyFit(n.text||'Write a note'); ta.style.left=((x0+x1)/2-s/2).toFixed(1)+'px'; ta.style.top=((y0+y1)/2-s/2).toFixed(1)+'px'; ta.style.width=ta.style.height=s.toFixed(1)+'px'; ta.style.fontSize=(fit.fs/384*s).toFixed(1)+'px'; ta.style.padding=(s*30/384).toFixed(1)+'px'; }
 function shredSticky(n){ if(n.shred!=null) return; if(NE.n===n) closeEdit(true); n.shred=0; n.lift=0; n.box=false; SFX('shRun'); [450,650,850,1050].forEach(t=>setTimeout(()=>SFX('shBite'),t)); }
-function stickyFrame(dt){ for(const n of STICKY.slice()){ if(n.shred!=null){ n.shred+=dt; if(n.shred>1.35){ removeSticky(n); drawBoxBtn(); continue; } } if(n.lift>0&&SD.n!==n){ n.lift=Math.max(0,n.lift-dt*3); } poseSticky(n); n.mesh.visible=NE.n!==n&&!(n.s==='w'&&histIdx>=0); n.sh.visible=n.mesh.visible; }
+function stickyFrame(dt){ for(const n of STICKY.slice()){ if(n.shredding) continue; if(n.shred!=null){ n.shred+=dt; if(n.shred>1.35){ removeSticky(n); drawBoxBtn(); continue; } } if(n.lift>0&&SD.n!==n){ n.lift=Math.max(0,n.lift-dt*3); } poseSticky(n); n.mesh.visible=NE.n!==n&&!(n.s==='w'&&histIdx>=0); n.sh.visible=n.mesh.visible; }
   const hot=tourHot()==='pad'; padT.position.y=hot?0.04+0.04*Math.sin(performance.now()/220):0; placeEdit(); }
 function stickyCtx(n,x,y){ SFX('ltMenu'); hideActs(); const items=[['Write on it','',()=>editSticky(n)],['Change colour','',()=>{ n.c=(n.c+1)%NOTE_COLS.length; stickyCanvas(n); saveAll(); }],n.s==='t'?['Put it in the reject box','',()=>{ n.box=true; n.x=BOX.x+(Math.random()-0.5)*(BOX.w-NS*0.9); n.z=BOX.z; SFX('reject'); drawBoxBtn(); saveAll(); }]:['Throw it away','',()=>{ removeSticky(n); toast('Note thrown away.'); }]];
   CTX.innerHTML=''; items.forEach(it=>{ const b=document.createElement('button'); b.type='button'; b.innerHTML='<span></span>'; b.firstChild.textContent=it[0]; b.onclick=()=>{ closeCtx(); it[2](); }; CTX.appendChild(b); });
   CTX.classList.add('on'); const r=CTX.getBoundingClientRect(); CTX.style.left=Math.min(window.innerWidth-r.width-10,x)+'px'; CTX.style.top=Math.min(window.innerHeight-r.height-10,y)+'px'; }
-function stickySnap(){ return STICKY.filter(n=>n.shred==null).map(n=>({ id:n.id, s:n.s, box:!!n.box, x:+n.x.toFixed(3), y:+(n.y||0).toFixed(3), z:+(n.z||0).toFixed(3), r:+(n.r||0).toFixed(3), c:n.c, text:n.text||'' })); }
+function stickySnap(){ return STICKY.filter(n=>n.shred==null&&!n.shredding).map(n=>({ id:n.id, s:n.s, box:!!n.box, x:+n.x.toFixed(3), y:+(n.y||0).toFixed(3), z:+(n.z||0).toFixed(3), r:+(n.r||0).toFixed(3), c:n.c, text:n.text||'' })); }
 function stickyLoad(L){ STICKY.splice(0).forEach(disposeSticky); (L||[]).forEach(o=>{ const n=makeSticky({ ...o, k:++stickyN, lift:0 }); STICKY.push(n); }); padCol=STICKY.length%NOTE_COLS.length; buildPads(); }
 
-RINGS.kit=RING_KIT; RINGS.tray=RING_TRAY; RINGS.shred=RING_SHRED;
+RINGS.kit=RING_KIT; RINGS.tray=RING_TRAY;
 
 /* ================= inside Studium: the library is the student's own photos, and keepers go to the workbook and book ================= */
 function realId(id){ const it=libById(id); if(!it) return id; const b=it.copyOf?(libById(it.copyOf)||it):it;
@@ -1652,7 +1655,8 @@ const TSTEPS=[
   { ch:'WALL', line:'Try a different <b>wall</b>.', sub:'Pick a finish in the Wall panel at the top left, and see how the background changes your prints.', hot:'swatch', ev:'wallstyle', skip:true },
   { ch:'WALL', line:'Come back down to the <b>table</b>.', sub:'Move the mouse to the bottom of the screen.', hot:'edgeDown', ev:'table' },
   { ch:'KEEP', line:'Open your <b>board photos</b>.', sub:'Click the tray at the top right of the table.', hot:'tray', ev:'tray' },
-  { ch:'KEEP', line:'Pick one and <b>Send to workbook</b>.', sub:'That\u2019s the end of the light table tour. Press <kbd>?</kbd> any time to see it again.', hot:'send', ev:'workbook', end:true } ];
+  { ch:'KEEP', line:'Pick one and <b>Send to workbook</b>.', sub:'It lands on a new A3 page, laid out and ready to write on.', hot:'send', ev:'workbook' },
+  { ch:'KEEP', line:'Now <b>Open workbook</b> to see your page.', sub:'That\u2019s the end of the light table tour. Press <kbd>?</kbd> any time to see it again.', hot:'openwb', ev:'openwb', end:true } ];
 const wallSeries=()=>wallGroups.filter(g=>g.members.length>1).length;
 const TOUR={ on:false, i:0, done:false, okT:0, seen:{} };
 const CHAPS=['PULL','PAIR','CULL','SHOOT','WALL','KEEP'];
@@ -1669,7 +1673,7 @@ function tourShow(){ const s=TSTEPS[TOUR.i], el=$('co'); if(!s){ tourEnd(true); 
   if(s.ev&&(performance.now()-(TOUR.seen[s.ev]||-1e9)<1500||(s.ok&&s.ok()))) tourEv(s.ev); TP.x=null; }
 function tourEv(name){ TOUR.seen[name]=performance.now(); if(!TOUR.on) return; const s=TSTEPS[TOUR.i]; if(!s||s.ev!==name||TOUR.okT||(s.ok&&!s.ok())) return;
   $('co').classList.add('ok'); TOUR.okT=setTimeout(()=>{ TOUR.okT=0; if(s.end){ tourEnd(true); return; } TOUR.i++; tourShow(); },s.end?1100:420); }
-function tourHotDom(){ document.querySelectorAll('.co-hot').forEach(e=>e.classList.remove('co-hot')); const h=tourHot(); const dom={ pull:'#bdPull', send:'#trSend', swatch:'#wallPick' }[h]; if(dom){ const t=document.querySelector(dom); if(t) t.classList.add('co-hot'); } }
+function tourHotDom(){ document.querySelectorAll('.co-hot').forEach(e=>e.classList.remove('co-hot')); const h=tourHot(); const dom={ pull:'#bdPull', send:'#trSend', swatch:'#wallPick', openwb:'#trOpen' }[h]; if(dom){ const t=document.querySelector(dom); if(t) t.classList.add('co-hot'); } }
 $('co').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
   if(b.classList.contains('co-next')){ if(TSTEPS[TOUR.i].last) tourEnd(true); else { TOUR.i++; tourShow(); } }
   else if(b.dataset.co==='step'){ TOUR.i++; tourShow(); } else if(b.dataset.co==='all') tourEnd(false); });

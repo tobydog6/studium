@@ -4,14 +4,8 @@
   // and with more frames selected in the strip it goes on all of them. Right-click to rename, move or delete.
   // Presets are kept in localStorage and in the session (saveSession), so they travel with the student's save.
   var PR_SKIP=["heals","secLight","secColor","secEffects","secMix","secGrade","secDetail","secFilm","secGmap","secCurve"];
-  var PR_STARTER=[
-    ["st-soft","Soft daylight",{exposure:8,contrast:-10,highlights:-30,shadows:30,vibrance:15,clarity:-5,temp:4}],
-    ["st-bw","Rich B&W",{mono:1,profile:"mono",contrast:30,highlights:-25,shadows:15,whites:15,blacks:-20,clarity:20,vignette:-15}],
-    ["st-film","Faded film",{contrast:-20,fade:50,saturation:-25,temp:10,tint:4,grain:35,grainSize:30,highlights:-20,blacks:25}],
-    ["st-gold","Golden hour",{exposure:8,temp:45,tint:8,vibrance:30,highlights:-25,shadows:20,glow:20,gHiH:38,gHiS:35,gShH:28,gShS:12}],
-    ["st-cool","Crisp and cool",{temp:-18,contrast:18,clarity:15,dehaze:8,vibrance:10,whites:10,blacks:-10}],
-    ["st-moody","Moody bush",{exposure:-12,contrast:15,highlights:-40,shadows:-5,saturation:-20,vignette:-30,gShH:200,gShS:15,clarity:10}]];
-  var PR={v:1, folders:[{id:"studium",name:"Studium",open:true,fixed:true},{id:"mine",name:"My looks",open:true}], items:[]};
+  var PR_STARTER=[];   /* no starter looks: students build their own */
+  var PR={v:1, folders:[{id:"mine",name:"My looks",open:true}], items:[]};
   var prOpen=false, prHover=null, prKeep=null, prThumbs={}, prThumbQ=[], prThumbBusy=false, prThumbSrc=null, prThumbFor=-1, prMenuEl=null, prAppliedN=0, prSavedN=0;
   function prId(){ return "p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
   function prStarters(){ return PR_STARTER.map(function(s){ return {id:s[0],name:s[1],folder:"studium",fixed:true,set:s[2]}; }); }
@@ -26,8 +20,7 @@
     for(k in s){ if(DEV_CROP.indexOf(k)>=0||PR_SKIP.indexOf(k)>=0) continue; o[k]=(s[k]&&typeof s[k]==="object")?JSON.parse(JSON.stringify(s[k])):s[k]; } return o; }
   function prSave(){ try{ localStorage.setItem("studium_presets_v1",JSON.stringify({v:1,folders:PR.folders,items:PR.items})); }catch(e){} if(typeof saveSession==="function") saveSession(); }
   function prLoad(d){ if(!d||!d.items) return; var f=(d.folders||[]).filter(function(x){ return x&&x.id; });
-    if(!f.some(function(x){ return x.id==="studium"; })) f.unshift({id:"studium",name:"Studium",open:true,fixed:true});
-    f.forEach(function(x){ if(x.id==="studium"){ x.fixed=true; x.name="Studium"; } });
+    f=f.filter(function(x){ return x.id!=="studium"; });   /* older saves had a Studium starter folder */
     PR.folders=f; var have={}; PR.items.forEach(function(p){ have[p.id]=1; });
     PR.items=d.items.filter(function(p){ return p&&p.id&&p.set&&!/^st-/.test(p.id); }).concat(PR.items.filter(function(p){ return !d.items.some(function(q){ return q.id===p.id; }); }));
     PR.items.forEach(function(p){ if(!prFolder(p.folder)) p.folder=prMine(); }); }
@@ -43,7 +36,7 @@
       h+='<div class="pr-fold'+(f.open?' open':'')+'" data-pr-fold="'+f.id+'"><button class="pr-fh" data-pr-ft="'+f.id+'"><span class="pr-chev">›</span><span class="pr-fn">'+prEsc(f.name)+'</span><small>'+its.length+'</small></button>'
         +'<div class="pr-grid">'+(its.length?its.map(function(p){ var t=prThumbs[prTkey(p)];
           return '<button class="pr-it" data-pr="'+p.id+'" title="'+prEsc(p.name)+'"><span class="pr-th"'+(t?' style="background-image:url('+t+')"':'')+'></span><span class="pr-nm">'+prEsc(p.name)+'</span></button>'; }).join("")
-        :'<p class="pr-empty">'+(f.fixed?'':'Right-click a preset to move it here, or save a new one into this folder.')+'</p>')+'</div></div>'; });
+        :'<p class="pr-empty">'+(PR.items.length?'Right-click a preset to move it here, or save a new one into this folder.':'Nothing here yet. Edit a photo until you love it, then press + to save that look.')+'</p>')+'</div></div>'; });
     el.innerHTML=h; var n=prSelN(), sb=$("prSel"); if(sb){ sb.textContent=n?"Click a preset to put it on this photo and "+n+" more selected":""; sb.classList.toggle("on",!!n); }
     prThumbsQueue(); }
   function prToggle(on){ prOpen=on==null?!prOpen:!!on; var d=$("prDrawer"), b=$("prRailBtn"); if(d) d.classList.toggle("open",prOpen); if(b) b.classList.toggle("on",prOpen); prMenuClose(); prSaveClose();

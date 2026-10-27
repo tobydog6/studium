@@ -231,7 +231,7 @@
         target:'#prDrawer', place:"left", nodim:true, start:function(){ CO.s.n=prSavedN; if(!prOpen) prToggle(true); }, done:function(){ return prSavedN>CO.s.n; }},
       {ch:"PRESETS", line:function(){ return 'On to the next photo: <b>›</b>'; }, sub:"",
         target:'#dvNext', start:function(){ CO.s.i=coEdIdx(); }, done:function(){ return coEdIdx()!==CO.s.i; }},
-      {ch:"PRESETS", line:function(){ return '<b>Hover</b> the presets to preview them, then <b>click yours</b>'; }, sub:"Ctrl+Z takes it off again. Right-click a preset to rename it, move it to another folder or delete it.",
+      {ch:"PRESETS", line:function(){ return '<b>Hover</b> your preset to preview it, then <b>click</b> to put it on'; }, sub:"Ctrl+Z takes it off again. Right-click a preset to rename it, move it to another folder or delete it.",
         target:'#prList', place:"left", nodim:true, start:function(){ CO.s.n=prAppliedN; if(!prOpen) prToggle(true); }, done:function(){ return prAppliedN>CO.s.n; }},
       {ch:"YOURS", line:function(){ return 'Now edit <b>the rest of your picks</b>'; }, sub:"Click each one in the strip. Paste or your preset is a good start, then tweak each so it works on its own. With frames selected, a preset goes on all of them.",
         target:'#dvFilm', done:function(){ return coEditedN()>=coEditTotal(); }, bar:function(){ return coEditedN()/Math.max(1,coEditTotal()); }},

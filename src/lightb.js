@@ -282,8 +282,8 @@
     var S=RL.S; U.rbLamps.forEach(function(pl,i){ var L=RL.lights[i]; if(!L||!L.on||L.kind===2||(L.kind===3&&!L.bounce)){ pl.intensity=0; return; }
       var c=L.kind===3?L.bounce:rbEmitRGB(L), p=L.kind===3?1:L.power, m=Math.max(c[0],c[1],c[2],1e-5);
       /* a little in front of the face, so the light's own body doesn't catch it */
-      var off=(L.kind===1?Math.min(0.5,(L.R||0.1)+0.08):0.06)*S; pl.position.set(L.x+L.dir[0]*off,L.y+L.dir[1]*off,L.z+L.dir[2]*off);
-      pl.color.setRGB(c[0]/m,c[1]/m,c[2]/m); pl.intensity=Math.min(60,p*m*Math.PI*S*S*0.9); }); }
+      var off=(L.kind===1?Math.min(0.75,(L.R||0.1)+0.3):0.2)*S; pl.position.set(L.x+L.dir[0]*off,L.y+L.dir[1]*off,L.z+L.dir[2]*off);   /* out in front of the face, so a light never floods its own housing */
+      pl.color.setRGB(c[0]/m,c[1]/m,c[2]/m); pl.intensity=Math.min(1.2,p*m*0.06)*S*S; pl.distance=6*S; }); }   /* subtle: a touch of spill on the other kit, not a second key */
   function rbKitLevel(){ if(!scene||!scene.userData.rbLit) return; rbKitSkyRetry(); rbKitLamps(); var U=scene.userData, a=rbLum(RLB.sunMode?RLB.amb:[1,1,1]), k=Math.max(0.04,Math.min(1,a*1.25));
     scene.environmentIntensity=k; U.rbHemi.intensity=(RLB.sunMode?0.6:1.1)*k;
     var sunOn=RLB.sunMode&&RLB.el>-1&&rbLum(RLB.sunLin)>0.002, T=rbTarget();
@@ -328,7 +328,7 @@
       if(P.yoke) P.yoke.rotation.set(0,turns?yaw:0,0);
       if(P.head){ if(L.kind!==0) P.head.rotation.set(pitch,yaw,0,"YXZ"); else P.head.rotation.set(0,turns?yaw:0,0); }
       var c=rlLightRGB(L), m=Math.max(c[0],c[1],c[2],1e-4), on=L.on?1:0.04;
-      P.emit.forEach(function(mt){ mt.emissive.setRGB(c[0]/m*on,c[1]/m*on,c[2]/m*on); });
+      var ef=0.8*on; P.emit.forEach(function(mt){ mt.emissive.setRGB(c[0]/m*ef,c[1]/m*ef,c[2]/m*ef); });   /* bright, not a blown-out white card */
       P.surf.forEach(function(mt){ mt.color.setHex(RLB_SURFC[L.surf||"silver"]); mt.metalness=L.surf==="white"?0:1; mt.roughness=L.surf==="white"?0.8:0.3; });
       if(P.basic) P.basic.color.setRGB(c[0]/m*on,c[1]/m*on,c[2]/m*on);
       var aim=st.getObjectByName("aim"), showAim=i===RLB.sel&&L.kind!==0&&!!L.aimT; aim.visible=showAim; if(showAim){ aim.scale.set(0.05/S,0.05/S,1); } if(showAim) aim.position.set((L.aimT.x-L.x)/S,(L.aimT.y-L.g)/S,(L.aimT.z-L.z)/S);

@@ -718,9 +718,9 @@
      left alone if someone has already set their own light */
   function rbDefaultOk(){ return loaded&&viewer&&viewer.P&&viewer.mesh&&CH.spec&&CH.spec.id==="stump"&&!RLB.sunMode&&!RL.lights.length; }
   /* the slow part (the light grid) built ahead, behind the opening's dark */
-  function rbDefaultPrep(){ if(!(loaded&&viewer&&viewer.P&&viewer.mesh&&CH.spec&&CH.spec.id==="stump")||RLB.built) return;   /* the opening's own rig may be up: the grid doesn't mind */ try{ if(!RL.ready){ RL.P=viewer.P; RL.A=viewer.A; RL.N=RL.P.length/3; RL.S=rlScale(); RL.ready=true; } if(!RL.target) RL.target=rlTarget(); rbInstall();
-      if(!RLB.built){ rlGrid(); rbGridSharp(); RLB.built=true; } }catch(e){ console.warn("default look prep",e); } }
-  function rbDefaultLook(){ if(!rbDefaultOk()) return; rbDefaultPrep();
+  function rbDefaultPrep(){ if(!(loaded&&viewer&&viewer.P&&viewer.mesh&&CH.spec&&CH.spec.id==="stump")||RLB.built) return;   /* the opening's own rig may be up: the grid doesn't mind */ try{ if(!RL.ready){ RL.P=viewer.P; RL.A=viewer.A; RL.N=RL.P.length/3; RL.S=rlScale(); RL.ready=true; } if(!RL.target) RL.target=rlTarget();
+      if(!RLB.built){ rlGrid(); rbGridSharp(); RLB.built=true; } }catch(e){ console.warn("default look prep",e); } }   /* grids only: installing the daylight shader here would take the scan away from the opening's rig */
+  function rbDefaultLook(){ if(!rbDefaultOk()) return; rbDefaultPrep(); try{ rbInstall(); }catch(e){ console.warn("default look install",e); return; }
     try{ var sp=CH.spec.spawn; if(sp&&RLB.north==null){ var yw=sp[2]||0, view=Math.atan2(-Math.sin(yw),-Math.cos(yw))*180/Math.PI, M=rbMarks(), sa=rbSolar(M.goldPm||19*60+30).az; RLB.north=((view+140-sa)%360+360)%360; }   /* the sun is set from the starting view, wherever the camera happens to be */
       RLB.day="today"; RLB.mins=13*60+35; RLB.boost=1.3; RLB.sat=1.2; rbSunOn(); rbDirty(); }catch(e){ console.warn("default look",e); } }
   if(/[?&]dev/.test(location.search)) window.__rlb={ RLB:RLB, RL:RL, deflook:rbDefaultLook, why:function(){ return {loaded:loaded, P:!!(viewer&&viewer.P), id:CH.spec&&CH.spec.id, sun:RLB.sunMode, lights:RL.lights.length}; }, deflook:rbDefaultLook, why:function(){ return {loaded:loaded, P:!!(viewer&&viewer.P), id:CH.spec&&CH.spec.id, sun:RLB.sunMode, lights:RL.lights.length}; }, open:rlOpen, close:rlClose, add:rbAdd, sel:function(i){ RLB.sel=i; rbStands(); rbPanel(true); },

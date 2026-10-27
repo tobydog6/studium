@@ -106,7 +106,7 @@
     s.querySelector(".si-name").classList.add("hidden"); s.querySelector(".si-code").classList.remove("hidden"); $("siCode").value=""; siTime(); }
   function siTime(){ var t=$("signin")&&$("signin").querySelector(".si-time"); if(!t) return; var d=lsNow(); t.textContent=d.toLocaleDateString("en-NZ",{weekday:"short",day:"numeric",month:"short"}).toUpperCase()+" · "+lsHM(lsMinOf(d)); }
   var siPending=null, siDemoAsk=false, SI_DEMO_ONLY=!/[?&]full(&|=|$)/.test(location.search);
-  var SI_DEMO_LABEL='<span class="t">Play the demo</span><span class="d">ABOUT 30 MINUTES · SHOOT · PICK · EDIT · CHOOSE YOUR OWN</span><span class="go">→</span>';
+  var SI_DEMO_LABEL='<span class="t">Launch the demo</span><span class="d">ABOUT 30 MINUTES · SHOOT · PICK · EDIT · CHOOSE YOUR OWN</span><span class="go">→</span>';
   function siAct(a){ var s=$("signin");
     if(a==="google"||a==="microsoft"){ if(typeof Sync!=="undefined"&&Sync.on()) return Sync.signIn(a); toast("School sign-in isn't connected on this computer yet. Join with a class code, or try it on your own."); return; }
     if(a==="join"){ var code=($("siCode").value||"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"");

@@ -59,15 +59,15 @@
     for(var y=0;y<160;y++) for(var x=0;x<256;x++) if(d[(y*256+x)*4+3]>20){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
     return x1<0?null:[x0/256-0.06,y0/160-0.14,(x1+1)/256+0.06,(y1+1)/160+0.14]; }
   function rfGL(){ if(RF.gl) return RF.gl; var cv=RF.el.querySelector(".rf-cv"), gl=cv.getContext("webgl",{antialias:false,premultipliedAlpha:false,alpha:false}); if(!gl) return null;
-    function sh(t,src){ var o=gl.createShader(t); gl.shaderSource(o,src); gl.compileShader(o); if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)) console.warn("rack-in",gl.getShaderInfoLog(o)); return o; }
-    var pr=gl.createProgram(); gl.attachShader(pr,sh(gl.VERTEX_SHADER,"attribute vec2 p; varying vec2 v; void main(){ v=p*.5+.5; v.y=1.-v.y; gl_Position=vec4(p,0.,1.); }")); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,RF_FS)); gl.linkProgram(pr); if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) return null; gl.useProgram(pr);
+    function sh(t,src){ var o=gl.createShader(t); gl.shaderSource(o,src); gl.compileShader(o); if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)){ RF.glErr="shader: "+gl.getShaderInfoLog(o); console.warn("rack-in",RF.glErr); } return o; }
+    var pr=gl.createProgram(); gl.attachShader(pr,sh(gl.VERTEX_SHADER,"attribute vec2 p; varying vec2 v; void main(){ v=p*.5+.5; v.y=1.-v.y; gl_Position=vec4(p,0.,1.); }")); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,RF_FS)); gl.linkProgram(pr); if(!gl.getProgramParameter(pr,gl.LINK_STATUS)){ RF.glErr="shader: "+(gl.getProgramInfoLog(pr)||"link failed"); return null; } gl.useProgram(pr);
     var bf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,bf); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW); var lp=gl.getAttribLocation(pr,"p"); gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp,2,gl.FLOAT,false,0,0);
     var U={}; function u(n){ return U[n]||(U[n]=gl.getUniformLocation(pr,n)); }
     function tex(unit,src,name){ var t=gl.createTexture(); gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,t); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src);
       gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE); gl.uniform1i(u(name),unit); return t; }
     RF.gl={gl:gl, cv:cv, u:u, tex:tex, ready:false}; return RF.gl; }
   function rfImg(src){ return new Promise(function(ok,no){ var i=new Image(); i.onload=function(){ ok(i); }; i.onerror=no; i.src=src; }); }
-  function rfLoad(){ var G=rfGL(); if(!G) return Promise.reject(new Error("no WebGL"));
+  function rfLoad(){ var G=rfGL(); if(!G) return Promise.reject(new Error(RF.glErr||"no WebGL"));
     var fonts=document.fonts?Promise.all([document.fonts.load("400 300px 'Fraunces'"),document.fonts.load("500 22px 'Geist Mono'")]).catch(function(){}):Promise.resolve();
     return Promise.all([rfImg("asset:assets/launch/rack-stump.jpg"),rfImg("asset:assets/launch/rack-depth.png"),fonts]).then(function(r){
       G.tex(0,r[0],"img"); G.tex(1,r[1],"dep"); var wc=rfWordCanvas(); G.tex(2,wc,"word"); RF.box=rfBox(wc);
@@ -77,7 +77,7 @@
   function rfShow(){ if(RF.on) return; RF.on=true; RF.going=false; RF.idle=true; RF.f=RF.ft=0.9; RF.over=null; RF.last=0;
     var e=rfEl(); RF.el=e; e.className="on"; document.body.classList.add("rackin");
     ["hub","landing","studio","punctum","signin","teacher","hud"].forEach(function(k){ try{ hubHide(k); }catch(x){} });
-    rfLoad().then(function(){ if(!RF.on) return; RF.t0=performance.now(); e.classList.add("ready"); },function(err){ console.warn("rack-in",err); if(!RF.on) return; rfClose(); RF.failed=true; siShow(); });
+    rfLoad().then(function(){ if(!RF.on) return; RF.t0=performance.now(); e.classList.add("ready"); },function(err){ console.warn("rack-in",err); if(!RF.on) return; rfClose(); RF.failed=true; siShow(); var h=$("signin")&&$("signin").querySelector(".si-sub"); if(h) h.textContent="(The title page couldn't start: "+String(err&&err.message||err).slice(0,80)+")"; });
     /* the scan loads behind the page, so the demo's opening doesn't have to wait for it; drawn at a fraction of the pixels meanwhile */
     if(!loaded&&typeof setScale==="function"){ try{ setScale(0.3); RF.scaled=true; }catch(x){} }
     if(!loaded){ var sc=(window.SPLAT_SCENES||[])[0]; if(sc){ App.go("landing"); loadBundled(sc); } }

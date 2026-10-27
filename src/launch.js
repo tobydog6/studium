@@ -260,7 +260,7 @@
   function laDrift(t){ laPlace(LA.a0+0.9+t*0.07, LA_WIDE.r, LA_WIDE.eye); }                                  /* wide and slow behind the film */
   // ---- the spin: one big circle from wherever the strip left the scan, landing exactly on the starting spot ----
   function laSpinStart(){ var sp=CH.spec&&CH.spec.spawn, S=laSubject(), walk=!!(WK.col&&WK.mode==="walk"); laVfOff(); laPhase("spin"); sdSpin(null,LA.quick);
-    if(typeof rbDefaultLook==="function"){ laTodEnd(); rbDefaultLook(); }   /* the Stump arrives at its default look (daylight, light fog and wind) as the circle starts */
+    if(typeof rbDefaultLook==="function"&&LA.tod){ if(RL.gpu){ RL.gpu.U.on.value=0; try{ viewer.mesh.updateVersion(); if(viewer.detail) viewer.detail.updateVersion(); }catch(x){} } laTodEnd(); rbDefaultLook(); }   /* the rig off first (as laEnd does), then hand back */   /* the Stump arrives at its default look (daylight, light fog and wind) as the circle starts */
     Array.prototype.forEach.call(LA.el.querySelectorAll("video"),function(v){ try{ v.pause(); }catch(x){} });
     var a0=LA.cam?LA.cam.a:Math.atan2(camPos.x-S[0], camPos.z-S[1]), r0=LA.cam?LA.cam.r:Math.hypot(camPos.x-S[0], camPos.z-S[1]), e0=LA.cam?LA.cam.eye:WK.eye;
     if(!sp){ LA.sp=null; LA.spinA=a0; LA.spinR=r0; LA.spinE=e0; LA.spinD=Math.PI*2; return; }

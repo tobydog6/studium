@@ -204,6 +204,9 @@
       LA.tod={was:{on:RL.on, dusk:RL.dusk, ambK:RL.ambK, sunPow:RL.sunPow, sunEl:RL.sunEl, sunK:RL.sunK, sunAz:RL.sunAz, exp:RL.exp, shadows:RL.shadows, sel:RL.sel, lon:RL.lights.map(function(L){ return L.on; })}, t:0};
       RL.on=true; RL.exp=0; RL.shadows=false; RL.lights.forEach(function(L){ L.on=false; });
       var S=laSubject(), c=laShotSpec(), gy=wkGround(S[0],S[1]); RL.sunAz=((c.az+180-55)%360+360)%360;   /* the sun comes up behind and to the side of the shot: a rim on the stump */
+      LA.tod.set=[[-38,1.6,1.7,5200,7,0.75],[150,1.5,1.25,3300,5,0.6]].map(function(v){   /* [degrees round from the shot, metres out, height, kelvin, power, softness] */
+        var a=(c.az+v[0])*Math.PI/180, L={id:RL.nid++, on:true, fx:"led", name:"Opening light", type:"bulb", power:v[4], k:v[3], gel:"#ffffff", soft:v[5], cone:90, h:v[2], dir:[0,-1,0], p0:v[4]};
+        rlSetPos(L, S[0]+Math.sin(a)*v[1]*RL.S, S[1]+Math.cos(a)*v[1]*RL.S); rlAimAt(L,{x:S[0], y:gy+0.45, z:S[1]}); RL.lights.push(L); return L; });
       if(typeof WE!=="undefined"){ LA.tod.we={rain:WE.rain, wind:WE.wind, fog:WE.fog}; WE.rain=0; WE.fog=0; WE.wind=Math.max(1,WE.wind); WE.dirty=true; }   /* the weather comes in behind the dark, so it's built before you see it */
       laTod(0,0,true); LA.detM=null; laDetWatch(); }catch(e){ console.warn("time of day",e); LA.tod=null; } }
   function laTodAt(u){ var K=LA_TOD, i=0; while(i<K.length-2&&u>K[i+1][0]) i++; var a=K[i], b=K[i+1], k=laE(Math.max(0,Math.min(1,(u-a[0])/(b[0]-a[0]))));
@@ -213,14 +216,15 @@
     if(typeof WE!=="undefined"&&T.we){ var bump=function(a,b,c,d){ return u<a||u>d?0:u<b?laE((u-a)/(b-a)):u<c?1:1-laE((u-c)/(d-c)); }, fg=2*bump(0.0,0.16,0.52,0.82), rn=1.6*bump(0.14,0.24,0.44,0.58); if(day) rn=fg=0;   /* fog creeps in, rain comes and goes, the fog lifts as the sun comes up */
       if(Math.abs(WE.rain-rn)>0.005||Math.abs(WE.fog-fg)>0.005){ WE.rain=rn; WE.fog=fg; WE.dirty=true; } }
     var t=performance.now(); if(!now&&t-T.t<100) return; T.t=t;
+    (T.set||[]).forEach(function(L){ L.power=L.p0*(day?1-laE(day):1); L.on=L.power>0.05; });   /* the key and rim stay put through the changes; they go as the plain day comes back */
     RL.dusk=v[1]; RL.ambK=Math.round(v[2]); RL.sunPow=v[3]>0.01?v[3]:0; RL.sunEl=Math.max(2,v[4]); RL.sunK=Math.round(v[5]);
     try{ rlApply(); }catch(e){} }
-  function laTodEnd(){ var T=LA.tod; if(!T) return; LA.tod=null; try{ var w=T.was; RL.lights.forEach(function(L,i){ L.on=w.lon[i]!==false; }); RL.dusk=w.dusk; RL.ambK=w.ambK; RL.sunPow=w.sunPow; RL.sunEl=w.sunEl; RL.sunK=w.sunK; RL.sunAz=w.sunAz; RL.exp=w.exp; RL.shadows=w.shadows; RL.sel=w.sel; RL.on=w.on;
+  function laTodEnd(){ var T=LA.tod; if(!T) return; LA.tod=null; try{ var w=T.was; RL.lights=RL.lights.filter(function(x){ return (T.set||[]).indexOf(x)<0; }); (T.set||[]).forEach(function(L){ if(typeof rlDrop==="function") rlDrop(L); }); RL.lights.forEach(function(L,i){ L.on=w.lon[i]!==false; }); RL.dusk=w.dusk; RL.ambK=w.ambK; RL.sunPow=w.sunPow; RL.sunEl=w.sunEl; RL.sunK=w.sunK; RL.sunAz=w.sunAz; RL.exp=w.exp; RL.shadows=w.shadows; RL.sel=w.sel; RL.on=w.on;
       if(w.on) rlApply(); else rlRestore(); }catch(e){}
     if(typeof WE!=="undefined"&&T.we){ WE.rain=T.we.rain; WE.wind=T.we.wind; WE.fog=T.we.fog; WE.dirty=true; }
     var d=T.det; if(d){ try{ if(RL.gpu&&RL.gpu.detail===d) RL.gpu.detail=null; d.worldModifiers=(d.worldModifiers||[]).filter(function(m){ return m!==T.detMod; }); d.updateGenerator(); d.updateVersion(); setTimeout(function(){ try{ d.updateGenerator(); d.updateVersion(); }catch(e){} },250); }catch(e){} } }
   /* the scan's full-detail piece (the stump) can arrive after the opening starts: give it the light and the point cloud too */
-  function laDetWatch(){ var d=viewer&&viewer.detail; if(!d||LA.detM===d||(!LA.scan&&!LA.tod)) return; LA.detM=d; try{ var mods=[]; if(LA.tod&&RL.gpu&&RL.gpu.modFor){ var D=SPARK.dyno, k=0.95, dm=RL.gpu.modFor({on:D.dynoFloat(1), amb:D.dynoVec3(new THREE.Vector3(k,k*0.985,k*0.96)), sunOn:D.dynoFloat(0), nl:D.dynoInt(0), shad:D.dynoFloat(0), cut:D.dynoFloat(1e30)}); mods.push(dm); RL.gpu.detail=d; LA.tod.det=d; LA.tod.detMod=dm; }   /* the stump: soft neutral light, the same all the way through */
+  function laDetWatch(){ var d=viewer&&viewer.detail; if(!d||LA.detM===d||(!LA.scan&&!LA.tod)) return; LA.detM=d; try{ var mods=[]; if(LA.tod&&RL.gpu&&RL.gpu.modFor){ mods.push(RL.gpu.modFor()); RL.gpu.detail=d; }
       if(LA.scan){ var md=laScanMod(null); mods.push(md); LA.scan.UD=md.U; LA.scan.det=d; }
       d.worldModifiers=mods; d.updateGenerator(); d.updateVersion(); setTimeout(function(){ try{ d.updateGenerator(); d.updateVersion(); }catch(e){} },250); }catch(e){ console.warn("detail piece",e); } }
   // ---- the camera ----

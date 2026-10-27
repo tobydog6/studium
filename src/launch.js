@@ -22,7 +22,7 @@
     return e; }
   function laPhase(p){ if(LA.phase===p) return; LA.phase=p; LA.pt=performance.now(); LA.log=(LA.log||[]).concat([p]); LA.held=false; if(LA.el){ LA.el.className="on p-"+p+(LA.skipAsked?" skip":"")+(LA.el.classList.contains("held")?" held":""); } }
   function laHeld(){ if(!LA.hold) return false; if(!LA.held){ LA.held=true; if(LA.pass){ LA.pass=false; return false; } LA.wait=true; } return LA.wait; }   /* tests: ?lahold parks a phase until __la.go() */
-  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.fast=laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.vf=false; LA.af=false; LA.fired=false; LA.racked=false; LA.focused=-1; LA.firedT=0; LA.quick=false; LA.scanTried=false; LA.scanHold=false; LA.first=!LA.fast; LA.eye0=WK.eye; LA.warm=false; laWelClose(true); SD.seq=null;
+  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.fast=laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.vf=false; LA.af=false; LA.fired=false; LA.racked=false; LA.focused=-1; LA.firedT=0; LA.quick=false; LA.detM=null; LA.scanTried=false; LA.scanHold=false; LA.first=!LA.fast; LA.eye0=WK.eye; LA.warm=false; laWelClose(true); SD.seq=null;
     var e=laEl(); LA.el=e; document.body.classList.add("launching"); laPhase("dark");
     ["hub","landing","studio","punctum","signin","teacher"].forEach(hubHide);
     if(!loaded){ var sc=(window.SPLAT_SCENES||[])[0]; if(sc){ App.go("landing"); loadBundled(sc); } }   /* the scan loads behind the dark */
@@ -41,7 +41,7 @@
         "    else if(d>-0.18){ float g=1.0+d/0.18; "+o+".rgba.rgb=mix("+o+".rgba.rgb,vec3(1.0,0.88,0.6),g*0.85); "+o+".scales*=mix(1.0,0.45,g); } } }"]; } }); return {gsplat:dd.outputs.gsplat}; });
     mod.U=U; return mod; }
   function laScanOn(){ if(!viewer||!viewer.mesh||typeof SPARK==="undefined"||!SPARK.dyno) return; try{ var m=viewer.mesh, d=viewer.detail; LA.scan={mesh:m, keep:true, was:(m.worldModifiers&&m.worldModifiers[0])||null, det:d||null, wasD:d?((d.worldModifiers&&d.worldModifiers[0])||null):null};
-      var mod=laScanMod(viewer.cut); m.worldModifier=mod; m.updateGenerator(); m.updateVersion(); LA.scan.U=mod.U; if(d){ var md=laScanMod(null); d.worldModifier=md; d.updateGenerator(); d.updateVersion(); LA.scan.UD=md.U; }
+      var mod=laScanMod(viewer.cut); m.worldModifiers=(m.worldModifiers||[]).concat([mod]); m.updateGenerator(); m.updateVersion(); LA.scan.U=mod.U; if(d){ var md=laScanMod(null); d.worldModifiers=(d.worldModifiers||[]).concat([md]); d.updateGenerator(); d.updateVersion(); LA.scan.UD=md.U; }
       setTimeout(function(){ if(LA.scan&&LA.scan.mesh===m){ m.updateGenerator(); m.updateVersion(); if(d){ d.updateGenerator(); d.updateVersion(); } } },250);   /* Spark takes a new modifier on the second rebuild */
       var S=laSubject(), g=wkGround(S[0],S[1]); if(!(g>-1e8)) g=boxMin.y>-1e8?boxMin.y:camPos.y-1.6; LA.scanY0=g-0.3; LA.scanY1=Math.min(g+9,boxMax.y<1e8?boxMax.y+0.5:g+9); laScanSet(0); }catch(e){ console.warn("scan-in",e); LA.scan=null; } }
   function laScanSet(u){ if(!LA.scan||LA.scanHold) return; var k=u>=1?1:1-Math.pow(1-u,2.2), y=LA.scanY0+(LA.scanY1-LA.scanY0)*k, on=u>=1?0:1; LA.scan.U.sc.value.set(y,on,0,0); if(LA.scan.UD) LA.scan.UD.sc.value.set(y,on,0,0); try{ LA.scan.mesh.updateVersion(); if(LA.scan.det) LA.scan.det.updateVersion(); }catch(e){} }   /* a new version each frame, so the sweep moves */
@@ -194,6 +194,24 @@
       var bytes=new Uint8Array(dv.buffer), str=""; for(i=0;i<bytes.length;i+=32768) str+=String.fromCharCode.apply(null,bytes.subarray(i,i+32768));
       return {peak:+pk.toFixed(3), wav:btoa(str)}; }); }
   if(/[?&]dev/.test(location.search)) window.__sd={ render:sdRender, begin:sdRenderBegin };
+  // ---- the time of day: night as the place appears, sunrise through the point cloud, golden hour for the shot, and the
+  //      ordinary day as the spin lands. It drives the lighting rig (relight.js) without its panel, shadows off for speed ----
+  var LA_TOD=[[0,0.05,9500,0,-12,3000],[0.3,0.2,11000,0,-3,3000],[0.62,0.3,8400,0.7,3,2700],[1,0.42,7600,1.1,10,3100]];   /* u, dusk, ambient K, sun, sun height, sun K */
+  function laTodInit(){ if(typeof RL==="undefined"||typeof rlPrepare!=="function"||!viewer||!viewer.P) return; try{ if(!RL.ready) rlPrepare();
+      LA.tod={shadows:RL.shadows, az:RL.sunAz, tg:RL.target, lon:RL.lights.map(function(L){ return L.on; })}; RL.shadows=false; RL.on=true; RL.exp=0; RL.lights.forEach(function(L){ L.on=false; });
+      var S=laSubject(), c=laShotSpec(); RL.target={x:S[0], y:wkGround(S[0],S[1]), z:S[1]}; RL.sunAz=((c.az+180-55)%360+360)%360;   /* the sun comes up behind and to the side of the shot: rim light on the stump */
+      laTod(0); }catch(e){ console.warn("time of day",e); LA.tod=null; } }
+  /* the scan's full-detail piece (the stump) can arrive after the opening starts: give it the light and the point cloud too */
+  function laDetWatch(){ var d=viewer&&viewer.detail; if(!d||LA.detM===d||(!LA.tod&&!LA.scan)) return; LA.detM=d; try{ var mods=[];
+      if(LA.tod&&RL.gpu&&RL.gpu.modFor){ mods.push(RL.gpu.modFor()); RL.gpu.detail=d; }
+      if(LA.scan){ var md=laScanMod(null); mods.push(md); LA.scan.UD=md.U; LA.scan.det=d; }
+      d.worldModifiers=mods; d.updateGenerator(); d.updateVersion(); setTimeout(function(){ try{ d.updateGenerator(); d.updateVersion(); }catch(e){} },250); }catch(e){ console.warn("detail piece",e); } }
+  function laTodAt(u){ var K=LA_TOD, i=0; while(i<K.length-2&&u>K[i+1][0]) i++; var a=K[i], b=K[i+1], k=laE(Math.max(0,Math.min(1,(u-a[0])/(b[0]-a[0]))));
+    return a.map(function(v,j){ return v+(b[j]-v)*k; }); }
+  function laTod(u,day){ if(!LA.tod) return; var v=laTodAt(u);
+    if(day){ var d=laE(day); v=[1, v[1]+(1-v[1])*d, v[2]+(6500-v[2])*d, v[3]*(1-d), v[4]+(30-v[4])*d, v[5]+(5600-v[5])*d]; }   /* golden into the plain day the scan was made in */
+    RL.dusk=v[1]; RL.ambK=Math.round(v[2]); RL.sunPow=v[3]>0.01?v[3]:0; RL.sunEl=Math.max(2,v[4]); RL.sunK=Math.round(v[5]); try{ rlApply(); }catch(e){} }
+  function laTodEnd(){ if(!LA.tod) return; var o=LA.tod; LA.tod=null; try{ RL.shadows=o.shadows; RL.sunAz=o.az; RL.dusk=1; RL.ambK=6500; RL.sunPow=0; RL.exp=0; RL.lights.forEach(function(L,i){ L.on=o.lon[i]!==false; }); RL.target=o.tg; RL.on=false; if(typeof rlRestore==="function") rlRestore(); }catch(e){} }
   // ---- the camera ----
   function laSubject(){ return (CH.spec&&CH.spec.subject)||[0,0]; }
   function laShotSpec(){ var s=CH.spec&&CH.spec.challenges, c=null; (s||[]).forEach(function(x){ if(x.id==="stump-dof") c=x; }); return c||{az:-75, dist:2.2, h:0.8, look:[0,0.3,0]}; }   /* the shallow-depth gold frame knows where the stump looks best */
@@ -248,21 +266,21 @@
   function laStrip(t){ var st=LA.el.querySelector(".la-strip"), fr=st.firstElementChild, W=window.innerWidth, fw=fr.offsetWidth, pitch=fw+parseFloat(getComputedStyle(fr).marginRight), p=laStripPos(t);
     st.style.transform="translate3d("+((W-fw)/2-fr.offsetLeft-p.s*pitch)+"px,0,0)"; var b=Math.min(6,((p.v||0)-0.8)*2.2); st.style.filter=b>0.25?"blur("+b.toFixed(1)+"px)":""; return p; }
   // ---- the clock ----
-  function laTick(now){ if(!LA.on) return; LA.raf=requestAnimationFrame(laTick); var t=(now-LA.t0)/1000, p=LA.phase, pt=(now-(LA.pt||LA.t0))/1000, e=LA.el;
+  function laTick(now){ if(!LA.on) return; LA.raf=requestAnimationFrame(laTick); laDetWatch(); var t=(now-LA.t0)/1000, p=LA.phase, pt=(now-(LA.pt||LA.t0))/1000, e=LA.el;
     if(p==="dark"){ if(t>2.5&&!LA.skipAsked){ LA.skipAsked=true; e.classList.add("skip"); }
-      if(loaded&&!LA.scanTried){ LA.scanTried=true; LA.scanT=t; if(!LA.fast){ laScanOn(); laCamInit(); laVfOn(); LA.warm=true; } }   /* the point cloud's shader and the viewfinder's compile behind the dark: raised once, unseen */
+      if(loaded&&!LA.scanTried){ LA.scanTried=true; LA.scanT=t; if(!LA.fast){ laTodInit(); laScanOn(); laCamInit(); laVfOn(); LA.warm=true; } }   /* the point cloud's shader and the viewfinder's compile behind the dark: raised once, unseen */
       if(LA.warm&&t-LA.scanT>0.32){ LA.warm=false; laVfOff(); }   /* the point cloud's shader compiles behind the dark */
       if(loaded&&t>(LA.fast?0.6:1.0)&&(LA.fast||(!LA.warm&&t-LA.scanT>0.5))){ laCamInit(); if(typeof updateCamera==="function") updateCamera(0); if(LA.fast){ laDrift(0); laLockStart(); return; } laPhase("detail"); sdScan(); } return; }
-    if(p==="detail"){ laDetail(Math.min(1,pt/LA_T.detail)); laScanSet(Math.min(1,pt/LA_T.scan));  if(pt>LA_T.detail&&!laHeld()) laPhase("shoot"); return; }
-    if(p==="shoot"){ if(!LA.fired) laShootCam(Math.min(1,pt/LA_T.shoot)); if(!LA.vf&&!LA.fired&&pt>0.05){ laShootCam(0); LA.focusTo=laFocusTarget(); laVfOn(); sdLensUp(); if(typeof setScale==="function"&&typeof dynTop==="function"){ try{ setScale(Math.max(0.5,dynTop()*0.72)); }catch(x){} } }   /* fewer pixels while the lens is up; the auto resolution brings them back */
+    if(p==="detail"){ laTod(Math.min(1,pt/(LA_T.detail+2.3))); laDetail(Math.min(1,pt/LA_T.detail)); laScanSet(Math.min(1,pt/LA_T.scan));  if(pt>LA_T.detail&&!laHeld()) laPhase("shoot"); return; }
+    if(p==="shoot"){ if(!LA.fired){ laShootCam(Math.min(1,pt/LA_T.shoot)); laTod(Math.min(1,(LA_T.detail+pt)/(LA_T.detail+2.3))); } if(!LA.vf&&!LA.fired&&pt>0.05){ laShootCam(0); LA.focusTo=laFocusTarget(); laVfOn(); sdLensUp(); if(typeof setScale==="function"&&typeof dynTop==="function"){ try{ setScale(Math.max(0.5,dynTop()*0.72)); }catch(x){} } }   /* fewer pixels while the lens is up; the auto resolution brings them back */
       if(LA.vf&&!LA.fired) laIris(Math.min(1,(pt-0.05)/LA_T.iris));
       if(LA.vf&&pt>0.75){ if(!LA.racked){ LA.racked=true; sdRack(null,1.4); } laRack(Math.min(1,(pt-0.75)/1.4)); }
       if(LA.focused>=0) LA.focused++; if(LA.vf&&!LA.fired&&pt>2.3&&LA.focused>=3){ LA.fired=true; laFire(); }   /* fire only once the focus has been on screen a few frames */
       if(LA_NOFILM&&LA.fired&&!LA.firedT) LA.firedT=pt; if(LA_NOFILM&&LA.firedT&&pt-LA.firedT>0.42&&!laHeld()){ LA.el.classList.add("nofilm"); laSpinStart(); return; }   /* the still holds a breath, then the world pulls away from it */
       if(!LA_NOFILM&&pt>LA_T.shoot&&!laHeld()){ laPhase("film"); sdFilm(); e.classList.add("held"); Array.prototype.forEach.call(e.querySelectorAll("video"),function(v){ try{ v.currentTime=0; v.play(); }catch(x){} }); } return; }
     if(p==="film"){ laDrift(pt); var q=laStrip(pt); if(q.end&&!laHeld()) laSpinStart(); return; }
-    if(p==="spin"){ var su=Math.min(1,pt/(LA.quick?1.6:LA_T.spin)); laSpin(su); if(su>=1&&(LA.quick||!laHeld())) laEnd(); return; } }
-  function laEnd(){ if(!LA.on) return; LA.on=false; cancelAnimationFrame(LA.raf); var e=LA.el; LA.welcome=Date.now(); laVfOff(); laScanOff(); (CH.pads||[]).forEach(function(P){ P.vis=0; });   /* the gold frames fade in once the wordmark has gone */
+    if(p==="spin"){ var su=Math.min(1,pt/(LA.quick?1.6:LA_T.spin)); laSpin(su); if(LA.tod) laTod(1,Math.min(1,su*1.4)); if(su>=1&&(LA.quick||!laHeld())) laEnd(); return; } }
+  function laEnd(){ if(!LA.on) return; LA.on=false; laTodEnd(); cancelAnimationFrame(LA.raf); var e=LA.el; LA.welcome=Date.now(); laVfOff(); laScanOff(); (CH.pads||[]).forEach(function(P){ P.vis=0; });   /* the gold frames fade in once the wordmark has gone */
     if(loaded){ hubShow("hud"); App.go("scene"); if(typeof updatePrompt==="function") updatePrompt(); } else showHub();
     sdAmbStop(sdNow()+1.6,1.2); if(LA.first&&loaded) LA.wcard=true;   /* first time: hold the tour and the gold frames for the welcome */
     if(e){ e.className="on out"; setTimeout(function(){ e.className=""; document.body.classList.remove("launching"); if(LA.wcard) laWelOpen(); },LA_T.word*1000); } else document.body.classList.remove("launching");
@@ -288,4 +306,4 @@
     LA.noIntro=true; LA.toTour=true; setTimeout(function(){ LA.toTour=false; },4000); setTimeout(function(){ if(typeof qAutoTour==="function") qAutoTour(); },350); }
   LA.hold=/[?&]lahold/.test(location.search);
   if(/[?&]dev/.test(location.search)) window.__sc=function(y){ if(y!=null&&LA.scan){ LA.scanHold=true; LA.scan.U.sc.value.set(y,1,0,0); if(LA.scan.UD) LA.scan.UD.sc.value.set(y,1,0,0); LA.scan.mesh.updateVersion(); } var S=LA.scan; return S?S.U.sc.value.toArray().map(function(v){ return +v.toFixed(2); }).join(","):"off"; };
-  if(/[?&]dev/.test(location.search)) window.__la={ start:launchStart, skip:laSkip, go:function(){ LA.wait=false; LA.pass=!LA.held; }, wel:function(){ return !!LA.wcard; }, welGo:laWelGo, state:function(){ return {on:LA.on, phase:LA.phase, fast:LA.fast, loaded:loaded, log:LA.log||[], scan:!!LA.scan}; }, reset:function(){ try{ localStorage.removeItem(LA_KEY); }catch(e){} } };
+  if(/[?&]dev/.test(location.search)) window.__la={ start:launchStart, skip:laSkip, go:function(){ LA.wait=false; LA.pass=!LA.held; }, wel:function(){ return !!LA.wcard; }, welGo:laWelGo, dbg:function(){ var d=viewer&&viewer.detail, m=viewer&&viewer.mesh; return {phase:LA.phase, det:!!d, dmods:d&&d.worldModifiers?d.worldModifiers.length:0, mmods:m&&m.worldModifiers?m.worldModifiers.length:0, rlDet:!!(typeof RL!=="undefined"&&RL.gpu&&RL.gpu.detail===d), on:typeof RL!=="undefined"&&RL.gpu?RL.gpu.U.on.value:-1, dusk:typeof RL!=="undefined"?RL.dusk:-1, tod:!!LA.tod}; }, state:function(){ return {on:LA.on, phase:LA.phase, fast:LA.fast, loaded:loaded, log:LA.log||[], scan:!!LA.scan}; }, reset:function(){ try{ localStorage.removeItem(LA_KEY); }catch(e){} } };

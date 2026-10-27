@@ -11,7 +11,7 @@
     e.innerHTML='<canvas class="rf-cv"></canvas><div class="rf-dark"></div>'
       +'<h1 class="rf-sr">Studium. '+RF_SUB+'.</h1>'
       +'<button class="rf-go" type="button"><span class="face sharp"><span class="t">Launch the demo</span><span class="s">ABOUT 30 MIN</span></span><span class="face soft" aria-hidden="true"><span class="t">Launch the demo</span><span class="s">ABOUT 30 MIN</span></span></button>'
-      +'<div class="rf-hint">MOVE TO FOCUS</div>';
+      +'<div class="rf-hint">MOVE TO FOCUS</div><div class="rf-wait">OPENING THE STUMP</div>';
     document.body.appendChild(e);
     e.addEventListener("pointermove",function(ev){ RF.px=ev.clientX; RF.py=ev.clientY; RF.idle=false; });
     e.addEventListener("pointerleave",function(){ RF.px=-1; });
@@ -33,16 +33,17 @@
     "vec2 wind(vec2 s){ vec3 c=texture2D(img,s).rgb; float g=leafy(c); float gust=.55+.45*sin(time*.55+s.x*2.3)*sin(time*.31+1.7);\n"+
     "  float k=g*(.55+.9*(1.-s.y))*gust; return vec2(sin(time*1.7+s.y*46.+s.x*21.)*1.1+.9, cos(time*2.1+s.x*39.+s.y*13.)*.55)*k*1.9*px; }\n"+
     "void main(){ vec2 u=cover(v); float c0=coc(metres(u)); vec3 acc=vec3(0.); float wsum=0., vine=0.;\n"+
-    "  for(int i=0;i<32;i++){ float fi=float(i); float r=sqrt((fi+.5)/32.); float a=fi*2.39996; vec2 su=u+vec2(cos(a),sin(a))*r*c0*px;\n"+
+    "  if(c0<.6){ vec3 sc=texture2D(img,u-wind(u)).rgb; acc=sc; wsum=1.; vine=leafy(sc)*(1.-smoothstep(wordD-2.,wordD-1.2,metres(u))); } else\n"+
+    "  for(int i=0;i<24;i++){ float fi=float(i); float r=sqrt((fi+.5)/24.); float a=fi*2.39996; vec2 su=u+vec2(cos(a),sin(a))*r*c0*px;\n"+
     "    float cs=coc(metres(su)); float w=smoothstep(r*c0-1.5, r*c0+.5, max(cs,c0*.35)+1.);\n"+
     "    vec3 sc=texture2D(img,su-wind(su)).rgb; acc+=sc*w; wsum+=w; vine+=w*leafy(sc)*(1.-smoothstep(wordD-2.,wordD-1.2,metres(su))); }\n"+
     "  vec3 col=acc/max(wsum,1e-3);\n"+
     "  float cw=min(coc(wordD),7.); float halo=0., hal=0.; vec4 wa=vec4(0.);\n"+
-    "  for(int i=0;i<16;i++){ float fi=float(i); float r=sqrt((fi+.5)/16.); float a=fi*2.39996; vec2 o=vec2(cos(a),sin(a))*r;\n"+
+    "  for(int i=0;i<12;i++){ float fi=float(i); float r=sqrt((fi+.5)/12.); float a=fi*2.39996; vec2 o=vec2(cos(a),sin(a))*r;\n"+
     "    halo+=texture2D(word,u+o*(cw+40.)*px).a; hal+=texture2D(word,u+o*(cw+14.)*px).a; }\n"+
-    "  halo/=16.; hal/=16.;\n"+
-    "  for(int i=0;i<24;i++){ float fi=float(i); float r=sqrt((fi+.5)/24.); float a=fi*2.39996; wa+=texture2D(word,u+vec2(cos(a),sin(a))*r*cw*px); }\n"+
-    "  wa/=24.; float occ=1.-clamp(vine/max(wsum,1e-3)*1.25,0.,.96); occ=mix(occ,1.,smoothstep(.352,.362,u.y));\n"+
+    "  halo/=12.; hal/=12.;\n"+
+    "  if(cw<.4) wa=texture2D(word,u); else { for(int i=0;i<16;i++){ float fi=float(i); float r=sqrt((fi+.5)/16.); float a=fi*2.39996; wa+=texture2D(word,u+vec2(cos(a),sin(a))*r*cw*px); } wa/=16.; }\n"+
+    "   float occ=1.-clamp(vine/max(wsum,1e-3)*1.25,0.,.96); occ=mix(occ,1.,smoothstep(.352,.362,u.y));\n"+
     "  col*=1.-halo*.5*occ; col+=vec3(1.,.6,.24)*hal*.42*occ; col=mix(col,vec3(1.,.95,.85),wa.a*occ); col+=vec3(.9,.55,.2)*wa.a*.08;\n"+
     "  col*=mix(.62,1.,smoothstep(1.25,.35,length((v-.5)*vec2(1.2,1.)))); col=pow(col,vec3(1.04));\n"+
     "  gl_FragColor=vec4(col*(1.-fade),1.); }";
@@ -55,7 +56,7 @@
     return x1<0?null:[x0/256-0.045,y0/160-0.06,(x1+1)/256+0.045,(y1+1)/160+0.06]; }
   function rfGL(){ if(RF.gl) return RF.gl; var cv=RF.el.querySelector(".rf-cv"), gl=cv.getContext("webgl",{antialias:false,premultipliedAlpha:false,alpha:false}); if(!gl) return null;
     function sh(t,src){ var o=gl.createShader(t); gl.shaderSource(o,src); gl.compileShader(o); if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)) console.warn("rack-in",gl.getShaderInfoLog(o)); return o; }
-    var pr=gl.createProgram(); gl.attachShader(pr,sh(gl.VERTEX_SHADER,"attribute vec2 p; varying vec2 v; void main(){ v=p*.5+.5; v.y=1.-v.y; gl_Position=vec4(p,0.,1.); }")); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,RF_FS)); gl.linkProgram(pr); gl.useProgram(pr);
+    var pr=gl.createProgram(); gl.attachShader(pr,sh(gl.VERTEX_SHADER,"attribute vec2 p; varying vec2 v; void main(){ v=p*.5+.5; v.y=1.-v.y; gl_Position=vec4(p,0.,1.); }")); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,RF_FS)); gl.linkProgram(pr); if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) return null; gl.useProgram(pr);
     var bf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,bf); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW); var lp=gl.getAttribLocation(pr,"p"); gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp,2,gl.FLOAT,false,0,0);
     var U={}; function u(n){ return U[n]||(U[n]=gl.getUniformLocation(pr,n)); }
     function tex(unit,src,name){ var t=gl.createTexture(); gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,t); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src);
@@ -92,8 +93,9 @@
     else if(RF.idle) RF.ft = t<1.4?0.9 : 0.9+(1.7-0.9)*Math.min(1,(t-1.4)/2.8);   /* before you touch it, it drifts onto the stump by itself */
     var lf=Math.log(RF.f), lt=Math.log(RF.ft); RF.f=Math.exp(lf+(lt-lf)*(1-Math.exp(-dt*7)));
     var fade=RF.going?Math.max(0,Math.min(1,(now-RF.fadeT)/350)):0;
-    if(RF.going&&fade>=1&&!RF.handed){ RF.handed=true; setTimeout(function(){ RF.handed=false; rfClose(); if(typeof siAct==="function") siAct("demo"); },0); }
-    var gl=G.gl, d=Math.min(window.devicePixelRatio||1,1.25), w=Math.max(2,Math.round(innerWidth*d)), h=Math.max(2,Math.round(innerHeight*d));
+    if(RF.going&&fade>=1) e.classList.toggle("wait",!loaded);
+    if(RF.going&&fade>=1&&loaded&&!RF.handed){ RF.handed=true; setTimeout(function(){ RF.handed=false; rfClose(); if(typeof siAct==="function") siAct("demo"); },0); }
+    var gl=G.gl, d=0.75, w=Math.max(2,Math.round(innerWidth*d)), h=Math.max(2,Math.round(innerHeight*d));
     if(G.cv.width!==w||G.cv.height!==h){ G.cv.width=w; G.cv.height=h; } gl.viewport(0,0,w,h);
     var sa=w/h; if(sa>RF_IA) gl.uniform2f(G.u("px"),1/w,(1/h)*(RF_IA/sa)); else gl.uniform2f(G.u("px"),(1/w)*(sa/RF_IA),1/h);
     var still=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;

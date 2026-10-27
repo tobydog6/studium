@@ -586,6 +586,7 @@
     }).catch(function(err){
       console.error("Load failed:",err); hideLoader();
       if(viewer){ try{ viewer.dispose(); }catch(e){} viewer=null; } loaded=false; show(landing);
+      if(typeof rfClose==="function"&&RF.on){ rfClose(); RF.failed=true; siShow(); }   /* the scan wouldn't load: fall back to the plain sign-in card, where the message shows */
       var m=String(err&&err.message||err||"");
       if(/fetch|network|Failed to fetch|CORS/i.test(m)) toast("Couldn't download that scan. Check your connection, or open a file from this computer.");
       else toast("Couldn't load that splat ("+m.slice(0,80)+")");

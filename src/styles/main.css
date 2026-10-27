@@ -3094,6 +3094,8 @@ body.rackin #loader,body.rackin #hud,body.rackin #navTop,body.rackin #navActs,bo
 #rackin .rf-go:focus-visible{outline:2px solid var(--text);outline-offset:6px}
 #rackin.going .rf-go{opacity:0!important;transition:opacity .5s;pointer-events:none}
 #rackin .rf-hint{position:absolute;left:0;right:0;bottom:calc(8vh + env(safe-area-inset-bottom,0px));text-align:center;font:500 11px var(--mono);letter-spacing:.2em;color:rgba(244,241,234,.6);text-shadow:0 1px 8px rgba(0,0,0,.6);opacity:0;transition:opacity 1s ease 2.4s;pointer-events:none}
+#rackin .rf-wait{position:absolute;left:0;right:0;top:50%;text-align:center;font:500 10.5px var(--mono);letter-spacing:.22em;color:rgba(244,241,234,.4);opacity:0;transition:opacity .6s;pointer-events:none}
+#rackin.wait .rf-wait{opacity:1}
 #rackin.ready .rf-hint{opacity:1}#rackin.going .rf-hint{opacity:0;transition-delay:0s}
 @media (max-width:640px){#rackin .rf-go{height:72px;padding:0 30px;gap:18px}#rackin .rf-go .t{font-size:28px}}
 

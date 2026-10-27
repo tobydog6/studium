@@ -435,8 +435,7 @@
   // pixel, so the lens can blur by real distance. Half resolution: blur doesn't need more.
   // ---- the lens: Spark blurs every splat by its own distance from the focus plane (real depth of field) ----
   var dOK=true, afPending=false;
-  function sparkLens(){ var sp=viewer&&viewer.spark; if(!sp) return; if(typeof RF!=="undefined"&&RF.on&&loaded){ rfLens(sp); return; }   /* the launch page racks the lens itself */
-    var on=viewfinderOn&&loaded&&gDof>0;
+  function sparkLens(){ var sp=viewer&&viewer.spark; if(!sp) return; var on=viewfinderOn&&loaded&&gDof>0;
     if(afPending&&on){ var say=afPending==="say"; afPending=false; autoFocus(say); }
     if(!on){ sp.apertureAngle=0; return; } var sc=sceneScale(), S=focusMetres()*sc, fm=(focalMM||50)/1000*sc, N=APERTURES[apIdx]||8;
     sp.focalDistance=S; sp.apertureAngle=2*Math.atan(fm/N/2/S)*gDof; }   // the aperture's width, seen from the focus point
@@ -486,6 +485,7 @@
   }
   function animate(){ requestAnimationFrame(animate); var dt=Math.min(clock.getDelta(),0.1);
     if((typeof cbOpen!=="undefined" && cbOpen) || (typeof bg!=="undefined" && bg.open) || (typeof st!=="undefined" && st.open)) return;   // the camera back covers the scene: stop drawing it (big win on school PCs)
+    if(typeof RF!=="undefined"&&RF.on) return;   /* the launch page is a still with its own lens: the scan loads behind it but isn't drawn */
     if(loaded) updateCamera(dt); renderFrame(dt); dynTick(dt); if(viewfinderOn) vfLevelTick(); }
   animate();
 

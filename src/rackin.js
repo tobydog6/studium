@@ -1,16 +1,17 @@
   // ================= RACK-IN: the launch page =================
-  // The live scan, close on the stump with the 85 wide open. Wherever the pointer goes, the lens racks to that depth
-  // (Spark's real depth of field). The name hangs in the scene a few metres back, and the Launch the demo button sits in
-  // the foreground, so each one is only sharp when you focus on it. Light wind moves the leaves. Play racks onto the name,
-  // goes to dark, and the demo's opening takes over. Shown instead of the sign-in card in the demo-only build.
-  var RF={on:false, el:null, f:0.9, ft:0.9, idle:true, t0:0, raf:0, pick:0, px:-1, py:-1, going:false, fov:null, wind:null, over:null};
-  var RF_WORD=4.5, RF_BTN=1.0, RF_MM=85, RF_N=1.8;
+  // A still of the Stump rendered from the scan with its own depth map (assets/launch/rack-stump.jpg, rack-depth.png),
+  // drawn by a small shader so it never lags: wherever the pointer goes, the lens racks to that depth (blur by real
+  // distance), leaves sway in light wind, and the ivy nearer than the name passes over the letters. The name hangs a few
+  // metres back with a warm halation; the Launch the demo button sits in the foreground, so each is only sharp when you
+  // focus on it. The scan itself loads behind the page but isn't drawn until the demo's opening takes over.
+  var RF={on:false, el:null, f:0.9, ft:0.9, idle:true, t0:0, raf:0, px:-1, py:-1, going:false, over:null, gl:null, last:0, failed:false};
+  var RF_WORD=4.6, RF_BTN=0.95, RF_INV=[0.0166667,1.0716332], RF_IA=1.6;   /* depth png holds 1/metres between these; the still is 16:10 */
+  var RF_SUB="Shoot, edit, research and build your folio, all in one place";
   function rfEl(){ var e=$("rackin"); if(e) return e; e=document.createElement("div"); e.id="rackin";
-    e.innerHTML='<div class="rf-dark"></div><div class="rf-vig"></div>'
-      +'<div class="rf-word" aria-hidden="true"><div class="w sharp"><b>Studium</b><span>Shoot, edit, research and build your folio, all in one place</span></div><div class="w soft"><b>Studium</b><span>Shoot, edit, research and build your folio, all in one place</span></div></div>'
-      +'<h1 class="rf-sr">Studium. Shoot, edit, research and build your folio, all in one place.</h1>'
+    e.innerHTML='<canvas class="rf-cv"></canvas><div class="rf-dark"></div>'
+      +'<h1 class="rf-sr">Studium. '+RF_SUB+'.</h1>'
       +'<button class="rf-go" type="button"><span class="face sharp"><span class="t">Launch the demo</span><span class="s">ABOUT 30 MIN</span></span><span class="face soft" aria-hidden="true"><span class="t">Launch the demo</span><span class="s">ABOUT 30 MIN</span></span></button>'
-      +'<div class="rf-hint">MOVE TO FOCUS</div><div class="rf-load">OPENING THE STUMP</div>';
+      +'<div class="rf-hint">MOVE TO FOCUS</div>';
     document.body.appendChild(e);
     e.addEventListener("pointermove",function(ev){ RF.px=ev.clientX; RF.py=ev.clientY; RF.idle=false; });
     e.addEventListener("pointerleave",function(){ RF.px=-1; });
@@ -21,48 +22,82 @@
     window.addEventListener("keydown",function(ev){ if(!RF.on) return; ev.stopImmediatePropagation(); if(ev.key==="Enter"&&!ev.repeat){ ev.preventDefault(); rfPlay(); } else if(ev.key!=="Tab") ev.preventDefault(); },true);
     window.addEventListener("keyup",function(ev){ if(RF.on) ev.stopImmediatePropagation(); },true);
     return e; }
-  function rfShow(){ if(RF.on) return; RF.on=true; RF.going=false; RF.idle=true; RF.f=RF.ft=0.9; RF.t0=performance.now(); RF.over=null;
+
+  // ---- the lens: one full-screen pass over the still ----
+  var RF_FS="precision highp float; varying vec2 v;\n"+
+    "uniform sampler2D img, dep, word; uniform vec2 res, px; uniform float focus, scale, wordD, time, fade;\n"+
+    "vec2 cover(vec2 s){ float sa=res.x/res.y; vec2 u=s; if(sa>"+RF_IA.toFixed(2)+") u.y=(s.y-.5)*"+RF_IA.toFixed(2)+"/sa+.5; else u.x=(s.x-.5)*sa/"+RF_IA.toFixed(2)+"+.5; return u; }\n"+
+    "float metres(vec2 u){ return 1./("+RF_INV[0]+"+texture2D(dep,u).r*"+(RF_INV[1]-RF_INV[0]).toFixed(6)+"); }\n"+
+    "float coc(float d){ return clamp(abs(1./d-1./focus)*scale,0.,22.); }\n"+
+    "float leafy(vec3 c){ return smoothstep(.012,.085,c.g-max(c.r,c.b)*.93); }\n"+
+    "vec2 wind(vec2 s){ vec3 c=texture2D(img,s).rgb; float g=leafy(c); float gust=.55+.45*sin(time*.55+s.x*2.3)*sin(time*.31+1.7);\n"+
+    "  float k=g*(.55+.9*(1.-s.y))*gust; return vec2(sin(time*1.7+s.y*46.+s.x*21.)*1.1+.9, cos(time*2.1+s.x*39.+s.y*13.)*.55)*k*1.9*px; }\n"+
+    "void main(){ vec2 u=cover(v); float c0=coc(metres(u)); vec3 acc=vec3(0.); float wsum=0., vine=0.;\n"+
+    "  for(int i=0;i<32;i++){ float fi=float(i); float r=sqrt((fi+.5)/32.); float a=fi*2.39996; vec2 su=u+vec2(cos(a),sin(a))*r*c0*px;\n"+
+    "    float cs=coc(metres(su)); float w=smoothstep(r*c0-1.5, r*c0+.5, max(cs,c0*.35)+1.);\n"+
+    "    vec3 sc=texture2D(img,su-wind(su)).rgb; acc+=sc*w; wsum+=w; vine+=w*leafy(sc)*(1.-smoothstep(wordD-2.,wordD-1.2,metres(su))); }\n"+
+    "  vec3 col=acc/max(wsum,1e-3);\n"+
+    "  float cw=min(coc(wordD),7.); float halo=0., hal=0.; vec4 wa=vec4(0.);\n"+
+    "  for(int i=0;i<16;i++){ float fi=float(i); float r=sqrt((fi+.5)/16.); float a=fi*2.39996; vec2 o=vec2(cos(a),sin(a))*r;\n"+
+    "    halo+=texture2D(word,u+o*(cw+40.)*px).a; hal+=texture2D(word,u+o*(cw+14.)*px).a; }\n"+
+    "  halo/=16.; hal/=16.;\n"+
+    "  for(int i=0;i<24;i++){ float fi=float(i); float r=sqrt((fi+.5)/24.); float a=fi*2.39996; wa+=texture2D(word,u+vec2(cos(a),sin(a))*r*cw*px); }\n"+
+    "  wa/=24.; float occ=1.-clamp(vine/max(wsum,1e-3)*1.25,0.,.96); occ=mix(occ,1.,smoothstep(.352,.362,u.y));\n"+
+    "  col*=1.-halo*.5*occ; col+=vec3(1.,.6,.24)*hal*.42*occ; col=mix(col,vec3(1.,.95,.85),wa.a*occ); col+=vec3(.9,.55,.2)*wa.a*.08;\n"+
+    "  col*=mix(.62,1.,smoothstep(1.25,.35,length((v-.5)*vec2(1.2,1.)))); col=pow(col,vec3(1.04));\n"+
+    "  gl_FragColor=vec4(col*(1.-fade),1.); }";
+  function rfWordCanvas(){ var c=document.createElement("canvas"); c.width=2048; c.height=1280; var x=c.getContext("2d");
+    x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="alphabetic"; x.font="400 300px 'Fraunces', Georgia, serif"; x.fillText("Studium",1024,1280*0.35);
+    x.font="500 22px 'Geist Mono', ui-monospace, monospace"; if(x.letterSpacing!==undefined) x.letterSpacing="6px"; x.fillText(RF_SUB.toUpperCase(),1024,1280*0.35+78); return c; }
+  /* the name and its line, padded, in the still's own coordinates: pointing anywhere near it focuses on it */
+  function rfBox(c){ var m=document.createElement("canvas"); m.width=256; m.height=160; var mx=m.getContext("2d"); mx.drawImage(c,0,0,256,160); var d=mx.getImageData(0,0,256,160).data, x0=256,y0=160,x1=-1,y1=-1;
+    for(var y=0;y<160;y++) for(var x=0;x<256;x++) if(d[(y*256+x)*4+3]>20){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
+    return x1<0?null:[x0/256-0.045,y0/160-0.06,(x1+1)/256+0.045,(y1+1)/160+0.06]; }
+  function rfGL(){ if(RF.gl) return RF.gl; var cv=RF.el.querySelector(".rf-cv"), gl=cv.getContext("webgl",{antialias:false,premultipliedAlpha:false,alpha:false}); if(!gl) return null;
+    function sh(t,src){ var o=gl.createShader(t); gl.shaderSource(o,src); gl.compileShader(o); if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)) console.warn("rack-in",gl.getShaderInfoLog(o)); return o; }
+    var pr=gl.createProgram(); gl.attachShader(pr,sh(gl.VERTEX_SHADER,"attribute vec2 p; varying vec2 v; void main(){ v=p*.5+.5; v.y=1.-v.y; gl_Position=vec4(p,0.,1.); }")); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,RF_FS)); gl.linkProgram(pr); gl.useProgram(pr);
+    var bf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,bf); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW); var lp=gl.getAttribLocation(pr,"p"); gl.enableVertexAttribArray(lp); gl.vertexAttribPointer(lp,2,gl.FLOAT,false,0,0);
+    var U={}; function u(n){ return U[n]||(U[n]=gl.getUniformLocation(pr,n)); }
+    function tex(unit,src,name){ var t=gl.createTexture(); gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,t); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,src);
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE); gl.uniform1i(u(name),unit); return t; }
+    RF.gl={gl:gl, cv:cv, u:u, tex:tex, ready:false}; return RF.gl; }
+  function rfImg(src){ return new Promise(function(ok,no){ var i=new Image(); i.onload=function(){ ok(i); }; i.onerror=no; i.src=src; }); }
+  function rfLoad(){ var G=rfGL(); if(!G) return Promise.reject(new Error("no WebGL"));
+    var fonts=document.fonts?Promise.all([document.fonts.load("400 300px 'Fraunces'"),document.fonts.load("500 22px 'Geist Mono'")]).catch(function(){}):Promise.resolve();
+    return Promise.all([rfImg("asset:assets/launch/rack-stump.jpg"),rfImg("asset:assets/launch/rack-depth.png"),fonts]).then(function(r){
+      G.tex(0,r[0],"img"); G.tex(1,r[1],"dep"); var wc=rfWordCanvas(); G.tex(2,wc,"word"); RF.box=rfBox(wc);
+      var dc=document.createElement("canvas"); dc.width=r[1].width; dc.height=r[1].height; var dx=dc.getContext("2d",{willReadFrequently:true}); dx.drawImage(r[1],0,0); RF.dd=dx.getImageData(0,0,dc.width,dc.height).data; RF.dw=dc.width; RF.dh=dc.height;
+      G.ready=true; }); }
+
+  function rfShow(){ if(RF.on) return; RF.on=true; RF.going=false; RF.idle=true; RF.f=RF.ft=0.9; RF.over=null; RF.last=0;
     var e=rfEl(); RF.el=e; e.className="on"; document.body.classList.add("rackin");
     ["hub","landing","studio","punctum","signin","teacher","hud"].forEach(function(k){ try{ hubHide(k); }catch(x){} });
-    if(typeof WE!=="undefined"){ RF.wind=WE.wind; WE.wind=Math.max(1,WE.wind); WE.dirty=true; }
+    rfLoad().then(function(){ if(!RF.on) return; RF.t0=performance.now(); e.classList.add("ready"); },function(err){ console.warn("rack-in",err); if(!RF.on) return; rfClose(); RF.failed=true; siShow(); });
+    /* the scan loads behind the page, so the demo's opening doesn't have to wait for it */
     if(!loaded){ var sc=(window.SPLAT_SCENES||[])[0]; if(sc){ App.go("landing"); loadBundled(sc); } }
     cancelAnimationFrame(RF.raf); RF.raf=requestAnimationFrame(rfTick); }
   /* leave without the fade (a ?demo link, or the demo starting some other way) */
-  function rfClose(){ if(!RF.on) return; RF.on=false; cancelAnimationFrame(RF.raf); document.body.classList.remove("rackin");
-    if(RF.el) RF.el.className=""; if(RF.scaled&&typeof setScale==="function"){ RF.scaled=false; try{ setScale(dynTop()); }catch(x){} } var sp=viewer&&viewer.spark; if(sp) sp.apertureAngle=0;
-    if(typeof WE!=="undefined"&&RF.wind!=null){ WE.wind=RF.wind; WE.dirty=true; RF.wind=null; }
-    if(camera&&RF.fov!=null){ camera.fov=RF.fov; camera.updateProjectionMatrix(); RF.fov=null; } }
-  function rfPlay(){ if(!RF.on||RF.going||!loaded) return; RF.going=true; RF.over="word"; RF.el.classList.add("going");
-    setTimeout(function(){ RF.el.classList.add("out"); },420);
-    setTimeout(function(){ rfClose(); RF.handoff=true; if(typeof siAct==="function") siAct("demo"); },800); }
-  // ---- where the lens should be: the nearest solid splats under the pointer, like the AF point but anywhere ----
-  function rfSample(){ var P=viewer&&viewer.P, A=viewer&&viewer.A; if(!P) return null; if(RF.sP===P) return RF.sI;
-    var N=P.length/3, want=150000, st=Math.max(1,Math.floor(N/want/1.6)), I=[]; for(var i=0;i<N;i+=st){ if(!A||A[i]>=0.3) I.push(i); }
-    RF.sP=P; RF.sI=new Uint32Array(I); return RF.sI; }
-  function rfPickAt(x,y){ var P=viewer&&viewer.P, I=rfSample(); if(!P||!I||!camera) return null;
-    var v=new THREE.Vector3((x/innerWidth)*2-1, -(y/innerHeight)*2+1, 0.5).unproject(camera), o=camera.position, f=v.sub(o).normalize();
-    var sc=sceneScale(), mt=0.25*sc, ts=[];
-    for(var k=0;k<I.length;k++){ var i=I[k]*3, vx=P[i]-o.x, vy=P[i+1]-o.y, vz=P[i+2]-o.z, t=vx*f.x+vy*f.y+vz*f.z; if(t<mt) continue; var p2=vx*vx+vy*vy+vz*vz-t*t, lim=t*0.03+0.01*sc; if(p2<lim*lim) ts.push(t); }
-    if(ts.length<3) return 18; ts.sort(function(a,b){ return a-b; }); return Math.max(0.3,Math.min(18,ts[Math.min(ts.length-1,3)]/sc)); }
-  function rfOverWord(x,y){ var w=RF.el&&RF.el.querySelector(".rf-word"); if(!w) return false; var r=w.getBoundingClientRect(), px=r.width*0.06, py=r.height*0.22; return x>r.left-px&&x<r.right+px&&y>r.top-py&&y<r.bottom+py; }
-  /* blur in screen pixels for something at d metres, matching what the lens does to the splats around it */
-  function rfCoc(d){ var k=34*innerWidth/1440; return Math.abs(1/d-1/RF.f)*k; }
-  /* the Stump scan is y-down on disk and turned the right way up in the world (x, -y, -z); this is the test page's shot */
-  var RF_EYE=[-1.435,0.55,-0.80], RF_AT=[0.35,0.12,-0.15], RF_FOV=48;
-  function rfPlace(){ camPos.set(RF_EYE[0],RF_EYE[1],RF_EYE[2]); if(typeof _vel!=="undefined") _vel.set(0,0,0);
-    var dx=RF_AT[0]-RF_EYE[0], dy=RF_AT[1]-RF_EYE[1], dz=RF_AT[2]-RF_EYE[2]; yaw=Math.atan2(-dx,-dz); pitch=Math.atan2(dy,Math.hypot(dx,dz)); }
-  /* called by sparkLens while the launch page is up: the 85 wide open, focused where the pointer says */
-  function rfLens(sp){ if(camera){ if(RF.fov==null) RF.fov=camera.fov; camera.position.set(RF_EYE[0],RF_EYE[1],RF_EYE[2]); camera.up.set(0,1,0); camera.lookAt(RF_AT[0],RF_AT[1],RF_AT[2]);
-      var asp=Math.max(1.3,innerWidth/Math.max(1,innerHeight)), vf=2*Math.atan(Math.tan(RF_FOV*Math.PI/360)/asp)*180/Math.PI; if(Math.abs(camera.fov-vf)>0.01){ camera.fov=vf; camera.updateProjectionMatrix(); }   /* RF_FOV is across the frame, like the test render */ camera.updateMatrixWorld(true); }
-    var sc=sceneScale(), S=RF.f*sc, fm=RF_MM/1000*sc; sp.focalDistance=S; sp.apertureAngle=2*Math.atan(fm/RF_N/2/S)*Math.max(gDof,0.6); }
-  function rfTick(now){ if(!RF.on) return; RF.raf=requestAnimationFrame(rfTick); var e=RF.el, t=(now-RF.t0)/1000;
-    if(loaded){ if(!e.classList.contains("ready")){ e.classList.add("ready"); RF.t0=now; t=0; if(typeof setScale==="function"&&typeof dynTop==="function"){ try{ setScale(Math.max(0.5,dynTop()*0.72)); RF.scaled=true; }catch(x){} } }   /* wide open, each splat is drawn much bigger: fewer pixels, like the opening does with its lens up */ rfPlace(); if(App.state!=="scene") App.go("scene"); }
-    else return;
+  function rfClose(){ if(!RF.on) return; RF.on=false; cancelAnimationFrame(RF.raf); document.body.classList.remove("rackin"); if(RF.el) RF.el.className=""; }
+  function rfPlay(){ if(!RF.on||RF.going) return; RF.going=true; RF.over="word"; RF.el.classList.add("going"); RF.fadeT=performance.now()+450; }
+  /* pointer to the still's coordinates, the same cover fit the shader uses */
+  function rfToImg(x,y){ var w=innerWidth, h=innerHeight, sa=w/h, u=x/w, v=y/h; if(sa>RF_IA) v=(v-0.5)*RF_IA/sa+0.5; else u=(u-0.5)*sa/RF_IA+0.5; return [u,v]; }
+  function rfDepth(u,v){ if(!RF.dd) return 2; var x=Math.max(0,Math.min(RF.dw-1,Math.floor(u*RF.dw))), y=Math.max(0,Math.min(RF.dh-1,Math.floor(v*RF.dh))); return 1/(RF_INV[0]+RF.dd[(y*RF.dw+x)*4]/255*(RF_INV[1]-RF_INV[0])); }
+  function rfCoc(d){ return Math.abs(1/d-1/RF.f)*7.5; }
+  function rfSoft(el,k){ if(!el) return; k=Math.round(k*40)/40; if(el._k===k) return; el._k=k; el.style.setProperty("--soft",k.toFixed(3)); }
+  function rfTick(now){ if(!RF.on) return; RF.raf=requestAnimationFrame(rfTick); var G=RF.gl; if(!G||!G.ready||document.hidden) return;
+    var e=RF.el, t=(now-RF.t0)/1000, dt=Math.min(0.1,Math.max(0,(now-(RF.last||now))/1000)); RF.last=now;
     if(RF.going) RF.ft=RF_WORD;
     else if(RF.over==="btn") RF.ft=RF_BTN;
-    else if(RF.px>=0){ if(rfOverWord(RF.px,RF.py)) RF.ft=RF_WORD; else if(now-RF.pick>90){ RF.pick=now; var d=rfPickAt(RF.px,RF.py); if(d) RF.ft=d; } }
-    else if(RF.idle) RF.ft = t<1.4?0.9 : 0.9+(2.1-0.9)*Math.min(1,(t-1.4)/2.8);   /* before you touch it, it drifts onto the stump by itself */
-    var dt=Math.min(0.1,Math.max(0,(now-(RF.last||now))/1000)); RF.last=now; var lf=Math.log(RF.f), lt=Math.log(RF.ft); RF.f=Math.exp(lf+(lt-lf)*(1-Math.exp(-dt*7)));
-    rfSoft(e.querySelector(".rf-word"), Math.min(1,rfCoc(RF_WORD)/7)); rfSoft(e.querySelector(".rf-go"), Math.min(1,rfCoc(RF_BTN)*0.8/7)); }
-  function rfSoft(el,k){ if(!el) return; k=Math.round(k*40)/40; if(el._k===k) return; el._k=k; el.style.setProperty("--soft",k.toFixed(3)); }
-  if(/[?&]dev/.test(location.search)) window.__rf={ show:rfShow, close:rfClose, play:rfPlay, dbg:function(){ var P=viewer&&viewer.P, n=P?P.length/3:0, near=0, cx=0,cy=0,cz=0; for(var i=0;i<n;i+=50){ var x=P[i*3],y=P[i*3+1],z=P[i*3+2]; if(x*x+z*z<0.6){ near++; cx+=x; cy+=y; cz+=z; } } return {cam:camera.position.toArray().map(function(v){return +v.toFixed(2);}), fov:camera.fov, mesh:viewer&&viewer.mesh?viewer.mesh.position.toArray():null, q:viewer&&viewer.mesh?viewer.mesh.quaternion.toArray().map(function(v){return +v.toFixed(2);}):null, stump:near?[cx/near,cy/near,cz/near].map(function(v){return +v.toFixed(2);}):null, n:n}; }, state:function(){ return {on:RF.on, f:+RF.f.toFixed(2), ft:+RF.ft.toFixed(2), ready:!!(RF.el&&RF.el.classList.contains("ready"))}; }, focus:function(d){ RF.idle=false; RF.px=-1; RF.ft=d; } };
+    else if(RF.px>=0){ var iu=rfToImg(RF.px,RF.py), B=RF.box; RF.ft=(B&&iu[0]>=B[0]&&iu[0]<=B[2]&&iu[1]>=B[1]&&iu[1]<=B[3])?RF_WORD:rfDepth(iu[0],iu[1]); }
+    else if(RF.idle) RF.ft = t<1.4?0.9 : 0.9+(1.7-0.9)*Math.min(1,(t-1.4)/2.8);   /* before you touch it, it drifts onto the stump by itself */
+    var lf=Math.log(RF.f), lt=Math.log(RF.ft); RF.f=Math.exp(lf+(lt-lf)*(1-Math.exp(-dt*7)));
+    var fade=RF.going?Math.max(0,Math.min(1,(now-RF.fadeT)/350)):0;
+    if(RF.going&&fade>=1&&!RF.handed){ RF.handed=true; setTimeout(function(){ RF.handed=false; rfClose(); if(typeof siAct==="function") siAct("demo"); },0); }
+    var gl=G.gl, d=Math.min(window.devicePixelRatio||1,1.25), w=Math.max(2,Math.round(innerWidth*d)), h=Math.max(2,Math.round(innerHeight*d));
+    if(G.cv.width!==w||G.cv.height!==h){ G.cv.width=w; G.cv.height=h; } gl.viewport(0,0,w,h);
+    var sa=w/h; if(sa>RF_IA) gl.uniform2f(G.u("px"),1/w,(1/h)*(RF_IA/sa)); else gl.uniform2f(G.u("px"),(1/w)*(sa/RF_IA),1/h);
+    var still=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+    gl.uniform2f(G.u("res"),w,h); gl.uniform1f(G.u("focus"),RF.f); gl.uniform1f(G.u("scale"),30*w/1440); gl.uniform1f(G.u("wordD"),RF_WORD); gl.uniform1f(G.u("time"),still?0:now/1000); gl.uniform1f(G.u("fade"),fade);
+    gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+    rfSoft(e.querySelector(".rf-go"), Math.min(1,rfCoc(RF_BTN)/7)); }
+  if(/[?&]dev/.test(location.search)) window.__rf={ show:rfShow, close:rfClose, play:rfPlay, state:function(){ return {on:RF.on, f:+RF.f.toFixed(2), ft:+RF.ft.toFixed(2), ready:!!(RF.gl&&RF.gl.ready), loaded:loaded}; }, focus:function(d){ RF.idle=false; RF.px=-1; RF.ft=d; } };

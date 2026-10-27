@@ -135,7 +135,7 @@
         statements:STM||(STM=function(c){ var i=c.inputs, o=c.outputs.gsplat, G="("+i.gs+","+i.gb+","+i.go+","+i.ginv+","+i.so+","+i.sinv+","+i.cs+","+i.cb; return [
           o+" = "+i.gsplat+";",
           "if(length("+o+".center.xz-"+i.dcut+".xy)<"+i.dcut+".z && "+o+".center.y>"+i.dcy+".x && "+o+".center.y<"+i.dcy+".y) "+o+".rgba.a=0.0;",
-          "if("+i.on+" > 0.5 && isGsplatActive("+o+".flags)){",
+          "if("+i.on+" > 0.001 && isGsplatActive("+o+".flags)){",   /* on blends: the default look can fade in */
           "  vec3 c="+o+".center; vec3 s=abs("+o+".scales);",
           "  int k=(s.x<=s.y && s.x<=s.z)?0:((s.y<=s.z)?1:2); vec3 ax=k==0?vec3(1.0,0.0,0.0):(k==1?vec3(0.0,1.0,0.0):vec3(0.0,0.0,1.0));",
           "  vec3 n=normalize(rbRot("+o+".quaternion, ax));",
@@ -158,7 +158,7 @@
           "    vec3 li=sh*E*lb.rgb*mix(1.0,ao,0.6); Lt+=li; Ls+=pow(max(dot(n,normalize(Ld+V+1e-4)),0.0),mix(48.0,10.0,clamp(R/d*2.0,0.0,1.0)))*0.05*f*f*li*min(dot(base,vec3(0.33)),0.5)*2.0; }",
           "  vec3 x=base*max(Lt,vec3(0.0))+Ls;",
           "  vec3 sx=mix(x, 0.8+0.2*(vec3(1.0)-exp(-(x-0.8)/0.2)), step(vec3(0.8),x));",   /* a soft shoulder: no hard clip on hot spots */
-          "  "+o+".rgba.rgb=pow(sx,vec3(1.0/2.2));",
+          "  "+o+".rgba.rgb=mix("+o+".rgba.rgb, pow(sx,vec3(1.0/2.2)), min("+i.on+",1.0));",
           "}"]; }) });
       return {gsplat:dd.outputs.gsplat}; }); }
     var mod=build(U); var cut=viewer.cut; if(cut){ U.dcut.value.set(cut[0],cut[1],cut[2],0); U.dcy.value.set(cut[3],cut[4]); }
@@ -721,7 +721,7 @@
   /* the slow part (the light grid) built ahead, behind the opening's dark */
   function rbDefaultPrep(){ if(!(loaded&&viewer&&viewer.P&&viewer.mesh&&CH.spec&&CH.spec.id==="stump")||RLB.built) return;   /* the opening's own rig may be up: the grid doesn't mind */ try{ if(!RL.ready){ RL.P=viewer.P; RL.A=viewer.A; RL.N=RL.P.length/3; RL.S=rlScale(); RL.ready=true; } if(!RL.target) RL.target=rlTarget();
       if(!RLB.built){ rlGrid(); rbGridSharp(); RLB.built=true; } }catch(e){ console.warn("default look prep",e); } }   /* grids only: installing the daylight shader here would take the scan away from the opening's rig */
-  function rbDefaultLook(fade){ if(!rbDefaultOk()) return; if(fade){ RLB.onK=0; RLB.fadeT=performance.now(); } rbDefaultPrep(); try{ rbInstall(); }catch(e){ console.warn("default look install",e); return; }
+  function rbDefaultLook(fade){ if(!rbDefaultOk()) return; rbDefaultPrep(); try{ rbInstall(); }catch(e){ console.warn("default look install",e); return; } if(fade){ RLB.onK=0; RLB.fadeT=performance.now(); }
     try{ var sp=CH.spec.spawn; if(sp&&RLB.north==null){ var yw=sp[2]||0, view=Math.atan2(-Math.sin(yw),-Math.cos(yw))*180/Math.PI, M=rbMarks(), sa=rbSolar(M.goldPm||19*60+30).az; RLB.north=((view+140-sa)%360+360)%360; }   /* the sun is set from the starting view, wherever the camera happens to be */
       RLB.day="today"; RLB.mins=13*60+35; RLB.boost=1.3; RLB.sat=1.2; rbSunOn(); rbDirty(); }catch(e){ console.warn("default look",e); } }
   if(/[?&]dev/.test(location.search)) window.__rlb={ RLB:RLB, RL:RL, deflook:rbDefaultLook, why:function(){ return {loaded:loaded, P:!!(viewer&&viewer.P), id:CH.spec&&CH.spec.id, sun:RLB.sunMode, lights:RL.lights.length}; }, deflook:rbDefaultLook, why:function(){ return {loaded:loaded, P:!!(viewer&&viewer.P), id:CH.spec&&CH.spec.id, sun:RLB.sunMode, lights:RL.lights.length}; }, open:rlOpen, close:rlClose, add:rbAdd, sel:function(i){ RLB.sel=i; rbStands(); rbPanel(true); },

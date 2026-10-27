@@ -228,8 +228,8 @@
       var bump=function(a,b,c,d){ return u<a||u>d?0:u<b?laE((u-a)/(b-a)):u<c?1:1-laE((u-c)/(d-c)); }, fg=2*bump(0.0,0.16,0.52,0.82), rn=1.6*bump(0.14,0.24,0.44,0.58); if(day) rn=fg=0;   /* fog creeps in, rain comes and goes, the fog lifts as the sun comes up */
       if(Math.abs(WE.rain-rn)>0.005||Math.abs(WE.fog-fg)>0.005){ WE.rain=rn; WE.fog=fg; WE.dirty=true; } }
     var t=performance.now(), moving=!!(T.S&&!day&&!(T.shad>0.02)); if(!now&&!moving&&t-T.t<100) return; T.t=t;   /* while the boxes move it updates every frame, so they glide */
-    (T.set||[]).forEach(function(L,i){ var sw=moving?0.7+0.55*Math.pow(0.5+0.5*Math.sin(t/1000*1.6+i*Math.PI),3):1; L.power=L.p0*sw*(day?1-laE(day):1); L.on=L.power>0.05; });   /* each box swells in turn, like a strobe's modelling light coming up */
-    if(T.S&&!day){ var tt=t/1000; (T.set||[]).forEach(function(L,i){ var a=(L.a0+tt*14*(i?-1:1)+Math.sin(tt*0.35+i*2.1)*22)*Math.PI/180, r=L.r0*(1+0.1*Math.sin(tt*0.29+i*1.7)); L.h=L.h0+0.25*Math.sin(tt*0.4+i*1.3); L.k=Math.round(L.k0+300*Math.sin(tt*0.23+i*2.6));
+    (T.set||[]).forEach(function(L,i){ var sw=1+(0.55*Math.pow(0.5+0.5*Math.sin(t/1000*1.6+i*Math.PI),3)-0.3)*(1-laE(Math.min(1,(T.shad||0)*50))); L.power=L.p0*sw*(day?1-laE(day):1); L.on=L.power>0.05; });   /* each box swells in turn, like a strobe's modelling light coming up */
+    if(moving){ var tt=t/1000; (T.set||[]).forEach(function(L,i){ var a=(L.a0+tt*14*(i?-1:1)+Math.sin(tt*0.35+i*2.1)*22)*Math.PI/180, r=L.r0*(1+0.1*Math.sin(tt*0.29+i*1.7)); L.h=L.h0+0.25*Math.sin(tt*0.4+i*1.3); L.k=Math.round(L.k0+300*Math.sin(tt*0.23+i*2.6));
       rlSetPos(L, T.S[0]+Math.sin(a)*r*RL.S, T.S[1]+Math.cos(a)*r*RL.S); rlAimAt(L,{x:T.S[0], y:T.gy+0.45, z:T.S[1]}); }); }   /* the two boxes circle the stump in opposite directions, close, slowly rising and falling */
     laGlow(day?1-day:u);
     T.shad=day?Math.max(0,1-day*2.5):laE(Math.max(0,Math.min(1,(u-0.8)/0.18))); RL.shadows=T.shad>0.001;   /* shadows fade in for the last of golden hour, long ones across the clearing for the shot */   /* the key and rim stay put through the changes; they go as the plain day comes back */

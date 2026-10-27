@@ -7,7 +7,7 @@ const OPTS = { board:{ A:'Magnetic rows', B:'Free layout' }, marker:{ A:'Mat', B
 const LABEL = { board:'Sequence board', marker:'Pair marker' };
 const pick = { board:'B', marker:'A' };
 const HOST=(()=>{ try{ return window.parent!==window&&window.parent.LT_BRIDGE||null; }catch(e){ return null; } })();
-function SFX(id,o){ try{ if(HOST&&HOST.sfx) HOST.sfx(id,o); }catch(e){} }
+function SFX(id,o){ try{ if(HOST&&HOST.sfx) return HOST.sfx(id,o); }catch(e){} return null; }
 if(!HOST) try{ const s=JSON.parse(localStorage.getItem('lt_pick7')||'null'); if(s) Object.keys(pick).forEach(k=>{ if(s[k]&&OPTS[k][s[k]]) pick[k]=s[k]; }); }catch(e){}
 const TOP=78;
 const F={ lift:0.55, tiltK:0.10, maxTilt:0.32, k:170, c:13, follow:20, jitter:0.05, sag:0.035 };
@@ -390,7 +390,7 @@ function pinGroup(members, note, kind, at, silent){ if(!silent) SFX('pin');
 function unlink(g){ pushUndo(); const i=wallGroups.indexOf(g); if(i<0) return; wallGroups.splice(i,1);
   g.members.forEach(p=>{ const ng={ id:++wgN, members:[p], note:null, kind:'single', date:g.date, x:p.wx, y:p.wy }; p.wg=ng; wallGroups.push(ng); layoutGroup(ng); });
   hideActs(); saveAll(); toast('Unlinked. Each print moves on its own now.','Undo',undo); }
-function unpin(g){ g.members.forEach(p=>{ p.wg=null; toPile(p); }); wallGroups.splice(wallGroups.indexOf(g),1); hideActs(); restack(); saveAll(); }
+function unpin(g){ SFX('ltUnpin'); g.members.forEach(p=>{ p.wg=null; toPile(p); }); wallGroups.splice(wallGroups.indexOf(g),1); hideActs(); restack(); saveAll(); }
 
 /* ================= saving: the whole table, wall and binder state, to Studium's session (or this browser) ================= */
 const SAVE='lt_v6', HIST_KEY='lt_wallhist_v5', BOOK_KEY='lt_book_v5';
@@ -441,7 +441,7 @@ function snap(){ return { lib:library.map(i=>i.id), prints:prints.filter(p=>!(p.
   walls:wallGroups.map(g=>({ id:g.id, ids:g.members.map(p=>p.id), x:g.x, y:g.y, kind:g.kind, date:g.date, note:g.note?{ why:[...g.note.why], text:g.note.text }:null })), strings:strSnap() }; }
 function pushUndo(){ undoStack.push(snap()); if(undoStack.length>40) undoStack.shift(); }
 function undo(){ if(drag.p||SCAN.busy||SH.busy||prints.some(p=>p.locked)){ toast('Hang on, something is still moving.'); return; }
-  const s=undoStack.pop(); if(!s){ toast('Nothing to undo.'); return; } restore(s); toast('Undone.'); }
+  const s=undoStack.pop(); if(!s){ toast('Nothing to undo.'); return; } SFX('ltUndo'); restore(s); toast('Undone.'); }
 function restore(s){ closeInspect(); closeNote(); hideActs(); closeCtx();
   const keepLib=new Set(s.lib); for(let i=library.length-1;i>=0;i--){ if(!keepLib.has(library[i].id)){ const p=byId(library[i].id); if(p) rawRemove(p); library.splice(i,1); } }
   const keep=new Set(s.prints.map(q=>q.id));
@@ -488,7 +488,7 @@ function focus(which){ if(SH.busy) return; zoomAnchor=null; const was=cam.view; 
   else { cam.pitch=TOP; cam.ty=0;
     if(which==='board'){ cam.tx=BX; cam.tz=BZ+0.3; cam.dT=fitDist(BW+1.6,BH+1.6,cam.pitch); } else { cam.tx=0; cam.tz=0.3; cam.dT=fitDist(W_T+1.5,H_T+1,cam.pitch); } }
   ['bTable','bBoard','bWall'].forEach(id=>$(id).classList.toggle('on', id==='b'+which[0].toUpperCase()+which.slice(1)));
-  document.body.dataset.view=cam.view; hideActs(); renderHist(); if(was!==cam.view) tourEv(cam.view); }
+  document.body.dataset.view=cam.view; if(was!==cam.view) SFX('ltView',{off:cam.view!=='wall'}); hideActs(); renderHist(); if(was!==cam.view) tourEv(cam.view); }
 
 /* ================= pointer ================= */
 const mouse={ x:0, y:0, in:false, n:new THREE.Vector2() };
@@ -540,7 +540,7 @@ canvas.addEventListener('wheel', e=>{ e.preventDefault(); setNDC(e); closeCtx();
   ['bTable','bBoard'].forEach(id=>$(id).classList.remove('on'));
 },{ passive:false });
 
-function startDrag(p){ SFX('lift'); pushUndo(); hideActs(); drag.p=p; p.order=++orderN; drag.wx=p.x; drag.wz=p.z; drag.pileYaw=p.onBoard||p.rejected?(Math.random()-0.5)*0.4:p.yawT;
+function startDrag(p){ SFX(p.rejected?'ltUnreject':'lift'); pushUndo(); hideActs(); drag.p=p; p.order=++orderN; drag.wx=p.x; drag.wz=p.z; drag.pileYaw=p.onBoard||p.rejected?(Math.random()-0.5)*0.4:p.yawT;
   if(p.rejected) unreject(p);
   const was=p.onBoard; removeFromBoard(p); if(was) layoutBoard(null); canvas.style.cursor='grabbing'; updateChains(false); }
 function inScanner(x,z){ return Math.abs(x-SC.x)<SC.w/2+0.2 && Math.abs(z-SC.z)<SC.d/2+0.2; }
@@ -566,8 +566,8 @@ function endDrag(){ const p=drag.p, pv=drag.preview, tg=drag.target; ghost.visib
 let inspZoom=1;
 const dim=new THREE.Mesh(new THREE.PlaneGeometry(1,1), new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0, depthTest:false, depthWrite:false }));
 dim.renderOrder=10; camera.add(dim);
-function openInspect(p){ hideActs(); inspected=p; p.inspT=1; inspZoom=1; if(!p.wg) p.order=++orderN; p.mat.transparent=true; p.mat.depthTest=false; p.mesh.renderOrder=11; hint('Move the mouse to tilt · scroll to bring it closer · click anywhere to put it down'); }
-function closeInspect(){ if(!inspected) return; inspected.inspT=0; inspected=null; hint(null); }
+function openInspect(p){ SFX('ltInspect'); hideActs(); inspected=p; p.inspT=1; inspZoom=1; if(!p.wg) p.order=++orderN; p.mat.transparent=true; p.mat.depthTest=false; p.mesh.renderOrder=11; hint('Move the mouse to tilt · scroll to bring it closer · click anywhere to put it down'); }
+function closeInspect(){ if(!inspected) return; SFX('ltPutDown'); inspected.inspT=0; inspected=null; hint(null); }
 
 /* ================= loupe (glass) ================= */
 const loupe={ on:false };
@@ -596,7 +596,7 @@ const loupeProp=new THREE.Group();
   loupeProp.add(m1,m2,m3); blobShadow(1.5,1.5,loupeProp,0.1,0.12); }
 loupeProp.position.set(BOX.x+0.1,0,BOX.z-BOX.d/2-1.25); scene.add(loupeProp);
 function loupeHit(e){ setNDC(e); ray.setFromCamera(ndc,camera); return loupeProp.visible && ray.intersectObject(loupeProp,true).length>0; }
-function setLoupe(on){ loupe.on=on; loupeProp.visible=!on; canvas.style.cursor=on?'none':'default'; $('bLoupe').classList.toggle('on',on); }
+function setLoupe(on){ if(!!loupe.on!==!!on) SFX('ltLoupe',{off:!on}); loupe.on=on; loupeProp.visible=!on; canvas.style.cursor=on?'none':'default'; $('bLoupe').classList.toggle('on',on); }
 
 /* ================= pairs & sequences: marker, rhythm strip, notes ================= */
 let chains=[]; const threads=new THREE.Group(); scene.add(threads);
@@ -695,16 +695,17 @@ function shredFrame(dt){
         if(T){ T.n++; it.sheet=new THREE.Mesh(new THREE.PlaneGeometry(W,H),new THREE.MeshBasicMaterial({ map:T.tex, side:THREE.DoubleSide })); it.sheet.position.copy(_shV); scene.add(it.sheet);
           const rw=W/RIBS; for(let r=0;r<RIBS;r++){ T.n++; const m=new THREE.Mesh(ribbonGeo(rw*0.94,0.001,0,0.001,r/RIBS,(r+1)/RIBS,false),new THREE.MeshBasicMaterial({ map:T.tex, side:THREE.DoubleSide }));
             m.position.set(SHR.x-W/2+rw*(r+0.5), SHR.binTop, SHR.z+(Math.random()-0.5)*0.06); scene.add(m); it.ribs.push(m); } }
-        SFX('shRun',{D:1.5}); } }   /* every photo gets its own run, and the light comes on while it goes through */
+        it.motor=SFX('shRun',{D:3}); it.bite=1; } }   /* every photo gets its own motor, and the light comes on while it goes through */
     else { feeding=true;
       it.f=Math.max(0,it.f-dt/1.4*(0.75+0.5*Math.abs(Math.sin(it.t*13))));
+      if(it.bite-it.f>=0.07){ it.bite=it.f; SFX('shBite'); }   /* the chewing follows the paper, bite for bite */
       const fedLen=H*(1-it.f);
       if(it.sheet){ const hh=Math.max(0.0001,H*it.f), g=it.sheet.geometry, P=g.attributes.position, uv=g.attributes.uv;
         for(let k=0;k<P.count;k++){ const top=uv.getY(k)>0.5||P.getY(k)>0; P.setY(k,top?hh/2:-hh/2); uv.setY(k,top?1:1-it.f); } P.needsUpdate=true; uv.needsUpdate=true;
         it.sheet.position.set(SHR.x+(Math.random()-0.5)*0.012, SHR.top+hh/2+0.01, SHR.z); }
       /* the ribbons grow out under the head as the print goes in: the bottom of the photo comes out first and hangs lowest */
       it.ribs.forEach((m,r)=>{ const L=Math.max(0.001,fedLen); m.geometry.dispose(); m.geometry=ribbonGeo((W/RIBS)*0.94,L,0,1-it.f,r/RIBS,(r+1)/RIBS,false); m.position.y=SHR.binTop-L/2; m.rotation.z=Math.sin(it.t*3+r)*0.02*(L/H); });
-      if(it.f<=0){ SH.items.splice(i,1); if(it.sheet){ scene.remove(it.sheet); it.sheet.geometry.dispose(); it.sheet.material.dispose(); shredRelease(p.id); }
+      if(it.f<=0){ if(it.motor){ try{ it.motor.gain.setTargetAtTime(0.0001,it.motor.context.currentTime,0.08); }catch(e){} it.motor=null; } SH.items.splice(i,1); if(it.sheet){ scene.remove(it.sheet); it.sheet.geometry.dispose(); it.sheet.material.dispose(); shredRelease(p.id); }
         it.ribs.forEach((m,r)=>{ SH.strips.push({ m, id:p.id, len:H, w:W/RIBS, r, vy:-0.2-Math.random()*0.4, delay:Math.random()*0.25, rest:false, yaw:(Math.random()-0.5)*1.2, spin:(Math.random()-0.5)*2.5 }); });
         while(SH.strips.length>RIBS*30){ const o=SH.strips.shift(); scene.remove(o.m); o.m.geometry.dispose(); o.m.material.dispose(); shredRelease(o.id); }
         p.shredding=false; p.group.visible=true; p.shadow.visible=true; removePrint(p); SH.done++; } } }
@@ -768,7 +769,7 @@ window.addEventListener('pointerup', ()=>{ if(!GD.on) return; GD.on=false; docum
 function hideActs(){ clearTimeout(ACTS.t); ACTS.el.classList.remove('on'); ACTS.key=null; ACTS.anchor=null; }
 ACTS.el.addEventListener('pointerleave',()=>{ clearTimeout(ACTS.t); ACTS.t=setTimeout(()=>{ if(!HOV.p) hideActs(); },300); });
 const CTX=$('ctx');
-function openCtx(p,x,y){ hideActs(); const items=[];
+function openCtx(p,x,y){ SFX('ltMenu'); hideActs(); const items=[];
   if(p.wg){ const g=p.wg;
     if(g.note&&(g.note.why.size||g.note.text)) items.push(['Why these go together','',()=>toast(noteSummary(g.note))]);
     if(g.members.length>1) items.push(['Send to photobook','',()=>sendToBook(g.members.map(q=>q.id), g.note)]);
@@ -826,7 +827,7 @@ function updateStrings(){ for(let i=strings.length-1;i>=0;i--){ const s=strings[
     const key=[a.x,a.y,b.x,b.y,s.c].map(v=>(+v).toFixed(2)).join();
     if(key!==s.key){ if(s.mesh){ strGroup.remove(s.mesh); disposeGroup(s.mesh); } s.mesh=makeStringMesh(STR_COLORS[s.c][1],a,b); strGroup.add(s.mesh); s.key=key; s.pts=stringCurve(a,b).getPoints(28); }
     s.mesh.visible=histIdx<0; s.mesh.userData.mat.emissive.setHex(STR.hov===s?0x3a3328:0x000000); } }
-function startString(c, from, orig){ STR.hold={ c, from:from||null, orig:orig||null }; STR.last=c; canvas.style.cursor='crosshair'; hideActs();
+function startString(c, from, orig){ SFX('ltString'); STR.hold={ c, from:from||null, orig:orig||null }; STR.last=c; canvas.style.cursor='crosshair'; hideActs();
   toast(orig?'Moving the string. Click to pin it, Delete to cut it, right-click to put it back.':from?'Click another print, or a spot on the wall. Right-click to let go.':'Picked up '+STR_COLORS[c][0].toLowerCase()+' string. Click a print to pin one end. Right-click to put it back.'); }
 function dropString(putBack){ const h=STR.hold; STR.hold=null; if(STR.tube){ strGroup.remove(STR.tube); disposeGroup(STR.tube); STR.tube=null; }
   if(h&&h.orig&&putBack!==false){ strings.push({ id:++strN, c:h.orig.c, a:h.orig.a, b:h.orig.b, mesh:null, key:'' }); undoStack.pop(); }
@@ -855,9 +856,9 @@ function stringPointer(e){ setNDC(e);
   const p=hitPrint(e); let end=null;
   if(p&&p.wg) end={ id:p.id }; else { const h=wallHit(camera,ndc); if(h) end={ x:+h.x.toFixed(3), y:+h.y.toFixed(3) }; }
   if(!end) return true;
-  if(!STR.hold.from){ STR.hold.from=end; toast('Now click another print, or a spot on the wall.'); return true; }
+  if(!STR.hold.from){ STR.hold.from=end; SFX('ltStringTie'); toast('Now click another print, or a spot on the wall.'); return true; }
   if(end.id!=null&&end.id===STR.hold.from.id) return true;
-  if(!STR.hold.orig) pushUndo(); strings.push({ id:++strN, c:STR.hold.c, a:STR.hold.from, b:end, mesh:null, key:'' }); dropString(false); saveAll(); tourEv('string'); { const s0=strings[strings.length-1], pa=s0.a.id!=null&&byId(s0.a.id), pb=s0.b.id!=null&&byId(s0.b.id); if(pa&&pb&&pa.wg&&pb.wg&&pa.wg!==pb.wg&&HOST&&HOST.flag) try{ HOST.flag('ltString'); }catch(e){} } return true; }
+  SFX('ltStringTie'); if(!STR.hold.orig) pushUndo(); strings.push({ id:++strN, c:STR.hold.c, a:STR.hold.from, b:end, mesh:null, key:'' }); dropString(false); saveAll(); tourEv('string'); { const s0=strings[strings.length-1], pa=s0.a.id!=null&&byId(s0.a.id), pb=s0.b.id!=null&&byId(s0.b.id); if(pa&&pb&&pa.wg&&pb.wg&&pa.wg!==pb.wg&&HOST&&HOST.flag) try{ HOST.flag('ltString'); }catch(e){} } return true; }
 function showMenu(items,x,y){ hideActs(); CTX.innerHTML=''; items.forEach(it=>{ if(!it){ CTX.appendChild(document.createElement('hr')); return; } const b=document.createElement('button'); b.type='button'; b.innerHTML='<span></span><kbd></kbd>'; b.firstChild.textContent=it[0]; b.lastChild.textContent=it[1]; if(!it[1]) b.lastChild.remove();
     b.onclick=()=>{ closeCtx(); it[2](); }; CTX.appendChild(b); });
   CTX.classList.add('on'); const r=CTX.getBoundingClientRect(); CTX.style.left=Math.min(window.innerWidth-r.width-10,x)+'px'; CTX.style.top=Math.min(window.innerHeight-r.height-10,y)+'px'; }

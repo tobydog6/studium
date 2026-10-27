@@ -102,12 +102,23 @@
     cullEnd: [0.5,function(b,t){ sxTone(b,t,SN.A2,"sine",0.3,0.04,0.5,1.2); sxTone(b,t,SN.E3,"sine",0.35,0.025,0.5,1.2); }],
     lsMove:  [0.45,function(b,t){ [[1,1],[2.76,0.3],[5.4,0.08]].forEach(function(h){ sxTone(b,t,SN.A3*h[0],"sine",0.003,0.05*h[1],0.02,1.8); sxTone(b,t+0.9,SN.E3*h[0],"sine",0.003,0.05*h[1],0.02,1.8); }); }],   /* low bell */
     shPan:   [0.5,function(b,t){ sxTone(b,t,SN.E3,"sine",0.3,0.03,0.4,0.6,SN.A2); }],   /* shredder: drone slide down the table edge */
-    shRun:   [0.5,function(b,t,o){ var D=Math.max(1.2,(o&&o.D)||2); sxNoise(b,t,"lowpass",300,0.8,0.15,0.03,D,0.4); sxTone(b,t,82.41,"sine",0.2,0.02,D,0.4);
-      for(var i=0;i<Math.round(D/0.45);i++) sxNoise(b,t+0.2+i*0.45,"bandpass",900,1,0.05,0.012,0.15,0.1,500); }],   /* muted, in the darkroom: one run for the whole batch */
+    shRun:   [0.5,function(b,t,o){ var D=Math.max(0.6,(o&&o.D)||2); sxNoise(b,t,"lowpass",300,0.8,0.12,0.03,D,0.25); sxTone(b,t,82.41,"sine",0.12,0.02,D,0.25); }],   /* the motor under one photo; faded out the moment the photo is through */
+    shBite:  [0.4,function(b,t){ sxNoise(b,t,"bandpass",900,1,0.02,0.014,0.06,0.09,500); }],   /* one bite of the cutter, fired as the paper moves */
     shFall:  [0.6,function(b,t){ [SN.A2,SN.E3,SN.A3].forEach(function(f,i){ sxTone(b,t+i*0.05,f,"sine",0.25,[0.045,0.03,0.02][i],0.4,1.3,null,(i-1)*0.3); }); }],   /* drone resolve */
+    /* light table, the last eleven: Sam's picks (28 Oct) */
+    ltInspect:[0.5,function(b,t){ sxTone(b,t,110,"sine",0.05,0.03,0.05,0.4); sxNoise(b,t,"lowpass",450,0.7,0.12,0.01,0.03,0.2); }],   /* drone touch */
+    ltPutDown:[0.6,function(b,t){ sxNoise(b,t,"bandpass",1200,0.9,0.05,0.016,0.03,0.25,350); }],   /* air down */
+    ltLoupe: [0.3,function(b,t,o){ if(!(o&&o.off)){ sxNoise(b,t,"bandpass",900,1,0.05,0.012,0.02,0.1,1600); sxTone(b,t+0.02,260,"sine",0.003,0.012,0.01,0.2); return; } sxWood(b,t,900,0.03); sxNoise(b,t,"lowpass",350,0.7,0.003,0.03,0.01,0.08); }],
+    ltString:[0.3,function(b,t){ sxNoise(b,t,"bandpass",1800,2.5,0.08,0.012,0.05,0.08,2600,-0.2,0.2); }],
+    ltStringTie:[0.4,function(b,t){ sxTick(b,t,4000,0.012); sxTone(b,t,98,"triangle",0.003,0.03,0.02,0.35); sxTone(b,t,196,"sine",0.003,0.01,0.02,0.25); }],
+    ltUnpin: [0.6,function(b,t){ sxNoise(b,t,"bandpass",500,0.9,0.12,0.016,0.03,0.2,1800); }],   /* air up */
+    ltView:  [0.5,function(b,t,o){ var up=!(o&&o.off); sxTone(b,t,up?110:164.81,"sine",0.25,0.03,0.1,0.5,up?164.81:110); }],   /* drone shift: up to the wall, down to the table */
+    ltUnreject:[0.6,function(b,t){ sxNoise(b,t,"bandpass",500,0.9,0.1,0.016,0.03,0.2,1800); }],
+    ltUndo:  [0.35,function(b,t){ sxWood(b,t,1000,0.03); }],   /* wood tap */
+    ltMenu:  [0.5,function(b,t){ sxTone(b,t,110,"sine",0.01,0.025,0.02,0.2); sxWood(b,t,1200,0.012); }],
     capture: [0.6,function(b,t){ sxNoise(b,t,"bandpass",400,0.9,0.03,0.03,0.02,0.4,2400); }]   /* air flash */
   };
-  var SFX_GAP={step:150, lTime:35, heal:70, stMark:50, hover:45, detent:22, grab:60, select:60, back:60, toggle:40, lift:60, drop:60};   /* ms between repeats of the same cue */
+  var SFX_GAP={shBite:40, step:150, lTime:35, heal:70, stMark:50, hover:45, detent:22, grab:60, select:60, back:60, toggle:40, lift:60, drop:60};   /* ms between repeats of the same cue */
   var SFX_GAIN={ach:0.75};   /* per-cue trims Sam asked for: the achievement a touch quieter */
   function sfx(id, o){ var cue=SFX_CUES[id]; if(!cue||!soundOn) return; if(navigator.userActivation&&!navigator.userActivation.hasBeenActive) return;   /* nothing before the first click, or it all plays late in a burst */ var now=performance.now(); if(SFX.at[id]&&now-SFX.at[id]<(SFX_GAP[id]||30)) return;
     SFX.at[id]=now; if(id!=="hover") SFX.last=now;

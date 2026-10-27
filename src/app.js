@@ -470,7 +470,7 @@
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
     renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
-    if(viewer){ try{ skyFollow(); wxSkyFor(camera.position); sparkLens(); ptRender(); wxSkyFor(camera.position); renderer.setRenderTarget(sceneRT); renderer.render(scene,camera); chRender(dt); if(typeof bndRender==="function") bndRender(dt); }catch(e){ if(!renderFrame.warned){ renderFrame.warned=1; console.error("render failed",e); } } }
+    if(viewer){ try{ skyFollow(); if(typeof weTick==="function") weTick(dt); wxSkyFor(camera.position); sparkLens(); ptRender(); wxSkyFor(camera.position); renderer.setRenderTarget(sceneRT); renderer.render(scene,camera); chRender(dt); if(typeof bndRender==="function") bndRender(dt); }catch(e){ if(!renderFrame.warned){ renderFrame.warned=1; console.error("render failed",e); } } }
     var useD=false;
     if(loaded&&dt>0) chTick(dt);
     renderer.setRenderTarget(fsTarget);
@@ -733,6 +733,9 @@
     var lim=handheldLimit(), eqmm=Math.round(camEquiv());
     if(lastShake>0.0025) tips.unshift(["Camera shake · "+sh+" at "+eqmm+" mm","Too slow to hold this lens steady, so the whole frame smeared. Rule of thumb: 1 over the focal length. Try "+lim.label+" or faster, and open the aperture or raise the ISO to keep the exposure."]);
     else if(shakeRisk()) tips.unshift(["Lucky · "+sh+" at "+eqmm+" mm","You got away with it this time, but that's slower than you can reliably hand-hold. "+lim.label+" or faster is the safe speed for this lens."]);
+    if(typeof WE!=="undefined"&&WE.rain>0){ var ts=SHUTTERS[shIdx]; if(ts<=1/500+1e-6) tips.unshift(["Rain frozen · "+sh,"At this speed each drop barely moves while the shutter is open, so the rain hangs in the air as beads."]);
+      else if(ts>=1/30-1e-6) tips.unshift(["Rain streaks · "+sh,"The shutter stays open while the drops fall, so they draw lines. Slower still and the rain melts into a soft haze."]);
+      else tips.unshift(["Rain · "+sh,"Somewhere between frozen and streaked. Try 1/1000 and then 1/15 and compare the two."]); }
     if(!tips.length) tips.push(["Balanced exposure","A clean, neutral setup. Now change one dial — aperture, shutter or ISO — and watch what it does to the shot."]);
     if(viewfinderOn && typeof vfToast==="function") vfToast(tips[0][1]); else showTip(tips[0][0], tips[0][1]); }
 
@@ -1050,6 +1053,7 @@
 @@include walk.js@@
 @@include sky.js@@
 @@include relight.js@@
+@@include weather.js@@
 @@include lightb.js@@
 @@include challenge.js@@
 @@include guardian.js@@

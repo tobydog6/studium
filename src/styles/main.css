@@ -3070,3 +3070,17 @@ body[data-state="studio.table"] #stHints{display:none}
 #launch.flash .la-snap{animation:laFlash .14s ease-out both}
 @keyframes laFlash{from{opacity:1}to{opacity:0}}
 body.la-nochrome #viewfinder,body.la-nochrome #vfFrame,body.la-nochrome #vfAF{visibility:hidden!important}
+/* weather squares under the kit */
+#kitMenu .kit-wx{display:flex;align-items:center;gap:10px;margin:16px 4px 0}
+#kitMenu .kit-wx-l{font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;color:var(--ink-4);margin-right:6px}
+#kitMenu .kit-wx-s{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--muted);margin-left:8px;text-transform:uppercase}
+#kitMenu .wx-sq{position:relative;width:50px;height:50px;padding:0;display:grid;place-items:center;border-radius:10px;border:1px solid rgba(var(--bone-rgb),.12);background:linear-gradient(180deg,rgba(23,20,15,.92),rgba(16,14,11,.94));color:var(--ink-3);cursor:pointer;transition:border-color .2s,color .2s,transform .2s cubic-bezier(.2,.7,.2,1),box-shadow .25s}
+#kitMenu .wx-sq svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;margin-top:-6px}
+#kitMenu .wx-sq:hover{border-color:rgba(var(--gold-rgb),.45);color:var(--text);transform:translateY(-2px)}
+#kitMenu .wx-sq.on{border-color:rgba(var(--gold-rgb),.75);color:#f6e3bf;box-shadow:0 0 0 1px rgba(var(--gold-rgb),.2),0 0 26px rgba(var(--gold-rgb),.12)}
+#kitMenu .wx-dots{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);display:flex;gap:4px}
+#kitMenu .wx-dots b{width:5px;height:5px;border-radius:50%;background:rgba(var(--bone-rgb),.16)}
+#kitMenu .wx-dots b.y{background:var(--accent)}
+#kitMenu .wx-sq kbd{position:absolute;top:-7px;right:-7px;min-width:16px;height:16px;display:grid;place-items:center;font-family:var(--mono);font-size:9px;color:var(--ink-2);background:var(--s3);border:1px solid rgba(var(--bone-rgb),.14);border-radius:4px;opacity:0;transition:opacity .2s}
+#kitMenu .wx-sq:hover kbd{opacity:1}
+#kitMenu.show .kit-wx{animation:kitRise .5s cubic-bezier(.2,.8,.2,1) .32s backwards}

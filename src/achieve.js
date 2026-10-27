@@ -13,7 +13,7 @@
   function achCapture(){ try{
     var f=new THREE.Vector3(); camera.getWorldDirection(f); var hl=Math.hypot(f.x,f.z)||1, fx=f.x/hl, fz=f.z/hl, S=(typeof RL!=="undefined"&&RL.S)||1;
     var c={pos:[+camPos.x.toFixed(3),+camPos.y.toFixed(3),+camPos.z.toFixed(3)], yaw:+(Math.atan2(fx,fz)*180/Math.PI).toFixed(1), pitch:+(pitch*180/Math.PI).toFixed(1),
-      low:typeof WK!=="undefined"&&WK.mode==="walk"&&WK.eye<=WK_EYE_MIN+0.03, focus:+focusDist.toFixed(3), vert:!!vertical, ms:Date.now(), still:achStill(), body:curBody().id, eq:Math.round(camEquiv()), S:S, lights:[], sunAng:null};
+      low:typeof WK!=="undefined"&&WK.mode==="walk"&&WK.eye<=WK_EYE_MIN+0.03, focus:+focusDist.toFixed(3), vert:!!vertical, ms:Date.now(), still:achStill(), body:curBody().id, eq:Math.round(camEquiv()), S:S, lights:[], sunAng:null, wx:typeof weState==="function"?weState():null};
     if(typeof RL!=="undefined"&&RL.on){
       if(RL.sunPow>0&&RL.sunAz!=null){ var a=RL.sunAz*Math.PI/180; c.sunAng=Math.round(Math.acos(Math.max(-1,Math.min(1,fx*Math.sin(a)+fz*Math.cos(a))))*180/Math.PI); }
       var on=RL.lights.filter(function(L){ return L.on&&L.power>0; });
@@ -108,6 +108,12 @@
      shot:function(p){ return p.f>=16&&p.cap&&p.cap.eq<=28; }},
     {id:"steady-hands", cat:"camera", name:"Steady Hands", how:"1/8 or slower, and still sharp.", learn:"The old rule: your slowest safe shutter is about one over your focal length. Brace and breathe out.",
      shot:function(p){ var s=achSec(p); return s!=null&&s>=1/8-1e-6&&achSharp(p); }},
+    {id:"freeze-rain", cat:"camera", name:"Freeze the Rain", how:"In the rain, 1/500 or faster.", learn:"A fast shutter stops falling drops mid-air as little beads. Sports and nature photographers use the same trick on anything that moves.",
+     shot:function(p){ var s=achSec(p); return p.cap&&p.cap.wx&&p.cap.wx.rain>0&&s!=null&&s<=1/500+1e-6; },
+     near:function(p){ var s=achSec(p); return p.cap&&p.cap.wx&&p.cap.wx.rain>0&&s!=null&&s<=1/125+1e-6&&s>1/500+1e-6?"So close to Freeze the Rain: go faster, 1/500 or quicker.":""; }},
+    {id:"drag-rain", cat:"camera", name:"Drag the Rain", how:"In the rain, 1/30 or slower, and still sharp.", learn:"A slow shutter lets each drop fall while the shutter is open, so rain turns into streaks. Hold still, and the scene stays crisp while the rain moves.",
+     shot:function(p){ var s=achSec(p); return p.cap&&p.cap.wx&&p.cap.wx.rain>0&&s!=null&&s>=1/30-1e-6&&achSharp(p); },
+     near:function(p){ var s=achSec(p); return p.cap&&p.cap.wx&&p.cap.wx.rain>0&&s!=null&&s>=1/30-1e-6&&!achSharp(p)?"So close to Drag the Rain: brace and breathe out, or use a wider lens.":""; }},
     {id:"long-reach", cat:"camera", name:"Long Reach", how:"The 135 mm on the APS-C mirrorless.", learn:"The crop sensor turns a 135 mm into about 216 mm. Long lenses compress distance, stacking near and far together.",
      shot:function(p){ return p.lens==="135"&&p.cap&&p.cap.body==="ml"; }},
     {id:"grain", cat:"camera", name:"Grain", how:"ISO 6400, exposed spot on.", learn:"Grain isn't always a mistake. Daido Moriyama made rough, grainy black and white his signature.",

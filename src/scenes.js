@@ -14,10 +14,6 @@ challenges:[
   {id:"stump-sil",title:"Silhouette",brief:"Get down low and shoot up past the stump towards the dead tree and the bright sky. Underexpose until the shapes go dark.",az:-100,dist:1.0,h:0.3,look:[1.97,1.0,-0.35],mm:38,
    need:[{k:"body",id:"ml",label:"APS-C mirrorless, so you see the exposure in the finder (camera bag, B)"},{k:"mm",max:40,label:"24–70 at 24 mm: raise the camera, scroll down"},{k:"ev",min:-2.5,max:-1.3,label:"Underexposed 1½ to 2½ stops"}]},
   {id:"stump-tele",title:"Telephoto detail",brief:"Stand back with the 135 on the crop body and pick out the new growth on top of the stump. At this length you need a fast shutter to keep it sharp.",az:-120,dist:3.0,h:1.0,look:[0,0.4,0],mm:216,
-   need:[{k:"body",id:"ml",label:"APS-C mirrorless (camera bag, B)"},{k:"lens",mm:135,label:"135 mm f/2 (camera bag, B)"},{k:"sh",max:1/250,label:"1/250 or faster, to hold a long lens steady"},{k:"f",min:5.6,label:"f/5.6 or smaller"},{k:"ev",tol:1,label:"Exposure within a stop"}]}]},
+   need:[{k:"body",id:"ml",label:"APS-C mirrorless (camera bag, B)"},{k:"lens",mm:135,label:"135 mm f/2 (camera bag, B)"},{k:"sh",max:1/250,label:"1/250 or faster, to hold a long lens steady"},{k:"f",min:5.6,label:"f/5.6 or smaller"},{k:"ev",tol:1,label:"Exposure within a stop"}]}]}];
 /* Saint Maurice (Pavel Tanhäuser, CC BY-NC-ND 4.0) is off the bundle for now: its assets and licence stay in the repo, see git history for the scene entry. */
-{id:"carpark",fullRes:true,clarity:0.4,contrast:true,name:"The Car Park",desc:"A car park scanned in full detail. You can add your own lights here and see how the shadows change.",up:"zup",scale:5,ext:"sog",thumb:"asset:assets/scenes/carpark-card.webp",data:"asset-b64:assets/scenes/carpark.sog",collide:"asset-b64:assets/scenes/carpark-collide.bin",preview:"asset-b64:assets/scenes/carpark-preview.stm",
- detail:{data:"asset-b64:assets/scenes/carpark-subject.sog", ext:"sog", cut:[0,0.4,0.85,0.6,2.75]},   /* the man on the block, always at full detail (world units: x, z, radius, y from, y to) */
-ground:-0.096,
- spots:[[2.5,7.5,0,"the shopfront"],[1.29,5.14,0,"by the red car"],[-3.49,0.36,0,"from the kerb"]],
- subject:[-1.74,3.39], spawn:[2.5,7.5,0.35,-0.12], challenges:[]}];
+/* The Car Park is off the bundle for now (Sam, 28 Oct): its scan and card stay in assets/scenes, see git history for its entry */

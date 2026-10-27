@@ -94,7 +94,7 @@
     if(SD.drone){ sdDroneTo(1,t,0.05); } if(SD.vb){ SD.vb.gain.setTargetAtTime(0.0001,t+0.01,0.06); SD.vb=null; } if(sdVar("shot")) sdVar("shot")(b,t); }
   // ---- five sound options for the beginning (?snd=1..5): the bed, the point cloud, the lens, the focus, the shot.
   //      The spin and the title are the same in all of them. ----
-  var SD_V=(function(){ var m=/[?&]snd=(\d)/.exec(location.search); if(m) return +m[1]; try{ return +(localStorage.getItem("studium_open_snd")||0); }catch(e){ return 0; } })();
+  var SD_V=(function(){ var m=/[?&]snd=(\d)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_snd"); if(v!=null) return +v; }catch(e){} return 2; })();   /* Air is the default; ?snd=0..5 to compare */
   var SD_VN=["As it is","Felt","Air","Strings","Pulse","Glass"];
   function sdVar(k){ var v=SDV[SD_V]; return v&&v[k]||null; }
   function sdVBus(c,t,send){ var b=c.createGain(); b.gain.value=1; b.connect(SD.out); if(send){ var s=c.createGain(); s.gain.value=send; b.connect(s); s.connect(SD.verb); } SD.vb=b; return b; }   /* the beginning's own music: the shutter cuts it */

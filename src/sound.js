@@ -40,9 +40,9 @@
   var SFX_CUES={
     /* moving round the interface */
     hover:   ["A",function(b,t){ sxWood(b,t,2600,0.018); }],
-    select:  ["C",function(b,t){ sxNoise(b,t,"bandpass",1400,1.2,0.01,0.02,0.02,0.18,3200); sxGlint(b,t+0.02,SN.E6,0.018,0,0.7); }],
+    select:  ["A",function(b,t){ sxTone(b,t,110,"sine",0.01,0.028,0.02,0.22); sxWood(b,t,1200,0.013); }],   /* drone touch (round 2 pick), quieter */
     back:    ["C",function(b,t){ sxNoise(b,t,"bandpass",3000,1.2,0.02,0.018,0.02,0.2,900); }],
-    toggle:  ["C",function(b,t,o){ sxGlint(b,t,o&&o.off?SN.E6:SN.B6,0.014,0,0.5); }],
+    toggle:  ["A",function(b,t){ sxTone(b,t,110,"sine",0.01,0.028,0.02,0.22); sxWood(b,t,1200,0.013); }],   /* same as a click: no dings in the interface */
     blocked: ["B",function(b,t){ sxTick(b,t,900,0.06); sxTick(b,t+0.07,880,0.05); sxThump(b,t,90,0.06); }],
     /* the kit */
     kitOpen: ["B",function(b,t){ sxNoise(b,t,"bandpass",700,0.9,0.05,0.025,0.05,0.2,1500,-0.2,0.2); [0,1,2,3].forEach(function(i){ sxTick(b,t+0.08+i*0.05,1800+i*250,0.035,(i-1.5)*0.3); }); }],

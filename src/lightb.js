@@ -578,7 +578,7 @@
     var go=function(){ if(!RL.target) RL.target=rlTarget(); rbInstall(); if(!RLB.built){ var bz=$("rbBusy"); bz.classList.add("show"); setTimeout(function(){ try{ rlGrid(); rbGridSharp(); }catch(e){ console.warn("lightb grid",e); } RLB.built=true; bz.classList.remove("show"); rbDirty(); },60); } else rbDirty();
       rbShow(true); rbPanel(true); rbTimeline(); rbStands();
       /* the first time anyone opens Lighting, the tour starts */
-      if(typeof coStart==="function"&&!(typeof CO!=="undefined"&&CO.on)&&!(Q.tours&&Q.tours.lighting)){ var seen="1"; try{ seen=localStorage.getItem("studium_lighttour"); localStorage.setItem("studium_lighttour","1"); }catch(e){} if(seen!=="1") setTimeout(function(){ if(RLB.open) coStart("lighting"); },500); } };
+      if(typeof coStart==="function"&&!(typeof CO!=="undefined"&&CO.on)&&!(Q.tours&&Q.tours.lightrig)){ var seen="1"; try{ seen=localStorage.getItem("studium_lighttourB"); }catch(e){} if(seen!=="1") setTimeout(function(){ if(RLB.open&&!(typeof CO!=="undefined"&&CO.on)){ try{ localStorage.setItem("studium_lighttourB","1"); }catch(e){} coStart("lightrig"); } },500); } };
     go(); }
   function rlClose(){ if(!RLB||!RLB.open) return; RLB.open=false; RL.ui=false; RLB.look=false; RLB.drag=null; RLB.play=false; document.body.classList.remove("rl-open"); rbShow(false); rbStands(); renderer.domElement.style.cursor=""; }
   function rlToggle(){ if(RLB&&RLB.open) rlClose(); else rlOpen(); }

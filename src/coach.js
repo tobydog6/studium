@@ -292,47 +292,50 @@
         target:'#st-research [data-rs-act="moodmake"]', away:true, start:function(){ CO.s.m=rs.moods||0; }, done:function(){ return (rs.moods||0)>CO.s.m; }}]},
     /* lighting: the new rig, hands on. The order a photographer thinks: see round it, kill the daylight, a key at 45°,
        why light size matters, fill and the ratio, a rim, colour, then the frame. Every step checks the set itself. */
-    lighting:{where:function(){ return loaded&&typeof RL!=="undefined"&&RL.ui&&!(typeof st!=="undefined"&&st.open); }, steps:[
+    lightrig:{where:function(){ return loaded&&typeof RL!=="undefined"&&App&&(App.is("scene")||App.is("viewfinder"))&&!(typeof st!=="undefined"&&st.open); }, steps:[
       {ch:"LIGHT", line:function(){ return '<b>Lighting</b>: you bring the light'; }, sub:"Your subject's in the middle. The kit is along the bottom, the time of day across the top, and the panel on the right works like Develop: what's on the set, and the light you've picked.",
         target:'#rbSide', info:true},
-      {ch:"LOOK", line:function(){ return '<b>Drag the ground</b> to walk round your subject'; }, sub:"Scroll to come closer or go back. Look at a set-up from anywhere, then step back to where you'll shoot.",
-        start:function(){ CO.s.o0=RLB.orbitAmt||0; }, done:function(){ return (RLB.orbitAmt||0)-CO.s.o0>=420; }, bar:function(){ return ((RLB.orbitAmt||0)-CO.s.o0)/420; }},
-      {ch:"TIME", line:function(){ return 'Press <b>Today</b>, then drag the time to <b>night</b>'; }, sub:"Studio lights are easiest to see once the daylight's gone. Drag the white marker right, past sunset.",
-        target:'#rbDay', nodim:true, done:function(){ return RLB.sunMode&&RLB.el<-8; }},
-      {ch:"KEY", line:function(){ return '<b>Drag the softbox</b> out of the kit and onto the ground'; }, sub:"This is your key light, the main one. Drop it a metre or so from your subject.",
-        target:'#rbKit [data-rb-fx="softbox"]', nodim:true, done:function(){ return !!rbFind("softbox"); }},
-      {ch:"KEY", line:function(){ return 'Drag its stand <b>45° round</b> from you'; }, sub:"Halfway between you and the side of your subject, a little above it. One side lights up, the other falls into shadow, and that's what gives it shape. The panel shows how far round it is.",
+      coRig({ch:"LOOK", line:function(){ return '<b>Drag the ground</b> to walk round your subject'; }, sub:"Scroll to come closer or go back. Look at a set-up from anywhere, then step back to where you'll shoot.",
+        start:function(){ CO.s.o0=RLB.orbitAmt||0; }, done:function(){ return (RLB.orbitAmt||0)-CO.s.o0>=420; }, bar:function(){ return ((RLB.orbitAmt||0)-CO.s.o0)/420; }}),
+      coRig({ch:"TIME", line:function(){ return 'Press <b>Today</b>, then drag the time to <b>night</b>'; }, sub:"Studio lights are easiest to see once the daylight's gone. Drag the white marker right, past sunset.",
+        target:'#rbDay', nodim:true, done:function(){ return RLB.sunMode&&rbSolar(RLB.mins).el<-10; }}),
+      coRig({ch:"KEY", line:function(){ return '<b>Drag the softbox</b> out of the kit and onto the ground'; }, sub:"This is your key light, the main one. Drop it a metre or so from your subject.",
+        target:'#rbKit [data-rb-fx="softbox"]', nodim:true, done:function(){ return !!rbFind("softbox"); }}),
+      coRig({ch:"KEY", line:function(){ return 'Drag its stand <b>45° round</b> from you'; }, sub:"Halfway between you and the side of your subject, a little above it. One side lights up, the other falls into shadow, and that's what gives it shape. The panel shows how far round it is.",
         target:function(){ return rbAnchorLight(rbFind("softbox")); }, nodim:true, place:"bottom",
-        done:function(){ var L=rbFind("softbox"), a=rbAngle(L), d=L?rbDist(L):0; return a!=null&&a>=30&&a<=62&&d>0.6&&d<2.4; },
-        bar:function(){ var a=rbAngle(rbFind("softbox")); return a==null?0:1-Math.min(1,Math.abs(a-45)/45); }},
-      {ch:"SIZE", line:function(){ var F=rbFind("fresnel"); return F?'Now turn the softbox <b>off</b> with its ◉':'Drop the <b>Fresnel</b> right next to the softbox'; }, sub:"Same place, a much smaller light. Watch the edge of the stump's shadow.",
-        target:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); if(!F) return document.querySelector('#rbKit [data-rb-fx="fresnel"]'); return B?document.querySelector('#rbSide [data-rb-on="'+RL.lights.indexOf(B)+'"]'):null; }, nodim:true,
-        done:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); return !!(F&&F.on&&B&&!B.on); }},
-      {ch:"SIZE", line:function(){ return 'Hard edge. <b>Remove the Fresnel</b> and turn the softbox <b>back on</b>'; }, sub:"Big light, soft shadows. Small light, hard shadows. It's the light's size next to your subject that counts, so the same softbox moved further away gets harder.",
+        start:function(){ var L=rbFind("softbox"); CO.s.p0=L?{x:L.x,z:L.z}:null; },
+        done:function(){ var L=rbFind("softbox"), a=rbAngle(L), d=L?rbDist(L):0; if(!CO.s.p0&&L) CO.s.p0={x:L.x,z:L.z}; return coMovedFrom(L,CO.s.p0)&&a!=null&&a>=30&&a<=62&&d>0.6&&d<2.4; },
+        bar:function(){ var a=rbAngle(rbFind("softbox")); return a==null?0:1-Math.min(1,Math.abs(a-45)/45); }}, true),
+      coRig({ch:"SIZE", line:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); if(!F) return 'Drag the <b>Fresnel</b> right up beside the softbox'; if(Math.hypot(F.x-B.x,F.z-B.z)>0.6*(RL.S||1)) return 'Drag the Fresnel\'s stand <b>right up beside</b> the softbox'; return 'Now turn the softbox <b>off</b> with its ◉'; }, sub:"Same place, a much smaller light. Watch the edge of the stump's shadow.",
+        target:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); if(!F) return document.querySelector('#rbKit [data-rb-fx="fresnel"]'); if(Math.hypot(F.x-B.x,F.z-B.z)>0.6*(RL.S||1)) return rbAnchorLight(F); return document.querySelector('#rbSide [data-rb-on="'+RL.lights.indexOf(B)+'"]'); }, nodim:true,
+        done:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); return !!(F&&F.on&&B&&!B.on&&Math.hypot(F.x-B.x,F.z-B.z)<=0.6*(RL.S||1)); }}, true),
+      coRig({ch:"SIZE", line:function(){ return 'Hard edge. <b>Remove the Fresnel</b> and turn the softbox <b>back on</b>'; }, sub:"Big light, soft shadows. Small light, hard shadows. It's the light's size next to your subject that counts, so the same softbox moved further away gets harder.",
         target:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); if(F) return document.querySelector('#rbSide [data-rb-del="'+RL.lights.indexOf(F)+'"]'); return B?document.querySelector('#rbSide [data-rb-on="'+RL.lights.indexOf(B)+'"]'):null; }, nodim:true,
-        done:function(){ var B=rbFind("softbox"); return !rbFind("fresnel")&&!!(B&&B.on); }},
-      {ch:"FILL", line:function(){ return 'Add a <b>reflector</b> on the <b>shadow side</b>'; }, sub:"Stand it on the other side of you from the softbox, facing the stump. It catches some of the key and bounces it back into the shadows.",
+        done:function(){ var B=rbFind("softbox"); return !rbFind("fresnel")&&!!(B&&B.on); }}, true),
+      coRig({ch:"FILL", line:function(){ return 'Add a <b>reflector</b> on the <b>shadow side</b>'; }, sub:"Stand it on the other side of you from the softbox, facing the stump. It catches some of the key and bounces it back into the shadows.",
         target:'#rbKit [data-rb-fx="reflector"]', nodim:true,
-        done:function(){ var R=rbFind("reflector"), B=rbFind("softbox"), a=rbAngle(R); return !!(R&&B&&rbSideOf(R)!==rbSideOf(B)&&a!=null&&a<110); }},
-      {ch:"FILL", line:function(){ var r=rbRatioNow(); return 'Bring <b>key to fill</b> to about <b>3 : 1</b>'+(r?' <span style="opacity:.7">(now '+(r<10?r.toFixed(1):Math.round(r))+' : 1)</span>':''); }, sub:"Closer fills more, further fills less. 2 : 1 is soft and open, 4 : 1 is classic, 8 : 1 is moody. Silver bounces more than White.",
+        done:function(){ var R=rbFind("reflector"), B=rbFind("softbox"), a=rbAngle(R); return !!(R&&B&&rbSideOf(R)!==rbSideOf(B)&&a!=null&&a<110); }}, true),
+      coRig({ch:"FILL", line:function(){ var r=rbRatioNow(); return 'Bring <b>key to fill</b> to about <b>3 : 1</b>'+(r?' <span style="opacity:.7">(now '+(r<10?r.toFixed(1):Math.round(r))+' : 1)</span>':''); }, sub:"Closer fills more, further fills less. 2 : 1 is soft and open, 4 : 1 is classic, 8 : 1 is moody. Silver bounces more than White.",
         target:'#rbSide .rb-diag .lr-rgb', nodim:true,
-        done:function(){ var r=rbRatioNow(); return r!=null&&r>=2.2&&r<=4.2; }, bar:function(){ var r=rbRatioNow(); return r==null?0:1-Math.min(1,Math.abs(Math.log(r/3))/Math.log(4)); }},
-      {ch:"RIM", line:function(){ return 'Put the <b>stripbox</b> behind your subject'; }, sub:"A rim light sits behind, pointing back towards you. The bright edge it draws pulls your subject away from the background.",
+        start:function(){ var R=rbFind("reflector"); CO.s.r0=R?{x:R.x,z:R.z,s:R.surf,h:R.h}:null; },
+        done:function(){ var R=rbFind("reflector"), r=rbRatioNow(), q=CO.s.r0; var touched=!q||!R||coMovedFrom(R,q)||R.surf!==q.s||Math.abs(R.h-q.h)>0.04; return touched&&r!=null&&r>=2.2&&r<=4.2; },
+        bar:function(){ var r=rbRatioNow(); return r==null?0:1-Math.min(1,Math.abs(Math.log(r/3))/Math.log(4)); }}, true),
+      coRig({ch:"RIM", line:function(){ return 'Put the <b>stripbox</b> behind your subject'; }, sub:"A rim light sits behind, pointing back towards you. The bright edge it draws pulls your subject away from the background.",
         target:function(){ var S=rbFind("strip"); return S?rbAnchorLight(S):document.querySelector('#rbKit [data-rb-fx="strip"]'); }, nodim:true,
-        done:function(){ var S=rbFind("strip"); return !!(S&&rbRoleOf(S)==="Rim"); }},
-      {ch:"COLOUR", line:function(){ var B=rbFind("softbox"); return rbCur()===B?'Give the key a <b>Warm</b> gel, or drag its <b>Colour</b> to about 3200 K':'Click the <b>softbox</b> in the panel'; }, sub:"A warm key against a cooler rim is one of the oldest colour tricks in lighting.",
-        target:function(){ var B=rbFind("softbox"); if(!B) return null; if(rbCur()!==B) return document.querySelector('#rbSide .rb-li[data-rb-pick="'+RL.lights.indexOf(B)+'"]'); return document.querySelector('#rbSide .lr-row:has([data-rb-k="k"])'); }, nodim:true,
-        done:function(){ var B=rbFind("softbox"); return !!(B&&(B.k<=3800||B.gel==="#ffc98a")); }},
-      {ch:"SHOOT", line:function(){ return '<b>Right-click</b> to raise the camera, then take the frame'; }, sub:"Night, three pieces of kit and a ratio you chose. The shadows are meant to be dark, so meter for the lit side.",
+        done:function(){ var S=rbFind("strip"); return !!(S&&rbRoleOf(S)==="Rim"); }}),
+      coRig({ch:"COLOUR", line:function(){ var B=rbFind("softbox"); return rbCur()===B?'Give the key a <b>Warm</b> gel, or drag its <b>Colour</b> to about 3200 K':'Click the <b>softbox</b> in the panel'; }, sub:"A warm key against a cooler rim is one of the oldest colour tricks in lighting.",
+        target:function(){ var B=rbFind("softbox"); if(!B) return null; if(rbCur()!==B) return document.querySelector('#rbSide .rb-li[data-rb-pick="'+RL.lights.indexOf(B)+'"]'); var ki=document.querySelector('#rbSide [data-rb-k="k"]'); return ki&&ki.closest(".lr-row"); }, nodim:true,
+        done:function(){ var B=rbFind("softbox"); return !!(B&&(B.k<=3800||B.gel==="#ffc98a")); }}, true),
+      {ch:"SHOOT", line:function(){ return viewfinderOn?'Now <b>take the frame</b>':'<b>Right-click</b> to raise the camera, then take the frame'; }, sub:"Night, three pieces of kit and a ratio you chose. The shadows are meant to be dark, so meter for the lit side.",
         start:function(){ CO.s.n=photos.length; }, done:function(){ return photos.length>CO.s.n; }}]},
     /* golden hour: back into Lighting, the time to golden, then walk round until the sun is behind the subject */
     golden:{where:function(){ return loaded&&!App.is("hub")&&!(typeof st!=="undefined"&&st.open); }, steps:[
       {ch:"TIME", line:function(){ return 'One more: <b>'+coK("Space")+', then Lighting</b>'; }, sub:"The best light of the day is about to happen.",
         target:'#navActs [data-nav-act="kit"]', kit:"lights", nodim:true, done:function(){ return !!RL.ui; }},
-      {ch:"TIME", line:function(){ return 'Drag the time to <b>golden hour</b>'; }, sub:"The last hour before sunset: the sun's low, the light's warm and every shadow is long. Press Today first if it still says As scanned.",
-        target:'#rbDay', nodim:true, done:function(){ return RLB.sunMode&&RLB.el>-0.5&&RLB.el<6; }},
-      {ch:"SUN", line:function(){ var a=rbSunAngle(); return 'Walk round until the sun is <b>behind your subject</b>'+(a!=null?' <span style="opacity:.7">('+a+'° off)</span>':''); }, sub:"Drag the ground to orbit, and watch the sun in the diagram. Backlit, the stump gets a rim of gold and its shadow runs towards you.",
-        target:'#rbSide .rb-diag', nodim:true, done:function(){ var a=rbSunAngle(); return a!=null&&a<=45; }, bar:function(){ var a=rbSunAngle(); return a==null?0:1-Math.min(1,Math.max(0,a-45)/135); }},
+      coRig({ch:"TIME", line:function(){ return 'Drag the time to <b>golden hour</b>'; }, sub:"The last hour before sunset: the sun's low, the light's warm and every shadow is long. Press Today first if it still says As scanned.",
+        target:'#rbDay', nodim:true, done:function(){ var e=rbSolar(RLB.mins).el; return RLB.sunMode&&e>-0.5&&e<6; }}),
+      coRig({ch:"SUN", line:function(){ var a=rbSunAngle(); return 'Walk round until the sun is <b>behind your subject</b>'+(a!=null?' <span style="opacity:.7">('+a+'° off)</span>':''); }, sub:"Drag the ground to orbit, and watch the sun in the diagram. Backlit, the stump gets a rim of gold and its shadow runs towards you.",
+        target:'#rbSide .rb-diag', nodim:true, done:function(){ var a=rbSunAngle(); return a!=null&&a<=35; }, bar:function(){ var a=rbSunAngle(); return a==null?0:1-Math.min(1,Math.max(0,a-35)/145); }}),
       {ch:"SHOOT", line:function(){ return '<b>Right-click</b> to raise the camera and take the frame'; }, sub:"Shooting into the sun, so watch for flare and meter for the stump, not the sky.",
         start:function(){ CO.s.n=photos.length; }, done:function(){ return photos.length>CO.s.n; }}]},
     artist:{where:function(){ return coRoom("research")||coRoom("workshop"); }, steps:[
@@ -356,6 +359,13 @@
         target:'#st-select .lib-in', start:function(){ CO.s.p=(st.projects||[]).length; }, done:function(){ return (st.projects||[]).length>CO.s.p||((st.projects||[]).length&&LIB.naming!=="new"&&LIB.key.indexOf("proj:")===0); }},
       {ch:"YOURS", line:function(){ return 'That folder\'s yours. <b>Go and shoot</b>'; }, sub:"Then drag your photos onto it, or drop photos in from your computer. Everything you've learnt today works on them.",
         target:function(){ var a=document.querySelectorAll('#st-select .lib-f.proj'); return a.length?a[a.length-1]:null; }, info:true}]}};
+  /* the lighting tours: whatever the student does mid-step (camera up, Lighting closed, the softbox deleted), the prompt says how to get back */
+  function coRig(s, needSoft){ var line=s.line, target=s.target, done=s.done;
+    s.line=function(){ if(viewfinderOn) return '<b>Right-click</b> to lower the camera and carry on'; if(!RL.ui) return 'Open Lighting again: '+coK("SPACE")+', then <b>Lighting</b>'; if(needSoft&&!rbFind("softbox")) return 'Bring the <b>softbox</b> back out of the kit'; return line(); };
+    s.target=function(){ if(viewfinderOn) return null; if(!RL.ui) return document.querySelector('#navActs [data-nav-act="kit"]'); if(needSoft&&!rbFind("softbox")) return document.querySelector('#rbKit [data-rb-fx="softbox"]'); return typeof target==="function"?target():target?document.querySelector(target):null; };
+    if(done) s.done=function(){ if(viewfinderOn&&!s.shoot) return false; if(!RL.ui||(needSoft&&!rbFind("softbox"))) return false; return done(); };
+    return s; }
+  function coMovedFrom(L,p){ return !!(L&&p&&Math.hypot(L.x-p.x,L.z-p.z)>0.15*(RL.S||1)); }
   function coSteps(){ return (CO_TOURS[CO.tour]||{steps:[]}).steps; }
   function coLen(id){ return (CO_TOURS[id]||{steps:[]}).steps.length; }
   var CO_STEPS=CO_TOURS.basics.steps;   // the guide's basics step counts these

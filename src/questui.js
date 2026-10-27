@@ -37,7 +37,7 @@
   function qGoQuest(id){ var x=qGet(id), s=qNextStep(id); qGoDest(s?s.go:x.go); }
   // "Show me how": go where the tour lives, then run it once its place is open
   function qHow(){ var id=Q.tracked, s=id&&qNextStep(id); if(!s||!s.tour){ toast("No tour for this step. Have a go, the checklist ticks itself."); return; } var tour=s.tour;
-    if(CO.on) coStop(); if(tour==="lighting"){ qGoDest("scene"); var t0=Date.now(); (function w(){ if(loaded&&App.is("scene")){ if(!RL.ui) rlOpen(); setTimeout(function(){ coStart("lighting"); },400); return; } if(Date.now()-t0<20000) setTimeout(w,300); })(); return; }
+    if(CO.on) coStop(); if(tour==="lightrig"||tour==="lighting"){ tour="lightrig"; qGoDest("scene"); var t0=Date.now(); (function w(){ if(loaded&&App.is("scene")){ if(!RL.ui) rlOpen(); setTimeout(function(){ coStart(tour); },400); return; } if(Date.now()-t0<20000) setTimeout(w,300); })(); return; }
     qGoDest(s.go); var T=CO_TOURS[tour], t1=Date.now(); (function wait(){ if(T&&T.where()){ coStart(tour); return; } if(Date.now()-t1<20000) setTimeout(wait,300); })(); }
 
   // ---- the quest board: rows of three. One tile per quest; a row opens when the row above is done. Click a tile for its page. ----
@@ -68,10 +68,10 @@
   function qPickClose(){ qLogClose(); }
   function qLogOpen(){ qBoardOpen(); }
   /* testing: close the board, put the gold frames away and open the lighting rig in the scene */
-  function qTestLighting(){ qLogClose(); if(typeof CO!=="undefined"&&CO.on) coStop(); if(viewfinderOn) lowerCamera(); try{ localStorage.setItem("studium_lighttour","1"); }catch(e){} Q.tourStep.lighting=0; Q.tours.lighting=false;
+  function qTestLighting(){ qLogClose(); if(typeof CO!=="undefined"&&CO.on) coStop(); if(viewfinderOn) lowerCamera(); try{ localStorage.setItem("studium_lighttour","1"); }catch(e){} Q.tourStep.lightrig=0; Q.tours.lightrig=false;
     if(!loaded||!App.is("scene")) qGoDest("scene"); var t0=Date.now();
     (function w(){ if(loaded&&App.is("scene")&&!menuOpen()){ if(typeof CH!=="undefined"){ CH.hidden=true; if(typeof chFramesBtn==="function") chFramesBtn(); if(typeof chMarkers==="function") chMarkers(); }   /* frames away for this session only */
-      if(typeof rlOpen==="function"&&!RL.ui) rlOpen(); setTimeout(function(){ if(RL.ui&&typeof coStart==="function") coStart("lighting"); },600); return; }   /* straight into the lighting tour from the top */ if(Date.now()-t0<180000) setTimeout(w,400); })(); }
+      if(typeof rlOpen==="function"&&!RL.ui) rlOpen(); setTimeout(function(){ if(RL.ui&&typeof coStart==="function") coStart("lightrig"); },600); return; }   /* straight into the lighting tour from the top */ if(Date.now()-t0<180000) setTimeout(w,400); })(); }
   function qLogClose(){ var el=$("qLog"); if(el) el.classList.remove("show"); QU.log=false; QU.pick=false; qHud(); if(typeof qMorphHide==="function") qMorphHide(); }
 
   // ---- the tracked quest card (the HUD) ----
@@ -130,7 +130,7 @@
       e.addEventListener("click",function(ev){ if(ev.target.closest("[data-qm-close]")){ ev.stopPropagation(); qMorphClose(); } });
       window.addEventListener("keydown",function(ev){ if(QM.on&&ev.code==="Escape"){ ev.stopImmediatePropagation(); qMorphClose(); } },true); } return e; }
   function qMorphBox(e,b){ e.style.left=b.x+"px"; e.style.top=b.y+"px"; e.style.width=b.w+"px"; e.style.height=b.h+"px"; }
-  function qClipKind(x){ if(x.clip) return x.clip; if((x.steps||[]).some(function(s){ return s.tour==="lighting"; })||/\blight(ing|s)?\b/i.test(x.title)) return "lighting";
+  function qClipKind(x){ if(x.clip) return x.clip; if((x.steps||[]).some(function(s){ return s.tour==="lighting"||s.tour==="lightrig"; })||/\blight(ing|s)?\b/i.test(x.title)) return "lighting";
     var g=x.go||"scene"; return g==="workshop"?"workbook":g==="scene"?"shoot":g; }
   function qMorphOpen(id, src){ var x=qGet(id); if(!x) return; var e=qMorphEl(); if(QM.on) qMorphHide();
     var r=src?src.getBoundingClientRect():null, W=window.innerWidth, H=window.innerHeight, tw=Math.min(1240,W*0.94), th=Math.min(680,H*0.9);

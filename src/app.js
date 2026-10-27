@@ -475,10 +475,10 @@
     if(loaded&&dt>0) chTick(dt);
     renderer.setRenderTarget(fsTarget);
     fsMat.uniforms.tDiffuse.value=sceneRT.texture;
-    fsMat.uniforms.exposure.value=fx.exposure; fsMat.uniforms.filmic.value=fx.filmic; var lk=(typeof CH!=="undefined"&&CH&&CH.spec)||{}; fsMat.uniforms.clar.value=lk.clarity||0; fsMat.uniforms.lin.value=lk.contrast?1:0;
+    var lg=typeof LAG!=="undefined"&&LAG.on?LAG:null; fsMat.uniforms.exposure.value=fx.exposure*(lg?lg.e:1);   /* the opening's time of day */ fsMat.uniforms.filmic.value=fx.filmic; var lk=(typeof CH!=="undefined"&&CH&&CH.spec)||{}; fsMat.uniforms.clar.value=lk.clarity||0; fsMat.uniforms.lin.value=lk.contrast?1:0;
     fsMat.uniforms.vignette.value=fx.vignette; fsMat.uniforms.grain.value=fx.grain; fsMat.uniforms.dof.value=fx.dof; fsMat.uniforms.focus.value=focusDist;
     fsMat.uniforms.useDepth.value=0;
-    fsMat.uniforms.gCon.value=gCon; fsMat.uniforms.gSat.value=gSat; fsMat.uniforms.gWarm.value=gWarm+camWarm;
+    fsMat.uniforms.gCon.value=gCon*(lg?lg.c:1); fsMat.uniforms.gSat.value=gSat*(lg?lg.s:1); fsMat.uniforms.gWarm.value=gWarm+camWarm+(lg?lg.w:0);
     fsMat.uniforms.gBloom.value=gBloom; fsMat.uniforms.gDof.value=gDof; fsMat.uniforms.gGrain.value=gGrain;
     seedCounter=(seedCounter+1)%9973; fsMat.uniforms.seed.value=seedCounter;
     renderer.render(fsScene,fsCam);

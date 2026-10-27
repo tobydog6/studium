@@ -195,23 +195,34 @@
       return {peak:+pk.toFixed(3), wav:btoa(str)}; }); }
   if(/[?&]dev/.test(location.search)) window.__sd={ render:sdRender, begin:sdRenderBegin };
   // ---- the time of day: night as the place appears, sunrise through the point cloud, golden hour for the shot, and the
-  //      ordinary day as the spin lands. It drives the lighting rig (relight.js) without its panel, shadows off for speed ----
-  var LA_TOD=[[0,0.05,9500,0,-12,3000],[0.3,0.2,11000,0,-3,3000],[0.62,0.3,8400,0.7,3,2700],[1,0.42,7600,1.1,10,3100]];   /* u, dusk, ambient K, sun, sun height, sun K */
-  function laTodInit(){ if(typeof RL==="undefined"||typeof rlPrepare!=="function"||!viewer||!viewer.P) return; try{ if(!RL.ready) rlPrepare();
-      LA.tod={shadows:RL.shadows, az:RL.sunAz, tg:RL.target, lon:RL.lights.map(function(L){ return L.on; })}; RL.shadows=false; RL.on=true; RL.exp=0; RL.lights.forEach(function(L){ L.on=false; });
-      var S=laSubject(), c=laShotSpec(); RL.target={x:S[0], y:wkGround(S[0],S[1]), z:S[1]}; RL.sunAz=((c.az+180-55)%360+360)%360;   /* the sun comes up behind and to the side of the shot: rim light on the stump */
-      laTod(0); }catch(e){ console.warn("time of day",e); LA.tod=null; } }
+  //      ordinary day as the spin lands. A grade on the finished frame (exposure, warmth, colour), so it costs nothing ----
+  var LAG={on:false, e:1, w:0, s:1, c:1};   /* read by renderFrame in app.js */
+  var LA_TOD=[[0,0.2,-0.95,0.4,1.06],[0.25,0.24,-0.9,0.45,1.06],[0.52,0.45,-0.6,0.62,1.04],[0.8,0.88,0.45,0.97,1.02],[1,1.06,0.72,1.04,1.04]];   /* u, exposure, warmth, saturation, contrast */
+  /* a soft lamp on the stump, the lighting room's LED panel: it carries the stump through the night and fades as the day
+     comes up. The rig runs with its panel hidden, natural ambient, no shadows; it's updated a few times a second, the fade is slow */
+  function laLampInit(){ if(typeof RL==="undefined"||typeof rlPrepare!=="function"||!viewer||!viewer.P||!viewer.mesh) return; try{ if(!RL.ready) rlPrepare();
+      var S=laSubject(), c=laShotSpec(), a=(c.az+38)*Math.PI/180, d=1.7*RL.S, gy=wkGround(S[0],S[1]);
+      LA.lamp={was:{on:RL.on, dusk:RL.dusk, ambK:RL.ambK, sunPow:RL.sunPow, exp:RL.exp, shadows:RL.shadows, sel:RL.sel}, t:0};
+      RL.on=true; RL.dusk=1; RL.ambK=6500; RL.sunPow=0; RL.exp=0; RL.shadows=false;
+      var L={id:RL.nid++, on:true, fx:"led", name:"Opening lamp", type:"bulb", power:8, k:4300, gel:"#ffffff", soft:0.6, cone:90, h:1.35, dir:[0,-1,0], opening:true};
+      rlSetPos(L, S[0]+Math.sin(a)*d, S[1]+Math.cos(a)*d); rlAimAt(L,{x:S[0], y:gy+0.45, z:S[1]}); RL.lights.push(L); LA.lamp.L=L; laLampSet(1,true); }catch(e){ console.warn("opening lamp",e); LA.lamp=null; } }
+  function laLampSet(k,now){ var M=LA.lamp; if(!M) return; var p=8*Math.max(0,Math.min(1,k)), t=performance.now();
+    if(!now&&(Math.abs(p-M.L.power)<0.25||t-M.t<160)) return; M.t=t; M.L.power=p; M.L.on=p>0.05; try{ rlApply(); if(RL.gpu) RL.gpu.U.gok.value=0; }catch(e){} }
+  function laLampEnd(){ var M=LA.lamp; if(!M) return; LA.lamp=null; try{ RL.lights=RL.lights.filter(function(x){ return x!==M.L; }); rlDrop(M.L); var w=M.was;
+      RL.dusk=w.dusk; RL.ambK=w.ambK; RL.sunPow=w.sunPow; RL.exp=w.exp; RL.shadows=w.shadows; RL.sel=w.sel; RL.on=w.on; if(w.on) rlApply(); else rlRestore(); }catch(e){} }
+  function laTodInit(){ LA.tod={}; LAG.on=true; laLampInit(); laTod(0);
+    if(typeof WE!=="undefined"){ LA.tod.wind=WE.wind; if(!WE.wind){ WE.wind=1; WE.dirty=true; } } }   /* a light wind through the trees while it plays */
   /* the scan's full-detail piece (the stump) can arrive after the opening starts: give it the light and the point cloud too */
-  function laDetWatch(){ var d=viewer&&viewer.detail; if(!d||LA.detM===d||(!LA.tod&&!LA.scan)) return; LA.detM=d; try{ var mods=[];
-      if(LA.tod&&RL.gpu&&RL.gpu.modFor){ mods.push(RL.gpu.modFor()); RL.gpu.detail=d; }
+  function laDetWatch(){ var d=viewer&&viewer.detail; if(!d||LA.detM===d||(!LA.scan&&!LA.lamp)) return; LA.detM=d; try{ var mods=[]; if(LA.lamp&&RL.gpu&&RL.gpu.modFor){ mods.push(RL.gpu.modFor()); RL.gpu.detail=d; }
       if(LA.scan){ var md=laScanMod(null); mods.push(md); LA.scan.UD=md.U; LA.scan.det=d; }
       d.worldModifiers=mods; d.updateGenerator(); d.updateVersion(); setTimeout(function(){ try{ d.updateGenerator(); d.updateVersion(); }catch(e){} },250); }catch(e){ console.warn("detail piece",e); } }
   function laTodAt(u){ var K=LA_TOD, i=0; while(i<K.length-2&&u>K[i+1][0]) i++; var a=K[i], b=K[i+1], k=laE(Math.max(0,Math.min(1,(u-a[0])/(b[0]-a[0]))));
     return a.map(function(v,j){ return v+(b[j]-v)*k; }); }
   function laTod(u,day){ if(!LA.tod) return; var v=laTodAt(u);
-    if(day){ var d=laE(day); v=[1, v[1]+(1-v[1])*d, v[2]+(6500-v[2])*d, v[3]*(1-d), v[4]+(30-v[4])*d, v[5]+(5600-v[5])*d]; }   /* golden into the plain day the scan was made in */
-    RL.dusk=v[1]; RL.ambK=Math.round(v[2]); RL.sunPow=v[3]>0.01?v[3]:0; RL.sunEl=Math.max(2,v[4]); RL.sunK=Math.round(v[5]); try{ rlApply(); }catch(e){} }
-  function laTodEnd(){ if(!LA.tod) return; var o=LA.tod; LA.tod=null; try{ RL.shadows=o.shadows; RL.sunAz=o.az; RL.dusk=1; RL.ambK=6500; RL.sunPow=0; RL.exp=0; RL.lights.forEach(function(L,i){ L.on=o.lon[i]!==false; }); RL.target=o.tg; RL.on=false; if(typeof rlRestore==="function") rlRestore(); }catch(e){} }
+    if(day){ var d=laE(day); v=[1, v[1]+(1-v[1])*d, v[2]*(1-d), v[3]+(1-v[3])*d, v[4]+(1-v[4])*d]; }
+    LAG.e=v[1]; LAG.w=v[2]; LAG.s=v[3]; LAG.c=v[4]; if(LA.lamp) laLampSet(day?0:1-laE(Math.max(0,Math.min(1,(u-0.55)/0.45)))); }   /* the lamp fades as the light comes up */
+  function laTodEnd(){ if(!LA.tod) return; var o=LA.tod; LA.tod=null; LAG.on=false; laLampEnd();
+    if(typeof WE!=="undefined"&&o.wind!=null&&WE.wind!==o.wind){ WE.wind=o.wind; WE.dirty=true; } }
   // ---- the camera ----
   function laSubject(){ return (CH.spec&&CH.spec.subject)||[0,0]; }
   function laShotSpec(){ var s=CH.spec&&CH.spec.challenges, c=null; (s||[]).forEach(function(x){ if(x.id==="stump-dof") c=x; }); return c||{az:-75, dist:2.2, h:0.8, look:[0,0.3,0]}; }   /* the shallow-depth gold frame knows where the stump looks best */
@@ -270,7 +281,7 @@
     if(p==="dark"){ if(t>2.5&&!LA.skipAsked){ LA.skipAsked=true; e.classList.add("skip"); }
       if(loaded&&!LA.scanTried){ LA.scanTried=true; LA.scanT=t; if(!LA.fast){ laTodInit(); laScanOn(); laCamInit(); laVfOn(); LA.warm=true; } }   /* the point cloud's shader and the viewfinder's compile behind the dark: raised once, unseen */
       if(LA.warm&&t-LA.scanT>0.32){ LA.warm=false; laVfOff(); }   /* the point cloud's shader compiles behind the dark */
-      if(loaded&&t>(LA.fast?0.6:1.0)&&(LA.fast||(!LA.warm&&t-LA.scanT>0.5))){ laCamInit(); if(typeof updateCamera==="function") updateCamera(0); if(LA.fast){ laDrift(0); laLockStart(); return; } laPhase("detail"); sdScan(); } return; }
+      if(loaded&&t>(LA.fast?0.6:1.0)&&(LA.fast||(!LA.warm&&t-LA.scanT>0.5))){ laCamInit(); if(typeof updateCamera==="function") updateCamera(0); if(LA.fast){ laDrift(0); laLockStart(); return; } laPhase("detail"); sdScan(); if(typeof setScale==="function"&&typeof dynTop==="function"){ try{ setScale(Math.max(0.5,dynTop()*0.85)); }catch(x){} } } return; }
     if(p==="detail"){ laTod(Math.min(1,pt/(LA_T.detail+2.3))); laDetail(Math.min(1,pt/LA_T.detail)); laScanSet(Math.min(1,pt/LA_T.scan));  if(pt>LA_T.detail&&!laHeld()) laPhase("shoot"); return; }
     if(p==="shoot"){ if(!LA.fired){ laShootCam(Math.min(1,pt/LA_T.shoot)); laTod(Math.min(1,(LA_T.detail+pt)/(LA_T.detail+2.3))); } if(!LA.vf&&!LA.fired&&pt>0.05){ laShootCam(0); LA.focusTo=laFocusTarget(); laVfOn(); sdLensUp(); if(typeof setScale==="function"&&typeof dynTop==="function"){ try{ setScale(Math.max(0.5,dynTop()*0.72)); }catch(x){} } }   /* fewer pixels while the lens is up; the auto resolution brings them back */
       if(LA.vf&&!LA.fired) laIris(Math.min(1,(pt-0.05)/LA_T.iris));

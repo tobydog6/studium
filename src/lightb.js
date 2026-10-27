@@ -308,10 +308,24 @@
     /* where it lands: a reticle on your subject you drag to aim, joined to the light by a faint line */
     var aim=new THREE.Sprite(new THREE.SpriteMaterial({map:rbReticleTex(), transparent:true, depthTest:false, depthWrite:false, sizeAttenuation:false})); aim.scale.set(0.05,0.05,1); aim.name="aim"; aim.renderOrder=12; g.add(aim);
     /* the light you've picked: a fine dial on the ground round its stand */
-    var ring=new THREE.Mesh(new THREE.PlaneGeometry(1.3,1.3), new THREE.MeshBasicMaterial({map:rbRingTex(), alphaTest:0.3, transparent:false, depthWrite:true})); ring.rotation.x=-Math.PI/2; ring.name="ring"; ring.raycast=function(){}; g.add(ring);   /* solid where drawn: splats in front of it (the stump) cover it */
+    var ring=new THREE.Mesh(new THREE.PlaneGeometry(1.3,1.3), new THREE.MeshBasicMaterial({map:rbRingTex(), alphaTest:0.3, transparent:false, depthWrite:true})); ring.rotation.x=-Math.PI/2; ring.name="ring"; ring.raycast=rbRingCast; g.add(ring);   /* solid where drawn: splats in front of it (the stump) cover it */
     var beamG=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(0,0,1)]); var beam=new THREE.Line(beamG, new THREE.LineBasicMaterial({color:0xfff1d6, transparent:true, opacity:0.38, depthTest:false})); beam.name="beam"; beam.renderOrder=11; g.add(beam);
     [aim,ring,beam,sh].concat(P.basic?[P.head.children[0]]:[]).forEach(function(o){ o.userData.own=true; }); P.emit.concat(P.surf).forEach(function(m){ m.userData.own=true; });
     g.userData.P=P; g.userData.L=L; g.traverse(function(o){ o.userData.L=L; o.renderOrder=5; }); ring.renderOrder=-5; return g; }
+  /* the dial is grabbable, but only where it's drawn: a circle, not the square it's painted on */
+  var _rbRC=[], _rbRV=new THREE.Vector3();
+  function rbRingCast(rc,out){ _rbRC.length=0; THREE.Mesh.prototype.raycast.call(this,rc,_rbRC); for(var i=0;i<_rbRC.length;i++){ _rbRV.copy(_rbRC[i].point); this.worldToLocal(_rbRV); if(Math.hypot(_rbRV.x,_rbRV.y)<=0.6) out.push(_rbRC[i]); } }
+  /* hover or drag a light and it glows gold at its edges, so you know you've got it */
+  var RLB_GLOW=null;
+  function rbGlowMat(){ if(RLB_GLOW) return RLB_GLOW; RLB_GLOW=new THREE.ShaderMaterial({transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, polygonOffset:true, polygonOffsetFactor:-1, polygonOffsetUnits:-1, toneMapped:false, side:THREE.FrontSide,
+      uniforms:{col:{value:new THREE.Color(0xffc566)}, k:{value:1}},
+      vertexShader:"varying vec3 vN; varying vec3 vV; void main(){ vec4 mv=modelViewMatrix*vec4(position,1.0); vN=normalize(normalMatrix*normal); vV=normalize(-mv.xyz); gl_Position=projectionMatrix*mv; }",
+      fragmentShader:"uniform vec3 col; uniform float k; varying vec3 vN; varying vec3 vV; void main(){ float f=pow(1.0-abs(dot(normalize(vN),normalize(vV))),2.2); gl_FragColor=vec4(col*(0.10+0.85*f)*k,1.0); }"}); return RLB_GLOW; }
+  function rbGlowSet(L){ RL.lights.forEach(function(M){ var st=M.stand; if(!st) return; var on=M===L;
+      if(on&&!st.userData.glow){ var ms=[]; st.traverse(function(o){ if(o.isMesh&&!o.userData.own&&o.name!=="glowov"&&o.geometry&&o.geometry.attributes.normal) ms.push(o); });
+        ms.forEach(function(o){ var g=new THREE.Mesh(o.geometry,rbGlowMat()); g.name="glowov"; g.renderOrder=7; g.raycast=function(){}; g.userData.L=M; o.add(g); }); st.userData.glow=true; }
+      if(st.userData.glow) st.traverse(function(o){ if(o.name==="glowov") o.visible=on; });
+      var rg=st.getObjectByName("ring"); if(rg) rg.material.color.setHex(on?0xffd27a:0xffffff); }); RLB.glowL=L||null; }
   function rbDropStand(L){ if(!L.stand) return; scene.remove(L.stand);   /* kit geometry is shared between stands: only dispose what this stand made for itself */
     L.stand.traverse(function(o){ if(o.userData.own){ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); } else if(o.material&&o.material.userData&&o.material.userData.own) o.material.dispose(); }); L.stand=null; }
   var RLB_SURFC={white:0xf0ede6, silver:0xc9ccd2, gold:0xd8ae5c};
@@ -333,7 +347,7 @@
       P.surf.forEach(function(mt){ mt.color.setHex(RLB_SURFC[L.surf||"silver"]); mt.metalness=L.surf==="white"?0:1; mt.roughness=L.surf==="white"?0.8:0.3; });
       if(P.basic) P.basic.color.setRGB(c[0]/m*on,c[1]/m*on,c[2]/m*on);
       var aim=st.getObjectByName("aim"), showAim=i===RLB.sel&&L.kind!==0&&!!L.aimT; aim.visible=showAim; if(showAim){ aim.scale.set(0.05/S,0.05/S,1); } if(showAim) aim.position.set((L.aimT.x-L.x)/S,(L.aimT.y-L.g)/S,(L.aimT.z-L.z)/S);
-      var rg=st.getObjectByName("ring"); rg.visible=i===RLB.sel; rg.position.y=0.012; rg.scale.setScalar(L.fx==="sodium"?0.5:Math.max(0.5,k));
+      var rg=st.getObjectByName("ring"); rg.visible=i===RLB.sel||L===RLB.glowL; rg.position.y=0.012; rg.scale.setScalar(L.fx==="sodium"?0.5:Math.max(0.5,k));
       var beam=st.getObjectByName("beam"); beam.visible=showAim; if(showAim){ var p=beam.geometry.attributes.position; p.setXYZ(0,0,top,0); p.setXYZ(1,(L.aimT.x-L.x)/S,(L.aimT.y-L.g)/S,(L.aimT.z-L.z)/S); p.needsUpdate=true; beam.geometry.computeBoundingSphere(); } }); }
   var _rbRingT=null, _rbRetT=null;
   function rbRingTex(){ if(_rbRingT) return _rbRingT; var N=512, c=document.createElement("canvas"); c.width=c.height=N; var g=c.getContext("2d"), m=N/2;
@@ -369,19 +383,19 @@
   window.addEventListener("pointerdown",function(e){ if(!rbOnCanvas(e)) return; e.stopImmediatePropagation(); e.preventDefault(); var ae=document.activeElement; if(ae&&ae.closest&&ae.closest("#rbUI")) ae.blur();
     if(e.button===2){ RLB.rcT=Date.now(); RLB.fly=false; toggleViewfinder(); try{ renderer.domElement.requestPointerLock(); }catch(er){} return; }   /* right-click: up to your eye, ready to shoot, same as everywhere else */
     if(e.button!==0) return; var h=rbHit(e);
-    if(h){ var i=RL.lights.indexOf(h.L); RLB.sel=i; var L=h.L, p=rbOnPlane(e,L.g); RLB.drag={L:L, aim:h.aim, ox:p?L.x-p.x:0, oz:p?L.z-p.z:0, moved:false}; rbPanel(true); rbStands(); }
+    if(h){ var i=RL.lights.indexOf(h.L); RLB.sel=i; var L=h.L, p=rbOnPlane(e,L.g); RLB.drag={L:L, aim:h.aim, ox:p?L.x-p.x:0, oz:p?L.z-p.z:0, moved:false}; if(!h.aim){ rbGlowSet(L); renderer.domElement.style.cursor="grabbing"; } rbPanel(true); rbStands(); }
     else { RLB.drag={orbit:true, x:e.clientX, y:e.clientY, moved:false}; renderer.domElement.style.cursor="grabbing"; }
     try{ renderer.domElement.setPointerCapture(e.pointerId); }catch(er){}   /* let go outside the window and the drag still ends */
   },true);
   window.addEventListener("pointermove",function(e){ if(!RLB.open||viewfinderOn) return;
-    var D=RLB.drag; if(!D){ if(e.target===renderer.domElement){ var h=rbHit(e); renderer.domElement.style.cursor=h?(h.aim?"crosshair":"grab"):"move"; } return; }
+    var D=RLB.drag; if(!D){ var h=e.target===renderer.domElement?rbHit(e):null; if(e.target===renderer.domElement) renderer.domElement.style.cursor=h?(h.aim?"crosshair":"grab"):"move"; var hl=h&&!h.aim?h.L:null; if(hl!==RLB.glowL){ rbGlowSet(hl); rbStands(); } return; }
     if(D.orbit){ var mx=e.clientX-D.x, my=e.clientY-D.y; if(D.moved||Math.hypot(mx,my)>3){ D.moved=true; rbOrbit(mx,my); D.x=e.clientX; D.y=e.clientY; } return; }
     var L=D.L; if(D.aim){ _rbRay.setFromCamera(rbNdc(e),camera); var pk=rbPickRay(); if(pk) rbAim(L,pk); else { var g=rbOnPlane(e,rbTarget().y); if(g) rbAim(L,{x:g.x,y:rbTarget().y,z:g.z}); } }
     else { var p=rbOnPlane(e,L.g); if(p) rbPlace(L,p.x+D.ox,p.z+D.oz); }
     D.moved=true; rbStands(); rbPanel(false); rbDirty(); },true);
   window.addEventListener("pointerup",function(e){ if(!RLB.open) return; var D=RLB.drag; RLB.drag=null; if(!D) return;
     if(D.orbit){ renderer.domElement.style.cursor=""; if(!D.moved&&RLB.sel>=0){ RLB.sel=-1; rbStands(); rbPanel(true); } return; }   /* a click on empty space lets go of the light */
-    if(D.L&&D.moved) RL.moved=(RL.moved||0)+1; },true);
+    if(D.L&&D.moved) RL.moved=(RL.moved||0)+1; var h=e.target===renderer.domElement?rbHit(e):null; rbGlowSet(h&&!h.aim?h.L:null); rbStands(); },true);
   window.addEventListener("click",function(e){ if(rbOnCanvas(e)){ e.stopImmediatePropagation(); e.preventDefault(); } },true);
   window.addEventListener("mousedown",function(e){ if(rbOnCanvas(e)||(e.button===2&&RLB.rcT&&Date.now()-RLB.rcT<200)){ e.stopImmediatePropagation(); } },true);
   window.addEventListener("contextmenu",function(e){ if(RLB.open&&e.target===renderer.domElement){ e.preventDefault(); e.stopImmediatePropagation(); } },true);
@@ -553,12 +567,29 @@
   /* dragging from the kit: the piece follows you over the strip, then stands on the ground under the pointer */
   window.addEventListener("pointermove",function(e){ var K=RLB.kdrag; if(!K) return; var gh=$("rbGhost");
     if(!K.moved&&Math.hypot(e.clientX-K.x,e.clientY-K.y)>6) K.moved=true; if(!K.moved) return;
-    var over=e.target===renderer.domElement; gh.classList.toggle("show",!over||!K.L); gh.style.left=e.clientX+"px"; gh.style.top=e.clientY+"px";
-    if(over){ var T=rbTarget(), p=rbOnPlane(e,rlGround(T.x,T.z)); if(!p) return;
-      if(!K.L){ rbAdd(K.fx); K.L=RL.lights[RL.lights.length-1]; if(!K.L||K.L.fx!==K.fx){ K.L=null; return; } }
-      rbPlace(K.L,p.x,p.z); rbAim(K.L,K.fx==="sodium"?{x:p.x,y:rlGround(p.x,p.z),z:p.z}:T); rbStands(); rbPanel(false); rbDirty(); } },true);
-  window.addEventListener("pointerup",function(e){ var K=RLB.kdrag; if(!K) return; RLB.kdrag=null; var gh=$("rbGhost"); if(gh) gh.classList.remove("show");
-    if(K.moved){ RLB.kjust=Date.now(); if(K.L) rbPanel(true); } },true);
+    var over=e.target===renderer.domElement, T=rbTarget(), p=over?rbOnPlane(e,rlGround(T.x,T.z)):null; gh.classList.toggle("show",!p); gh.style.left=e.clientX+"px"; gh.style.top=e.clientY+"px";
+    K.p=p; rbHolo(p?K.fx:null,p); },true);   /* over the scene you drag a light hologram, not the real thing: no relighting until you let go */
+  window.addEventListener("pointerup",function(e){ var K=RLB.kdrag; if(!K) return; RLB.kdrag=null; var gh=$("rbGhost"); if(gh) gh.classList.remove("show"); rbHolo(null);
+    if(!K.moved) return; RLB.kjust=Date.now(); var p=K.p; if(!p) return;
+    var n=RL.lights.length; rbAdd(K.fx); var L=RL.lights[RL.lights.length-1]; if(RL.lights.length===n||!L) return;
+    var T=rbTarget(), H=rbHoloSnap(K.fx,p); rbPlace(L,H.x,H.z); rbAim(L,K.fx==="sodium"?{x:L.x,y:L.g,z:L.z}:T); rbStands(); rbPanel(true); rbDirty(); },true);
+  /* the hologram: a light, see-through stand and head in gold, plus the dial where it will stand */
+  var RLB_HOLOMAT=null;
+  function rbHoloSnap(fx,p){ var sp=RLB.spotNow; if(sp&&sp.fx===fx&&Math.hypot(p.x-sp.x,p.z-sp.z)<0.28*RL.S) return {x:sp.x,z:sp.z}; return {x:p.x,z:p.z}; }
+  function rbHolo(fx,p){ var G=RLB.holo; if(!fx||!p){ if(G) G.visible=false; return; } if(typeof scene==="undefined"||!scene) return;
+    if(G&&G.parent!==scene){ G=null; } if(!G||G.userData.fx!==fx){ if(G){ scene.remove(G); G.traverse(function(o){ if(o.geometry) o.geometry.dispose(); }); }
+      if(!RLB_HOLOMAT) RLB_HOLOMAT={fill:new THREE.MeshBasicMaterial({color:0xf0c46e, transparent:true, opacity:0.18, depthWrite:false, toneMapped:false, side:THREE.DoubleSide}), edge:new THREE.LineBasicMaterial({color:0xffd690, transparent:true, opacity:0.85, toneMapped:false}),
+        ring:new THREE.MeshBasicMaterial({map:rbRingTex(), color:0xf0c46e, transparent:true, opacity:0.9, depthWrite:false, toneMapped:false})};
+      var F=RLB_FX[fx]||RLB_FX.softbox, T=rbTarget(), subH=(T.y-rlGround(T.x,T.z))/RL.S, h=fx==="sodium"?F.h:Math.min(F.h,Math.max(rbMinH(fx),subH+0.55)), w=Math.max(0.16,Math.min(0.9,(F.R||0.1)*2));
+      G=new THREE.Group(); G.userData.fx=fx; G.name="rbHolo";
+      var add=function(geo,x,y,z){ var m=new THREE.Mesh(geo,RLB_HOLOMAT.fill); m.position.set(x,y,z); G.add(m); var l=new THREE.LineSegments(new THREE.EdgesGeometry(geo),RLB_HOLOMAT.edge); l.position.set(x,y,z); G.add(l); };
+      add(new THREE.CylinderGeometry(0.012,0.012,h,6),0,h/2,0);
+      if(fx!=="sodium") for(var k=0;k<3;k++){ var a=k*2.094, lg=new THREE.CylinderGeometry(0.008,0.008,0.5,4); lg.rotateZ(0.9); lg.rotateY(a); add(lg,Math.cos(a)*0.17,0.15,-Math.sin(a)*0.17); }
+      var head=fx==="reflector"||fx==="umbrella"?new THREE.CylinderGeometry(w/2,w/2,0.02,10):fx==="strip"?new THREE.BoxGeometry(0.22,0.9,0.18):new THREE.BoxGeometry(w,w*(fx==="softbox"?1:0.75),Math.max(0.14,w*0.45));
+      if(fx==="reflector"||fx==="umbrella") head.rotateX(Math.PI/2); add(head,0,h,0);
+      var rg=new THREE.Mesh(new THREE.PlaneGeometry(1.3,1.3),RLB_HOLOMAT.ring); rg.rotation.x=-Math.PI/2; rg.position.y=0.015; rg.scale.setScalar(0.6); G.add(rg);
+      G.traverse(function(o){ o.renderOrder=8; o.raycast=function(){}; }); scene.add(G); RLB.holo=G; }
+    var q=rbHoloSnap(fx,p), T2=rbTarget(); G.visible=true; G.position.set(q.x,rlGround(q.x,q.z),q.z); G.scale.setScalar(RL.S); G.rotation.y=Math.atan2(T2.x-q.x,T2.z-q.z); }
   function rbClick(e){ var hd=e.target.closest(".lr-sechdr"); if(hd){ var sec=hd.parentNode, id=sec.getAttribute("data-rb-sec"); sec.classList.toggle("collapsed"); RLB.coll=RLB.coll||{}; RLB.coll[id]=sec.classList.contains("collapsed"); return; }
     var b=e.target.closest("[data-rb],[data-rb-fx],[data-rb-pick],[data-rb-gel],[data-rb-surf],[data-rb-day],[data-rb-on],[data-rb-del]"); if(!b) return; e.stopPropagation(); if(b.tagName==="BUTTON") b.blur(); var L=rbCur();
     if(b.hasAttribute("data-rb-fx")){ if(RLB.kjust&&Date.now()-RLB.kjust<400) return; return rbAdd(b.getAttribute("data-rb-fx")); }   /* a drag already placed it */
@@ -585,7 +616,7 @@
       /* the first time anyone opens Lighting, the tour starts */
       if(typeof coStart==="function"&&!(typeof CO!=="undefined"&&CO.on)&&!(Q.tours&&Q.tours.lightrig)){ var seen="1"; try{ seen=localStorage.getItem("studium_lighttourB"); }catch(e){} if(seen!=="1") setTimeout(function(){ if(RLB.open&&!(typeof CO!=="undefined"&&CO.on)){ try{ localStorage.setItem("studium_lighttourB","1"); }catch(e){} coStart("lightrig"); } },500); } };
     go(); }
-  function rlClose(){ if(!RLB||!RLB.open) return; RLB.open=false; RL.ui=false; RLB.look=false; RLB.drag=null; RLB.play=false; document.body.classList.remove("rl-open"); rbShow(false); rbStands(); renderer.domElement.style.cursor=""; }
+  function rlClose(){ if(!RLB||!RLB.open) return; rbGlowSet(null); rbHolo(null); RLB.open=false; RL.ui=false; RLB.look=false; RLB.drag=null; RLB.play=false; document.body.classList.remove("rl-open"); rbShow(false); rbStands(); renderer.domElement.style.cursor=""; }
   function rlToggle(){ if(RLB&&RLB.open) rlClose(); else rlOpen(); }
   function rlNatural(){ if(!RLB) return; RL.lights.forEach(rbDropStand); RL.lights=[]; RLB.sel=-1; RLB.sunMode=false; RLB.play=false; RL.on=false; rbRestore(); RLB.eye=1; rbPanel(true); rbTimeline(); }
   function rlForget(){ if(!RLB) return; rlClose(); RL.lights.forEach(rbDropStand); RL.lights=[]; RLB.sel=-1; RLB.sunMode=false; RL.on=false; RL.ready=false; RL.target=null; RLB.built=false;
@@ -676,7 +707,7 @@
     time:function(m){ RLB.mins=m; rbSunOn(); rbDirty(); rbTimeline(); }, scan:function(){ RLB.sunMode=false; rbDirty(); rbTimeline(); }, day:function(d){ RLB.day=d; rbDirty(); rbTimeline(); },
     light:function(o){ var L=rbCur(); if(!L) return; for(var k in o) L[k]=o[k]; if(o.stops!=null) L.power=L.base*Math.pow(2,o.stops); if(o.x!=null||o.z!=null||o.h!=null) rbPlace(L,L.x,L.z); if(o.aim) rbAim(L,rbTarget()); rbStands(); rbDirty(); rbPanel(true); },
     spot:function(a,d){ var L=rbCur(), T=rbTarget(); if(!L) return; var ax=camPos.x-T.x, az=camPos.z-T.z, al=Math.hypot(ax,az)||1; ax/=al; az/=al; var r=a*Math.PI/180, ca=Math.cos(r), sa=Math.sin(r); rbPlace(L,T.x+(ax*ca-az*sa)*d*RL.S,T.z+(ax*sa+az*ca)*d*RL.S); rbAim(L,T); rbStands(); rbDirty(); rbPanel(true); },
-    shadows:function(v){ RL.shadows=v; rbDirty(); }, frame:function(){ rbFrame(); }, cam:function(){ return {x:camPos.x,y:camPos.y,z:camPos.z,framing:!!RLB.frame}; }, spotAt:rbSpotAt, spotNow:function(){ return RLB.spotNow; },
+    shadows:function(v){ RL.shadows=v; rbDirty(); }, frame:function(){ rbFrame(); }, cam:function(){ return {x:camPos.x,y:camPos.y,z:camPos.z,framing:!!RLB.frame}; }, scr:function(x,y,z){ var v=new THREE.Vector3(x,y,z).project(camera); return {x:(v.x*0.5+0.5)*innerWidth, y:(-v.y*0.5+0.5)*innerHeight}; }, spotAt:rbSpotAt, spotNow:function(){ return RLB.spotNow; },
     orbit:function(dx,dy,z){ rbOrbit(dx,dy,z); return {x:camPos.x,y:camPos.y,z:camPos.z,fly:RLB.fly,T:rbTarget()}; },
     dbg:function(){ var L=RL.lights[0]; return {roles:rbRoles(), at:L&&rbAtSubject(L), L:L&&{fx:L.fx,kind:L.kind,on:L.on,power:L.power,cone:L.cone,dir:L.dir,ang:L.ang}, ratio:rbRatio(rbRoles())}; },
     regrid:function(o){ for(var k in o) RLB[k]=o[k]; if(RLB.gridS&&RLB.gridS.tex) RLB.gridS.tex.dispose(); RLB.gridS=null; rbGridSharp(); rbDirty(); },

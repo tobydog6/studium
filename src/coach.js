@@ -300,11 +300,11 @@
       coRig({ch:"TIME", line:function(){ return 'Drag the time across the top to <b>night</b>'; }, sub:"Studio lights are easiest to see once the daylight's gone. Click or drag along the bar, right past sunset, until it goes dark.",
         target:'#rbDay .rb-track', nodim:true, done:function(){ return RLB.sunMode&&rbSolar(RLB.mins).el<-10; }}),
       coRig({ch:"KEY", line:function(){ return rbFind("softbox")?'Drag the softbox\'s stand onto the gold <b>KEY</b> spot':'Drag the <b>softbox</b> from the kit onto the gold <b>KEY</b> spot'; }, sub:"This is your key light, the main one. The spot is 45° round from you and a metre or so out: one side of your subject lights up, the other falls into shadow, and that's what gives it shape. Lost it? Press F to fit the set.",
-        spot:"key", place:"bottom", nodim:true,
+        spot:"key", place:"top", nodim:true,
         start:function(){ var B=rbFind("softbox"); rbHome(true); RLB.keySide=1; if(B&&rbAngle(B)!=null){ var H=rbHome(), T=rbTarget(), bx=B.x-T.x, bz=B.z-T.z; RLB.keySide=(H.x*bz-H.z*bx)>=0?1:-1; } rbFrame(rbHome()); },
         target:function(){ var B=rbFind("softbox"); if(!B) return document.querySelector('#rbKit [data-rb-fx="softbox"]'); var p=rbSpotAt("key"); return p?rbAnchor({x:p.x,y:p.y,z:p.z},90):null; },
         done:function(){ return rbNearSpot(rbFind("softbox"),"key"); }}),
-      coRig({ch:"SIZE", spot:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); return !F||(B&&Math.hypot(F.x-B.x,F.z-B.z)>0.6*(RL.S||1))?"fresnel":null; }, start:function(){ rbFrame(rbHome()); },
+      coRig({ch:"SIZE", place:"top", spot:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); return !F||(B&&Math.hypot(F.x-B.x,F.z-B.z)>0.6*(RL.S||1))?"fresnel":null; }, start:function(){ rbFrame(rbHome()); },
         line:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); if(!F) return 'Drag the <b>Fresnel</b> onto the gold spot beside the softbox'; if(Math.hypot(F.x-B.x,F.z-B.z)>0.6*(RL.S||1)) return 'Drag the Fresnel\'s stand onto the gold <b>FRESNEL</b> spot'; return 'Now turn the softbox <b>off</b> with its ◉'; }, sub:"Same place, a much smaller light. Watch the edge of the stump's shadow.",
         target:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); if(!F) return document.querySelector('#rbKit [data-rb-fx="fresnel"]'); if(Math.hypot(F.x-B.x,F.z-B.z)>0.6*(RL.S||1)){ var p=rbSpotAt("fresnel"); return p?rbAnchor({x:p.x,y:p.y,z:p.z},90):null; } return document.querySelector('#rbSide [data-rb-on="'+RL.lights.indexOf(B)+'"]'); }, nodim:true,
         done:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); return !!(F&&F.on&&B&&!B.on&&Math.hypot(F.x-B.x,F.z-B.z)<=0.6*(RL.S||1)); }}, true),
@@ -312,7 +312,7 @@
         target:function(){ var F=rbFind("fresnel"), B=rbFind("softbox"); if(F) return document.querySelector('#rbSide [data-rb-del="'+RL.lights.indexOf(F)+'"]'); return B?document.querySelector('#rbSide [data-rb-on="'+RL.lights.indexOf(B)+'"]'):null; }, nodim:true,
         done:function(){ var B=rbFind("softbox"); return !rbFind("fresnel")&&!!(B&&B.on); }}, true),
       coRig({ch:"FILL", line:function(){ return rbFind("reflector")?'Drag the reflector onto the gold <b>FILL</b> spot':'Drag a <b>reflector</b> onto the gold <b>FILL</b> spot, on the shadow side'; }, sub:"It's on the other side of you from the softbox, facing your subject. It catches some of the key and bounces it back into the shadows.",
-        spot:"fill", place:"bottom", nodim:true, start:function(){ rbFrame(rbHome()); },
+        spot:"fill", place:"top", nodim:true, start:function(){ rbFrame(rbHome()); },
         target:function(){ if(!rbFind("reflector")) return document.querySelector('#rbKit [data-rb-fx="reflector"]'); var p=rbSpotAt("fill"); return p?rbAnchor({x:p.x,y:p.y,z:p.z},90):null; },
         done:function(){ return rbNearSpot(rbFind("reflector"),"fill"); }}, true),
       coRig({ch:"FILL", line:function(){ var r=rbRatioNow(); return 'Bring <b>key to fill</b> to about <b>3 : 1</b>'+(r?' <span style="opacity:.7">(now '+(r<10?r.toFixed(1):Math.round(r))+' : 1)</span>':''); }, sub:"Closer fills more, further fills less. 2 : 1 is soft and open, 4 : 1 is classic, 8 : 1 is moody. Silver bounces more than White.",
@@ -321,7 +321,7 @@
         done:function(){ var R=rbFind("reflector"), r=rbRatioNow(), q=CO.s.r0; var touched=!q||!R||coMovedFrom(R,q)||R.surf!==q.s||Math.abs(R.h-q.h)>0.04; return touched&&r!=null&&r>=2.2&&r<=4.2; },
         bar:function(){ var r=rbRatioNow(); return r==null?0:1-Math.min(1,Math.abs(Math.log(r/3))/Math.log(4)); }}, true),
       coRig({ch:"RIM", line:function(){ return rbFind("strip")?'Drag the stripbox onto the gold <b>RIM</b> spot, behind your subject':'Drag the <b>stripbox</b> onto the gold <b>RIM</b> spot, behind your subject'; }, sub:"A rim light sits behind, pointing back towards you. The bright edge it draws pulls your subject away from the background.",
-        spot:"rim", place:"bottom", nodim:true, start:function(){ rbFrame(rbHome()); },
+        spot:"rim", place:"top", nodim:true, start:function(){ rbFrame(rbHome()); },
         target:function(){ if(!rbFind("strip")) return document.querySelector('#rbKit [data-rb-fx="strip"]'); var p=rbSpotAt("rim"); return p?rbAnchor({x:p.x,y:p.y,z:p.z},90):null; },
         done:function(){ var S=rbFind("strip"); return rbNearSpot(S,"rim")||!!(S&&rbRoleOf(S)==="Rim"&&rbNearSpot(S,"rim",0.7)); }}),
       coRig({ch:"COLOUR", line:function(){ var B=rbFind("softbox"); return rbCur()===B?'Give the key a <b>Warm</b> gel, or drag its <b>Colour</b> to about 3200 K':'Click the <b>softbox</b> in the panel'; }, sub:"A warm key against a cooler rim is one of the oldest colour tricks in lighting.",
@@ -443,19 +443,23 @@
     if(!pre&&s.float) Array.prototype.forEach.call(document.querySelectorAll(s.float),function(x){ x.classList.add('co-float'); });
     if(r&&r.width>2&&r.bottom>0&&r.top<window.innerHeight){ var p=6; ring.style.left=(r.left-p)+"px"; ring.style.top=(r.top-p)+"px"; ring.style.width=(r.width+2*p)+"px"; ring.style.height=(r.height+2*p)+"px"; ring.classList.add("show");
       var W=window.innerWidth, H=window.innerHeight, cw=e.offsetWidth||440, chh=e.offsetHeight||130, x, y;
+      var pl=typeof s.place==="function"?s.place():s.place;
       var beside=r.left>W*0.55&&r.left-p-20-360>12; e.classList.toggle("beside", !!beside);
       if(beside){ e.style.width="360px"; cw=360; chh=e.offsetHeight||chh; x=r.left-p-20-cw; y=Math.max(12,Math.min(H-chh-12,r.top+r.height/2-chh/2)); }   /* beside a panel row: narrow, so the photo stays mostly clear */
       else { var below=r.bottom+p+16+chh<H-10; x=Math.max(12,Math.min(W-cw-12,r.left+r.width/2-cw/2)); y=below?r.bottom+p+16:Math.max(12,r.top-p-16-chh); }
       /* column: stay in the target's own column (its right edge), below it if there's room, else above: the light table stays clear */
-      if(s.place==="column"){ var col=t.closest(".st-loupe")||(s.col&&document.querySelector(s.col))||t, cr=col.getBoundingClientRect(), cwid=Math.min(cw,Math.max(300,cr.width)); e.style.width=cwid+"px"; cw=cwid; chh=e.offsetHeight||chh;
+      if(pl==="column"){ var col=t.closest(".st-loupe")||(s.col&&document.querySelector(s.col))||t, cr=col.getBoundingClientRect(), cwid=Math.min(cw,Math.max(300,cr.width)); e.style.width=cwid+"px"; cw=cwid; chh=e.offsetHeight||chh;
         x=Math.max(12,Math.min(W-cw-12,cr.right-cw)); var fitsBelow=r.bottom+p+16+chh<H-10; y=fitsBelow?r.bottom+p+16:Math.max(12,cr.top+12); }   /* no room below: over the top of the column (the big preview), never over the buttons */
-      if(s.place==="low"){ var stg=document.querySelector("#editStage"), sr=stg?stg.getBoundingClientRect():{left:0,width:W}; x=Math.max(12,Math.min(W-cw-12,sr.left+sr.width/2-cw/2)); y=H-chh-10; }   // over the film strip, clear of the photo
-      if(s.place==="bottom"){ x=Math.max(12,Math.min(W-cw-12,r.left+r.width/2-cw/2)); y=Math.max(r.bottom+p+16,H-chh-64); if(y+chh>H-8) y=H-chh-8; }   // under the screen, clear of the rows
+      if(pl==="low"){ var stg=document.querySelector("#editStage"), sr=stg?stg.getBoundingClientRect():{left:0,width:W}; x=Math.max(12,Math.min(W-cw-12,sr.left+sr.width/2-cw/2)); y=H-chh-10; }   // over the film strip, clear of the photo
+      if(pl==="bottom"){ x=Math.max(12,Math.min(W-cw-12,r.left+r.width/2-cw/2)); y=Math.max(r.bottom+p+16,H-chh-64); if(y+chh>H-8) y=H-chh-8; }   // under the screen, clear of the rows
       /* side: beside the camera screen, so the sliders and the meter stay clear to use */
-      if(s.place==="side"){ var rr=0; Array.prototype.forEach.call(document.querySelectorAll('#camback .cb-scale'),function(x){ rr=Math.max(rr,x.getBoundingClientRect().right); }); rr=Math.max(rr,r.right);
+      if(pl==="side"){ var rr=0; Array.prototype.forEach.call(document.querySelectorAll('#camback .cb-scale'),function(x){ rr=Math.max(rr,x.getBoundingClientRect().right); }); rr=Math.max(rr,r.right);
         var sw=Math.max(260,Math.min(440,W-rr-40)); e.style.width=sw+"px"; e.classList.add("side"); cw=sw; chh=e.offsetHeight||chh; x=Math.min(W-sw-12,rr+24); y=Math.max(12,Math.min(H-chh-12,H/2-chh/2)); }
       else if(e.classList.contains("side")){ e.classList.remove("side"); e.style.width=""; }
-      else if(s.place!=="column"&&!(r.left>W*0.55&&r.left-p-20-360>12)) e.style.width="";
+      else if(pl!=="column"&&!(r.left>W*0.55&&r.left-p-20-360>12)) e.style.width="";
+      /* top: under the daylight bar in Lighting, clear of the kit strip and the floor where the lights go */
+      if(pl==="top"){ var db=document.querySelector("#rbDay"), dr=db?db.getBoundingClientRect():{bottom:90}, sw2=typeof RLB_SIDE!=="undefined"?RLB_SIDE:0; e.style.width=""; cw=e.offsetWidth||cw; chh=e.offsetHeight||chh;
+        x=Math.max(12,Math.min(W-sw2-cw-12,(W-sw2)/2-cw/2)); y=dr.bottom+14; e.classList.remove("beside"); }
       e.style.left=x+"px"; e.style.top=y+"px"; e.style.bottom="auto"; e.style.transform="none"; e.classList.add("pinned"); }
     else { ring.classList.remove("show"); e.style.left=""; e.style.top=""; e.style.bottom=""; e.style.transform=""; e.style.width=""; e.classList.remove("pinned","side","beside"); } }
   document.addEventListener("click",function(e){ if(!CO.on) return; var s=coSteps()[CO.i]; if(s&&s.click&&e.target.closest&&e.target.closest(s.click)) CO.s.ok=true; }, true);

@@ -1505,7 +1505,7 @@
   var bootDemo=/[?&]demo(&|=|$)/.test(location.search)&&!(lsWho()&&lsWho().demo);
   loadSession(function(ok,n){ if(bootDemo){ siShow(); siAct("demo"); return; }   // a ?demo link starts a fresh demo once saved work has loaded (it stays saved)
     if(ok){ if(typeof studioSync==="function") studioSync(); if(lsWho()) toast("Restored your last session · "+n+" photo"+(n>1?"s":"")); } if(App.is("hub")) hubRender(); });
-  if(!lsWho()) siShow(); else if(lsRole()==="teacher") openTeacher("plan"); else { if(lsWho().name) studentName=lsWho().name; hubRender(); }
+  if(!lsWho()||(typeof SI_DEMO_ONLY!=="undefined"&&SI_DEMO_ONLY)) siShow(); else if(lsRole()==="teacher")   /* the playtest build always opens on the title page, even for someone who has been before */ openTeacher("plan"); else { if(lsWho().name) studentName=lsWho().name; hubRender(); }
   window.addEventListener("beforeunload", saveSessionNow);
   document.addEventListener("visibilitychange", function(){ if(document.hidden) saveSessionNow(); });
   setInterval(function(){ if(photos.length||(typeof foItems!=="undefined"&&foItems&&foItems.length)) saveSessionNow(); }, 9000);

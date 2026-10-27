@@ -2834,7 +2834,7 @@ body.co-lens #bag .lensbtn{border-color:#e3ad57;box-shadow:0 0 22px rgba(227,173
 #launch.held .la-still{display:block}
 #launch.p-film .la-still{inset:calc(50vh - var(--fh)/2) calc(50vw - var(--fw)/2);animation:laFade .01s linear 1s forwards}
 #launch.p-spin .la-still,#launch.p-lock .la-still,#launch.out .la-still{display:none}
-.la-still img{width:100%;height:100%;object-fit:cover;display:block}
+.la-still img,.la-still canvas{width:100%;height:100%;object-fit:cover;display:block}
 /* the film: a strip of 35 mm, the sprocket holes punched through to the scan behind */
 .la-film{position:absolute;inset:0;display:none;pointer-events:none;overflow:hidden}
 .la-film::before{content:none}   /* the ember glow behind the strip */
@@ -2852,8 +2852,8 @@ body.co-lens #bag .lensbtn{border-color:#e3ad57;box-shadow:0 0 22px rgba(227,173
 .la-fr{position:relative;flex:none;width:var(--fw);height:var(--fh);margin-right:.15vw;margin-left:0;background:#000;border-radius:0}
 .la-fr::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(255,130,50,.5),inset 0 0 12px rgba(255,120,40,.3),inset 0 0 120px rgba(255,90,20,.12);mix-blend-mode:screen}   /* halation: the light bleeding in at the frame edges */
 .la-fr:first-child{margin-left:.15vw}
-.la-fr video,.la-fr img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 42%;filter:brightness(.97) saturate(1.02) sepia(.06);display:block;border-radius:1px}
-.la-fr.still img{filter:saturate(1.02) sepia(.06)}
+.la-fr video,.la-fr img,.la-fr canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 42%;filter:brightness(.97) saturate(1.02) sepia(.06);display:block;border-radius:1px}
+.la-fr.still img,.la-fr.still canvas{filter:saturate(1.02) sepia(.06)}
 .la-fr span{position:absolute;left:2.2vw;top:2.6vh;padding:7px 12px 6px 14px;border-radius:999px;background:rgba(14,8,4,.72);border:1px solid rgba(255,150,70,.22);font-family:var(--mono);font-size:10.5px;letter-spacing:.34em;color:#e9b27a;z-index:1;backdrop-filter:blur(6px)}
 .la-fr i{position:absolute;left:.3vw;bottom:calc(var(--rb)*-1 + .5vh);font-style:normal;font-family:var(--sans);font-weight:700;font-size:1.25vh;color:#2b2160;opacity:.75;white-space:nowrap;z-index:2}
 .la-fr i::after{content:"A"}
@@ -2885,3 +2885,36 @@ body.co-lens #bag .lensbtn{border-color:#e3ad57;box-shadow:0 0 22px rgba(227,173
 /* the viewfinder under the opening shows only its corners and the focus mark */
 body.launching #vfTop,body.launching #vfHints,body.launching #vfStrip,body.launching #vfBar,body.launching #vfGuideChip,body.launching #vfBriefChip,body.launching #vfCompLbl,body.launching #vfComp,body.launching #vfLevel,body.launching #vfBrief,body.launching #crosshair{visibility:hidden!important}
 body.launching #loader,body.launching #hud,body.launching #navTop,body.launching #navActs,body.launching #prompt,body.launching .q-hud,body.launching #chCard,body.launching #chGlow,body.launching #chFlash,body.launching #chMarks,body.launching #chTitle,body.launching #vfToast,body.launching #coCard,body.launching #coRing,body.launching #toast,body.launching .ach-card,body.launching #tutorial,body.launching #fadeover{visibility:hidden!important}
+
+/* ---- the welcome card (launch.js): after the wordmark, the first time; the warm-up starts from its button ---- */
+#laWel{position:fixed;inset:0;z-index:1150;display:none;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 55%,rgba(8,7,6,.18) 0%,rgba(8,7,6,.62) 100%);font-family:var(--sans);color:var(--text)}
+#laWel.show{display:grid;animation:lwIn .6s ease-out both}
+#laWel.out{animation:lwOut .4s ease-in forwards}
+@keyframes lwIn{from{opacity:0}to{opacity:1}}
+@keyframes lwOut{to{opacity:0}}
+.lw-card{position:relative;width:min(580px,100%);box-sizing:border-box;padding:36px 40px 30px;border-radius:16px;background:linear-gradient(180deg,rgba(28,25,20,.92),rgba(18,16,13,.94));border:1px solid rgba(var(--gold-rgb),.22);box-shadow:0 30px 80px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.04);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+#laWel.show .lw-card{animation:lwCard .8s cubic-bezier(.16,1,.3,1) .05s both}
+#laWel.out .lw-card{animation:lwCardOut .4s ease-in forwards}
+@keyframes lwCard{from{opacity:0;transform:translateY(18px) scale(.98);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+@keyframes lwCardOut{to{opacity:0;transform:translateY(-8px) scale(.99)}}
+.lw-card>*{animation:lwUp .7s cubic-bezier(.2,.7,.2,1) both}
+.lw-k{animation-delay:.2s}.lw-card h2{animation-delay:.28s}.lw-card>p{animation-delay:.36s}.lw-steps{animation-delay:.44s}.lw-first{animation-delay:.6s}.lw-act{animation-delay:.7s}
+@keyframes lwUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.lw-k{font-family:var(--mono);font-size:11px;letter-spacing:.36em;color:var(--accent)}
+.lw-card h2{margin:12px 0 14px;font-family:var(--serif);font-weight:300;font-size:34px;line-height:1.12;letter-spacing:-.01em}
+.lw-card p{margin:0;font-size:15px;line-height:1.62;color:var(--ink-2)}
+.lw-steps{list-style:none;display:flex;gap:0;margin:24px 0 22px;padding:0;position:relative}
+.lw-steps::before{content:"";position:absolute;left:10px;right:10px;top:9px;height:1px;background:linear-gradient(90deg,rgba(var(--gold-rgb),.5),rgba(var(--gold-rgb),.12))}
+.lw-steps li{flex:1;position:relative;padding-top:24px;font-size:13px;font-weight:600;color:var(--text);text-align:left}
+.lw-steps li::before{content:"";position:absolute;left:6px;top:5px;width:9px;height:9px;border-radius:50%;background:#17150f;border:1px solid var(--accent);box-shadow:0 0 0 3px rgba(18,16,13,.94)}
+.lw-steps li:first-child::before{background:var(--accent);box-shadow:0 0 0 3px rgba(18,16,13,.94),0 0 12px rgba(var(--gold-rgb),.6)}
+.lw-steps b{display:block;font-family:var(--mono);font-size:10px;font-weight:400;letter-spacing:.18em;color:var(--accent);margin-bottom:3px}
+.lw-card p.lw-first{font-size:14px;color:var(--muted)}
+.lw-act{display:flex;align-items:center;gap:18px;margin-top:24px}
+.lw-go{display:inline-flex;align-items:center;gap:10px;padding:13px 20px 13px 22px;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);font:600 15px var(--sans);cursor:pointer;box-shadow:0 6px 24px rgba(var(--gold-rgb),.28);transition:transform .15s,box-shadow .15s}
+.lw-go:hover{transform:translateY(-1px);box-shadow:0 10px 30px rgba(var(--gold-rgb),.38)}
+.lw-go kbd{font:500 11px var(--mono);padding:2px 6px;border-radius:5px;background:rgba(0,0,0,.14)}
+.lw-skip{border:0;background:none;padding:6px 0;font:500 13px var(--sans);color:var(--muted);cursor:pointer;text-decoration:underline;text-decoration-color:rgba(166,159,145,.35);text-underline-offset:4px}
+.lw-skip:hover{color:var(--text)}
+body.la-wel-on #prompt,body.la-wel-on #crosshair,body.la-wel-on #navCoach,body.la-wel-on #chMarks{visibility:hidden!important}
+@media (max-width:560px){.lw-card{padding:28px 22px 24px}.lw-card h2{font-size:27px}.lw-steps li{font-size:12px}}

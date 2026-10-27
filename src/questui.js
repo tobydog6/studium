@@ -237,7 +237,7 @@
   /* seamless: when the step you're on needs a tour you haven't done, it starts by itself (foundations, and the whole demo) */
   QU.auto={};
   var Q_NOAUTO=/[?&]noauto/.test(location.search);   /* scripted tests drive the tours themselves */
-  function qAutoTour(){ if(Q_NOAUTO||QU.moments.length||(typeof LA!=="undefined"&&LA.on)) return; var id=Q.tracked, x=id&&qGet(id); if(!x||!(qDemo()||x.type==="foundation")) return;
+  function qAutoTour(){ if(Q_NOAUTO||QU.moments.length||(typeof LA!=="undefined"&&(LA.on||LA.wcard))) return; var id=Q.tracked, x=id&&qGet(id); if(!x||!(qDemo()||x.type==="foundation")) return;
     if(QU.pick||QU.log||QU.done||qPlanLive()||(typeof CO!=="undefined"&&CO.on)||(typeof viewfinderOn!=="undefined"&&viewfinderOn)) return;
     if(App.is("hub")||App.is("signin")||App.is("landing")||App.is("teacher")) return; if(typeof ACHU!=="undefined"&&ACHU.full) return;
     var nx=qNextStep(id); if(!nx||!nx.tour||coTourDone(nx.tour)) return; var k=id+":"+nx.tour; if(QU.auto[k]) return; QU.auto[k]=1; qHow(); }

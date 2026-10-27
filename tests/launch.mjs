@@ -2,7 +2,7 @@
 //   node tests/launch.mjs      screenshots to tests/out/launch-*.png
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
-import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
@@ -34,6 +34,9 @@ try {
   await ev(() => __la.go()); await until('film', 20000); console.log('film at', Date.now() - t0, 'ms'); await page.waitForTimeout(1200); await shot('4-film');
   await ev(() => __la.go()); await until('spin', 60000); await page.waitForTimeout(1800); await shot('5-spin');
   await ev(() => __la.go()); await until('end', 30000); await page.waitForTimeout(400); await shot('6-scene');
+  await page.waitForTimeout(2800); await shot('7-welcome'); console.log('welcome card:', await ev(() => __la.wel()));
+  const snd = await ev(() => __sd.render()); writeFileSync(join(OUT, 'launch-sound.wav'), Buffer.from(snd.wav, 'base64')); console.log('sound peak:', snd.peak);
+  await ev(() => __la.welGo('skip')); console.log('card after skip:', await ev(() => __la.wel()));
   console.log('end:', await ev(() => ({ state: __cb.state(), log: __la.state().log, launching: document.body.classList.contains('launching'), hud: getComputedStyle(document.getElementById('hud')).visibility, vf: document.getElementById('viewfinder').classList.contains('on'), pose: __cb.pose(), spawn: (window.SPLAT_SCENES||[])[0].spawn })));
   // second time: the short version
   await ev(() => { __qu.closeAll(); __la.start(); }); await until('dark', 5000); const t1 = Date.now(); await until('end', 30000); console.log('short version took', Date.now() - t1, 'ms');

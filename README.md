@@ -89,6 +89,12 @@ lives inside it.
 
 ## News
 
+- **27 Oct 2026.** The opening has sound: a dark bed and a low drone, the point cloud ticking into place, the lens
+  motor and focus confirm, the shutter, film winding on frame by frame, a whoosh round the big circle and a warm chord
+  as the wordmark lands. All synthesised in Web Audio, no files. The viewfinder is raised once behind the dark so the
+  real raise doesn't hitch, and the still goes straight into the strip without a JPEG encode. The first time through, a
+  welcome card says what Studium is and starts the warm-up from its button.
+
 - **26 Oct 2026, later.** An opening: dark for a beat while the scan loads, then the scan arrives as a sparse cloud of
   gold points and a line sweeps up through it leaving the full splat below, close on the stump in slow motion from the
   shallow-depth gold frame's own viewpoint. The lens eases open, the viewfinder racks focus onto the bark and fires; the

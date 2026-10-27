@@ -714,7 +714,12 @@
     if(typeof boundsOn!=="undefined"&&boundsOn&&typeof bndClamp==="function") bndClamp();
     var dX=T.x-camPos.x, dY=T.y-camPos.y, dZ=T.z-camPos.z, dl=Math.hypot(dX,dY,dZ)||1; yaw=Math.atan2(-dX,-dZ); pitch=Math.asin(dY/dl); RLB.fly=true; if(typeof _vel!=="undefined") _vel.set(0,0,0);
     if(F.t>=1) RLB.frame=null; }
-  if(/[?&]dev/.test(location.search)) window.__rlb={ RLB:RLB, RL:RL, open:rlOpen, close:rlClose, add:rbAdd, sel:function(i){ RLB.sel=i; rbStands(); rbPanel(true); },
+  /* the Stump's default look: daylight, today, 13:35. Built behind the opening's welcome, where the grid's hitch can't be seen;
+     left alone if someone has already set their own light */
+  function rbDefaultLook(){ if(!loaded||!viewer||!viewer.P||!viewer.mesh||!(CH.spec&&CH.spec.id==="stump")||RLB.sunMode||RL.lights.length) return;
+    try{ if(!RL.ready){ RL.P=viewer.P; RL.A=viewer.A; RL.N=RL.P.length/3; RL.S=rlScale(); RL.ready=true; } if(!RL.target) RL.target=rlTarget(); rbInstall();
+      if(!RLB.built){ rlGrid(); rbGridSharp(); RLB.built=true; } RLB.day="today"; RLB.mins=13*60+35; rbSunOn(); rbDirty(); }catch(e){ console.warn("default look",e); } }
+  if(/[?&]dev/.test(location.search)) window.__rlb={ RLB:RLB, RL:RL, deflook:rbDefaultLook, why:function(){ return {loaded:loaded, P:!!(viewer&&viewer.P), id:CH.spec&&CH.spec.id, sun:RLB.sunMode, lights:RL.lights.length}; }, deflook:rbDefaultLook, why:function(){ return {loaded:loaded, P:!!(viewer&&viewer.P), id:CH.spec&&CH.spec.id, sun:RLB.sunMode, lights:RL.lights.length}; }, open:rlOpen, close:rlClose, add:rbAdd, sel:function(i){ RLB.sel=i; rbStands(); rbPanel(true); },
     time:function(m){ RLB.mins=m; rbSunOn(); rbDirty(); rbTimeline(); }, scan:function(){ RLB.sunMode=false; rbDirty(); rbTimeline(); }, day:function(d){ RLB.day=d; rbDirty(); rbTimeline(); },
     light:function(o){ var L=rbCur(); if(!L) return; for(var k in o) L[k]=o[k]; if(o.stops!=null) L.power=L.base*Math.pow(2,o.stops); if(o.x!=null||o.z!=null||o.h!=null) rbPlace(L,L.x,L.z); if(o.aim) rbAim(L,rbTarget()); rbStands(); rbDirty(); rbPanel(true); },
     spot:function(a,d){ var L=rbCur(), T=rbTarget(); if(!L) return; var ax=camPos.x-T.x, az=camPos.z-T.z, al=Math.hypot(ax,az)||1; ax/=al; az/=al; var r=a*Math.PI/180, ca=Math.cos(r), sa=Math.sin(r); rbPlace(L,T.x+(ax*ca-az*sa)*d*RL.S,T.z+(ax*sa+az*ca)*d*RL.S); rbAim(L,T); rbStands(); rbDirty(); rbPanel(true); },

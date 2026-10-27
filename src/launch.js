@@ -316,7 +316,7 @@
   function laEnd(){ if(!LA.on) return; LA.on=false; if(LA.tod&&RL.gpu) RL.gpu.U.on.value=0; cancelAnimationFrame(LA.raf); var e=LA.el; LA.welcome=Date.now(); laVfOff(); laScanOff(); (CH.pads||[]).forEach(function(P){ P.vis=0; });   /* the gold frames fade in once the wordmark has gone */
     if(loaded){ hubShow("hud"); App.go("scene"); if(typeof updatePrompt==="function") updatePrompt(); } else showHub();
     sdAmbStop(sdNow()+1.6,1.2); if(LA.first&&loaded) LA.wcard=true;   /* first time: hold the tour and the gold frames for the welcome */
-    if(e){ e.className="on out"; setTimeout(function(){ e.className=""; document.body.classList.remove("launching"); if(LA.wcard) laWelOpen(); setTimeout(laTodEnd,LA.wcard?400:0); },LA_T.word*1000); } else { document.body.classList.remove("launching"); laTodEnd(); }   /* the rig hands back behind the welcome card, where any last change can't be seen */
+    if(e){ e.className="on out"; setTimeout(function(){ e.className=""; document.body.classList.remove("launching"); if(LA.wcard) laWelOpen(); setTimeout(function(){ laTodEnd(); if(typeof rbDefaultLook==="function") rbDefaultLook(); },LA.wcard?400:0); },LA_T.word*1000); } else { document.body.classList.remove("launching"); laTodEnd(); if(typeof rbDefaultLook==="function") rbDefaultLook(); }   /* the rig hands back behind the welcome card, where any last change can't be seen */
     var cv=e&&e.querySelector(".la-iris"); if(cv) cv.style.opacity=0;
     if(LA.after) LA.after(); }
   // ---- the welcome: what Studium is, and that the camera comes first ----

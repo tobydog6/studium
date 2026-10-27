@@ -100,7 +100,7 @@
   function sdVBus(c,t,send){ var b=c.createGain(); b.gain.value=1; b.connect(SD.out); if(send){ var s=c.createGain(); s.gain.value=send; b.connect(s); s.connect(SD.verb); } SD.vb=b; return b; }   /* the beginning's own music: the shutter cuts it */
   function sdAir(c,bus,t,g0,lpf){ var s=c.createBufferSource(); s.buffer=SD.nb; s.loop=true; var lp=c.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=lpf||500; var hp=c.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=120; var g=c.createGain(); g.gain.value=g0;
     var lfo=c.createOscillator(), lg=c.createGain(); lfo.frequency.value=0.11; lg.gain.value=g0*0.6; lfo.connect(lg); lg.connect(g.gain); s.connect(hp); hp.connect(lp); lp.connect(g); g.connect(bus); s.start(t); lfo.start(t); return [s,lfo]; }
-  function sdBedBus(c,t){ var bus=c.createGain(); bus.gain.setValueAtTime(0.0001,t); bus.gain.exponentialRampToValueAtTime(1,t+4.5);   /* fades in slowly, so the air never arrives at once */ bus.connect(SD.out); SD.amb=bus; SD.drone=null; return bus; }
+  function sdBedBus(c,t){ var bus=c.createGain(); bus.gain.setValueAtTime(0,t); bus.gain.linearRampToValueAtTime(1,t+6);   /* fades in slowly, so the air never arrives at once */ bus.connect(SD.out); SD.amb=bus; SD.drone=null; return bus; }
   function sdBell(b,t,f,peak,pan,dec){ sdTone(b,t,f,"sine",0.003,peak,0.01,dec||1.6,null,pan); sdTone(b,t,f*2.76,"sine",0.002,peak*0.28,0.005,(dec||1.6)*0.4,null,pan); }
   var SD_PENTA=[440,493.88,554.37,659.25,739.99,880,987.77,1108.73,1318.51,1479.98,1760,1975.53,2217.46,2637.02];
   var SDV={
@@ -228,7 +228,7 @@
   function laLook(now){ if(LA.lookT==null||typeof rbLookEase!=="function") return; if(!LA.lookE0) LA.lookE0=now; var k=Math.min(1,(now-LA.lookE0)/((LA_T.detail+2.2)*1000));
     if(k<1&&now-LA.lookL<150) return; LA.lookL=now; rbLookEase(laE(k)); if(k>=1) LA.lookT=null; }
   /* everything that makes a sound comes up from silence over three seconds as the opening starts, so nothing arrives at once */
-  function laSoundIn(){ [typeof SFX!=="undefined"&&SFX.out, SD.out].forEach(function(o){ if(!o||!o.context) return; try{ var c=o.context, t=c.currentTime, v=Math.max(o.gain.value,0.0002); o.gain.cancelScheduledValues(t); o.gain.setValueAtTime(0.0001,t); o.gain.exponentialRampToValueAtTime(v,t+3); }catch(e){} }); }
+  function laSoundIn(){ [typeof SFX!=="undefined"&&SFX.out, SD.out].forEach(function(o){ if(!o||!o.context) return; try{ var c=o.context, t=c.currentTime, v=Math.max(o.gain.value,0.0002); o.gain.cancelScheduledValues(t); o.gain.setValueAtTime(0,t); o.gain.linearRampToValueAtTime(v,t+3); }catch(e){} }); }
   function laTodAt(u){ var K=LA_TOD, i=0; while(i<K.length-2&&u>K[i+1][0]) i++; var a=K[i], b=K[i+1], k=Math.max(0,Math.min(1,(u-a[0])/(b[0]-a[0])));   /* straight between the keys: one steady shift, no pauses at each one */
     return a.map(function(v,j){ return v+(b[j]-v)*k; }); }
   function laTod(u,day,now){ var T=LA.tod; if(!T) return; var v=laTodAt(u);
@@ -268,7 +268,9 @@
   function laCamInit(){ var c=laShotSpec(); LA.a0=c.az*Math.PI/180; LA.r0=c.dist; LA.h0=c.h; LA.look=c.look; laDetail(0); }
   var laE=function(u){ return u<0?0:u>1?1:u*u*(3-2*u); };
   function laFov(v){ if(viewfinderOn||!camera) return; camera.fov=v; camera.updateProjectionMatrix(); }       /* a longer lens for the slow motion; the viewfinder sets its own, and lowering it goes back to the walking eye */
-  function laDetail(u){ var k=laE(u); laPlace(LA.a0-0.55+k*0.58, LA.r0+2.4-2.42*k, LA.h0+0.7-0.71*k, LA.look); laFov(40-16*k); }   /* slow: the clearing first, wide, then a long move in to the stump while the weather passes */   /* slow motion: a creep round into the frame, pushing in */
+  function laDetail(u){ var p=laE(Math.min(1,u/0.66)), q=laE(Math.max(0,(u-0.6)/0.4)), L0=LA.look||[0,0.3,0], Lc=[L0[0],(L0[1]||0.3)+0.12,L0[2]];   /* a close, slow pan along the bark and the ivy, at full detail, then an easy pull back to where the shot is taken */
+    var ca=LA.a0-0.62+0.5*p, cr=0.95-0.08*p, ce=0.62-0.06*p, sa=LA.a0+0.03, sr=LA.r0-0.02, se=LA.h0-0.01;
+    laPlace(ca+(sa-ca)*q, cr+(sr-cr)*q, ce+(se-ce)*q, q>0?[Lc[0]+(L0[0]-Lc[0])*q, Lc[1]+((L0[1]||0.3)-Lc[1])*q, Lc[2]+(L0[2]-Lc[2])*q]:Lc); laFov(32-6*p-2*q); }   /* slow: the clearing first, wide, then a long move in to the stump while the weather passes */   /* slow motion: a creep round into the frame, pushing in */
   function laShootCam(u){ laPlace(LA.a0+0.03+u*0.015, LA.r0-0.02-0.01*u, LA.h0-0.01, LA.look); if(!LA.vf) laFov(24); }              /* the camera comes up: all but still */
   var LA_WIDE={r:4.1, eye:1.9};
   function laDrift(t){ laPlace(LA.a0+0.9+t*0.07, LA_WIDE.r, LA_WIDE.eye); }                                  /* wide and slow behind the film */
@@ -317,14 +319,14 @@
   // ---- the clock ----
   function laTick(now){ if(!LA.on) return; LA.raf=requestAnimationFrame(laTick); laDetWatch(); var t=(now-LA.t0)/1000, p=LA.phase, pt=(now-(LA.pt||LA.t0))/1000, e=LA.el;
     if(p==="dark"){ if(t>2.5&&!LA.skipAsked){ LA.skipAsked=true; e.classList.add("skip"); }
-      if(loaded&&!LA.scanTried){ LA.scanTried=true; LA.scanT=t; LA.todT=t; if(!LA.fast){ if(typeof rbDefaultLook==="function"&&CH.spec&&CH.spec.id==="stump"){ rbDefaultLook(false,7*60+30); if(typeof RLB!=="undefined"&&RLB.sunMode) LA.lookT=t; else laTodInit(); } else laTodInit(); laCamInit(); laVfOn(); LA.warm=true; } }   /* the Stump opens on its own default look, early morning, built here behind the dark */
+      if(loaded&&!LA.scanTried){ LA.scanTried=true; LA.scanT=t; LA.todT=t; if(!LA.fast){ if(typeof rbDefaultLook==="function"&&CH.spec&&CH.spec.id==="stump"){ rbDefaultLook(false,9*60+30); if(typeof RLB!=="undefined"&&RLB.sunMode) LA.lookT=t; else laTodInit(); } else laTodInit(); laCamInit(); laVfOn(); LA.warm=true; } }   /* the Stump opens on its own default look, early morning, built here behind the dark */
       if(loaded&&typeof rbDefaultPrep==="function"&&typeof RLB!=="undefined"&&!RLB.built&&!LA.prepTried){ LA.prepTried=true; setTimeout(function(){ if(LA.on&&LA.phase==="dark") rbDefaultPrep(); else LA.prepTried=false; },0); }   /* the default look's light grid is built here, unseen */   /* the point cloud's shader and the viewfinder's compile behind the dark: raised once, unseen */
       if(LA.warm&&t-LA.scanT>0.32){ LA.warm=false; laVfOff(); }   /* the point cloud's shader compiles behind the dark */
       if(loaded&&LA.loadT==null) LA.loadT=t; var det=!(CH.spec&&CH.spec.detail)||!!(viewer&&viewer.detail)||t-LA.loadT>8, settled=det&&t-LA.loadT>1.6&&(LA.fast||!(LA.tod||LA.lookT!=null)||t-LA.todT>1.4)&&(typeof RLB==="undefined"||RLB.built||!(CH.spec&&CH.spec.id==="stump")||t-LA.loadT>10);   /* hold the dark until the stump's own detail piece is in and the level of detail has had time to fill in under it */
-      if(loaded&&settled&&t>(LA.fast?0.6:1.0)&&(LA.fast||(!LA.warm&&t-LA.scanT>1.0))){ laCamInit(); if(typeof updateCamera==="function") updateCamera(0); if(LA.fast){ if(typeof rbDefaultLook==="function") rbDefaultLook(); laDrift(0); laLockStart(); return; } laPhase("detail"); sdScan(); if(typeof setScale==="function"&&typeof dynTop==="function"){ try{ setScale(Math.max(0.5,dynTop()*0.85)); }catch(x){} } } return; }
+      if(loaded&&settled&&t>(LA.fast?0.6:1.0)&&(LA.fast||(!LA.warm&&t-LA.scanT>1.0))){ laCamInit(); if(typeof updateCamera==="function") updateCamera(0); if(LA.fast){ if(typeof rbDefaultLook==="function") rbDefaultLook(); laDrift(0); laLockStart(); return; } laPhase("detail"); sdScan(); if(typeof setScale==="function"&&typeof dynTop==="function"){ try{ setScale(dynTop()); }catch(x){} } } return; }
     if(p==="detail"||p==="shoot"||p==="spin") laLook(now);
     if(p==="detail"){ laTod(Math.min(1,pt/(LA_T.detail+2.3))); laDetail(Math.min(1,pt/LA_T.detail)); laScanSet(Math.min(1,pt/LA_T.scan));  if(pt>LA_T.detail&&!laHeld()) laPhase("shoot"); return; }
-    if(p==="shoot"){ if(!LA.fired){ laShootCam(Math.min(1,pt/LA_T.shoot)); laTod(Math.min(1,(LA_T.detail+pt)/(LA_T.detail+2.3))); } if(!LA.vf&&!LA.fired&&pt>0.05){ laShootCam(0); LA.focusTo=laFocusTarget(); laVfOn(); sdLensUp(); if(typeof setScale==="function"&&typeof dynTop==="function"){ try{ setScale(Math.max(0.5,dynTop()*0.72)); }catch(x){} } }   /* fewer pixels while the lens is up; the auto resolution brings them back */
+    if(p==="shoot"){ if(!LA.fired){ laShootCam(Math.min(1,pt/LA_T.shoot)); laTod(Math.min(1,(LA_T.detail+pt)/(LA_T.detail+2.3))); } if(!LA.vf&&!LA.fired&&pt>0.05){ laShootCam(0); LA.focusTo=laFocusTarget(); laVfOn(); sdLensUp(); if(typeof setScale==="function"&&typeof dynTop==="function"){ try{ setScale(dynTop()); }catch(x){} } }   /* fewer pixels while the lens is up; the auto resolution brings them back */
       if(LA.vf&&!LA.fired) laIris(Math.min(1,(pt-0.05)/LA_T.iris));
       if(LA.vf&&pt>0.75){ if(!LA.racked){ LA.racked=true; sdRack(null,1.4); } laRack(Math.min(1,(pt-0.75)/1.4)); }
       if(LA.focused>=0) LA.focused++; if(LA.vf&&!LA.fired&&pt>2.3&&LA.focused>=3){ LA.fired=true; laFire(); }   /* fire only once the focus has been on screen a few frames */

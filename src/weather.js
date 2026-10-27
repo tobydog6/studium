@@ -4,7 +4,7 @@
   // the shutter is open: 1/1000 freezes beads in the air, 1/30 drags them into streaks. That's the lesson.
   // Wind, fog and wet ground are one Spark object modifier on the scan: trees bend from the root and leaves flutter; flat upward
   // surfaces darken and catch a sheen; everything fades to grey with distance in fog; rain or fog greys the light.
-  var WE={field:null, rain:0, wind:1, fog:0,   /* light wind is the default look; no fog */ mesh:null, U:null, scanU:null, scanMeshes:[], t0:performance.now(), lastCam:null, dirty:true, snd:null, sndT:0};
+  var WE={field:null, rain:0, wind:0, fog:0,   /* clear and still by default: wind and fog are the scan's biggest costs */ mesh:null, U:null, scanU:null, scanMeshes:[], t0:performance.now(), lastCam:null, dirty:true, snd:null, sndT:0};
   var WE_LV=["Off","Light","Heavy"], WE_DROPS=22000, WE_SPLASH=2400;
   var WE_ITEMS=[["rain","Rain","5"],["wind","Wind","6"],["fog","Fog","7"]];
   var WE_ICON={

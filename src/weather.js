@@ -5,7 +5,7 @@
   // Wind, fog and wet ground are one Spark object modifier on the scan: trees bend from the root and leaves flutter; flat upward
   // surfaces darken and catch a sheen; everything fades to grey with distance in fog; rain or fog greys the light.
   var WE={field:null, rain:0, wind:0, fog:0, mesh:null, U:null, scanU:null, scanMeshes:[], t0:performance.now(), lastCam:null, dirty:true, snd:null, sndT:0};
-  var WE_LV=["Off","Light","Heavy"], WE_DROPS=18000, WE_SPLASH=2000;
+  var WE_LV=["Off","Light","Heavy"], WE_DROPS=22000, WE_SPLASH=2400;
   var WE_ITEMS=[["rain","Rain","5"],["wind","Wind","6"],["fog","Fog","7"]];
   var WE_ICON={
     rain:'<svg viewBox="0 0 24 24"><path d="M7 14.5a4 4 0 0 1 .4-8 5 5 0 0 1 9.6 1.3 3.4 3.4 0 0 1-.6 6.7Z"/><path d="M8.5 17.5l-1 2.5M12.5 17.5l-1 2.5M16.5 17.5l-1 2.5"/></svg>',
@@ -29,40 +29,60 @@
     "vec4 weFromY(vec3 d){ vec3 a=cross(vec3(0.0,1.0,0.0),d); float w=1.0+d.y; if(w<1e-4) return vec4(1.0,0.0,0.0,0.0); return normalize(vec4(a,w)); }"].join("\n");
 
   // ---- the rain: drops on a world-anchored lattice, wrapped into a box that follows you ----
-  function weRainBuild(){ var D=SPARK.dyno, U={}, n=WE_DROPS+WE_SPLASH;
-    var mesh=new SPARK.SplatMesh({constructSplats:function(sp){ var c=new THREE.Vector3(), s=new THREE.Vector3(0.001,0.001,0.001), q=new THREE.Quaternion(), col=new THREE.Color(0.8,0.84,0.88);
-      for(var i=0;i<n;i++){ c.set(Math.random(),Math.random(),Math.random()); sp.pushSplat(c,s,q,1,col); } }});
-    U.t=D.dynoFloat(0); U.amt=D.dynoFloat(0); U.cam=D.dynoVec3(new THREE.Vector3()); U.box=D.dynoVec3(new THREE.Vector3(14,7,14)); U.gy=D.dynoFloat(0);
-    U.vel=D.dynoVec3(new THREE.Vector3(0,-8,0)); U.len=D.dynoFloat(0.1); U.th=D.dynoFloat(0.002); U.al=D.dynoFloat(0.5); U.S=D.dynoFloat(1); U.lit=D.dynoFloat(1);
-    var types={gsplat:D.Gsplat, t:"float", amt:"float", cam:"vec3", box:"vec3", gy:"float", vel:"vec3", len:"float", th:"float", al:"float", S:"float", lit:"float"};
-    var mod=D.dynoBlock({gsplat:D.Gsplat},{gsplat:D.Gsplat},function(io){ var ins={gsplat:io.gsplat}; for(var k in U) ins[k]=U[k];
-      var dd=D.dyno({inTypes:types, outTypes:{gsplat:D.Gsplat}, inputs:ins, globals:function(){ return [WE_GLSL]; },
-        statements:function(c){ var i=c.inputs, o=c.outputs.gsplat; return [
-          o+" = "+i.gsplat+";",
-          "float id=float("+o+".index); float h=weH(id*0.731+1.3); vec3 u="+o+".center;",
-          "vec3 org=vec3("+i.cam+".x-"+i.box+".x*0.5, "+i.gy+", "+i.cam+".z-"+i.box+".z*0.5);",
-          "vec3 col=vec3(0.78,0.82,0.87)*"+i.lit+"; float a=0.0;",
-          "if(id<"+WE_DROPS+".0){",
-          "  vec3 q=u*"+i.box+"+"+i.vel+"*"+i.t+"*(0.85+0.3*h); vec3 p=org+mod(q-org,"+i.box+");",
-          /* fade at the sides of the box so drops never pop in, and thin out the light rain */
-          "  vec2 e=min(p.xz-org.xz, org.xz+"+i.box+".xz-p.xz)/("+i.box+".xz*0.18); float edge=clamp(min(e.x,e.y),0.0,1.0);",
-          "  float top=clamp(("+i.gy+"+"+i.box+".y-p.y)/("+i.box+".y*0.2),0.0,1.0);",
-          "  float near=smoothstep(0.45*"+i.S+",1.3*"+i.S+",length(p-"+i.cam+"));",   /* nothing smears right across the lens, and far less to draw */
-          "  a=(h<"+i.amt+")?"+i.al+"*edge*top*near:0.0;",
-          "  vec3 d=normalize(-"+i.vel+"); "+o+".center=p; "+o+".quaternion=weFromY(d);",
-          "  "+o+".scales=vec3("+i.th+", max("+i.len+"*0.25,"+i.th+"*1.4), "+i.th+");",
-          "} else {",
-          /* a splash: a flat ring of spray where a drop lands, a different place every time */
-          "  float rate=2.6+1.4*h; float ph=fract("+i.t+"*rate+h*7.0); float cyc=floor("+i.t+"*rate+h*7.0);",
-          "  vec2 xz=fract(u.xz+vec2(weH(cyc+id*0.11),weH(cyc*1.7+id*0.37)));",
-          "  vec2 pw=org.xz+xz*"+i.box+".xz*0.7+"+i.box+".xz*0.15;",
-          "  float r=(0.006+0.04*ph)*"+i.S+"; "+o+".center=vec3(pw.x, "+i.gy+"+0.004*"+i.S+", pw.y); "+o+".quaternion=vec4(0.0,0.0,0.0,1.0);",
-          "  "+o+".scales=vec3(r, 0.0015*"+i.S+", r);",
-          "  a=(ph<0.22&&h<"+i.amt+")?(1.0-ph/0.22)*0.32:0.0;",
-          "}",
-          ""+o+".rgba=vec4(col, a);"]; } });
-      return {gsplat:dd.outputs.gsplat}; });
-    mesh.objectModifier=mod; mesh.updateGenerator(); mesh.frustumCulled=false; WE.mesh=mesh; WE.U=U; }
+  // Plain three.js, not splats: one instanced draw of thin camera-facing streaks, worked out entirely on the graphics
+  // card from the time and a random seed each. Nothing about the scan changes, so Spark never re-sorts for the rain.
+  // Splats don't write depth, so a drop checks it isn't behind something solid by stepping through the wind map's
+  // solidity on its way to your eye (a few texture reads per drop).
+  var WE_RAIN_VS=[
+    "precision highp float; precision highp sampler3D;",
+    "uniform float t, amt, len, th, al, S, gy, pxk, fok; uniform vec3 cam, box, vel, fo, finv; uniform sampler3D fld;",
+    "attribute vec4 seed; varying vec2 vq; varying float va; varying float vk;",
+    "float weH(float n){ return fract(sin(n*12.9898)*43758.5453); }",
+    "void hide(){ gl_Position=vec4(2.0,2.0,2.0,1.0); va=0.0; }",
+    "void main(){ vq=position.xy; vk=seed.w>=1.0?1.0:0.0; float h=fract(seed.w); if(h>=amt){ hide(); return; }",
+    "  vec3 org=vec3(cam.x-box.x*0.5, gy, cam.z-box.z*0.5); vec3 p; float a;",
+    "  if(vk<0.5){",
+    "    vec3 q=seed.xyz*box+vel*t*(0.85+0.3*h); p=org+mod(q-org,box);",
+    "    vec2 e=min(p.xz-org.xz, org.xz+box.xz-p.xz)/(box.xz*0.18); a=al*clamp(min(e.x,e.y),0.0,1.0)*clamp((gy+box.y-p.y)/(box.y*0.2),0.0,1.0);",
+    "    a*=smoothstep(0.45*S,1.3*S,length(p-cam));",
+    "  } else {",
+    "    float rate=2.6+1.4*h; float ph=fract(t*rate+h*7.0); float cyc=floor(t*rate+h*7.0);",
+    "    vec2 xz=fract(seed.xz+vec2(weH(cyc+seed.y*31.0),weH(cyc*1.7+seed.y*17.0)));",
+    "    p=vec3(org.x+(0.15+0.7*xz.x)*box.x, gy+0.006*S, org.z+(0.15+0.7*xz.y)*box.z);",
+    "    a=ph<0.22?(1.0-ph/0.22)*0.45*al:0.0; vq=vec2(position.x, position.y*2.0-1.0);",
+    "    a*=smoothstep(0.6*S,1.5*S,length(p-cam));",
+    "  }",
+    "  if(a<0.004){ hide(); return; }",
+    /* behind something solid? step through the solidity on the way to the eye */
+    "  if(fok>0.5){ float oc=0.0; for(int i=0;i<7;i++){ vec3 s=mix(p,cam,(float(i)+0.5)/7.0); vec3 uv=(s-fo)*finv; if(all(greaterThanEqual(uv,vec3(0.0)))&&all(lessThanEqual(uv,vec3(1.0)))) oc+=texture(fld,uv).b; }",
+    "    a*=clamp(1.0-(oc-0.5)/0.9,0.0,1.0); if(a<0.004){ hide(); return; } }",
+    "  if(vk<0.5){",
+    "    vec3 dir=normalize(vel); vec4 A=viewMatrix*vec4(p-dir*len*0.5,1.0), B=viewMatrix*vec4(p+dir*len*0.5,1.0);",
+    "    float dep=-mix(A.z,B.z,0.5); if(dep<0.05){ hide(); return; }",
+    "    float w=max(th, dep*pxk*0.75); a*=sqrt(th/w);",   /* a far drop is drawn a pixel wide, so it's fainter */
+    "    vec2 d2=B.xy-A.xy; float dl=length(d2); vec2 dd=dl>1e-6?d2/dl:vec2(0.0,1.0); vec2 sd=vec2(-dd.y,dd.x);",
+    "    vec3 P=mix(A.xyz,B.xyz,position.y)+vec3(sd*position.x*w*1.6+dd*(position.y-0.5)*2.0*w,0.0);",
+    "    gl_Position=projectionMatrix*vec4(P,1.0);",
+    "  } else {",
+    "    float r=(0.012+0.05*fract(t*(2.6+1.4*h)+h*7.0))*S;",
+    "    gl_Position=projectionMatrix*viewMatrix*vec4(p+vec3(position.x*r,0.0,(position.y*2.0-1.0)*r),1.0);",
+    "  }",
+    "  va=a; }"].join("\n");
+  var WE_RAIN_FS=[
+    "precision highp float; uniform float lit; varying vec2 vq; varying float va; varying float vk;",
+    "void main(){ float a;",
+    "  if(vk<0.5){ a=va*exp(-vq.x*vq.x*2.2)*smoothstep(0.0,0.12,vq.y)*smoothstep(1.0,0.88,vq.y); }",
+    "  else { float d=length(vq); a=va*smoothstep(1.0,0.7,d)*smoothstep(0.35,0.85,d); }",
+    "  if(a<0.003) discard; gl_FragColor=vec4(vec3(0.8,0.84,0.89)*lit, a); }"].join("\n");
+  function weRainBuild(){ var n=WE_DROPS+WE_SPLASH, g=new THREE.InstancedBufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(new Float32Array([-1,0,0, 1,0,0, 1,1,0, -1,1,0]),3)); g.setIndex([0,1,2, 0,2,3]);
+    var sd=new Float32Array(n*4); for(var i=0;i<n;i++){ sd[i*4]=Math.random(); sd[i*4+1]=Math.random(); sd[i*4+2]=Math.random(); sd[i*4+3]=(i<WE_DROPS?0:1)+Math.random()*0.999; }
+    g.setAttribute("seed", new THREE.InstancedBufferAttribute(sd,4)); g.instanceCount=n;
+    var dummy=new THREE.Data3DTexture(new Uint8Array(4),1,1,1); dummy.format=THREE.RGBAFormat; dummy.type=THREE.UnsignedByteType; dummy.needsUpdate=true;
+    var u={t:{value:0}, amt:{value:0}, len:{value:0.1}, th:{value:0.002}, al:{value:0.5}, S:{value:1}, gy:{value:0}, pxk:{value:0.001}, fok:{value:0}, lit:{value:1},
+      cam:{value:new THREE.Vector3()}, box:{value:new THREE.Vector3(11,6,11)}, vel:{value:new THREE.Vector3(0,-8,0)}, fo:{value:new THREE.Vector3()}, finv:{value:new THREE.Vector3(1,1,1)}, fld:{value:dummy}};
+    var m=new THREE.ShaderMaterial({uniforms:u, vertexShader:WE_RAIN_VS, fragmentShader:WE_RAIN_FS, transparent:true, depthWrite:false, depthTest:true});
+    var mesh=new THREE.Mesh(g,m); mesh.frustumCulled=false; mesh.renderOrder=20; WE.mesh=mesh; WE.U=u; }
 
   // ---- what bends in the wind: a map of the scan, worked out once from its own splats ----
   // A 3D grid over the place. Each cell says how much it bends (trees: nothing at the root, more and more up the trunk
@@ -101,7 +121,7 @@
         flut*=0.35+0.65*Math.max(0,Math.min(1,(h-0.4)/1.6));   /* low things (ivy on a stump, grass) only shiver; it builds up into the canopy */
         flut*=1-0.6*solidW;   /* stuck to something solid */
         if(h<0.03) flut*=0.2;
-        out[ci*4]=Math.round(Math.max(0,Math.min(1,bend))*255); out[ci*4+1]=Math.round(Math.max(0,Math.min(1,flut))*255); } }
+        out[ci*4]=Math.round(Math.max(0,Math.min(1,bend))*255); out[ci*4+1]=Math.round(Math.max(0,Math.min(1,flut))*255); out[ci*4+2]=Math.round(Math.min(1,Math.max(0,(solidL-0.25)/0.6))*255); } }   /* blue: how solid, so rain can tell it's behind the stump */
     var tex=new THREE.Data3DTexture(out,nx,ny,nz); tex.format=THREE.RGBAFormat; tex.type=THREE.UnsignedByteType; tex.minFilter=tex.magFilter=THREE.LinearFilter;
     tex.wrapS=tex.wrapT=tex.wrapR=THREE.ClampToEdgeWrapping; tex.unpackAlignment=1; tex.needsUpdate=true;
     if(WE.field&&WE.field.tex) try{ WE.field.tex.dispose(); }catch(e){}
@@ -153,8 +173,8 @@
   function weHook(m){ if(!m||WE.scanMeshes.indexOf(m)>=0) return; try{ m.objectModifier=weScanMod(); m.updateGenerator(); WE.scanMeshes.push(m); }catch(e){ console.warn("weather hook",e); } }
 
   // ---- every frame, before the scene draws ----
-  // The scan is only rebuilt when it has to be: every frame while the wind blows (it moves), otherwise only when you've
-  // walked far enough for the fog or the wet sheen to change. Rain on its own never touches the scan per frame.
+  // The scan is only rebuilt when it has to be (each rebuild means Spark re-sorts millions of splats): every frame while
+  // the wind blows, when a setting changes, and in fog every metre and a half you walk. Rain never touches it.
   function weTick(dt){ if(!viewer||!loaded||!scene||typeof SPARK==="undefined") return;
     var S=weS(), gy=weGround(), t=(performance.now()-WE.t0)/1000, any=weAny();
     WE.scanMeshes=WE.scanMeshes.filter(function(m){ return m===viewer.mesh||m===viewer.detail; });
@@ -165,19 +185,21 @@
       if(WE.field&&viewer.P!==WE.field.P){ U.fok.value=0; }
       U.wind.value.set(wd[0]*wa,0,wd[1]*wa); U.wet.value=Math.min(1,ra*1.1); U.fog.value=fa?0.035+fa*0.11:0; U.ovc.value=Math.min(1,ra*0.85+fa*0.4);
       U.S.value=S; var m0=viewer.mesh; U.q.value.set(m0.quaternion.x,m0.quaternion.y,m0.quaternion.z,m0.quaternion.w); U.s.value=m0.scale.x||1;
-      var far=!WE.lastCam||WE.lastCam.distanceToSquared(camera.position)>0.0625*S*S;   /* a quarter of a metre */
+      var far=!WE.lastCam||(fa>0&&WE.lastCam.distanceToSquared(camera.position)>2.25*S*S);   /* only fog cares where you are, and it starts 2.5 m out: every metre and a half is plenty */
       if(any&&(wa>0||far||WE.dirty)||(wasOn&&!any)){ if(far||WE.dirty||!WE.lastCam){ U.cam.value.copy(camera.position); WE.lastCam=(WE.lastCam||new THREE.Vector3()).copy(camera.position); }
         WE.scanMeshes.forEach(function(m){ m.updateVersion(); }); } }
     /* the rain */
     if(ra>0&&!WE.mesh){ try{ weRainBuild(); }catch(e){ console.warn("rain",e); WE.rain=0; ra=0; } }
     if(WE.mesh){ if(WE.mesh.parent!==scene){ if(WE.mesh.parent) WE.mesh.parent.remove(WE.mesh); scene.add(WE.mesh); }
       WE.mesh.visible=ra>0;
-      if(ra>0){ var R=WE.U, fall=8.5*S, wv=(wa*3.2+0.35)*S, sh=weShutter(), lit=1;
+      if(ra>0){ var R=WE.U, fall=8.5*S, wv=(wa*3.2+0.35)*S, sh=weShutter(), lit=1, F2=WE.field&&WE.field.P===viewer.P?WE.field:null;
+        if(!F2&&viewer.P){ try{ F2=weField(); }catch(e){} }
+        if(F2){ R.fld.value=F2.tex; R.fo.value.copy(F2.o); R.finv.value.copy(F2.inv); R.fok.value=1; } else R.fok.value=0;
         if(typeof RL!=="undefined"&&RL.on&&typeof rlTimeIs==="function"){ lit=rlTimeIs("night")?0.25:rlTimeIs("blue")?0.45:rlTimeIs("golden")?0.85:1; }
         R.t.value=t; R.amt.value=ra; R.cam.value.copy(camera.position); R.gy.value=gy; R.box.value.set(11*S,6*S,11*S);
         R.vel.value.set(wd[0]*wv,-fall,wd[1]*wv); var spd=Math.hypot(fall,wv), th=0.0024*S, L=Math.max(th*4, spd*sh);
-        R.len.value=L; R.th.value=th; R.al.value=0.7*Math.max(0.14,Math.min(1,Math.sqrt(0.012*S/L)))*(WE.rain===2?1:0.85); R.S.value=S; R.lit.value=lit;
-        WE.mesh.updateVersion(); } }
+        R.len.value=L; R.th.value=th; R.al.value=0.75*Math.max(0.14,Math.min(1,Math.sqrt(0.012*S/L)))*(WE.rain===2?1:0.85); R.S.value=S; R.lit.value=lit;
+        var Hh=(renderer&&renderer.domElement&&renderer.domElement.height)||1080; R.pxk.value=2*Math.tan(camera.fov*Math.PI/360)/Math.max(1,Hh)/Math.max(0.01,camera.zoom||1); } }
     var sk=typeof SKY!=="undefined"&&SKY.mesh&&SKY.mesh.material.uniforms.wfog; if(sk) sk.value.set(0.7,0.72,0.74, Math.max(fa*0.9, ra*0.42));
     WE.dirty=false; weSound(); }
 

@@ -639,7 +639,7 @@
     rbViewTick(); rbFrameStep(dt); rbSpotTick();
     if(RLB.fadeT&&RLB.gpu){ var fk=Math.min(1,(performance.now()-RLB.fadeT)/1100); RLB.onK=fk*fk*(3-2*fk); RLB.gpu.U.on.value=RLB.onK; try{ RLB.gpu.mesh.updateVersion(); if(viewer&&viewer.detail) viewer.detail.updateVersion(); }catch(e){} if(fk>=1){ RLB.fadeT=0; RLB.onK=null; } }   /* the default look fading in as the opening lands */
     if(RLB.dirty&&RLB.built) rbApply();
-    else if(RLB.gpu&&RLB.gpu.U.on.value>0){ var cm=RLB.camP; if(!cm||Math.hypot(camPos.x-cm.x,camPos.y-cm.y,camPos.z-cm.z)>0.4*RL.S){ RLB.camP={x:camPos.x,y:camPos.y,z:camPos.z}; if(cm) rbDirty(); } }
+    else if(RLB.gpu&&RLB.gpu.U.on.value>0){ var cm=RLB.camP; if(!cm||Math.hypot(camPos.x-cm.x,camPos.y-cm.y,camPos.z-cm.z)>1.5*RL.S)   /* each recolour rebuilds the whole scan: only every metre and a half you walk */{ RLB.camP={x:camPos.x,y:camPos.y,z:camPos.z}; if(cm) rbDirty(); } }
     if(RLB.open&&!viewfinderOn) rbDiagDraw(); })();
 
   /* ---- for the lighting tour: where things are, in words the tour can check ---- */

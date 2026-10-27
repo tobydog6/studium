@@ -27,7 +27,7 @@
     ["hub","landing","studio","punctum","signin","teacher"].forEach(hubHide);
     if(!loaded){ var sc=(window.SPLAT_SCENES||[])[0]; if(sc){ App.go("landing"); loadBundled(sc); } }   /* the scan loads behind the dark */
     try{ localStorage.setItem(LA_KEY,"1"); }catch(x){}
-    sdAmbStart();
+    sdAmbStart(); laSoundIn();
     cancelAnimationFrame(LA.raf); LA.raf=requestAnimationFrame(laTick); }
   function laSkip(){ if(!LA.on) return; if(LA.phase==="dark"){ LA.fast=true; return; }   /* before the scan is in, skipping just drops the long bits */
     if(LA.phase!=="spin") laLockStart(); }
@@ -226,7 +226,9 @@
     if(T) T.dayT=D; return D; }   /* the same sun, sky and level the default look will have, so the hand-back is invisible */
   /* the default look, phased in from the start of the move to the moment the photo is taken */
   function laLook(now){ if(LA.lookT==null||typeof rbLookEase!=="function") return; if(!LA.lookE0) LA.lookE0=now; var k=Math.min(1,(now-LA.lookE0)/((LA_T.detail+2.2)*1000));
-    if(k<1&&now-LA.lookL<100) return; LA.lookL=now; rbLookEase(laE(k)); if(k>=1) LA.lookT=null; }
+    if(k<1&&now-LA.lookL<150) return; LA.lookL=now; rbLookEase(laE(k)); if(k>=1) LA.lookT=null; }
+  /* everything that makes a sound comes up from silence over three seconds as the opening starts, so nothing arrives at once */
+  function laSoundIn(){ [typeof SFX!=="undefined"&&SFX.out, SD.out].forEach(function(o){ if(!o||!o.context) return; try{ var c=o.context, t=c.currentTime, v=Math.max(o.gain.value,0.0002); o.gain.cancelScheduledValues(t); o.gain.setValueAtTime(0.0001,t); o.gain.exponentialRampToValueAtTime(v,t+3); }catch(e){} }); }
   function laTodAt(u){ var K=LA_TOD, i=0; while(i<K.length-2&&u>K[i+1][0]) i++; var a=K[i], b=K[i+1], k=Math.max(0,Math.min(1,(u-a[0])/(b[0]-a[0])));   /* straight between the keys: one steady shift, no pauses at each one */
     return a.map(function(v,j){ return v+(b[j]-v)*k; }); }
   function laTod(u,day,now){ var T=LA.tod; if(!T) return; var v=laTodAt(u);

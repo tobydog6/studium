@@ -4,7 +4,7 @@
   // the shutter is open: 1/1000 freezes beads in the air, 1/30 drags them into streaks. That's the lesson.
   // Wind, fog and wet ground are one Spark object modifier on the scan: trees bend from the root and leaves flutter; flat upward
   // surfaces darken and catch a sheen; everything fades to grey with distance in fog; rain or fog greys the light.
-  var WE={field:null, rain:0, wind:1, fog:1,   /* light wind and light fog are the default look */ mesh:null, U:null, scanU:null, scanMeshes:[], t0:performance.now(), lastCam:null, dirty:true, snd:null, sndT:0};
+  var WE={field:null, rain:0, wind:1, fog:0,   /* light wind is the default look; no fog */ mesh:null, U:null, scanU:null, scanMeshes:[], t0:performance.now(), lastCam:null, dirty:true, snd:null, sndT:0};
   var WE_LV=["Off","Light","Heavy"], WE_DROPS=22000, WE_SPLASH=2400;
   var WE_ITEMS=[["rain","Rain","5"],["wind","Wind","6"],["fog","Fog","7"]];
   var WE_ICON={
@@ -238,7 +238,7 @@
       U.wind.value.set(wd[0]*wa*wk,0,wd[1]*wa*wk); U.wet.value=Math.max(Math.min(1,ra*1.1),WE.wetX||0); if(WE.fcol) U.fc.value.set(WE.fcol[0],WE.fcol[1],WE.fcol[2]); else U.fc.value.set(0.7,0.72,0.74);   /* wetX, fcol: the opening keeps the ground wet after the rain and tints the fog with the time of day */ U.fog.value=fa?0.035+fa*0.11:0; U.ovc.value=Math.min(1,ra*0.85+fa*0.4);
       U.S.value=S; var m0=viewer.mesh; U.q.value.set(m0.quaternion.x,m0.quaternion.y,m0.quaternion.z,m0.quaternion.w); U.s.value=m0.scale.x||1;
       var far=!WE.lastCam||(fa>0&&WE.lastCam.distanceToSquared(camera.position)>2.25*S*S);   /* only fog cares where you are, and it starts 2.5 m out: every metre and a half is plenty */
-      var blow=wa>0&&U.fok.value>0.5&&now-(WE.verT||0)>=50;   /* the wind moves the scan 20 times a second: each rebuild re-sorts millions of splats */
+      var blow=wa>0&&U.fok.value>0.5&&now-(WE.verT||0)>=(wa<0.9?90:50);   /* light wind moves gently, so 11 rebuilds a second is plenty; heavy wind keeps 20 */   /* the wind moves the scan 20 times a second: each rebuild re-sorts millions of splats */
       if(any&&(blow||far||WE.dirty)||(wasOn&&!any)){ WE.verT=now; if(far||WE.dirty||!WE.lastCam){ U.cam.value.copy(camera.position); WE.lastCam=(WE.lastCam||new THREE.Vector3()).copy(camera.position); }
         WE.scanMeshes.forEach(function(m){ m.updateVersion(); }); } }
     /* the rain */

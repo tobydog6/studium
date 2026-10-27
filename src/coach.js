@@ -297,7 +297,7 @@
         target:'#rbSide', info:true},
       coRig({ch:"LOOK", line:function(){ return '<b>Drag the ground</b> to walk round your subject'; }, sub:"Scroll to come closer or go back. Look at a set-up from anywhere, then step back to where you'll shoot.",
         start:function(){ CO.s.o0=RLB.orbitAmt||0; }, done:function(){ return (RLB.orbitAmt||0)-CO.s.o0>=420; }, bar:function(){ return ((RLB.orbitAmt||0)-CO.s.o0)/420; }}),
-      coRig({ch:"TIME", view:"shoot", line:function(){ return 'Drag the time across the top to <b>night</b>'; }, sub:"Studio lights are easiest to see once the daylight's gone. Click or drag along the bar, right past sunset, until it goes dark.",
+      coRig({ch:"TIME", view:"shoot", start:function(){ rbHome(true); }, line:function(){ return 'Drag the time across the top to <b>night</b>'; }, sub:"Studio lights are easiest to see once the daylight's gone. Click or drag along the bar, right past sunset, until it goes dark.",
         target:'#rbDay .rb-track', nodim:true, done:function(){ return RLB.sunMode&&rbSolar(RLB.mins).el<-10; }}),
       coRig({ch:"KEY", view:"wide", line:function(){ return rbFind("softbox")?'Drag the softbox\'s stand onto the gold <b>KEY</b> spot':'Drag the <b>softbox</b> from the kit onto the gold <b>KEY</b> spot'; }, sub:"This is your key light, the main one. The spot is 45° round from you and a metre or so out: one side of your subject lights up, the other falls into shadow, which gives it shape. If you lose the set, press F to fit it.",
         spot:"key", place:"top", nodim:true,

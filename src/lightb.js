@@ -616,12 +616,12 @@
       /* the first time anyone opens Lighting, the tour starts */
       if(typeof coStart==="function"&&!(typeof CO!=="undefined"&&CO.on)&&!(Q.tours&&Q.tours.lightrig)){ var seen="1"; try{ seen=localStorage.getItem("studium_lighttourB"); }catch(e){} if(seen!=="1") setTimeout(function(){ if(RLB.open&&!(typeof CO!=="undefined"&&CO.on)){ try{ localStorage.setItem("studium_lighttourB","1"); }catch(e){} coStart("lightrig"); } },500); } };
     go(); }
-  function rlClose(){ if(!RLB||!RLB.open) return; rbGlowSet(null); rbHolo(null); RLB.open=false; RL.ui=false; RLB.look=false; RLB.drag=null; RLB.play=false; document.body.classList.remove("rl-open"); rbShow(false); rbStands(); renderer.domElement.style.cursor=""; }
+  function rlClose(){ if(!RLB||!RLB.open) return; rbGlowSet(null); rbHolo(null); RLB.viewSeen=null; RLB.open=false; RL.ui=false; RLB.look=false; RLB.drag=null; RLB.play=false; document.body.classList.remove("rl-open"); rbShow(false); rbStands(); renderer.domElement.style.cursor=""; }
   function rlToggle(){ if(RLB&&RLB.open) rlClose(); else rlOpen(); }
   function rlNatural(){ if(!RLB) return; RL.lights.forEach(rbDropStand); RL.lights=[]; RLB.sel=-1; RLB.sunMode=false; RLB.play=false; RL.on=false; rbRestore(); RLB.eye=1; rbPanel(true); rbTimeline(); }
   function rlForget(){ if(!RLB) return; rlClose(); RL.lights.forEach(rbDropStand); RL.lights=[]; RLB.sel=-1; RLB.sunMode=false; RL.on=false; RL.ready=false; RL.target=null; RLB.built=false;
     if(RL.grid&&RL.grid.tex) RL.grid.tex.dispose(); RL.grid=null; if(RLB.gridS&&RLB.gridS.tex) RLB.gridS.tex.dispose(); RLB.gridS=null; RLB.gpu=null; RL.gpu=null; RLB.eye=1; RLB.north=null;
-    if(RLB.spotM){ if(RLB.spotM.parent) RLB.spotM.parent.remove(RLB.spotM); RLB.spotM.traverse(function(o){ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); RLB.spotM=null; } RLB.home=null; RLB.spotNow=null; RLB.frame=null; RLB.viewKey=null; if(RLB.holo){ RLB.holo.traverse(function(o){ if(o.geometry) o.geometry.dispose(); }); if(RLB.holo.parent) RLB.holo.parent.remove(RLB.holo); RLB.holo=null; } RLB.glowL=null; }   /* a new scan has a new scene */
+    if(RLB.spotM){ if(RLB.spotM.parent) RLB.spotM.parent.remove(RLB.spotM); RLB.spotM.traverse(function(o){ if(o.geometry) o.geometry.dispose(); if(o.material) o.material.dispose(); }); RLB.spotM=null; } RLB.home=null; RLB.spotNow=null; RLB.frame=null; RLB.viewSeen=null; if(RLB.holo){ RLB.holo.traverse(function(o){ if(o.geometry) o.geometry.dispose(); }); if(RLB.holo.parent) RLB.holo.parent.remove(RLB.holo); RLB.holo=null; } RLB.glowL=null; }   /* a new scan has a new scene */
   function rlVis(){ if(RLB) rbStands(); }
   function rlPlanUI(){} function rlPanel(){} function rlMarkers(){}
 
@@ -699,7 +699,7 @@
     rbFrame(h,V); return true; }
   function rbStepView(){ if(typeof CO==="undefined"||!CO||!CO.on||typeof coSteps!=="function") return null; var s=coSteps()[CO.i]; if(!s||!s.view) return null; return typeof s.view==="function"?s.view():s.view; }
   function rbFit(){ var v=rbStepView(); if(!(v&&rbView(v))) rbFrame(); }   /* Fit: back to the tour's view, or just step back */
-  function rbViewTick(){ if(!RLB.open||viewfinderOn||RLB.drag||RLB.kdrag) return; var v=rbStepView(); if(!v){ RLB.viewKey=null; return; } var k=CO.tour+"|"+CO.i+"|"+v; if(k===RLB.viewKey) return; RLB.viewKey=k; rbView(v); }   /* each step lines the camera up once; drag away freely after */
+  function rbViewTick(){ if(!RLB.open||viewfinderOn||RLB.drag||RLB.kdrag) return; var v=rbStepView(); if(!v) return; var k=CO.tour+"|"+CO.i; if(!RLB.viewSeen||RLB.viewSeen.k!==k) RLB.viewSeen={k:k, n:{}}; if(RLB.viewSeen.n[v]) return; RLB.viewSeen.n[v]=1; rbView(v); }   /* each view once per step, never back and forth */   /* each step lines the camera up once; drag away freely after */
   function rbFrame(dir,V){ if(!RLB.open||viewfinderOn) return; V=V||RLB_VIEWS.wide; var T=rbTarget(), S=RL.S, h=dir;
     if(!h){ var ax=camPos.x-T.x, az=camPos.z-T.z, al=Math.hypot(ax,az); h=al>0.05*S?{x:ax/al,z:az/al}:rbHome(); }
     var gy=rlGround(T.x,T.z), vf=(camera.fov||50)*Math.PI/360, asp=Math.max(0.5,(innerWidth-RLB_SIDE)/Math.max(200,innerHeight-260)), half=Math.min(vf,Math.atan(Math.tan(vf)*asp));

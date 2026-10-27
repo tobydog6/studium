@@ -102,12 +102,12 @@
           "    ao=clamp(exp(-o1*0.7),0.35,1.0); }",   // corners and the undersides of things get less of the sky
           "  vec3 V=normalize("+i.cam+"-c); vec3 Ls=vec3(0.0);",
           "  vec3 Lt="+i.amb+"*ao;",
-          "  if("+i.sunOn+">0.5){ float sl=max(dot(n,"+i.sunDir+"),0.0); float ss=sl*f+0.45*(1.0-f); if(ss>0.002){ if("+i.shad+">0.5) ss*=rlMarchD("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c,"+i.sunDir+"); Lt+=ss*"+i.sunCol+"; Ls+=pow(max(dot(n,normalize("+i.sunDir+"+V)),0.0),40.0)*0.18*f*ss*"+i.sunCol+"; } }",
+          "  if("+i.sunOn+">0.5){ float sl=max(dot(n,"+i.sunDir+"),0.0); float ss=sl*f+0.45*(1.0-f); if(ss>0.002){ if("+i.shad+">0.001) ss*=mix(1.0,rlMarchD("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c,"+i.sunDir+"),min("+i.shad+",1.0)); Lt+=ss*"+i.sunCol+"; Ls+=pow(max(dot(n,normalize("+i.sunDir+"+V)),0.0),40.0)*0.18*f*ss*"+i.sunCol+"; } }",
           "  for(int m=0;m<"+RL_MAX+";m++){ if(m>="+i.nl+") break;",
           "    vec4 la=texelFetch("+i.lt+",ivec2(0,m),0), lb=texelFetch("+i.lt+",ivec2(1,m),0), le=texelFetch("+i.lt+",ivec2(2,m),0), lf=texelFetch("+i.lt+",ivec2(3,m),0);",
           "    vec3 l=la.xyz-c; float r2=dot(l,l); float d=max(sqrt(r2),1e-6); float lam=max(dot(n,l)/d,0.0); float sh=lam*f+0.45*(1.0-f);",   // blobby splats get a soft half-light
           "    if(lb.a>0.5){ float ca=-dot(l,le.xyz)/d; if(ca<=le.w) continue; if(ca<lf.x){ float u=(ca-le.w)/(lf.x-le.w); sh*=u*u*(3.0-2.0*u); } }",
-          "    if("+i.shad+">0.5) sh*=rlMarchP("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c,la.xyz);",
+          "    if("+i.shad+">0.001) sh*=mix(1.0,rlMarchP("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c,la.xyz),min("+i.shad+",1.0));",   /* shadows can fade in and out */
           "    vec3 li=sh/(r2*"+i.is2+"+la.w)*lb.rgb; Lt+=li; Ls+=pow(max(dot(n,normalize(l/d+V)),0.0),32.0)*0.22*f*li; }",   // a soft sheen on flat surfaces: floors, paint, glass
           "  "+o+".rgba.rgb=mix("+o+".rgba.rgb, min("+o+".rgba.rgb*Lt+Ls, vec3(1.0)), min("+i.on+",1.0));",
           "  if(c.y>"+i.cut+") "+o+".rgba.a=0.0;",   // plan view: hide everything above head height

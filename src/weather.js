@@ -183,7 +183,7 @@
     if(U){ var wasOn=U.on.value>0.5; U.on.value=any?1:0; U.t.value=t;
       if(wa>0&&U.fok.value<0.5){ var F=null; try{ F=weField(); }catch(e){ console.warn("wind field",e); } if(F){ U.fld.value=F.tex; U.fo.value.copy(F.o); U.finv.value.copy(F.inv); U.fok.value=1; WE.dirty=true; } }
       if(WE.field&&viewer.P!==WE.field.P){ U.fok.value=0; }
-      U.wind.value.set(wd[0]*wa,0,wd[1]*wa); U.wet.value=Math.min(1,ra*1.1); U.fog.value=fa?0.035+fa*0.11:0; U.ovc.value=Math.min(1,ra*0.85+fa*0.4);
+      U.wind.value.set(wd[0]*wa,0,wd[1]*wa); U.wet.value=Math.max(Math.min(1,ra*1.1),WE.wetX||0); if(WE.fcol) U.fc.value.set(WE.fcol[0],WE.fcol[1],WE.fcol[2]); else U.fc.value.set(0.7,0.72,0.74);   /* wetX, fcol: the opening keeps the ground wet after the rain and tints the fog with the time of day */ U.fog.value=fa?0.035+fa*0.11:0; U.ovc.value=Math.min(1,ra*0.85+fa*0.4);
       U.S.value=S; var m0=viewer.mesh; U.q.value.set(m0.quaternion.x,m0.quaternion.y,m0.quaternion.z,m0.quaternion.w); U.s.value=m0.scale.x||1;
       var far=!WE.lastCam||(fa>0&&WE.lastCam.distanceToSquared(camera.position)>2.25*S*S);   /* only fog cares where you are, and it starts 2.5 m out: every metre and a half is plenty */
       if(any&&(wa>0||far||WE.dirty)||(wasOn&&!any)){ if(far||WE.dirty||!WE.lastCam){ U.cam.value.copy(camera.position); WE.lastCam=(WE.lastCam||new THREE.Vector3()).copy(camera.position); }
@@ -200,12 +200,12 @@
         R.vel.value.set(wd[0]*wv,-fall,wd[1]*wv); var spd=Math.hypot(fall,wv), th=0.0024*S, L=Math.max(th*4, spd*sh);
         R.len.value=L; R.th.value=th; R.al.value=0.75*Math.max(0.14,Math.min(1,Math.sqrt(0.012*S/L)))*(WE.rain===2?1:0.85); R.S.value=S; R.lit.value=lit;
         var Hh=(renderer&&renderer.domElement&&renderer.domElement.height)||1080; R.pxk.value=2*Math.tan(camera.fov*Math.PI/360)/Math.max(1,Hh)/Math.max(0.01,camera.zoom||1); } }
-    var sk=typeof SKY!=="undefined"&&SKY.mesh&&SKY.mesh.material.uniforms.wfog; if(sk) sk.value.set(0.7,0.72,0.74, Math.max(fa*0.9, ra*0.42));
+    var sk=typeof SKY!=="undefined"&&SKY.mesh&&SKY.mesh.material.uniforms.wfog; if(sk){ var fcl=WE.fcol||[0.7,0.72,0.74]; sk.value.set(fcl[0],fcl[1],fcl[2], Math.max(fa*0.9, ra*0.42)); }
     WE.dirty=false; weSound(); }
 
   // ---- sound: rain on the ground and a soft wind, made from the same noise the interface sounds use ----
   function weSound(){ var now=performance.now(); if(now-WE.sndT<120) return; WE.sndT=now;
-    var want=(typeof App!=="undefined"&&App.is("scene")&&loaded&&soundOn)?1:0, ra=weAmt(WE.rain)*want, wa=weAmt(WE.wind)*want;
+    var want=(typeof App!=="undefined"&&(App.is("scene")||(typeof LA!=="undefined"&&LA.on))&&loaded&&soundOn)?1:0, ra=weAmt(WE.rain)*want, wa=weAmt(WE.wind)*want;
     if(!WE.snd){ if(!(ra||wa)) return; var c=typeof sfxCtx==="function"?sfxCtx():null; if(!c||!SFX.nb) return;
       if(navigator.userActivation&&!navigator.userActivation.hasBeenActive) return;
       var mk=function(type,f,q){ var s=c.createBufferSource(); s.buffer=SFX.nb; s.loop=true; var fl=c.createBiquadFilter(); fl.type=type; fl.frequency.value=f; fl.Q.value=q; var g=c.createGain(); g.gain.value=0.0001; s.connect(fl); fl.connect(g); g.connect(SFX.out); s.start(0,Math.random()*1.5); return {f:fl,g:g}; };

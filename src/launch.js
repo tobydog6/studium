@@ -13,7 +13,7 @@
   function laSeen(){ try{ return localStorage.getItem(LA_KEY)==="1"; }catch(e){ return false; } }
   function laEl(){ var e=$("launch"); if(e) return e; e=document.createElement("div"); e.id="launch";
     var fr='<div class="la-fr still"><canvas></canvas><em>1</em><i>1</i><u>E26</u></div>'+LA_ROOMS.map(function(m,i){ return '<div class="la-fr"><img alt="" decoding="async" src="'+m[2]+'"><span>'+m[1].toUpperCase()+'</span><em>'+(i+2)+'</em><i>'+(i+2)+'</i><u>E26</u></div>'; }).join("");
-    e.innerHTML='<div class="la-dark"><b>Studium</b></div><div class="la-film"><div class="la-strip">'+fr+'<i class="la-sh t"></i><i class="la-sh b"></i><i class="la-dm"></i></div></div><div class="la-still"><canvas></canvas></div><div class="la-iris"></div><div class="la-snap"></div>'
+    e.innerHTML='<div class="la-dark"><b>Studium</b></div><div class="la-film"><div class="la-strip">'+fr+'<i class="la-sh t"></i><i class="la-sh b"></i><i class="la-dm"></i></div></div><div class="la-still"><canvas></canvas></div><div class="la-iris"></div><div class="la-sun"></div><div class="la-snap"></div>'
       +'<div class="la-word"><span class="la-kick">WELCOME TO</span><b>'+"Studium".split("").map(function(c,i){ return '<i style="--n:'+i+'">'+c+'</i>'; }).join("")+'</b><em></em><span class="la-tag">A PHOTOGRAPHY STUDIO FOR YEARS 11 TO 13</span></div><div class="la-skip">CLICK TO SKIP</div>';
     document.body.appendChild(e);
     e.addEventListener("pointerdown",function(ev){ ev.stopPropagation(); laSkip(); });
@@ -111,9 +111,8 @@
         lens:function(b,t){ sdNoise(b,t,"bandpass",600,0.9,0.08,0.02,0.08,0.3,1600); sdFelt(SD.vb||b,t+0.1,329.63,0.04,0); },
         rack:function(b,t,D){ for(var i=0;i<10;i++) sdTick(b,t+D*0.85*(1-Math.pow(1-i/10,1.7)),3600,0.01); sdFelt(SD.vb||b,t+D,659.25,0.05,-0.1); sdFelt(SD.vb||b,t+D+0.12,880,0.05,0.1); } },
     /* 2 · Air: no music. A park: wind in the trees, a few birds far off, and the camera, close and real */
-    2:{ bed:function(c,t){ var bus=sdBedBus(c,t); var a=sdAir(c,bus,t,0.06,700), w=sdAir(c,bus,t,0.025,2400); SD.ambSrc=a.concat(w);
-          for(var i=0;i<9;i++){ var bt=t+1.2+i*1.15+Math.random()*0.8, f=2800+Math.random()*1800, pan=(Math.random()*2-1)*0.8; for(var k=0;k<2+(i%3);k++) sdTone(bus,bt+k*0.11,f*(1+k*0.04),"sine",0.006,0.016,0.02,0.07,f*(1.25+k*0.04),pan); } },
-        scan:function(b,t,D){ sdNoise(b,t,"highpass",3000,0.7,1.0,0.04,D-1.2,1.2,9000,-0.4,0.4); for(var i=0;i<20;i++){ var u=i/20; sdTick(b,t+D*u+Math.random()*0.05,4000+u*3000,0.025,(Math.random()*2-1)*0.7); } },
+    2:{ bed:function(c,t){ var bus=sdBedBus(c,t); var a=sdAir(c,bus,t,0.045,700), w=sdAir(c,bus,t,0.018,2400); SD.ambSrc=a.concat(w); },
+        scan:function(b,t,D){ sdDay(b,t,LA_T.detail+2.3); },
         lens:function(b,t){ sdNoise(b,t,"bandpass",500,0.8,0.1,0.1,0.12,0.35,1400,-0.3,0.2); sdNoise(b,t+0.3,"bandpass",1200,1.2,0.02,0.03,0.05,0.12,null,0.2); sdTick(b,t+0.52,1400,0.08); sdTick(b,t+0.56,2900,0.05); },
         rack:function(b,t,D){ var c=SD.ctx, o=c.createOscillator(), fl=c.createBiquadFilter(), g=c.createGain(); o.type="sawtooth"; o.frequency.setValueAtTime(420,t); o.frequency.linearRampToValueAtTime(560,t+D*0.8); fl.type="bandpass"; fl.frequency.value=5200; fl.Q.value=3; sdEnv(g,t,0.05,0.02,D*0.75,0.08); o.connect(fl); fl.connect(g); g.connect(b); o.start(t); o.stop(t+D+0.2);
           sdTone(b,t+D,2730,"sine",0.003,0.04,0.045,0.03); sdTone(b,t+D+0.1,2730,"sine",0.003,0.04,0.045,0.05); } },
@@ -138,6 +137,16 @@
           sdNoise(vb,t+D-1.1,"highpass",1500,0.7,1.05,0.04,0.01,0.04,9000); [1760,2217.46,2637.02,3951.07].forEach(function(f,i){ sdBell(vb,t+D+i*0.03,f,0.05,(i-1.5)*0.4,2.6); }); },
         lens:function(b,t){ sdNoise(b,t,"bandpass",600,0.9,0.08,0.02,0.08,0.3,1600); sdBell(SD.vb||b,t+0.5,2637.02,0.012,0,0.8); },
         rack:function(b,t,D){ for(var i=0;i<12;i++) sdTone(b,t+D*0.85*(1-Math.pow(1-i/12,1.7)),3520+i*40,"sine",0.001,0.016,0.002,0.04); sdBell(b,t+D,1760,0.05,-0.2,1.2); sdBell(b,t+D+0.11,2637.02,0.05,0.2,1.4); } } };
+  // ---- the day in sound (Air): crickets in the night, fading as it greys; the first bird at first light, a dawn chorus by
+  //      golden hour. The rain is the weather's own sound, following the rain you see. t is the reveal, T the time to the shot ----
+  function sdCricket(b,t,f,peak,pan){ for(var k=0;k<4;k++) sdTone(b,t+k*0.028,f,"sine",0.002,peak,0.008,0.012,null,pan); }
+  function sdBird(b,t,kind,peak,pan){ var f0=2600+Math.random()*1600, i;
+    if(kind===0){ sdTone(b,t,f0,"sine",0.01,peak,0.04,0.08,f0*1.45,pan); sdTone(b,t+0.16,f0*1.3,"sine",0.01,peak*0.8,0.03,0.1,f0*0.95,pan); }   /* a two-note whistle */
+    else if(kind===1){ for(i=0;i<6+Math.floor(Math.random()*4);i++) sdTone(b,t+i*0.055,f0*(1+((i%2)?0.12:0)),"sine",0.004,peak*0.7,0.012,0.03,null,pan); }   /* a trill */
+    else { sdTone(b,t,f0*1.2,"sine",0.006,peak,0.02,0.06,f0*0.7,pan); sdTone(b,t+0.12,f0*1.25,"sine",0.006,peak*0.85,0.02,0.06,f0*0.72,pan); sdTone(b,t+0.24,f0*1.3,"sine",0.006,peak*0.7,0.02,0.07,f0*0.75,pan); } }   /* falling chirps */
+  function sdDay(b,t,T){ var i, at;
+    for(i=0;i<40;i++){ at=t+Math.random()*T*0.52; var u=(at-t)/T; sdCricket(b,at,4300+(i%3)*260,0.012*Math.max(0,1-u/0.52),(i%3-1)*0.6); }
+    for(i=0;i<34;i++){ var r=Math.pow(Math.random(),0.55); at=t+T*(0.5+0.5*r)+Math.random()*0.2; sdBird(b,at,i%3,0.008+0.012*r,(Math.random()*2-1)*0.85); } }
   // the film: the still lands, a projector flutter under it, every frame wound on with a ratchet and a woosh panned across
   // the film: a score, not a beat. Warm held chords (Amaj9, F#m9, Dmaj9, E6/9, Amaj9, Dmaj9, then Esus under the exit),
   // one soft felt-piano note as each frame lands, a low pulse under it, and the light opening up as it goes.
@@ -213,13 +222,22 @@
     return a.map(function(v,j){ return v+(b[j]-v)*k; }); }
   function laTod(u,day,now){ var T=LA.tod; if(!T) return; var v=laTodAt(u);
     if(day){ var d=laE(day); v=[1, v[1]+(1-v[1])*d, v[2]+(6500-v[2])*d, v[3]*(1-d), v[4]+(30-v[4])*d, v[5]+(5600-v[5])*d]; }   /* golden into the plain day the scan was made in */
-    if(typeof WE!=="undefined"&&T.we){ var bump=function(a,b,c,d){ return u<a||u>d?0:u<b?laE((u-a)/(b-a)):u<c?1:1-laE((u-c)/(d-c)); }, fg=2*bump(0.0,0.16,0.52,0.82), rn=1.6*bump(0.14,0.24,0.44,0.58); if(day) rn=fg=0;   /* fog creeps in, rain comes and goes, the fog lifts as the sun comes up */
+    if(typeof WE!=="undefined"&&T.we){ WE.wetX=day?0.6*(1-laE(day)):(u<0.2?0:u<0.36?laE((u-0.2)/0.16):u<0.74?1:1-0.4*laE((u-0.74)/0.26));   /* wet after the rain, drying in the sun: still damp for the shot */
+      var fc0=[0.42,0.47,0.56], fc1=[0.66,0.62,0.64], fc2=[0.88,0.74,0.56], fk=u<0.5?u/0.5:1, fk2=u<0.5?0:(u-0.5)/0.5; WE.fcol=[0,1,2].map(function(j){ return u<0.5?fc0[j]+(fc1[j]-fc0[j])*fk:fc1[j]+(fc2[j]-fc1[j])*fk2; });   /* the fog: blue-grey at night, warming to gold */
+      var bump=function(a,b,c,d){ return u<a||u>d?0:u<b?laE((u-a)/(b-a)):u<c?1:1-laE((u-c)/(d-c)); }, fg=2*bump(0.0,0.16,0.52,0.82), rn=1.6*bump(0.14,0.24,0.44,0.58); if(day) rn=fg=0;   /* fog creeps in, rain comes and goes, the fog lifts as the sun comes up */
       if(Math.abs(WE.rain-rn)>0.005||Math.abs(WE.fog-fg)>0.005){ WE.rain=rn; WE.fog=fg; WE.dirty=true; } }
     var t=performance.now(); if(!now&&t-T.t<100) return; T.t=t;
-    (T.set||[]).forEach(function(L){ L.power=L.p0*(day?1-laE(day):1); L.on=L.power>0.05; });   /* the key and rim stay put through the changes; they go as the plain day comes back */
+    (T.set||[]).forEach(function(L){ L.power=L.p0*(day?1-laE(day):1); L.on=L.power>0.05; });
+    laGlow(day?1-day:u);
+    T.shad=day?Math.max(0,1-day*2.5):laE(Math.max(0,Math.min(1,(u-0.8)/0.18))); RL.shadows=T.shad>0.001;   /* shadows fade in for the last of golden hour, long ones across the clearing for the shot */   /* the key and rim stay put through the changes; they go as the plain day comes back */
     RL.dusk=v[1]; RL.ambK=Math.round(v[2]); RL.sunPow=v[3]>0.01?v[3]:0; RL.sunEl=Math.max(2,v[4]); RL.sunK=Math.round(v[5]);
-    try{ rlApply(); }catch(e){} }
-  function laTodEnd(){ var T=LA.tod; if(!T) return; LA.tod=null; try{ var w=T.was; RL.lights=RL.lights.filter(function(x){ return (T.set||[]).indexOf(x)<0; }); (T.set||[]).forEach(function(L){ if(typeof rlDrop==="function") rlDrop(L); }); RL.lights.forEach(function(L,i){ L.on=w.lon[i]!==false; }); RL.dusk=w.dusk; RL.ambK=w.ambK; RL.sunPow=w.sunPow; RL.sunEl=w.sunEl; RL.sunK=w.sunK; RL.sunAz=w.sunAz; RL.exp=w.exp; RL.shadows=w.shadows; RL.sel=w.sel; RL.on=w.on;
+    try{ rlApply(); if(RL.gpu){ RL.gpu.U.shad.value=T.shad||0; } }catch(e){} }
+  function laGlow(u){ var g=LA.el&&LA.el.querySelector(".la-sun"); if(!g) return; var a=0;
+    if(LA.tod&&typeof RL!=="undefined"&&camera){ var sd=rlSunDir(), p=new THREE.Vector3(camPos.x+sd[0]*500, camPos.y+Math.max(0.03,sd[1])*500, camPos.z+sd[2]*500).project(camera);
+      var vis=p.z<1&&Math.abs(p.x)<1.6&&Math.abs(p.y)<1.6, fog=typeof WE!=="undefined"?Math.min(1,weAmt(WE.fog)):0, sunup=laE(Math.max(0,Math.min(1,(u-0.5)/0.18)));
+      a=vis?(0.25+0.75*fog)*sunup:0; g.style.left=((p.x+1)/2*100)+"%"; g.style.top=((1-p.y)/2*100)+"%"; }
+    g.style.opacity=a.toFixed(3); }
+  function laTodEnd(){ var T=LA.tod; if(!T) return; LA.tod=null; try{ var w=T.was; if(typeof WE!=="undefined"){ WE.wetX=0; WE.fcol=null; } RL.lights=RL.lights.filter(function(x){ return (T.set||[]).indexOf(x)<0; }); (T.set||[]).forEach(function(L){ if(typeof rlDrop==="function") rlDrop(L); }); RL.lights.forEach(function(L,i){ L.on=w.lon[i]!==false; }); RL.dusk=w.dusk; RL.ambK=w.ambK; RL.sunPow=w.sunPow; RL.sunEl=w.sunEl; RL.sunK=w.sunK; RL.sunAz=w.sunAz; RL.exp=w.exp; RL.shadows=w.shadows; RL.sel=w.sel; RL.on=w.on;
       if(w.on) rlApply(); else rlRestore(); }catch(e){}
     if(typeof WE!=="undefined"&&T.we){ WE.rain=T.we.rain; WE.wind=T.we.wind; WE.fog=T.we.fog; WE.dirty=true; }
     var d=T.det; if(d){ try{ if(RL.gpu&&RL.gpu.detail===d) RL.gpu.detail=null; d.worldModifiers=(d.worldModifiers||[]).filter(function(m){ return m!==T.detMod; }); d.updateGenerator(); d.updateVersion(); setTimeout(function(){ try{ d.updateGenerator(); d.updateVersion(); }catch(e){} },250); }catch(e){} } }
@@ -294,11 +312,11 @@
       if(LA_NOFILM&&LA.fired&&!LA.firedT) LA.firedT=pt; if(LA_NOFILM&&LA.firedT&&pt-LA.firedT>0.42&&!laHeld()){ LA.el.classList.add("nofilm"); laSpinStart(); return; }   /* the still holds a breath, then the world pulls away from it */
       if(!LA_NOFILM&&pt>LA_T.shoot&&!laHeld()){ laPhase("film"); sdFilm(); e.classList.add("held"); Array.prototype.forEach.call(e.querySelectorAll("video"),function(v){ try{ v.currentTime=0; v.play(); }catch(x){} }); } return; }
     if(p==="film"){ laDrift(pt); var q=laStrip(pt); if(q.end&&!laHeld()) laSpinStart(); return; }
-    if(p==="spin"){ var su=Math.min(1,pt/(LA.quick?1.6:LA_T.spin)); laSpin(su); if(LA.tod){ laTod(1,Math.min(1,su*2.2)); var fd=1-laE(Math.max(0,Math.min(1,(su-0.3)/0.45))); if(RL.gpu){ RL.gpu.U.on.value=fd; viewer.mesh.updateVersion(); if(viewer.detail) viewer.detail.updateVersion(); } if(su>0.78) laTodEnd(); }   /* the rig fades out as it goes round, then hands back once it has nothing left to do */   /* back to the plain scan mid-circle, while it's moving fast */ if(su>=1&&(LA.quick||!laHeld())) laEnd(); return; } }
-  function laEnd(){ if(!LA.on) return; LA.on=false; laTodEnd(); cancelAnimationFrame(LA.raf); var e=LA.el; LA.welcome=Date.now(); laVfOff(); laScanOff(); (CH.pads||[]).forEach(function(P){ P.vis=0; });   /* the gold frames fade in once the wordmark has gone */
+    if(p==="spin"){ var su=Math.min(1,pt/(LA.quick?1.6:LA_T.spin)); laSpin(su); if(LA.tod){ laTod(1,Math.min(1,su*2.2)); var fd=1-laE(Math.max(0,Math.min(1,(su-0.3)/0.45))); if(RL.gpu){ RL.gpu.U.on.value=fd; viewer.mesh.updateVersion(); if(viewer.detail) viewer.detail.updateVersion(); } }   /* the rig fades out as it goes round, then hands back once it has nothing left to do */   /* back to the plain scan mid-circle, while it's moving fast */ if(su>=1&&(LA.quick||!laHeld())) laEnd(); return; } }
+  function laEnd(){ if(!LA.on) return; LA.on=false; if(LA.tod&&RL.gpu) RL.gpu.U.on.value=0; cancelAnimationFrame(LA.raf); var e=LA.el; LA.welcome=Date.now(); laVfOff(); laScanOff(); (CH.pads||[]).forEach(function(P){ P.vis=0; });   /* the gold frames fade in once the wordmark has gone */
     if(loaded){ hubShow("hud"); App.go("scene"); if(typeof updatePrompt==="function") updatePrompt(); } else showHub();
     sdAmbStop(sdNow()+1.6,1.2); if(LA.first&&loaded) LA.wcard=true;   /* first time: hold the tour and the gold frames for the welcome */
-    if(e){ e.className="on out"; setTimeout(function(){ e.className=""; document.body.classList.remove("launching"); if(LA.wcard) laWelOpen(); },LA_T.word*1000); } else document.body.classList.remove("launching");
+    if(e){ e.className="on out"; setTimeout(function(){ e.className=""; document.body.classList.remove("launching"); if(LA.wcard) laWelOpen(); setTimeout(laTodEnd,LA.wcard?400:0); },LA_T.word*1000); } else { document.body.classList.remove("launching"); laTodEnd(); }   /* the rig hands back behind the welcome card, where any last change can't be seen */
     var cv=e&&e.querySelector(".la-iris"); if(cv) cv.style.opacity=0;
     if(LA.after) LA.after(); }
   // ---- the welcome: what Studium is, and that the camera comes first ----

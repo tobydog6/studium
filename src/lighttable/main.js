@@ -400,7 +400,7 @@ function serialize(){ return { v:2, idN,
   free:freeB.map(p=>p.id), rows:rows.map(r=>r.map(p=>p.id)), rejects:rejects.map(p=>p.id),
   walls:wallGroups.map(g=>({ ids:g.members.map(p=>p.id), x:g.x, y:g.y, kind:g.kind, date:g.date, note:g.note?{ why:[...g.note.why], text:g.note.text }:null })),
   strings:strSnap(), copies:library.filter(i=>i.copyOf).map(i=>({ id:i.id, copyOf:i.copyOf, name:i.name })),
-  notes:[...notes].map(([k,n])=>[k,{ why:[...n.why], text:n.text||'' }]), hist:hist.slice(-20), wallStyle, stringsOn, tour:TOUR.done,
+  notes:[...notes].map(([k,n])=>[k,{ why:[...n.why], text:n.text||'' }]), hist:hist.slice(-20), wallStyle, stringsOn, tour:TOUR.done, stand:STAND.up, shots:SHOTS,
   samples:library.some(i=>i.sample), adopted:library.filter(i=>i.sample&&i.realId).map(i=>[i.id,i.realId]) }; }
 function saveAll(){ if(LOADING) return; clearTimeout(saveT); saveT=setTimeout(saveNow,350); }
 function saveNow(){ if(LOADING||!READY) return; const s=serialize();
@@ -420,7 +420,7 @@ function applyState(s, cb){ if(!s||s.v!==2){ cb(false); return; } LOADING=true;
     if(s.hist){ hist.length=0; s.hist.forEach(e=>hist.push(e)); }
     if(s.wallStyle&&WALLS.some(w=>w[0]===s.wallStyle)){ wallStyle=s.wallStyle; drawWall(); buildWallPick(); }
     if(s.stringsOn===false) setStringsOn(false);
-    TOUR.done=!!s.tour;
+    TOUR.done=!!s.tour; SHOTS=Array.isArray(s.shots)?s.shots.slice(-8):[]; drawTray(); if(s.stand) setStand(true,true);
     layoutBoard(null); restack(); prints.forEach(p=>{ if(!p.wg) p.y=p.base+LAYER*0.5; });
     LOADING=false; cb(true); }); }
 function loadLocal(done){ let d=null; try{ d=JSON.parse(localStorage.getItem(SAVE)||'null'); }catch(e){} if(!d){ done(false); return; }
@@ -463,7 +463,7 @@ function overlap(a,b){ const A=corners(a,0.985), B=corners(b,0.985);
     let a0=1e9,a1=-1e9,b0=1e9,b1=-1e9; A.forEach(q=>{ const d=q[0]*nx+q[1]*nz; a0=Math.min(a0,d); a1=Math.max(a1,d); }); B.forEach(q=>{ const d=q[0]*nx+q[1]*nz; b0=Math.min(b0,d); b1=Math.max(b1,d); });
     if(a1<b0||b1<a0) return false; } return true; }
 const boardRect={ tx:BX, tz:BZ, w:BW, h:BH, yawT:0 };
-const PROPS=()=>[{ tx:SC.x, tz:SC.z, w:SC.w+0.1, h:SC.d+0.1, yawT:0, top:(scanner.userData.top||0.6)+0.06 },{ tx:BOX.x, tz:BOX.z, w:BOX.w, h:BOX.d, yawT:0, top:BOX.h+0.02 },{ tx:BINDER.x, tz:BINDER.z, w:BINDER.w, h:BINDER.d, yawT:BINDER.rot, top:BINDER.h+0.01 },{ tx:loupeProp.position.x, tz:loupeProp.position.z, w:1.1, h:1.1, yawT:0, top:0.66 }];
+const PROPS=()=>[{ tx:SC.x, tz:SC.z, w:SC.w+0.1, h:SC.d+0.1, yawT:0, top:(scanner.userData.top||0.6)+0.06 },{ tx:BOX.x, tz:BOX.z, w:BOX.w, h:BOX.d, yawT:0, top:BOX.h+0.02 },{ tx:BINDER.x, tz:BINDER.z, w:BINDER.w, h:BINDER.d, yawT:BINDER.rot, top:BINDER.h+0.01 },{ tx:loupeProp.position.x, tz:loupeProp.position.z, w:1.1, h:1.1, yawT:0, top:0.66 },{ tx:KIT.x, tz:KIT.z, w:KIT.w, h:KIT.d, yawT:0, top:KIT.h+0.14 },{ tx:TR.x, tz:TR.z, w:TR.w, h:TR.d, yawT:0, top:TR.h+0.04 }];
 function propTop(p){ let t=0; PROPS().forEach(o=>{ if(overlap(p,o)) t=Math.max(t,o.top); }); return t; }
 function restack(){ const L=prints.filter(p=>p!==drag.p && p.inspT===0 && !p.rejected && !p.wg && !p.locked).sort((a,b)=>(a.onBoard?0:1)-(b.onBoard?0:1)||a.order-b.order);
   for(let i=0;i<L.length;i++){ const p=L[i]; if(p.onBoard&&!FREE()){ p.base=BOARD_Y; continue; }
@@ -504,6 +504,7 @@ canvas.addEventListener('pointerdown', e=>{
   if(cam.view==='wall'&&histIdx<0&&stringPointer(e)) return;
   if(e.button===0 && loupeHit(e)){ setLoupe(!loupe.on); return; }
   if(e.button===0 && binderHit(e)){ openBinder(); return; }
+  if(e.button===0 && cam.view==='table'){ if(camHit(e)){ shoot(); return; } if(kitHit(e)){ setStand(!STAND.up); return; } if(trayHit(e)){ openTray(); return; } }
   const p=hitPrint(e);
   if(p&&e.button===2){ drag.ctx={ p, x:e.clientX, y:e.clientY }; return; }
   if(p&&p.wg){ drag.pending=p; drag.sx=e.clientX; drag.sy=e.clientY; const h=wallHit(camera,ndc)||V(p.wg.x,p.wg.y,0); drag.ox=p.wg.x-h.x; drag.oz=p.wg.y-h.y; }
@@ -520,7 +521,7 @@ canvas.addEventListener('pointermove', e=>{
     if(h){ cam.tx+=pan.start.x-h.x; if(cam.view==='wall') cam.ty+=pan.start.y-h.y; else cam.tz+=pan.start.z-h.z; clampCam(); } }
   else if(STR.hold){ canvas.style.cursor='crosshair'; }
   else if(GD.on){ }
-  else if(!inspected){ const p=hitPrint(e); const hs=(cam.view==='wall'&&!p&&stringsOn)?hitString():null; STR.hov=hs?hs.s:null; setHover(p); canvas.style.cursor=loupe.on?'none':(p||loupeHit(e))?'grab':(binderHit(e)||(cam.view==='wall'&&(hitSpool()!=null||STR.hov||hitSwatch())))?'pointer':'default'; }
+  else if(!inspected){ const p=hitPrint(e); const hs=(cam.view==='wall'&&!p&&stringsOn)?hitString():null; STR.hov=hs?hs.s:null; setHover(p); STAND.hov=!p&&cam.view==='table'&&camHit(e); canvas.style.cursor=loupe.on?'none':(p||loupeHit(e))?'grab':(binderHit(e)||STAND.hov||(cam.view==='table'&&!p&&(kitHit(e)||trayHit(e)))||(cam.view==='wall'&&(hitSpool()!=null||STR.hov||hitSwatch())))?'pointer':'default'; }
 });
 window.addEventListener('pointerup', e=>{
   if(drag.ctx){ const c=drag.ctx; drag.ctx=null; openCtx(c.p,c.x,c.y); }
@@ -606,7 +607,7 @@ const WHY=['Shape','Colour','Light','Story','Contrast','Mood','Subject'];
 const chainKey=ch=>ch.map(p=>p.id).join('-');
 const matTex=(()=>{ const c=document.createElement('canvas'); c.width=c.height=256; const g=c.getContext('2d'); g.filter='blur(4px)'; g.fillStyle='#fff'; g.fillRect(10,10,236,236); const t=new THREE.CanvasTexture(c); return t; })();
 function updateChains(user){ const before=new Set(chains.map(chainKey)); chains=FREE()?freeGroups():rows.filter(r=>r.length>=2).map(r=>r.slice()); drawChains();
-  if(user&&chains.length) tourEv('pair');
+  if(user&&chains.length) tourEv('pair'); if(user&&chains.length>=2) tourEv('series2');
   if(user){ const fresh=chains.find(ch=>!before.has(chainKey(ch))&&!notes.has(chainKey(ch)));
     if(fresh) toast(fresh.length===2?'That’s a pair. Right-click one (or use its cog) to say what joins them.':'That’s a sequence of '+fresh.length+'. Check the rhythm strip above it.'); }
   }
@@ -1125,7 +1126,6 @@ function renderWorkbook(){ if(HOST) return; $('bookN').textContent=workbook.leng
 $('bBook').onclick=()=>{ if(HOST){ HOST.room('workshop'); return; } renderWorkbook(); $('wb').classList.toggle('on'); };
 $('wbClose').onclick=()=>$('wb').classList.remove('on');
 $('wbView').onclick=e=>e.currentTarget.classList.remove('on');
-$('bCapture').onclick=captureBoard;
 
 /* ================= UI ================= */
 function hint(t){ const h=$('inspectHint'); if(t){ h.textContent=t; h.classList.add('on'); } else h.classList.remove('on'); }
@@ -1149,6 +1149,7 @@ $('bPanel').onclick=()=>document.body.classList.toggle('panel-closed');
 $('bCopy').onclick=()=>{ const t=Object.keys(pick).map(k=>LABEL[k]+' '+pick[k]).join(', '); const done=()=>toast('Copied: '+t); try{ navigator.clipboard.writeText(t).then(done,()=>toast(t)); }catch(e){ toast(t); } };
 window.addEventListener('keydown', e=>{ if(e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT') return;
   if((e.ctrlKey||e.metaKey)&&(e.key==='z'||e.key==='Z')){ e.preventDefault(); undo(); return; }
+  if(TRV.el.classList.contains('on')){ if(e.key==='Escape') closeTray(); else if(e.key==='ArrowRight'&&TRV.i<SHOTS.length-1){ TRV.i++; trRender(); } else if(e.key==='ArrowLeft'&&TRV.i>0){ TRV.i--; trRender(); } return; }
   if(BD.el.classList.contains('on')){ if(e.key==='Escape') closeBinder(); else if(e.key==='ArrowRight') bdTurn(1); else if(e.key==='ArrowLeft') bdTurn(-1); return; }
   if(e.key==='Escape'&&STR.hold){ dropString(); return; }
   if(e.key==='Escape'){ closeCtx(); if(pop.classList.contains('on')) closeNote(); else if(inspected) closeInspect(); else if(loupe.on) setLoupe(false); else if(histIdx>=0) setHist(-1); else if(HOST&&!CTX.classList.contains('on')) HOST.key('Escape'); return; }
@@ -1209,7 +1210,7 @@ function frame(now){
   tourPlace(); spoolGlow.material.opacity+=((hot==='spools'&&cam.view==='wall'?tp*1.4:0)-spoolGlow.material.opacity)*kk;
   binder.scale.setScalar(1+binderBump); binderBump*=Math.exp(-dt*9);
   scanner.userData.led.material.color.setHex(SCAN.busy?((now%500<250)?0xe3ad57:0x7a5a22):0x63c27a);
-  scanFrame(dt); shredFrame(dt); updateStrings(); holdFrame(); edgeFrame(dt);
+  scanFrame(dt); shredFrame(dt); standFrame(dt); trayFrame(dt); updateStrings(); holdFrame(); edgeFrame(dt);
   threads.children.forEach(m=>{ if(m.userData.fade!==undefined) m.material.opacity+=(m.userData.fade-m.material.opacity)*(1-Math.exp(-dt*5)); });
   const past=histIdx>=0;
   for(const p of prints){
@@ -1263,6 +1264,193 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 
+/* ================= the copy stand: a white boom arm that clamps to the table's right edge and swings a camera in over the board ================= */
+const KIT={ x:18.7, z:9.3, w:2.8, d:2.0, h:0.8 };
+const CL={ x:W_T/2+0.45, z:-2.2 }, POLE=3.3, L1=7.0, L2=6.6;
+const AIM_AT=V(BX,0,BZ), HEAD=V(BX-1.4,6.4,BZ-4.9);   /* the camera hangs off the board's far edge, so it never sits over the prints from where you look */
+const STAND={ up:false, t:0, dir:0, dur:2.6, yaw:0, a1:0, a2:0, solved:null, flashT:0, hov:false };
+const stdM=(c,r,m)=>new THREE.MeshStandardMaterial({ color:c, roughness:r??0.5, metalness:m??0 });
+const kit=new THREE.Group(); kit.position.set(KIT.x,0,KIT.z); kit.rotation.y=-0.06; scene.add(kit);
+const kitLid=new THREE.Group();
+{ const shell=stdM(0xe9e6df,0.55), dark=stdM(0x2a2826,0.7), grey=stdM(0xa9a59d,0.4,0.3);
+  const H=KIT.h, t=0.07;
+  const floorM=new THREE.Mesh(new RoundedBoxGeometry(KIT.w,0.08,KIT.d,3,0.03), shell); floorM.position.y=0.04; kit.add(floorM);
+  const lab=document.createElement('canvas'); lab.width=512; lab.height=160; { const g=lab.getContext('2d'); g.fillStyle='#e9e6df'; g.fillRect(0,0,512,160); g.fillStyle='rgba(30,28,26,0.78)'; g.font='600 44px "Geist Mono", ui-monospace, monospace'; g.textAlign='center'; g.fillText('COPY STAND',256,72); g.font='500 24px "Geist Mono", ui-monospace, monospace'; g.fillStyle='rgba(30,28,26,0.45)'; g.fillText('BOOM ARM  ·  CAMERA',256,116); }
+  const lt=new THREE.CanvasTexture(lab); lt.colorSpace=THREE.SRGBColorSpace;
+  const front=new THREE.Mesh(new THREE.BoxGeometry(KIT.w,H,t), [shell,shell,shell,shell,new THREE.MeshLambertMaterial({ map:lt }),shell]); front.position.set(0,H/2,KIT.d/2-t/2); kit.add(front);
+  const back=new THREE.Mesh(new THREE.BoxGeometry(KIT.w,H,t), shell); back.position.set(0,H/2,-KIT.d/2+t/2); kit.add(back);
+  [-1,1].forEach(s=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(t,H,KIT.d), shell); m.position.set(s*(KIT.w/2-t/2),H/2,0); kit.add(m); });
+  const foam=new THREE.Mesh(new THREE.BoxGeometry(KIT.w-0.16,0.05,KIT.d-0.16), dark); foam.position.y=H*0.55; kit.add(foam);
+  const slotCv=document.createElement('canvas'); slotCv.width=256; slotCv.height=184; { const g=slotCv.getContext('2d'); g.fillStyle='#222120'; g.fillRect(0,0,256,184); g.fillStyle='#121110'; g.fillRect(30,40,196,26); g.fillRect(30,90,150,26); g.beginPath(); g.arc(205,120,30,0,7); g.fill(); g.fillRect(40,140,60,22); }
+  const slots=new THREE.Mesh(new THREE.PlaneGeometry(KIT.w-0.2,KIT.d-0.2), new THREE.MeshBasicMaterial({ map:new THREE.CanvasTexture(slotCv) })); slots.rotation.x=-Math.PI/2; slots.position.y=H*0.55+0.027; kit.add(slots);
+  kitLid.position.set(0,H,-KIT.d/2); kit.add(kitLid);
+  const lid=new THREE.Mesh(new RoundedBoxGeometry(KIT.w+0.04,0.12,KIT.d+0.04,3,0.04), shell); lid.position.set(0,0.06,KIT.d/2); kitLid.add(lid);
+  const handle=new THREE.Mesh(new RoundedBoxGeometry(0.9,0.06,0.18,2,0.02), grey); handle.position.set(0,0.14,KIT.d*0.6); kitLid.add(handle);
+  [-1,1].forEach(s=>{ const c=new THREE.Mesh(new RoundedBoxGeometry(0.22,0.18,0.08,2,0.02), grey); c.position.set(s*(KIT.w/2-0.45),H-0.06,KIT.d/2+0.02); kit.add(c); });
+  blobShadow(KIT.w+1.2,KIT.d+1.2,kit,0.2,0.3); }
+const RING_KIT=hotRing(KIT.w,KIT.d,0.6); RING_KIT.position.y=0.012; kit.add(RING_KIT);
+
+/* the arm: clamp, pole, two white sections with their springs, a knuckle and the camera */
+const stand=new THREE.Group(); stand.position.set(CL.x,0,CL.z); stand.visible=false; scene.add(stand);
+const clampG=new THREE.Group(), poleG=new THREE.Group(), yawJ=new THREE.Group(), j1=new THREE.Group(), j2=new THREE.Group(), aim=new THREE.Group(), springs=[];
+stand.add(clampG); clampG.add(poleG); poleG.add(yawJ); yawJ.add(j1); j1.add(j2); scene.add(aim);
+const camShutter=(()=>{ const white=stdM(0xeceae5,0.35,0.15), grey=stdM(0xb9b6ae,0.35,0.4), knob=stdM(0x7f7c76,0.5,0.2), black=stdM(0x1e1d1b,0.6);
+  /* clamp hugging the table edge */
+  const top=new THREE.Mesh(new RoundedBoxGeometry(1.1,0.16,0.9,3,0.05), white); top.position.set(-0.25,0.08,0); clampG.add(top);
+  const jaw=new THREE.Mesh(new RoundedBoxGeometry(0.2,1.5,0.9,3,0.05), white); jaw.position.set(0.3,-0.6,0); clampG.add(jaw);
+  const low=new THREE.Mesh(new RoundedBoxGeometry(0.9,0.16,0.9,3,0.05), white); low.position.set(-0.1,-1.3,0); clampG.add(low);
+  const screw=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.5,10), grey); screw.position.set(-0.3,-1.05,0); clampG.add(screw);
+  const wing=new THREE.Mesh(new RoundedBoxGeometry(0.6,0.08,0.14,2,0.03), knob); wing.position.set(-0.3,-1.48,0); clampG.add(wing); clampG.userData.wing=wing;
+  const pk=new THREE.Mesh(new RoundedBoxGeometry(0.36,0.5,0.6,3,0.06), white); pk.position.set(0.06,0.38,0); clampG.add(pk);
+  const pkn=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.11,0.22,16), knob); pkn.rotation.z=Math.PI/2; pkn.position.set(0.32,0.4,0); clampG.add(pkn);
+  /* pole */
+  poleG.position.set(0.06,0.5,0);
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.085,0.085,POLE,20), grey); pole.position.y=POLE/2; poleG.add(pole);
+  yawJ.position.y=POLE;
+  const collar=new THREE.Mesh(new RoundedBoxGeometry(0.42,0.5,0.5,3,0.08), white); collar.position.y=-0.05; yawJ.add(collar);
+  const ck=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,0.2,16), knob); ck.rotation.x=Math.PI/2; ck.position.set(0,-0.05,0.3); yawJ.add(ck);
+  /* arm sections: a pair of flat bars each, like the real thing */
+  const section=(parent,L)=>{ [-0.11,0.11].forEach(z=>{ const b=new THREE.Mesh(new RoundedBoxGeometry(L,0.13,0.06,2,0.025), white); b.position.set(L/2,0,z); parent.add(b); });
+    const rod=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,L*0.85,8), grey); rod.rotation.z=Math.PI/2; rod.position.set(L/2,0.16,0); parent.add(rod);
+    const k=new THREE.Mesh(new RoundedBoxGeometry(0.5,0.42,0.36,3,0.08), white); k.position.set(L,0,0); parent.add(k);
+    const kk=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,0.44,16), knob); kk.rotation.x=Math.PI/2; kk.position.set(L,0,0); parent.add(kk); };
+  section(j1,L1); j2.position.x=L1; section(j2,L2);
+  /* springs: a stretched coil between two points on the arm */
+  const helix=(()=>{ const pts=[], N=26*16; for(let i=0;i<=N;i++){ const a=i/16*Math.PI*2; pts.push(V(Math.cos(a)*0.07,i/N,Math.sin(a)*0.07)); } return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),N,0.011,5,false); })();
+  for(let i=0;i<2;i++){ const m=new THREE.Mesh(helix, grey); scene.add(m); m.visible=false; springs.push(m); }
+  /* camera, lens along +Z so lookAt points it at the board */
+  const body=new THREE.Mesh(new RoundedBoxGeometry(1.5,1.0,0.62,4,0.12), black); aim.add(body);
+  const grip=new THREE.Mesh(new RoundedBoxGeometry(0.34,1.0,0.8,3,0.12), black); grip.position.set(0.62,0,0.08); aim.add(grip);
+  const mount=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,0.1,32), grey); mount.rotation.x=Math.PI/2; mount.position.z=0.36; aim.add(mount);
+  const lens=new THREE.Mesh(new THREE.CylinderGeometry(0.38,0.36,0.8,32), stdM(0x161514,0.45)); lens.rotation.x=Math.PI/2; lens.position.z=0.8; aim.add(lens);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(0.37,0.025,8,32), stdM(0x9a968e,0.3,0.6)); ring.position.z=1.0; aim.add(ring);
+  const glassM=new THREE.Mesh(new THREE.CircleGeometry(0.3,28), stdM(0x0b1418,0.05,0.4)); glassM.position.z=1.205; aim.add(glassM);
+  const plate=new THREE.Mesh(new RoundedBoxGeometry(0.5,0.12,0.4,2,0.03), white); plate.position.set(0,0.56,-0.05); aim.add(plate);
+  const dial=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.15,0.1,20), grey); dial.position.set(-0.45,0.55,0); aim.add(dial);
+  const flashBody=new THREE.Mesh(new RoundedBoxGeometry(0.42,0.36,0.32,2,0.05), black); flashBody.position.set(0,0.82,0.02); aim.add(flashBody);
+  const flashFace=new THREE.Mesh(new THREE.PlaneGeometry(0.34,0.22), new THREE.MeshBasicMaterial({ color:0x55524c })); flashFace.position.set(0,0.82,0.185); aim.add(flashFace); aim.userData.flash=flashFace;
+  const btn=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.13,0.08,24), stdM(0xc9c5bd,0.3,0.5)); btn.position.set(0.46,0.54,0.1); aim.add(btn);
+  const btnRing=new THREE.Mesh(new THREE.TorusGeometry(0.15,0.03,8,28), new THREE.MeshBasicMaterial({ color:0xe4552e })); btnRing.rotation.x=Math.PI/2; btnRing.position.set(0.46,0.585,0.1); aim.add(btnRing);
+  const glow=new THREE.Mesh(new THREE.CircleGeometry(0.42,28), new THREE.MeshBasicMaterial({ color:0xe3ad57, transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending })); glow.rotation.x=-Math.PI/2; glow.position.set(0.46,0.6,0.1); aim.add(glow);
+  aim.scale.setScalar(1.15); aim.visible=false; return { btn, glow }; })();
+
+function solveArm(){ const o=new THREE.Vector3(CL.x+0.06,0.5+POLE,CL.z), dx=HEAD.x-o.x, dz=HEAD.z-o.z, r=Math.hypot(dx,dz), h=HEAD.y-o.y, d=Math.min(Math.hypot(r,h),L1+L2-0.05);
+  const yaw=Math.atan2(-dz,dx), b=Math.acos(THREE.MathUtils.clamp((L1*L1+d*d-L2*L2)/(2*L1*d),-1,1)), c=Math.acos(THREE.MathUtils.clamp((L1*L1+L2*L2-d*d)/(2*L1*L2),-1,1));
+  return { yaw, a1:Math.atan2(h,r)+b, a2:-(Math.PI-c) }; }
+STAND.solved=solveArm();
+const FOLD={ yaw:0.15, a1:1.45, a2:-2.95 };
+const ease=t=>t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2, backOut=t=>{ const c=1.5; return 1+(c+1)*Math.pow(t-1,3)+c*Math.pow(t-1,2); };
+const _sp1=V(0,0,0), _sp2=V(0,0,0), _spY=V(0,1,0);
+function placeSpring(m,a,b){ const d=_sp2.copy(b).sub(a), L=d.length(); m.position.copy(a); m.quaternion.setFromUnitVectors(_spY,d.normalize()); m.scale.set(1,L,1); }
+function poseStand(u){ /* u: 0 folded away off the table, 1 clamped and aimed */
+  const S=STAND.solved, slide=THREE.MathUtils.clamp(u/0.22,0,1), screw=THREE.MathUtils.clamp((u-0.18)/0.14,0,1), rise=THREE.MathUtils.clamp((u-0.28)/0.16,0,1), sw=THREE.MathUtils.clamp((u-0.4)/0.6,0,1);
+  clampG.position.x=(1-ease(slide))*7; clampG.position.y=0; clampG.userData.wing.rotation.y=screw*Math.PI*4;
+  poleG.position.y=0.5-POLE*(1-ease(rise)); j1.visible=rise>0.6;
+  const k=backOut(sw), kl=ease(sw); STAND.yaw=FOLD.yaw+(S.yaw-FOLD.yaw)*k; STAND.a1=FOLD.a1+(S.a1-FOLD.a1)*kl; STAND.a2=FOLD.a2+(S.a2-FOLD.a2)*kl;
+  if(sw>=1&&STAND.dir>0){ const tau=STAND.t-STAND.dur; if(tau>0) STAND.a1+=0.035*Math.exp(-5*tau)*Math.sin(16*tau); }   /* settles on its springs */
+  yawJ.rotation.y=STAND.yaw; j1.rotation.z=STAND.a1; j2.rotation.z=STAND.a2;
+  stand.updateMatrixWorld(true);
+  const tip=j2.localToWorld(V(L2,0,0)); aim.position.copy(tip).add(V(0,-0.95,0)); aim.visible=u>0.4; aim.lookAt(AIM_AT); aim.updateMatrixWorld(true);
+  placeSpring(springs[0], yawJ.localToWorld(_sp1.set(0.3,-0.55,0.2)), j1.localToWorld(V(L1*0.5,-0.1,0.2)));
+  placeSpring(springs[1], j1.localToWorld(_sp1.set(L1-0.7,0.18,-0.2)), j2.localToWorld(V(L2*0.45,0.12,-0.2)));
+  springs.forEach(m=>m.visible=u>0.4); }
+function setStand(on, instant){ if(SH.busy) return; STAND.up=on; STAND.dir=on?1:-1; stand.visible=true;
+  if(instant){ STAND.t=on?STAND.dur+1:0; STAND.dir=0; poseStand(on?1:0); stand.visible=on; springs.forEach(m=>m.visible=on); aim.visible=on; return; }
+  if(on){ STAND.t=0; SFX('kitOpen'); setTimeout(()=>SFX('grab'),420); setTimeout(()=>SFX('detent'),700); setTimeout(()=>SFX('raise'),1100); setTimeout(()=>SFX('detent'),2350); }
+  else { STAND.t=Math.min(STAND.t,STAND.dur); SFX('kitClose'); }
+  saveAll(); }
+function standFrame(dt){ kitLid.rotation.x+=(((STAND.up||STAND.dir)?-1.9:0)-kitLid.rotation.x)*(1-Math.exp(-dt*7)); if(!stand.visible&&STAND.dir===0) return;
+  if(STAND.dir>0){ STAND.t+=dt; poseStand(Math.min(1,STAND.t/STAND.dur)); if(STAND.t>STAND.dur+1.2){ STAND.dir=0; tourEv('stand'); toast('The copy stand is up. Click the camera to photograph the board.'); } }
+  else if(STAND.dir<0){ STAND.t-=dt*1.6; const u=Math.max(0,STAND.t/STAND.dur); poseStand(u); if(u<=0){ STAND.dir=0; stand.visible=false; springs.forEach(m=>m.visible=false); aim.visible=false; } }
+  const hot=tourHot()==='shutter', want=STAND.up&&!STAND.dir?(hot?0.55+0.35*Math.sin(performance.now()/220):STAND.hov?0.5:0):0;
+  camShutter.glow.material.opacity+=(want-camShutter.glow.material.opacity)*(1-Math.exp(-dt*10));
+  if(STAND.flashT>0){ STAND.flashT-=dt; aim.userData.flash.material.color.setHex(STAND.flashT>0.05?0xffffff:0x55524c); } }
+function kitHit(e){ setNDC(e); ray.setFromCamera(ndc,camera); return ray.intersectObject(kit,true).some(h=>h.object!==RING_KIT); }
+function camHit(e){ if(!STAND.up||STAND.dir) return false; setNDC(e); ray.setFromCamera(ndc,camera); return ray.intersectObject(aim,true).length>0; }
+
+/* ================= board photos: what the camera takes, kept in a darkroom tray at the top right of the table ================= */
+const TR={ x:16.9, z:-9.15, w:4.3, d:3.1, h:0.28 };
+let SHOTS=[];
+const tray=new THREE.Group(); tray.position.set(TR.x,0,TR.z); tray.rotation.y=0.03; scene.add(tray);
+const trayStack=new THREE.Group(); tray.add(trayStack);
+{ const blk=stdM(0x1f1e1c,0.6), H=TR.h;
+  const base=new THREE.Mesh(new RoundedBoxGeometry(TR.w,0.06,TR.d,3,0.03), blk); base.position.y=0.03; tray.add(base);
+  [[0,TR.d/2-0.06,TR.w,0.12],[0,-TR.d/2+0.06,TR.w,0.12],[TR.w/2-0.06,0,0.12,TR.d],[-TR.w/2+0.06,0,0.12,TR.d]].forEach(([x,z,w,d])=>{ const m=new THREE.Mesh(new RoundedBoxGeometry(w,H,d,2,0.04), blk); m.position.set(x,H/2,z); tray.add(m); });
+  const fl=document.createElement('canvas'); fl.width=512; fl.height=368; { const g=fl.getContext('2d'); g.fillStyle='#2a2826'; g.fillRect(0,0,512,368); g.fillStyle='#232120'; for(let i=0;i<8;i++) g.fillRect(30+i*62,20,10,328); }
+  const flm=new THREE.Mesh(new THREE.PlaneGeometry(TR.w-0.26,TR.d-0.26), new THREE.MeshBasicMaterial({ map:new THREE.CanvasTexture(fl) })); flm.rotation.x=-Math.PI/2; flm.position.y=0.062; tray.add(flm);
+  const lab=document.createElement('canvas'); lab.width=512; lab.height=64; { const g=lab.getContext('2d'); g.fillStyle='#1f1e1c'; g.fillRect(0,0,512,64); g.fillStyle='rgba(244,241,234,0.55)'; g.font='600 30px "Geist Mono", ui-monospace, monospace'; g.textAlign='center'; g.fillText('BOARD PHOTOS',256,44); }
+  const lt=new THREE.CanvasTexture(lab); lt.colorSpace=THREE.SRGBColorSpace; const lm=new THREE.Mesh(new THREE.PlaneGeometry(2.0,0.25), new THREE.MeshBasicMaterial({ map:lt })); lm.position.set(0,H*0.55,TR.d/2+0.001); tray.add(lm);
+  blobShadow(TR.w+1.2,TR.d+1.2,tray,0.2,0.3); }
+const RING_TRAY=hotRing(TR.w,TR.d,0.6); RING_TRAY.position.y=0.012; tray.add(RING_TRAY);
+function shotPrintCanvas(img){ const W=900, Hh=Math.round(W/1.4142), b=26, c=document.createElement('canvas'); c.width=W+b*2; c.height=Hh+b*2; const g=c.getContext('2d'); g.fillStyle='#f1ede5'; g.fillRect(0,0,c.width,c.height); g.drawImage(img,b,b,W,Hh); return c; }
+const PW=3.3;
+function shotMesh(img){ const t=makeTex(shotPrintCanvas(img)); const m=new THREE.Mesh(new THREE.PlaneGeometry(PW,PW*(t.image.height/t.image.width)), new THREE.MeshLambertMaterial({ map:t })); m.rotation.x=-Math.PI/2; return m; }
+function loadImg(url,cb){ const i=new Image(); i.onload=()=>cb(i); i.onerror=()=>cb(null); i.src=url; }
+function drawTray(){ while(trayStack.children.length){ const m=trayStack.children.pop(); m.geometry.dispose(); if(m.material.map) m.material.map.dispose(); m.material.dispose(); }
+  const L=SHOTS.slice(-3), r=mulberry(5);
+  L.forEach((s,i)=>loadImg(s.url,img=>{ if(!img||SHOTS.indexOf(s)<0) return; const m=shotMesh(img); m.position.set((r()-0.5)*0.25,0.075+i*0.006,(r()-0.5)*0.2); m.rotation.z=(r()-0.5)*0.12; m.userData.order=i; trayStack.add(m); trayStack.children.sort((a,b)=>a.userData.order-b.userData.order); })); }
+function trayHit(e){ setNDC(e); ray.setFromCamera(ndc,camera); return ray.intersectObject(tray,true).some(h=>h.object!==RING_TRAY); }
+
+/* the photograph: square on, framed to an A3 page around what's on the board */
+const FLY=[];
+function shotRect(on){ const bb=bboxOf(on), pad=0.7; let x0=bb.x0-pad, x1=bb.x1+pad, z0=bb.z0-pad, z1=bb.z1+pad;
+  let w=Math.max(x1-x0,BW*0.42), h=Math.max(z1-z0,BH*0.42); const A=1.4142; if(w/h>A) h=w/A; else w=h*A;
+  if(w>BW){ w=BW; h=w/A; }   /* the board is A1, so at its widest the photo is exactly the board */
+  let cx=(x0+x1)/2, cz=(z0+z1)/2; cx=THREE.MathUtils.clamp(cx,BX-BW/2+w/2,BX+BW/2-w/2); cz=THREE.MathUtils.clamp(cz,BZ-BH/2+h/2,BZ+BH/2-h/2);
+  return { x0:cx-w/2, x1:cx+w/2, z0:cz-h/2, z1:cz+h/2 }; }
+function shoot(){ if(!STAND.up||STAND.dir) return; const on=prints.filter(p=>p.onBoard&&boardContains(p.tx,p.tz,0.5));
+  if(!on.length){ toast('Put some prints on the board first.'); return; }
+  closeNote(); hideActs(); closeCtx();
+  try{ if(HOST&&HOST.shutter) HOST.shutter(); else SFX('capture'); }catch(e){}
+  STAND.flashT=0.16; const fl=$('flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+  const R=shotRect(on), cw=2000, ch=Math.round(2000/1.4142);
+  const oc=new THREE.OrthographicCamera(R.x0-BX,R.x1-BX,-(R.z0-BZ),-(R.z1-BZ),1,60); oc.position.set(BX,30,BZ); oc.up.set(0,0,-1); oc.lookAt(BX,0,BZ); oc.updateMatrixWorld(); oc.updateProjectionMatrix();
+  const hideL=[ghost,loupeProp,dim,stand,aim,boardGlow,RINGS.board,...springs], was=hideL.map(o=>o.visible); hideL.forEach(o=>o.visible=false);
+  const lampWas=lamp.clone(); lamp.set(BX-4,14,BZ-6);
+  const pr=renderer.getPixelRatio(); renderer.setPixelRatio(1); renderer.setSize(cw,ch,false); renderer.setRenderTarget(null); renderer.render(scene,oc);
+  const shot=document.createElement('canvas'); shot.width=cw; shot.height=ch; shot.getContext('2d').drawImage(renderer.domElement,0,0);
+  renderer.setPixelRatio(pr); resize(); lamp.copy(lampWas); hideL.forEach((o,i)=>o.visible=was[i]);
+  const sm=document.createElement('canvas'); sm.width=1400; sm.height=Math.round(1400/1.4142); sm.getContext('2d').drawImage(shot,0,0,sm.width,sm.height);
+  const s={ id:'sh'+Date.now().toString(36), url:sm.toDataURL('image/jpeg',0.8), date:new Date().toISOString(), sent:false, rect:R, page:HOST?hostPage(R):null, n:on.length };
+  SHOTS.push(s); while(SHOTS.length>8) SHOTS.shift();
+  const m=shotMesh(sm); m.rotation.x=0; scene.add(m); m.position.copy(aim.position); m.scale.setScalar(0.25);
+  FLY.push({ m, t:0, from:aim.position.clone(), to:tray.localToWorld(V(0,0.12+trayStack.children.length*0.006,0)) });
+  setTimeout(()=>SFX('drop'),900); saveAll(); tourEv('shoot'); }
+const _fq0=new THREE.Quaternion().setFromAxisAngle(V(1,0,0),0), _fq1=new THREE.Quaternion().setFromAxisAngle(V(1,0,0),-Math.PI/2);
+function trayFrame(dt){ for(let i=FLY.length-1;i>=0;i--){ const f=FLY[i]; f.t+=dt/1.05; const u=Math.min(1,f.t), e=ease(u);
+    f.m.position.lerpVectors(f.from,f.to,e); f.m.position.y+=Math.sin(Math.PI*e)*3.2; f.m.scale.setScalar(0.25+0.75*e); f.m.quaternion.copy(_fq0).slerp(_fq1,Math.min(1,e*1.4)); f.m.rotateZ(Math.sin(Math.PI*e)*0.5);
+    if(u>=1){ scene.remove(f.m); f.m.geometry.dispose(); f.m.material.map.dispose(); f.m.material.dispose(); FLY.splice(i,1); drawTray(); trayBump=0.06; } }
+  tray.scale.setScalar(1+trayBump); trayBump*=Math.exp(-dt*9); }
+let trayBump=0;
+
+/* the tray opened up big: one board photo at a time, then Send to workbook */
+const TRV={ el:$('tr'), i:0, busy:false };
+function trRender(){ const has=SHOTS.length; TRV.el.classList.toggle('empty',!has);
+  if(!has){ $('trN').textContent=''; return; } TRV.i=THREE.MathUtils.clamp(TRV.i,0,SHOTS.length-1); const s=SHOTS[TRV.i];
+  $('trImg').src=s.url; $('trN').textContent=(TRV.i+1)+' / '+SHOTS.length;
+  $('trMeta').textContent=new Date(s.date).toLocaleDateString('en-NZ',{ day:'numeric', month:'long' })+'  ·  '+s.n+' print'+(s.n===1?'':'s')+(s.sent?'  ·  in your workbook':'');
+  $('trPrev').disabled=TRV.i<=0; $('trNext').disabled=TRV.i>=SHOTS.length-1; $('trSend').textContent=s.sent?'Send again':'Send to workbook';
+  const st=$('trStrip'); st.innerHTML=''; SHOTS.forEach((x,k)=>{ const b=document.createElement('button'); b.type='button'; b.className='tr-th'+(k===TRV.i?' on':'')+(x.sent?' sent':''); b.innerHTML='<img alt="Board photo '+(k+1)+'" src="'+x.url+'">'; b.onclick=()=>{ TRV.i=k; trRender(); }; st.appendChild(b); }); }
+function openTray(){ if(TRV.el.classList.contains('on')) return; closeInspect(); closeNote(); closeCtx(); hideActs(); TRV.i=SHOTS.length-1; trRender();
+  tmpV.copy(tray.position).project(camera); const W=window.innerWidth, H=window.innerHeight; TRV.el.style.setProperty('--fx',((tmpV.x+1)/2*W-W/2).toFixed(0)+'px'); TRV.el.style.setProperty('--fy',((1-tmpV.y)/2*H-H/2).toFixed(0)+'px');
+  TRV.el.classList.remove('on'); void TRV.el.offsetWidth; TRV.el.classList.add('on'); SFX('binder'); trayBump=0.05; tourEv('tray'); }
+function closeTray(){ TRV.el.classList.remove('on'); }
+function sendShot(){ const s=SHOTS[TRV.i]; if(!s||TRV.busy) return; TRV.busy=true;
+  const pg=TRV.el.querySelector('.tr-page'), pr=TRV.el.querySelector('.tr-print');
+  TRV.el.classList.add('sending'); SFX('lift');
+  setTimeout(()=>{ SFX('drop'); }, 620);
+  setTimeout(()=>{ SFX('bkTurn'); TRV.el.classList.add('away'); }, 1250);
+  setTimeout(()=>{
+    if(HOST){ const page=s.page||null; if(page&&page.items&&page.items.length){ try{ HOST.addWorkbookPage(page); }catch(e){} } }
+    else loadImg(s.url,img=>{ if(!img) return; const P=buildPage(img); workbook.push(P); renderWorkbook(); });
+    s.sent=true; saveAll(); TRV.el.classList.remove('sending','away'); TRV.busy=false; trRender(); tourEv('workbook');
+    if(HOST) toast('Added to your workbook as a new page. Write on it there.','Open workbook',()=>HOST.room('workshop')); else toast('Added to your workbook as page '+workbook.length+'.'); }, 1900); }
+function delShot(){ const s=SHOTS[TRV.i]; if(!s) return; SHOTS.splice(TRV.i,1); saveAll(); drawTray(); trRender(); toast('Board photo thrown away.'); }
+$('trPrev').onclick=()=>{ TRV.i--; trRender(); }; $('trNext').onclick=()=>{ TRV.i++; trRender(); };
+$('trSend').onclick=sendShot; $('trDel').onclick=delShot; $('trClose').onclick=closeTray; TRV.el.querySelector('.tr-backdrop').onclick=closeTray;
+
+RINGS.kit=RING_KIT; RINGS.tray=RING_TRAY;
+
 /* ================= inside Studium: the library is the student's own photos, and keepers go to the workbook and book ================= */
 function realId(id){ const it=libById(id); if(!it) return id; const b=it.copyOf?(libById(it.copyOf)||it):it;
   if(b.sample&&!b.realId&&b.raw&&HOST&&HOST.adopt){ try{ b.realId=HOST.adopt(b.raw.toDataURL('image/jpeg',0.86), b.name); saveAll(); }catch(e){} }
@@ -1283,8 +1471,8 @@ function hostLibrary(d, adopted){ const seen=new Set(), stale=[];
   prepare(onTable,()=>onTable.forEach(id=>{ const p=byId(id), it=libById(id); if(!p||!it.canvas) return; p.mat.uniforms.map.value.dispose(); p.mat.uniforms.map.value=makeTex(it.canvas); p.canvas=it.canvas; p.stats=printStats(it.canvas); }));
   drawBinderCover(); if(BD.el.classList.contains('on')) bdRender(); updateChains(false); }
 // a workbook page in Studium's own format (A3 landscape, millimetres): the board's frames where they sit, a title, and a caption under each pair
-function hostPage(){ const on=prints.filter(p=>p.onBoard&&realId(p.id)); if(!on.length) return null;
-  const pad=0.4, bb=bboxOf(on); bb.x0-=pad; bb.x1+=pad; bb.z0-=pad; bb.z1+=pad;
+function hostPage(rect){ const on=prints.filter(p=>p.onBoard&&realId(p.id)); if(!on.length) return null;
+  const pad=0.4, bb=rect?{ x0:rect.x0, x1:rect.x1, z0:rect.z0, z1:rect.z1 }:bboxOf(on); if(!rect){ bb.x0-=pad; bb.x1+=pad; bb.z0-=pad; bb.z1+=pad; }
   const W=420, H=297, M=15, top=44, foot=8, s=Math.min((W-2*M)/(bb.x1-bb.x0), (H-top-foot-12)/(bb.z1-bb.z0)), ox=M+((W-2*M)-(bb.x1-bb.x0)*s)/2, oy=top;
   const X=x=>ox+(x-bb.x0)*s, Y=z=>oy+(z-bb.z0)*s, inner=1/1.09, items=[];
   items.push({ t:'text', role:'title', x:M, y:12, w:W*0.6, h:H*0.08, text:'Sequence board', size:30, font:'serif', ph:'Title' });
@@ -1298,7 +1486,7 @@ function hostPage(){ const on=prints.filter(p=>p.onBoard&&realId(p.id)); if(!on.
 const TSTEPS=[
   { ch:'PULL', line:'This is your <b>light table</b>.', sub:'All your photos are in the binder, the glowing folder at the front. You can pull prints out, try them next to each other, and pin the ones you like to the wall.', hot:'binder', next:true },
   { ch:'PULL', line:'Open the <b>binder</b>.', sub:'Click it, or press <kbd>B</kbd>.', hot:'binder', ev:'binder' },
-  { ch:'PULL', line:'Pick a few frames, then <b>Pull out</b>.', sub:'Click to pick. The tabs down the side are your folders.', hot:'pull', ev:'pull' },
+  { ch:'PULL', line:'Pick a few frames, then <b>Pull out</b>.', sub:'Click to pick six or more. The coloured tabs are your folders.', hot:'pull', ev:'pull' },
   { ch:'PAIR', line:'Drag a print onto the <b>board</b>.', sub:'It straightens and lines up when you let go.', hot:'board', ev:'board' },
   { ch:'PAIR', line:'Put another one <b>right beside it</b>.', sub:'Side by side or one above the other. Touching makes a pair.', hot:'board', ev:'pair' },
   { ch:'PAIR', line:'Say <b>what joins them</b>.', sub:'Hover the pair and click the cog above it, or right-click one of them.', hot:'chain', ev:'note' },
@@ -1306,16 +1494,18 @@ const TSTEPS=[
   { ch:'CULL', line:'Drop <b>two prints</b> you don\u2019t want in the <b>reject box</b>.', sub:'Drag them into the glowing box. You can pull them back out later.', hot:'box', ev:'reject', skip:true, ok:()=>rejects.length>=2 },
   { ch:'CULL', line:'Now press <b>Shred rejects</b>.', sub:'Watch the shredder under the table edge. Only the prints go, the photos stay in your binder.', hot:'shred', ev:'shred', skip:true },
   { ch:'CULL', line:'Make a second copy with the <b>copier</b>.', sub:'Drag a print onto its glass and a copy prints out beside it.', hot:'scan', ev:'copy', skip:true },
-  { ch:'WALL', line:'<b>Pin</b> your pair to the wall.', sub:'Hover the pair and click the pin next to the cog.', hot:'chain', ev:'pin' },
-  { ch:'WALL', line:'Make <b>another series</b> and pin that too.', sub:'Another pair or a run of three on the board, then the pin. Strings need two things to join.', hot:'board', ev:'pin2', skip:true, ok:()=>wallSeries()>=2 },
+  { ch:'SHOOT', line:'Make a <b>second series</b> on the board.', sub:'Another pair, or a run of three. Keep it apart from the first one.', hot:'board', ev:'series2', skip:true, ok:()=>chains.length>=2 },
+  { ch:'SHOOT', line:'Set up the <b>copy stand</b>.', sub:'Click the white case at the front right of the table.', hot:'kit', ev:'stand' },
+  { ch:'SHOOT', line:'Press the camera\u2019s <b>shutter</b>.', sub:'It photographs the whole board, framed for an A3 workbook page, and drops the photo in the tray.', hot:'shutter', ev:'shoot' },
+  { ch:'WALL', line:'<b>Pin</b> both series to the wall.', sub:'Hover each one and click the pin next to the cog.', hot:'chain', ev:'pin2', skip:true, ok:()=>wallSeries()>=2 },
   { ch:'WALL', line:'Push the mouse to the <b>top edge</b> to look up.', sub:'Or press <kbd>W</kbd>.', hot:'edge', ev:'wall' },
   { ch:'WALL', line:'Run a <b>string</b> between your series.', sub:'Click a spool on the ledge, then click a print in each series.', hot:'spools', ev:'string', skip:true },
   { ch:'WALL', line:'Come back down to the <b>table</b>.', sub:'Move the mouse to the bottom of the screen.', hot:'edgeDown', ev:'table' },
-  { ch:'KEEP', line:'Add the board to your <b>workbook</b>.', sub:'It becomes a new page with a caption under each pair for you to write in.', hot:'capture', ev:'capture', skip:true },
-  { ch:'KEEP', line:'That’s the end of the <b>light table</b> tour.', sub:'Leave your series up on the wall and come back to it later. Press <kbd>?</kbd> to see this tour again.', next:true, last:true } ];
+  { ch:'KEEP', line:'Open your <b>board photos</b>.', sub:'Click the tray at the top right of the table.', hot:'tray', ev:'tray' },
+  { ch:'KEEP', line:'Pick one and <b>Send to workbook</b>.', sub:'That\u2019s the end of the light table tour. Press <kbd>?</kbd> any time to see it again.', hot:'send', ev:'workbook', end:true } ];
 const wallSeries=()=>wallGroups.filter(g=>g.members.length>1).length;
 const TOUR={ on:false, i:0, done:false, okT:0, seen:{} };
-const CHAPS=['PULL','PAIR','CULL','WALL','KEEP'];
+const CHAPS=['PULL','PAIR','CULL','SHOOT','WALL','KEEP'];
 function tourStart(){ clearTimeout(TOUR.okT); TOUR.okT=0; if(BD.el.classList.contains('on')) closeBinder(); TOUR.on=true; TOUR.i=0; tourShow(); }
 function tourEnd(finished){ clearTimeout(TOUR.okT); TOUR.okT=0; TOUR.on=false; $('co').classList.remove('show','ok'); document.querySelectorAll('.co-hot').forEach(e=>e.classList.remove('co-hot')); if(finished!==false||!TOUR.done){ TOUR.done=true; saveAll(); if(finished!==false&&HOST&&HOST.tourDone) try{ HOST.tourDone(); }catch(e){} if(library.every(i=>i.sample||i.copyOf)) try{ localStorage.setItem('lt_tour_done','1'); }catch(e){} } }
 function tourShow(){ const s=TSTEPS[TOUR.i], el=$('co'); if(!s){ tourEnd(true); return; }
@@ -1328,8 +1518,8 @@ function tourShow(){ const s=TSTEPS[TOUR.i], el=$('co'); if(!s){ tourEnd(true); 
   tourHotDom();
   if(s.ev&&(performance.now()-(TOUR.seen[s.ev]||-1e9)<1500||(s.ok&&s.ok()))) tourEv(s.ev); TP.x=null; }
 function tourEv(name){ TOUR.seen[name]=performance.now(); if(!TOUR.on) return; const s=TSTEPS[TOUR.i]; if(!s||s.ev!==name||TOUR.okT||(s.ok&&!s.ok())) return;
-  $('co').classList.add('ok'); TOUR.okT=setTimeout(()=>{ TOUR.okT=0; TOUR.i++; tourShow(); },420); }
-function tourHotDom(){ document.querySelectorAll('.co-hot').forEach(e=>e.classList.remove('co-hot')); const h=tourHot(); const dom={ pull:'#bdPull', capture:'#bCapture', shred:'.tag.boxbtn button' }[h]; if(dom){ const t=document.querySelector(dom); if(t) t.classList.add('co-hot'); } }
+  $('co').classList.add('ok'); TOUR.okT=setTimeout(()=>{ TOUR.okT=0; if(s.end){ tourEnd(true); toast('Light table tour done. Your series are up on the wall to come back to.'); return; } TOUR.i++; tourShow(); },s.end?1100:420); }
+function tourHotDom(){ document.querySelectorAll('.co-hot').forEach(e=>e.classList.remove('co-hot')); const h=tourHot(); const dom={ pull:'#bdPull', send:'#trSend', shred:'.tag.boxbtn button' }[h]; if(dom){ const t=document.querySelector(dom); if(t) t.classList.add('co-hot'); } }
 $('co').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return;
   if(b.classList.contains('co-next')){ if(TSTEPS[TOUR.i].last) tourEnd(true); else { TOUR.i++; tourShow(); } }
   else if(b.dataset.co==='step'){ TOUR.i++; tourShow(); } else if(b.dataset.co==='all') tourEnd(false); });
@@ -1343,10 +1533,12 @@ function tourAnchor(hot){ switch(hot){
   case 'chain': { const L=chains.length?chains[chains.length-1]:prints.filter(p=>p.onBoard); if(!L.length) return { at:V(BX-BW/2-0.3,0,BZ), side:'left' }; const b=bboxOf(L); return { at:V(b.x0-0.4,0,(b.z0+b.z1)/2), side:'left' }; }
   case 'spools': return cam.view==='wall'?{ at:V(SHELF.x+SHELF.w/2+0.4,SHELF.y+0.3,WALL_Z), side:'right' }:null;
   case 'edge': return { top:true };
-  case 'capture': return { dom:'#bCapture' };
+  case 'kit': return { at:V(KIT.x-KIT.w/2-0.5,KIT.h,KIT.z), side:'left' };
+  case 'tray': return { at:V(TR.x-TR.w/2-0.5,0,TR.z), side:'left' };
+  case 'shutter': return STAND.up&&!STAND.dir?{ at:aim.position.clone(), side:'left' }:null;
   default: return null; } }
 function tourPlace(){ const el=$('co'); if(!TOUR.on||!el.classList.contains('show')) return; const s=TSTEPS[TOUR.i];
-  const a=s&&s.hot&&!BD.el.classList.contains('on')?tourAnchor(s.hot):null;
+  const a=s&&s.hot&&!BD.el.classList.contains('on')&&!TRV.el.classList.contains('on')?tourAnchor(s.hot):null;
   if(!a){ if(el.classList.contains('placed')){ el.classList.remove('placed'); el.style.left=el.style.top=''; } TP.x=null; return; }
   const W=window.innerWidth, H=window.innerHeight, cw=el.offsetWidth, ch=el.offsetHeight, gap=28; let x, y;
   if(a.top){ x=W/2-cw/2; y=64; }
@@ -1390,4 +1582,4 @@ requestAnimationFrame(()=>{
   });
 }); }
 let DEV=/[?&]dev/.test(location.search); try{ if(HOST) DEV=/[?&]dev/.test(window.parent.location.search); }catch(e){}
-if(DEV) window.__lt={ prints, pick, applyOpts, openInspect, mouse, cam, rows, placeOnBoard, layoutBoard, restack, updateChains, chains:()=>chains, captureBoard, workbook, notes, chainKey, focus, pinGroup, setSize, placeFree, freeTarget, startGroupDrag, unlink, wallTile, wallGroups, reject, rejects, openBinder, library, BD, fileBack, copyPrint, undo, setHist, hist, setHover, openCtx, SCAN, BOOK, sendToBook, emptyBox, shredAll, SH, pullOut, TOUR, tourStart, tourEnd, tourEv, serialize, applyState, hostPage, saveNow };
+if(DEV) window.__lt={ setStand, shoot, openTray, closeTray, sendShot, STAND, shots:()=>SHOTS, TRV, prints, pick, applyOpts, openInspect, mouse, cam, rows, placeOnBoard, layoutBoard, restack, updateChains, chains:()=>chains, captureBoard, workbook, notes, chainKey, focus, pinGroup, setSize, placeFree, freeTarget, startGroupDrag, unlink, wallTile, wallGroups, reject, rejects, openBinder, library, BD, fileBack, copyPrint, undo, setHist, hist, setHover, openCtx, SCAN, BOOK, sendToBook, emptyBox, shredAll, SH, pullOut, TOUR, tourStart, tourEnd, tourEv, serialize, applyState, hostPage, saveNow };

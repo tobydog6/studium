@@ -237,6 +237,36 @@ body.ready .load{ opacity:0; }
 .co-dots{ display:flex; gap:5px; flex:1; min-width:0; } .co-dots i{ flex:1; max-width:16px; height:3px; border-radius:2px; background:rgba(244,241,234,.12); } .co-dots i.past{ background:#8d6a35; } .co-dots i.on{ background:var(--accent); }
 .co-next{ pointer-events:auto; background:var(--accent); border:0; border-radius:6px; color:#1a140b; font:500 11px/1 var(--f-mono); letter-spacing:.12em; text-transform:uppercase; padding:8px 12px; cursor:pointer; }
 .co-next:hover{ background:#efbd6a; } .co-next[hidden]{ display:none; }
+/* the board-photo tray, opened up big: the print rises out of the tray to the middle of the screen */
+#tr{ position:fixed; inset:0; z-index:8; display:grid; grid-template-rows:auto 1fr auto auto; justify-items:center; align-items:center; gap:12px; opacity:0; pointer-events:none; transition:opacity .3s;
+  padding:calc(14px + env(safe-area-inset-top,0px)) 16px calc(64px + env(safe-area-inset-bottom,0px)); --pw:min(1080px, 88vw, calc((100vh - 280px) * 1.4142)); }
+#tr.on{ opacity:1; pointer-events:auto; }
+.tr-backdrop{ position:absolute; inset:0; background:rgba(8,7,6,.84); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+.tr-top,.tr-stage,.tr-strip,.tr-bar{ position:relative; }
+.tr-top{ width:var(--pw); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.tr-stage{ width:var(--pw); aspect-ratio:1.4142; display:grid; place-items:center; }
+.tr-print{ width:100%; padding:2.2%; box-sizing:border-box; background:#f1ede5; box-shadow:0 40px 90px rgba(0,0,0,.6); transform:translate(var(--fx,0),var(--fy,0)) scale(.12) rotate(-4deg); opacity:0; transition:transform .65s cubic-bezier(.2,.8,.2,1), opacity .3s; }
+.tr-print img{ display:block; width:100%; aspect-ratio:1.4142; object-fit:cover; }
+#tr.on .tr-print{ transform:none; opacity:1; }
+.tr-page{ position:absolute; inset:0; background:#f5f2ec; box-shadow:0 30px 70px rgba(0,0,0,.55); transform:translateY(110vh) rotate(3deg); transition:transform .6s cubic-bezier(.2,.8,.2,1), opacity .5s; display:block; }
+.tr-page .tr-pg-h{ position:absolute; left:3.6%; top:4.2%; font:500 11px/1 var(--f-mono); letter-spacing:.16em; color:#8a7f6e; }
+.tr-page i{ position:absolute; left:3.6%; right:3.6%; height:1px; background:rgba(0,0,0,.1); bottom:5.5%; } .tr-page i+i{ bottom:9%; }
+#tr.sending .tr-page{ transform:none; }
+#tr.sending .tr-print{ transform:translateY(4%) scale(.8); transition:transform .7s .45s cubic-bezier(.5,0,.2,1); box-shadow:0 4px 10px rgba(0,0,0,.25); }
+#tr.away .tr-page, #tr.away .tr-print{ transform:translate(42vw,-46vh) scale(.08) rotate(8deg); opacity:0; transition:transform .65s cubic-bezier(.55,0,.3,1), opacity .65s ease-in; }
+#tr.away .tr-print{ transform:translate(42vw,-44vh) scale(.064) rotate(8deg); }
+.tr-none{ display:none; margin:0; font:400 15px/1.5 var(--f-ui); color:var(--faint); text-align:center; max-width:420px; }
+#tr.empty .tr-print, #tr.empty .tr-bar, #tr.empty .tr-strip{ display:none; } #tr.empty .tr-none{ display:block; }
+.tr-strip{ display:flex; gap:8px; max-width:var(--pw); overflow-x:auto; padding:4px; }
+.tr-th{ flex-shrink:0; width:84px; padding:3px; border:1px solid transparent; border-radius:3px; background:#f1ede5; cursor:pointer; opacity:.55; transition:opacity .15s, transform .15s; position:relative; }
+.tr-th img{ display:block; width:100%; aspect-ratio:1.4142; object-fit:cover; }
+.tr-th:hover{ opacity:.85; } .tr-th.on{ opacity:1; transform:translateY(-3px); box-shadow:0 0 0 2px var(--text); }
+.tr-th.sent::after{ content:"\2713"; position:absolute; top:-7px; right:-7px; width:18px; height:18px; border-radius:50%; background:var(--text); color:#1a1714; display:grid; place-items:center; font:700 10px/1 var(--f-ui); }
+.tr-bar{ display:flex; align-items:center; gap:8px; }
+#trN{ font:500 12px/1 var(--f-mono); color:var(--faint); min-width:48px; text-align:center; }
+body:has(#tr.on) .co-card{ left:24px; bottom:18px; transform:none; width:min(420px,32vw); padding:10px 16px 12px; animation:none; }
+body:has(#tr.on) .co-line{ margin:0; font-size:19px; }
+body:has(#tr.on) .co-top, body:has(#tr.on) .co-sub, body:has(#tr.on) .co-foot{ display:none; }
 body:has(#bd.on) .co-card{ left:24px; bottom:18px; transform:none; width:min(420px,32vw); padding:10px 16px 12px; animation:none; }
 body:has(#bd.on) .co-line{ margin:0; font-size:19px; }
 body:has(#bd.on) .co-top, body:has(#bd.on) .co-sub, body:has(#bd.on) .co-foot{ display:none; }
@@ -266,7 +296,6 @@ body:has(#bd.on) .co-top, body:has(#bd.on) .co-sub, body:has(#bd.on) .co-foot{ d
   <button class="btn" id="bClear" type="button">Clear board</button>
   <button class="btn" id="bPanel" type="button">Options</button>
   <button class="btn" id="bTour" type="button">Tour <kbd>?</kbd></button>
-  <button class="btn primary" id="bCapture" type="button">Add board to workbook</button>
 </nav>
 <p class="help"><b>Right-click</b> or the cog for options · <b>X</b> reject · <b>P</b> pin · <b>C</b> copy · <b>[ ]</b> print size · <b>Ctrl+Z</b> undo · mouse to the top edge for the wall · <b>?</b> tour</p>
 
@@ -289,6 +318,12 @@ body:has(#bd.on) .co-top, body:has(#bd.on) .co-sub, body:has(#bd.on) .co-foot{ d
     <div class="bd-actions"><button class="btn" id="bdTip" type="button">Tip out this folder</button><label class="btn" for="bdFile">Import photos</label><input type="file" id="bdFile" accept="image/*" multiple hidden><button class="btn" id="bdClose" type="button">Close <kbd>Esc</kbd></button></div></div>
   <div class="bd-book"><div class="bd-page" id="bdL"></div><div class="bd-spine"></div><div class="bd-page" id="bdR"></div><div class="bd-leaf fwd" id="bdLeaf" hidden><div class="face front"></div><div class="face back"></div></div><div class="bd-tabs" id="bdTabs"></div></div>
   <div class="bd-bottom"><button class="btn" id="bdPrev" type="button" aria-label="Previous pages">&#8249;</button><span id="bdPage"></span><button class="btn" id="bdNext" type="button" aria-label="Next pages">&#8250;</button><button class="btn" id="bdSelPage" type="button">Pick these pages</button><button class="btn primary" id="bdPull" type="button">Pull out</button></div></section>
+
+<section id="tr" aria-label="Board photos"><div class="tr-backdrop"></div>
+  <div class="tr-top"><div class="bd-title"><b>Board photos</b><span id="trMeta"></span></div><button class="btn" id="trClose" type="button">Close <kbd>Esc</kbd></button></div>
+  <div class="tr-stage"><div class="tr-page"><span class="tr-pg-h">WORKBOOK</span><i></i><i></i></div><div class="tr-print"><img id="trImg" alt="Photo of the board"></div><p class="tr-none">No board photos yet. Set up the copy stand from the white case, then click its camera.</p></div>
+  <div class="tr-strip" id="trStrip"></div>
+  <div class="tr-bar"><button class="btn" id="trPrev" type="button" aria-label="Earlier photo">&#8249;</button><span id="trN"></span><button class="btn" id="trNext" type="button" aria-label="Later photo">&#8250;</button><button class="btn" id="trDel" type="button">Throw away</button><button class="btn primary" id="trSend" type="button">Send to workbook</button></div></section>
 
 <div id="co" class="co-card" role="dialog" aria-live="polite" aria-label="Light table tour"><div class="co-top"></div><p class="co-line"></p><p class="co-sub"></p><div class="co-foot"><div class="co-dots"></div><button class="co-next" type="button">Next</button></div></div>
 <div id="inspectHint"></div>

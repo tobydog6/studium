@@ -11,6 +11,7 @@
   window.LT_BRIDGE={
     data:ltData,
     sfx:function(id,o){ return sfx(id,o); },
+    shutter:function(){ try{ if(typeof shutterSound==="function") shutterSound(); else sfx("capture"); }catch(e){} },
     save:function(s){ st.lightTable=s; saveSession(); },
     tourDone:function(){ ltWant=false; if(typeof Q!=="undefined"&&Q&&Q.tours){ Q.tours.lighttable=true; if(typeof qSave==="function") qSave(); } },
     flag:function(k){ if(typeof qFlag==="function") qFlag(k); },

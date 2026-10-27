@@ -81,9 +81,10 @@
     binder:  ["C",function(b,t){ sxNoise(b,t,"highpass",3500,0.6,0.15,0.015,0.1,0.15,7000,-0.3,0.3); }]
   };
   var SFX_GAP={hover:45, detent:22, grab:60, select:60, back:60, toggle:40, lift:60, drop:60};   /* ms between repeats of the same cue */
+  var SFX_GAIN={ach:0.75};   /* per-cue trims Sam asked for: the achievement a touch quieter */
   function sfx(id, o){ var cue=SFX_CUES[id]; if(!cue||!soundOn) return; if(navigator.userActivation&&!navigator.userActivation.hasBeenActive) return;   /* nothing before the first click, or it all plays late in a burst */ var now=performance.now(); if(SFX.at[id]&&now-SFX.at[id]<(SFX_GAP[id]||30)) return;
     SFX.at[id]=now; if(id!=="hover") SFX.last=now;
-    var c=sfxCtx(); if(!c) return; try{ var b=sxBus(SFX_SEND[cue[0]]), t=c.currentTime+0.005+((o&&o.delay)||0); cue[1](b,t,o); setTimeout(function(){ try{ b.disconnect(); }catch(e){} },(((o&&o.delay)||0)+6)*1000); }catch(e){} }
+    var c=sfxCtx(); if(!c) return; try{ var b=sxBus(SFX_SEND[cue[0]]); if(SFX_GAIN[id]) b.gain.value=SFX_GAIN[id]; var t=c.currentTime+0.005+((o&&o.delay)||0); cue[1](b,t,o); setTimeout(function(){ try{ b.disconnect(); }catch(e){} },(((o&&o.delay)||0)+6)*1000); }catch(e){} }
   window.studiumSfx=sfx;
 
   // ---- the generic layer: every button gets hover, click and back; specific cues above take over where they fire ----

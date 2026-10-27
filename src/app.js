@@ -435,7 +435,8 @@
   // pixel, so the lens can blur by real distance. Half resolution: blur doesn't need more.
   // ---- the lens: Spark blurs every splat by its own distance from the focus plane (real depth of field) ----
   var dOK=true, afPending=false;
-  function sparkLens(){ var sp=viewer&&viewer.spark; if(!sp) return; var on=viewfinderOn&&loaded&&gDof>0;
+  function sparkLens(){ var sp=viewer&&viewer.spark; if(!sp) return; if(typeof RF!=="undefined"&&RF.on&&loaded){ rfLens(sp); return; }   /* the launch page racks the lens itself */
+    var on=viewfinderOn&&loaded&&gDof>0;
     if(afPending&&on){ var say=afPending==="say"; afPending=false; autoFocus(say); }
     if(!on){ sp.apertureAngle=0; return; } var sc=sceneScale(), S=focusMetres()*sc, fm=(focalMM||50)/1000*sc, N=APERTURES[apIdx]||8;
     sp.focalDistance=S; sp.apertureAngle=2*Math.atan(fm/N/2/S)*gDof; }   // the aperture's width, seen from the focus point
@@ -648,7 +649,7 @@
       return ds.arrayBuffer().then(function(raw){ detailDpr(); return {buf:stmUnpack(raw, sceneDetail), ext:"splat"}; }); })
     .then(function(r){ skySet(sc.sky||null); CH.spec=sc; return wkLoad(sc.collide).then(function(){ return r; }); })
     .then(function(r){ var f=new File([r.buf],(sc.id||"scene")+"."+r.ext,{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown", true); })
-    .catch(function(e){ console.warn(e); hideLoader(); toast("Couldn't open that scene."); }); }
+    .catch(function(e){ console.warn(e); hideLoader(); if(typeof rfClose==="function"&&RF.on){ rfClose(); RF.failed=true; siShow(); }   /* the scan wouldn't load: fall back to the plain sign-in card */ toast("Couldn't open that scene."); }); }
   function buildScenePicker(){ var host=$("sceneRow"); if(!host) return; var list=(window.SPLAT_SCENES||[]);
     if(!list.length){ host.style.display="none"; var h=$("sceneHead"),o=$("orSep"); if(h)h.style.display="none"; if(o)o.style.display="none"; return; }
     host.innerHTML=""; list.forEach(function(sc){ var c=document.createElement("button"); c.className="scenecard";
@@ -1071,6 +1072,7 @@
 @@include questui.js@@
 @@include achieve.js@@
 @@include launch.js@@
+@@include rackin.js@@
   function toggleGrid(){ grid.classList.toggle("hidden"); var s=$("mGrid"); if(s)s.classList.toggle("on",!grid.classList.contains("hidden")); }
 
   // ---- wire: landing ----

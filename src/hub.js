@@ -94,7 +94,8 @@
     App.on(function(next){ if(next==="hub") hubRender(); }); })();
 
   // ---- sign-in (a shared school computer) ----
-  function siShow(){ ["hub","landing","studio","punctum","teacher","hud"].forEach(hubHide); var s=$("signin"); if(!s) return; s.classList.remove("hidden"); App.go("signin");
+  function siShow(){ ["hub","landing","studio","punctum","teacher","hud"].forEach(hubHide); var s=$("signin"); if(!s) return;
+    if(SI_DEMO_ONLY&&!(typeof bootDemo!=="undefined"&&bootDemo)&&typeof rfShow==="function"&&!RF.failed){ s.classList.add("hidden"); App.go("signin"); rfShow(); return; }   /* the playtest build opens on the rack-focus launch page (src/rackin.js) */ s.classList.remove("hidden"); App.go("signin");
     var cls=null; Object.keys(lsDB.classes).forEach(function(k){ cls=lsDB.classes[k]; });
     var pl=cls?lsPlanFor(cls.code):null;
     s.querySelector(".si-eb").textContent=cls?((cls.period?"PERIOD "+cls.period+" · ":"")+cls.name+" WITH "+(cls.teacher||"")).toUpperCase():"A PHOTOGRAPHY STUDIO FOR YEARS 11 TO 13";
@@ -115,7 +116,7 @@
     if(a==="name"){ var nm=($("siName").value||"").trim(); if(nm.length<2){ toast("Type your name the way your teacher knows it."); return; }
       lsSetWho({role:"student", name:nm, code:siPending}); return siDone(); }
     if(a==="solo"){ lsSetWho({role:"solo", name:studentName||""}); return siDone(); }
-    if(a==="demo"){   // the ten-minute demo for playtesters: a clean start, straight into the Stump
+    if(a==="demo"){ if(typeof rfClose==="function") rfClose();   // the ten-minute demo for playtesters: a clean start, straight into the Stump
       var b=s.querySelector('[data-si="demo"]');
       siDemoAsk=false; b.classList.remove("ask"); b.innerHTML=SI_DEMO_LABEL;
       if(typeof saveSessionNow==="function") saveSessionNow(); wipeWorkspace(); lsSetWho({role:"solo", name:"", demo:true}); siDone(); qDemoStart(); return; }   // a fresh demo every time; a real student's saved work is left alone

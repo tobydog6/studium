@@ -278,8 +278,16 @@ function setSize(p,i){ i=THREE.MathUtils.clamp(i,0,SIZES.length-1); if(i===p.szi
   p.mesh.geometry.dispose(); const geo=new THREE.PlaneGeometry(p.w,p.h,14,14); geo.rotateX(-Math.PI/2); p.mesh.geometry=geo; p.mat.uniforms.uHalf.value.set(p.w/2,p.h/2);
   p.shadow.geometry.dispose(); p.shadow.geometry=new THREE.PlaneGeometry(p.w*1.33,p.h*1.33);
   p.group.remove(p.pins); p.pins=makePins(p.w,p.h); p.group.add(p.pins); }
+/* a series stays joined when one of its prints changes size: re-butt them in order, centred on the same line, and keep the whole series on the board */
+function chainShape(ch){ const bb=bboxOf(ch), row=(bb.x1-bb.x0)>=(bb.z1-bb.z0); const m=ch.slice().sort((a,b)=>row?a.tx-b.tx:a.tz-b.tz);
+  return { m, row, x0:bb.x0, z0:bb.z0, cz:m.reduce((a,p)=>a+p.tz,0)/m.length, cx:m.reduce((a,p)=>a+p.tx,0)/m.length }; }
+function refitChain(L){ const G=0.08; let at=L.row?L.x0:L.z0;
+  L.m.forEach(p=>{ if(L.row){ p.tx=at+p.w/2; p.tz=L.cz; at+=p.w+G; } else { p.tz=at+p.h/2; p.tx=L.cx; at+=p.h+G; } });
+  const bb=bboxOf(L.m), dx=Math.max(BX-BW/2+0.15-bb.x0,0)+Math.min(BX+BW/2-0.15-bb.x1,0), dz=Math.max(BZ-BH/2+0.15-bb.z0,0)+Math.min(BZ+BH/2-0.15-bb.z1,0);
+  L.m.forEach(p=>{ p.tx+=dx; p.tz+=dz; }); }
 function resizePrint(p,d){ if(!p||p.locked) return; const to=THREE.MathUtils.clamp((p.szi??1)+d,0,SIZES.length-1); if(to===p.szi){ toast(d>0?'That\u2019s the biggest print size.':'That\u2019s the smallest print size.'); return; }
-  pushUndo(); setSize(p,to); if(p.wg) layoutGroup(p.wg); if(p.rejected) layoutRejects(); if(p.onBoard){ if(FREE()){ const t=freeTarget(p,p.tx,p.tz); p.tx=t.x; p.tz=t.z; } else layoutRows(null); }
+  const ch=p.onBoard&&FREE()?chains.find(c=>c.includes(p)):null, lay=ch?chainShape(ch):null;
+  pushUndo(); setSize(p,to); if(p.wg) layoutGroup(p.wg); if(p.rejected) layoutRejects(); if(p.onBoard){ if(FREE()){ if(lay) refitChain(lay); else { const t=freeTarget(p,p.tx,p.tz); p.tx=t.x; p.tz=t.z; } } else layoutRows(null); }
   restack(); updateChains(false); saveAll(); tourEv('size'); toast('Print size: '+SIZE_NAMES[p.szi]+'.','Undo',undo); }
 
 /* ================= the library (Studium's folders: locations, picks, projects) ================= */
@@ -745,7 +753,7 @@ function shredFrame(dt){
     if(st.m.position.y<=ground+0.03&&tip>0.6){ st.m.position.y=ground+0.03; st.rest=true; st.m.rotation.x=-Math.PI/2+(Math.random()-0.5)*0.25;
       hfAdd(st.m.position.x,st.m.position.z,st.len*0.55,st.m.rotation.y,0.035); SH.pile++; } }
   /* the end follows the animation, not a clock: last strip down, a beat to watch it settle, then back to the table */
-  if(SH.busy&&SH.queue<=0&&!SH.items.length){ if(SH.endT<0){ SH.endT=0; SFX('shFall'); } SH.endT+=dt; if(SH.endT>2.4) shredFinish(); } }
+  if(SH.busy&&SH.queue<=0&&!SH.items.length){ if(SH.endT<0){ SH.endT=0; SFX('shFall'); } SH.endT+=dt; if(SH.endT>1.1) shredFinish(); } }
 
 const pop=$('notePop');
 function openNote(ch, x, y){ hideActs(); closeCtx(); const k=chainKey(ch); const n=notes.get(k)||{ why:new Set(), text:'' };
@@ -1434,7 +1442,7 @@ function shoot(){ if(!STAND.up||STAND.dir) return; const on=prints.filter(p=>p.o
   if(!on.length){ toast('Put some prints on the board first.'); return; }
   closeNote(); hideActs(); closeCtx();
   try{ if(HOST&&HOST.shutter) HOST.shutter(); else SFX('capture'); }catch(e){}
-  STAND.flashT=0.16; const fl=$('flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+  STAND.flashT=0.16; const fl=$('flash'), bl=$('shBlade'); fl.classList.remove('go','shut'); bl.classList.remove('fire'); void fl.offsetWidth; fl.classList.add('shut'); bl.classList.add('fire');   /* the same flash and blade as the camera in the scene */
   const R=shotRect(on), cw=2000, ch=Math.round(2000/1.4142);
   const oc=new THREE.OrthographicCamera(R.x0-BX,R.x1-BX,-(R.z0-BZ),-(R.z1-BZ),1,60); oc.position.set(BX,30,BZ); oc.up.set(0,0,-1); oc.lookAt(BX,0,BZ); oc.updateMatrixWorld(); oc.updateProjectionMatrix();
   const hideL=[ghost,loupeProp,dim,stand,aim,boardGlow,RINGS.board,threads,stickyGroup,...springs], was=hideL.map(o=>o.visible); hideL.forEach(o=>o.visible=false);

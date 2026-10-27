@@ -136,6 +136,9 @@ body.ready .load{ opacity:0; }
 
 #flash{ position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:7; }
 #flash.go{ animation:flash .55s ease-out; }
+#flash.shut{ animation:flashS .3s ease-out; } @keyframes flashS{ 0%{ opacity:0; } 18%{ opacity:.7; } 100%{ opacity:0; } }
+#shBlade{ position:fixed; inset:0; z-index:7; background:#000; transform:scaleY(0); transform-origin:top; pointer-events:none; }
+#shBlade.fire{ animation:blade .22s ease-in-out; } @keyframes blade{ 0%{ transform:scaleY(0); transform-origin:top; } 45%{ transform:scaleY(1); transform-origin:top; } 55%{ transform:scaleY(1); transform-origin:bottom; } 100%{ transform:scaleY(0); transform-origin:bottom; } }
 @keyframes flash{ 0%{ opacity:0; } 12%{ opacity:.85; } 100%{ opacity:0; } }
 .fly{ position:fixed; z-index:8; box-shadow:0 30px 60px rgba(0,0,0,.5); border-radius:2px; transition:transform .75s cubic-bezier(.5,0,.2,1), opacity .75s ease-in; pointer-events:none; animation:pop .5s cubic-bezier(.2,.8,.2,1); }
 @keyframes pop{ from{ transform:scale(.9); opacity:0; } to{ transform:none; opacity:1; } }
@@ -327,7 +330,7 @@ body:has(#bd.on) .co-top, body:has(#bd.on) .co-sub, body:has(#bd.on) .co-foot{ d
 <aside id="wb" aria-label="Workbook"><header><h2>Workbook</h2><button class="btn" id="wbClose" type="button">Close</button></header>
   <div class="wb-scroll"><h3>Sent to the photobook</h3><div id="wbBook"></div><h3>Pages</h3><div id="wbGrid"></div></div></aside>
 <div id="wbView"><img alt="Workbook page"></div>
-<div id="flash"></div>
+<div id="flash"></div><div id="shBlade"></div>
 
 <section id="bd" aria-label="Binder"><div class="bd-backdrop"></div>
   <div class="bd-top"><div class="bd-title"><b>Binder</b><i id="bdFolder"></i><span id="bdInfo"></span></div>

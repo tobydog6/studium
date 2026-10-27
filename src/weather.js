@@ -93,10 +93,11 @@
       if(!(g>-1e8&&g<1e8)){ g=lo[1]+pad; for(y=0;y<ny;y++){ if(occL[(z*ny+y)*nx+x]>0.15*mL){ g=lo[1]+(y+0.5)*cell; break; } } }   /* no walk map: the lowest solid thing in the column is the ground */
       for(y=0;y<ny;y++){ var ci=(z*ny+y)*nx+x, h=(lo[1]+(y+0.5)*cell-g)/S;
         var solidW=Math.min(1,occW[ci]/mW), solidL=Math.min(1,occL[ci]/mL), gf=occL[ci]>1e-6?grnL[ci]/occL[ci]:0;
-        var hf=Math.pow(Math.max(0,Math.min(1,(h-0.45)/8)),1.35);   /* rooted: nothing at the ground, most at the top of a tall tree */
-        var bend=hf*(1-0.9*Math.pow(solidW,1.4));
-        var leafy=Math.max(0,Math.min(1,(gf-0.07)/0.3)), nearG=h<0.6?1:0;
-        var flut=leafy*(1-0.65*solidL)*(nearG?0.8:1)+0.35*hf*(1-solidL);   /* leaves and grass, and a little for bare twigs up high */
+        var hf=Math.pow(Math.max(0,Math.min(1,(h-0.3)/6)),1.2);   /* rooted: nothing at the ground, most at the top of a tall tree */
+        var leafy=Math.max(0,Math.min(1,(gf-0.04)/0.2));
+        var rigid=Math.pow(solidW,1.5)*(1-leafy);   /* a wall or a post is dense all round and not leafy; a thick canopy is dense but leafy, so it still moves */
+        var bend=hf*(1-0.9*rigid);
+        var flut=leafy*(1-0.4*solidL)+0.45*hf*(1-0.5*solidL);   /* leaves and grass, and bare twigs up high */
         if(h<0.03) flut*=0.2;
         out[ci*4]=Math.round(Math.max(0,Math.min(1,bend))*255); out[ci*4+1]=Math.round(Math.max(0,Math.min(1,flut))*255); } }
     var tex=new THREE.Data3DTexture(out,nx,ny,nz); tex.format=THREE.RGBAFormat; tex.type=THREE.UnsignedByteType; tex.minFilter=tex.magFilter=THREE.LinearFilter;

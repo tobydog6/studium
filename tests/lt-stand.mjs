@@ -49,7 +49,7 @@ try {
   await page.waitForTimeout(800); await shot('9-sticky');
   await fr.evaluate(() => __lt.openBinder()); await page.waitForTimeout(1500); await shot('10-binder');
   console.log('  stickies:', await fr.evaluate(() => __lt.STICKY.map((n) => n.text).join('|')));
-  await fr.evaluate(() => __lt.saveNow());
+  await fr.evaluate(() => __lt.saveNow()); await page.evaluate(() => __cb.stOpen('workshop')); await page.waitForTimeout(2500); await shot('11-workbook');
 } catch (e) { fail = e.message.split('\n')[0]; }
 await browser.close(); server.close();
 if (errors.length) console.log(errors.join('\n'));

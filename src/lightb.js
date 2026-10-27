@@ -320,7 +320,7 @@
       P.emit.forEach(function(mt){ mt.emissive.setRGB(c[0]/m*on,c[1]/m*on,c[2]/m*on); });
       P.surf.forEach(function(mt){ mt.color.setHex(RLB_SURFC[L.surf||"silver"]); mt.metalness=L.surf==="white"?0:1; mt.roughness=L.surf==="white"?0.8:0.3; });
       if(P.basic) P.basic.color.setRGB(c[0]/m*on,c[1]/m*on,c[2]/m*on);
-      var aim=st.getObjectByName("aim"), showAim=i===RLB.sel&&L.kind!==0&&!!L.aimT; aim.visible=showAim; if(showAim) aim.position.set((L.aimT.x-L.x)/S,(L.aimT.y-L.g)/S,(L.aimT.z-L.z)/S);
+      var aim=st.getObjectByName("aim"), showAim=i===RLB.sel&&L.kind!==0&&!!L.aimT; aim.visible=showAim; if(showAim){ aim.scale.set(0.05/S,0.05/S,1); } if(showAim) aim.position.set((L.aimT.x-L.x)/S,(L.aimT.y-L.g)/S,(L.aimT.z-L.z)/S);
       var rg=st.getObjectByName("ring"); rg.visible=i===RLB.sel; rg.position.y=0.012; rg.scale.setScalar(L.fx==="sodium"?0.5:Math.max(0.5,k));
       var beam=st.getObjectByName("beam"); beam.visible=showAim; if(showAim){ var p=beam.geometry.attributes.position; p.setXYZ(0,0,top,0); p.setXYZ(1,(L.aimT.x-L.x)/S,(L.aimT.y-L.g)/S,(L.aimT.z-L.z)/S); p.needsUpdate=true; beam.geometry.computeBoundingSphere(); } }); }
   var _rbRingT=null, _rbRetT=null;
@@ -419,7 +419,8 @@
   function rbDiagDown(e){ e.preventDefault(); e.stopPropagation(); var cv=$("rbDiag"), r=cv.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top, G=rbDiagGeom(), best=-1, bd=16;
     if(RLB.nScr&&Math.hypot(RLB.nScr.x-x,RLB.nScr.y-y)<14){ RLB.ddrag={north:true}; }
     else { RL.lights.forEach(function(L,i){ var p=rbD2S(G,L.x,L.z), d=Math.hypot(p.x-x,p.y-y); if(d<bd){ bd=d; best=i; } }); if(best<0) return; RLB.sel=best; RLB.ddrag={i:best}; rbPanel(true); rbStands(); }
-    cv.setPointerCapture(e.pointerId); }
+    cv=$("rbDiag"); try{ cv.setPointerCapture(e.pointerId); }catch(er){}   /* the panel may have rebuilt the canvas */
+    window.addEventListener("pointerup",function(){ RLB.ddrag=null; },{once:true}); }
   function rbDiagMove(e){ var D=RLB.ddrag; if(!D) return; var cv=$("rbDiag"), r=cv.getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top, G=rbDiagGeom();
     if(D.north){ var w=rbS2D(G,x,y); RLB.north=((Math.atan2(w.x-G.T.x,w.z-G.T.z)*180/Math.PI)%360+360)%360; rbDirty(); return; }
     var L=RL.lights[D.i], w2=rbS2D(G,x,y); if(L){ rbPlace(L,w2.x,w2.z); rbStands(); rbPanel(false); rbDirty(); } }
@@ -471,9 +472,9 @@
     +"body.rl-open #btnHelp{right:"+(RLB_SIDE+18)+"px!important;bottom:150px!important}";   /* the guide button steps out of the panel's way */
   function rbEls(){ if($("rbUI")) return; var st=document.createElement("style"); st.textContent=RLB_CSS; document.head.appendChild(st);
     var u=document.createElement("div"); u.id="rbUI"; document.body.appendChild(u);
-    u.innerHTML='<aside class="lr-panel" id="rbSide"></aside><div class="dv-bar" id="rbKit"><div class="dv-top"><span class="dv-count">THE KIT</span><span class="dv-help">CLICK A PIECE TO PUT IT ON THE SET · DRAG THE GROUND TO ORBIT · SCROLL TO ZOOM · RIGHT-CLICK TO RAISE THE CAMERA · WASD TO WALK</span></div><div class="dv-film">'
+    u.innerHTML='<aside class="lr-panel" id="rbSide"></aside><div class="dv-bar" id="rbKit"><div class="dv-top"><span class="dv-count">THE KIT</span><span class="dv-help">CLICK A PIECE TO ADD IT · DRAG A STAND TO MOVE IT · DRAG THE RETICLE TO AIM · SCROLL ON A LIGHT TO RAISE IT · DRAG THE GROUND TO ORBIT · RIGHT-CLICK TO SHOOT</span></div><div class="dv-film">'
       +RLB_KITORDER.map(function(k){ return '<button class="rb-kt" data-rb-fx="'+k+'" title="'+RLB_FX[k].d+'"><img src="'+RLB_THUMB[k]+'" alt=""><span>'+RLB_FX[k].n+'</span></button>'; }).join("")+'</div></div>';
-    u.addEventListener("input",rbInput); u.addEventListener("click",rbClick); u.addEventListener("keydown",function(e){ if(e.code!=="Escape"&&e.target&&/INPUT|SELECT/.test(e.target.tagName)) e.stopPropagation(); });
+    u.addEventListener("input",rbInput); u.addEventListener("click",rbClick); u.addEventListener("change",function(e){ if(e.target&&e.target.type==="range") e.target.blur(); }); u.addEventListener("keydown",function(e){ if(e.code!=="Escape"&&e.target&&/INPUT|SELECT/.test(e.target.tagName)) e.stopPropagation(); });
     u.addEventListener("pointerup",function(){ var ae=document.activeElement; if(ae&&ae.type==="range") setTimeout(function(){ ae.blur(); },0); });   /* let go of a slider and WASD walks again */
     var bz=document.createElement("div"); bz.id="rbBusy"; bz.textContent="BUILDING SHADOWS…"; document.body.appendChild(bz); }
   function rbShow(on){ var u=$("rbUI"); if(u) u.classList.toggle("show",!!on&&!viewfinderOn); }
@@ -516,7 +517,7 @@
     else if(k==="h"){ L.h=v; rbPlace(L,L.x,L.z); em.textContent=L.h.toFixed(2)+" m"; }
     rbStands(); rbDirty(); rbPanel(false); }
   function rbClick(e){ var hd=e.target.closest(".lr-sechdr"); if(hd){ var sec=hd.parentNode, id=sec.getAttribute("data-rb-sec"); sec.classList.toggle("collapsed"); RLB.coll=RLB.coll||{}; RLB.coll[id]=sec.classList.contains("collapsed"); return; }
-    var b=e.target.closest("[data-rb],[data-rb-fx],[data-rb-pick],[data-rb-gel],[data-rb-surf],[data-rb-day],[data-rb-on],[data-rb-del]"); if(!b) return; e.stopPropagation(); var L=rbCur();
+    var b=e.target.closest("[data-rb],[data-rb-fx],[data-rb-pick],[data-rb-gel],[data-rb-surf],[data-rb-day],[data-rb-on],[data-rb-del]"); if(!b) return; e.stopPropagation(); if(b.tagName==="BUTTON") b.blur(); var L=rbCur();
     if(b.hasAttribute("data-rb-fx")) return rbAdd(b.getAttribute("data-rb-fx"));
     if(b.hasAttribute("data-rb-on")){ var Lo=RL.lights[+b.getAttribute("data-rb-on")]; if(Lo){ Lo.on=!Lo.on; rbStands(); rbDirty(); rbPanel(true); } return; }
     if(b.hasAttribute("data-rb-del")) return rbRemove(+b.getAttribute("data-rb-del"));

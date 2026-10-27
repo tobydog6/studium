@@ -88,7 +88,7 @@
         statements:(STM=function(c){ var i=c.inputs, o=c.outputs.gsplat; return [
           o+" = "+i.gsplat+";",
           "if(length("+o+".center.xz-"+i.dcut+".xy)<"+i.dcut+".z && "+o+".center.y>"+i.dcy+".x && "+o+".center.y<"+i.dcy+".y) "+o+".rgba.a=0.0;",   // the subject's own full-detail piece draws this part
-          "if("+i.on+" > 0.5 && isGsplatActive("+o+".flags)){",
+          "if("+i.on+" > 0.001 && isGsplatActive("+o+".flags)){",   /* on can sit between 0 and 1: the light fades in and out */
           "  vec3 c="+o+".center; vec3 s=abs("+o+".scales);",
           "  int k=(s.x<=s.y && s.x<=s.z)?0:((s.y<=s.z)?1:2); vec3 ax=k==0?vec3(1.0,0.0,0.0):(k==1?vec3(0.0,1.0,0.0):vec3(0.0,0.0,1.0));",
           "  vec3 n=normalize(rlRot("+o+".quaternion, ax));",
@@ -109,7 +109,7 @@
           "    if(lb.a>0.5){ float ca=-dot(l,le.xyz)/d; if(ca<=le.w) continue; if(ca<lf.x){ float u=(ca-le.w)/(lf.x-le.w); sh*=u*u*(3.0-2.0*u); } }",
           "    if("+i.shad+">0.5) sh*=rlMarchP("+i.grid+","+i.go+","+i.ginv+","+i.cell+",c,la.xyz);",
           "    vec3 li=sh/(r2*"+i.is2+"+la.w)*lb.rgb; Lt+=li; Ls+=pow(max(dot(n,normalize(l/d+V)),0.0),32.0)*0.22*f*li; }",   // a soft sheen on flat surfaces: floors, paint, glass
-          "  "+o+".rgba.rgb=min("+o+".rgba.rgb*Lt+Ls, vec3(1.0));",
+          "  "+o+".rgba.rgb=mix("+o+".rgba.rgb, min("+o+".rgba.rgb*Lt+Ls, vec3(1.0)), min("+i.on+",1.0));",
           "  if(c.y>"+i.cut+") "+o+".rgba.a=0.0;",   // plan view: hide everything above head height
           "}"]; }) });
       return {gsplat:dd.outputs.gsplat}; });

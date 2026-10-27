@@ -67,7 +67,7 @@
   function sdNoise(bus,t,ft,f,q,a,peak,hold,r,f2,pan,pan2){ var c=SD.ctx, s=c.createBufferSource(), fl=c.createBiquadFilter(), g=c.createGain(), T=a+hold+r; s.buffer=SD.nb; s.loop=true; fl.type=ft; fl.frequency.setValueAtTime(f,t); if(f2) fl.frequency.exponentialRampToValueAtTime(f2,t+T); fl.Q.value=q||0.7; sdEnv(g,t,a,peak,hold,r); s.connect(fl); fl.connect(g); sdOut(g,bus,pan,pan2,t,T); s.start(t,Math.random()*1.5); s.stop(t+T+0.05); return fl; }
   function sdTick(bus,t,f,peak,pan){ sdNoise(bus,t,"bandpass",f,7,0.001,peak,0.003,0.028,null,pan); }
   // the bed: dark air and a low drone on A, breathing, under the whole opening
-  function sdAmbStart(t){ var c=sdCtx(); if(!c||SD.amb) return; t=t==null?sdNow():t; var bus=c.createGain(); bus.gain.setValueAtTime(0.0001,t); bus.gain.exponentialRampToValueAtTime(1,t+1.6); bus.connect(SD.out); SD.amb=bus;
+  function sdAmbStart(t){ var c=sdCtx(); if(!c||SD.amb) return; t=t==null?sdNow():t; if(sdVar("bed")) return sdVar("bed")(c,t); var bus=c.createGain(); bus.gain.setValueAtTime(0.0001,t); bus.gain.exponentialRampToValueAtTime(1,t+1.6); bus.connect(SD.out); SD.amb=bus;
     var s=c.createBufferSource(); s.buffer=SD.nb; s.loop=true; var lp=c.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=420; lp.Q.value=0.5; var hp=c.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=90; var g=c.createGain(); g.gain.value=0.02; s.connect(hp); hp.connect(lp); lp.connect(g); g.connect(bus); s.start(t);
     SD.drone=[[55,"sine",0.034,0.012],[82.41,"sine",0.02,0.009],[110,"triangle",0.007,0.004]].map(function(v,i){ var o=c.createOscillator(), og=c.createGain(), lfo=c.createOscillator(), lg=c.createGain();
       o.type=v[1]; o.frequency.setValueAtTime(v[0],t); o.detune.value=(i-1)*5; og.gain.value=v[2]; lfo.frequency.value=0.07+i*0.045; lg.gain.value=v[3]; lfo.connect(lg); lg.connect(og.gain); o.connect(og); og.connect(bus); o.start(t); lfo.start(t); return o; });
@@ -75,23 +75,69 @@
   function sdDroneTo(k,t,tc){ if(!SD.drone) return; SD.drone.forEach(function(o,i){ o.frequency.setTargetAtTime([55,82.41,110][i]*k,t,tc); }); }
   function sdAmbStop(t,tc){ if(!SD.amb||!SD.ctx) return; var b=SD.amb, src=SD.ambSrc||[]; SD.amb=null; SD.drone=null; t=t==null?sdNow():t; b.gain.setTargetAtTime(0.0001,t,tc||1.2); src.forEach(function(o){ try{ o.stop(t+(tc||1.2)*6); }catch(e){} }); }
   // the point cloud: a shimmer rising with the line, a pad lifting a fifth, points settling as ticks, a glint when it resolves
-  function sdScan(t){ var b=sdSeq(); if(!b) return; t=t==null?sdNow():t; var D=LA_T.scan;
+  function sdScan(t){ var b=sdSeq(); if(!b) return; t=t==null?sdNow():t; if(sdVar("scan")) return sdVar("scan")(b,t,LA_T.scan); var D=LA_T.scan;
     sdNoise(b,t,"bandpass",420,3.5,0.7,0.065,D-1.0,1.0,5400);
     sdTone(b,t,220,"sine",0.9,0.026,D-1.3,1.8,329.6); sdTone(b,t,329.6,"sine",1.1,0.013,D-1.3,1.8,494);
     for(var i=0;i<52;i++){ var u=i/52; sdTick(b,t+D*Math.pow(u,0.8)+Math.random()*0.05,2200+u*5200+Math.random()*1400,0.045*(1-u*0.55)+0.008,(Math.random()*2-1)*0.85); }
     sdTone(b,t+D-0.05,1318.5,"sine",0.004,0.022,0.02,1.1); sdTone(b,t+D-0.03,1975.5,"sine",0.004,0.01,0.02,0.9); }
   // the camera coming up: cloth and air, the lens motor waking, it seats with a click
-  function sdLensUp(t){ var b=sdSeq(); if(!b) return; t=t==null?sdNow():t;
+  function sdLensUp(t){ var b=sdSeq(); if(!b) return; t=t==null?sdNow():t; if(sdVar("lens")) return sdVar("lens")(b,t);
     sdNoise(b,t,"bandpass",600,0.9,0.08,0.03,0.08,0.3,1600,-0.2,0.2);   /* the camera lifting: cloth and air */
     sdTick(b,t+0.5,1500,0.05); sdTick(b,t+0.54,3000,0.03); }            /* it seats */
   // focus: the ring turning, quiet little detents speeding up and settling, then the two-tone confirm
-  function sdRack(t,D){ var b=sdSeq(); if(!b) return; t=t==null?sdNow():t;
+  function sdRack(t,D){ var b=sdSeq(); if(!b) return; t=t==null?sdNow():t; if(sdVar("rack")) return sdVar("rack")(b,t,D);
     for(var i=0;i<16;i++){ var u=i/16, at=t+D*0.85*(1-Math.pow(1-u,1.7)); sdTick(b,at,3800+u*900,0.014+0.008*Math.sin(u*Math.PI),(u-0.5)*0.3); }
     sdTone(b,t+D,2730,"sine",0.003,0.04,0.045,0.03); sdTone(b,t+D+0.1,2730,"sine",0.003,0.04,0.045,0.05); }
   function sdShutter(t,live){ var b=sdSeq(); if(!b) return; t=t==null?sdNow():t;
     if(live&&typeof shutterSound==="function"){ try{ shutterSound(); }catch(e){} } else { sdTick(b,t,2400,0.25); sdTick(b,t+0.055,1900,0.18); }
     sdTone(b,t,96,"sine",0.003,0.2,0.01,0.2,38); sdNoise(b,t,"lowpass",900,0.7,0.002,0.05,0.02,0.2,200);
-    if(SD.drone){ sdDroneTo(1,t,0.05); } }
+    if(SD.drone){ sdDroneTo(1,t,0.05); } if(SD.vb){ SD.vb.gain.setTargetAtTime(0.0001,t+0.01,0.06); SD.vb=null; } if(sdVar("shot")) sdVar("shot")(b,t); }
+  // ---- five sound options for the beginning (?snd=1..5): the bed, the point cloud, the lens, the focus, the shot.
+  //      The spin and the title are the same in all of them. ----
+  var SD_V=(function(){ var m=/[?&]snd=(\d)/.exec(location.search); if(m) return +m[1]; try{ return +(localStorage.getItem("studium_open_snd")||0); }catch(e){ return 0; } })();
+  var SD_VN=["As it is","Felt","Air","Strings","Pulse","Glass"];
+  function sdVar(k){ var v=SDV[SD_V]; return v&&v[k]||null; }
+  function sdVBus(c,t,send){ var b=c.createGain(); b.gain.value=1; b.connect(SD.out); if(send){ var s=c.createGain(); s.gain.value=send; b.connect(s); s.connect(SD.verb); } SD.vb=b; return b; }   /* the beginning's own music: the shutter cuts it */
+  function sdAir(c,bus,t,g0,lpf){ var s=c.createBufferSource(); s.buffer=SD.nb; s.loop=true; var lp=c.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=lpf||500; var hp=c.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=120; var g=c.createGain(); g.gain.value=g0;
+    var lfo=c.createOscillator(), lg=c.createGain(); lfo.frequency.value=0.11; lg.gain.value=g0*0.6; lfo.connect(lg); lg.connect(g.gain); s.connect(hp); hp.connect(lp); lp.connect(g); g.connect(bus); s.start(t); lfo.start(t); return [s,lfo]; }
+  function sdBedBus(c,t){ var bus=c.createGain(); bus.gain.setValueAtTime(0.0001,t); bus.gain.exponentialRampToValueAtTime(1,t+1.6); bus.connect(SD.out); SD.amb=bus; SD.drone=null; return bus; }
+  function sdBell(b,t,f,peak,pan,dec){ sdTone(b,t,f,"sine",0.003,peak,0.01,dec||1.6,null,pan); sdTone(b,t,f*2.76,"sine",0.002,peak*0.28,0.005,(dec||1.6)*0.4,null,pan); }
+  var SD_PENTA=[440,493.88,554.37,659.25,739.99,880,987.77,1108.73,1318.51,1479.98,1760,1975.53,2217.46,2637.02];
+  var SDV={
+    /* 1 · Felt: the beginning played on a felt piano, the same voice as the title chord */
+    1:{ bed:function(c,t){ var bus=sdBedBus(c,t); SD.ambSrc=sdAir(c,bus,t,0.012,380); var vb=sdVBus(c,t,1.1); sdFelt(vb,t+0.7,220,0.07,-0.1); sdFelt(vb,t+0.72,110,0.05,0.1); },
+        scan:function(b,t,D){ var vb=SD.vb||b, n=[220,277.18,329.63,440,554.37,659.25,880,1108.73,1318.51]; n.forEach(function(f,i){ sdFelt(vb,t+D*Math.pow(i/n.length,0.9),f,0.06-i*0.003,-0.6+i*0.15); });
+          sdTone(vb,t,110,"triangle",1.2,0.03,D,2,null); sdTone(vb,t,164.81,"sine",1.4,0.02,D,2,null); sdFelt(vb,t+D,1318.51,0.04,0.2); sdFelt(vb,t+D+0.02,1661.22,0.03,-0.2); },
+        lens:function(b,t){ sdNoise(b,t,"bandpass",600,0.9,0.08,0.02,0.08,0.3,1600); sdFelt(SD.vb||b,t+0.1,329.63,0.04,0); },
+        rack:function(b,t,D){ for(var i=0;i<10;i++) sdTick(b,t+D*0.85*(1-Math.pow(1-i/10,1.7)),3600,0.01); sdFelt(SD.vb||b,t+D,659.25,0.05,-0.1); sdFelt(SD.vb||b,t+D+0.12,880,0.05,0.1); } },
+    /* 2 · Air: no music. A park: wind in the trees, a few birds far off, and the camera, close and real */
+    2:{ bed:function(c,t){ var bus=sdBedBus(c,t); var a=sdAir(c,bus,t,0.06,700), w=sdAir(c,bus,t,0.025,2400); SD.ambSrc=a.concat(w);
+          for(var i=0;i<9;i++){ var bt=t+1.2+i*1.15+Math.random()*0.8, f=2800+Math.random()*1800, pan=(Math.random()*2-1)*0.8; for(var k=0;k<2+(i%3);k++) sdTone(bus,bt+k*0.11,f*(1+k*0.04),"sine",0.006,0.016,0.02,0.07,f*(1.25+k*0.04),pan); } },
+        scan:function(b,t,D){ sdNoise(b,t,"highpass",3000,0.7,1.0,0.04,D-1.2,1.2,9000,-0.4,0.4); for(var i=0;i<20;i++){ var u=i/20; sdTick(b,t+D*u+Math.random()*0.05,4000+u*3000,0.025,(Math.random()*2-1)*0.7); } },
+        lens:function(b,t){ sdNoise(b,t,"bandpass",500,0.8,0.1,0.1,0.12,0.35,1400,-0.3,0.2); sdNoise(b,t+0.3,"bandpass",1200,1.2,0.02,0.03,0.05,0.12,null,0.2); sdTick(b,t+0.52,1400,0.08); sdTick(b,t+0.56,2900,0.05); },
+        rack:function(b,t,D){ var c=SD.ctx, o=c.createOscillator(), fl=c.createBiquadFilter(), g=c.createGain(); o.type="sawtooth"; o.frequency.setValueAtTime(420,t); o.frequency.linearRampToValueAtTime(560,t+D*0.8); fl.type="bandpass"; fl.frequency.value=5200; fl.Q.value=3; sdEnv(g,t,0.05,0.02,D*0.75,0.08); o.connect(fl); fl.connect(g); g.connect(b); o.start(t); o.stop(t+D+0.2);
+          sdTone(b,t+D,2730,"sine",0.003,0.04,0.045,0.03); sdTone(b,t+D+0.1,2730,"sine",0.003,0.04,0.045,0.05); } },
+    /* 3 · Strings: a low string swell builds from nothing, opening up toward the shot; the shutter cuts it dead */
+    3:{ bed:function(c,t){ var bus=sdBedBus(c,t); SD.ambSrc=sdAir(c,bus,t,0.01,400); var vb=sdVBus(c,t,0.9), lp=c.createBiquadFilter(); lp.type="lowpass"; lp.Q.value=0.5; lp.frequency.setValueAtTime(260,t); lp.frequency.exponentialRampToValueAtTime(2400,t+8.5); lp.connect(vb);
+          [[55,0.05,0],[110,0.035,1.2],[164.81,0.028,2.6],[220,0.02,4.2],[277.18,0.016,5.6],[329.63,0.013,6.6]].forEach(function(v,i){ [-6,6].forEach(function(dt){ var o=c.createOscillator(), g=c.createGain(), vib=c.createOscillator(), vg=c.createGain(); o.type="sawtooth"; o.frequency.value=v[0]; o.detune.value=dt; vib.frequency.value=4.6+i*0.3; vg.gain.value=v[0]*0.004; vib.connect(vg); vg.connect(o.frequency);
+            g.gain.setValueAtTime(0.0001,t+v[2]); g.gain.exponentialRampToValueAtTime(v[1],t+v[2]+2.4); o.connect(g); g.connect(lp); o.start(t+v[2]); vib.start(t+v[2]); o.stop(t+16); vib.stop(t+16); }); }); },
+        scan:function(b,t,D){ var vb=SD.vb||b; sdTone(vb,t+0.4,1318.51,"sine",1.4,0.012,D,1.6,null,0.3); sdNoise(b,t,"highpass",2500,0.7,1.2,0.012,D-1.4,1.0,8000); },
+        lens:function(b,t){ sdNoise(b,t,"bandpass",600,0.9,0.08,0.025,0.08,0.3,1600); sdTick(b,t+0.5,1500,0.04); },
+        rack:function(b,t,D){ for(var i=0;i<12;i++) sdTick(b,t+D*0.85*(1-Math.pow(1-i/12,1.7)),3800,0.012); sdTone(b,t+D,2730,"sine",0.003,0.035,0.045,0.03); sdTone(b,t+D+0.1,2730,"sine",0.003,0.035,0.045,0.05); },
+        shot:function(b,t){ sdNoise(b,t+0.02,"lowpass",3000,0.7,0.002,0.06,0.02,1.4,300); } },
+    /* 4 · Pulse: a slow low heartbeat that quickens toward the shot, glass notes as the points resolve; the shutter stops it */
+    4:{ bed:function(c,t){ var bus=sdBedBus(c,t); SD.ambSrc=sdAir(c,bus,t,0.014,380); var vb=sdVBus(c,t,0.3), bt=t+0.9, gap=1.05;
+          for(var i=0;i<14;i++){ sdTone(vb,bt,62,"sine",0.006,0.16,0.04,0.26,40); sdTone(vb,bt+0.2,58,"sine",0.006,0.09,0.03,0.22,38); bt+=gap; gap=Math.max(0.6,gap*0.95); } },
+        scan:function(b,t,D){ var n=[440,659.25,554.37,880,739.99,1108.73,987.77,1318.51]; n.forEach(function(f,i){ sdBell(b,t+0.2+D*0.95*(i/n.length),f,0.03,(i%2?0.5:-0.5),2.2); }); },
+        lens:function(b,t){ sdNoise(b,t,"bandpass",600,0.9,0.08,0.025,0.08,0.3,1600); sdTick(b,t+0.5,1500,0.045); },
+        rack:function(b,t,D){ for(var i=0;i<12;i++) sdTick(b,t+D*0.85*(1-Math.pow(1-i/12,1.7)),3800,0.012); sdTone(b,t+D,2730,"sine",0.003,0.035,0.045,0.03); sdTone(b,t+D+0.1,2730,"sine",0.003,0.035,0.045,0.05); } },
+    /* 5 · Glass: the point cloud as hundreds of tiny glass notes, a reversed swell, a bright chime when the stump resolves */
+    5:{ bed:function(c,t){ var bus=sdBedBus(c,t); SD.ambSrc=sdAir(c,bus,t,0.01,400); var vb=sdVBus(c,t,1.2);
+          [[880,0.016],[1318.51,0.01]].forEach(function(v){ var o=c.createOscillator(), g=c.createGain(), tr=c.createOscillator(), tg=c.createGain(); o.frequency.value=v[0]; tr.frequency.value=5.5; tg.gain.value=v[1]*0.5; tr.connect(tg); tg.connect(g.gain); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(v[1],t+2); o.connect(g); g.connect(vb); o.start(t); tr.start(t); o.stop(t+16); tr.stop(t+16); }); },
+        scan:function(b,t,D){ var vb=SD.vb||b; for(var i=0;i<70;i++){ var u=i/70, f=SD_PENTA[Math.floor(Math.random()*SD_PENTA.length)]*(u>0.6?2:1); sdTone(vb,t+D*Math.pow(u,0.75)+Math.random()*0.06,f,"sine",0.002,0.03+0.02*(1-u),0.005,0.35,null,(Math.random()*2-1)*0.9); }
+          sdNoise(vb,t+D-1.1,"highpass",1500,0.7,1.05,0.04,0.01,0.04,9000); [1760,2217.46,2637.02,3951.07].forEach(function(f,i){ sdBell(vb,t+D+i*0.03,f,0.05,(i-1.5)*0.4,2.6); }); },
+        lens:function(b,t){ sdNoise(b,t,"bandpass",600,0.9,0.08,0.02,0.08,0.3,1600); sdBell(SD.vb||b,t+0.5,2637.02,0.012,0,0.8); },
+        rack:function(b,t,D){ for(var i=0;i<12;i++) sdTone(b,t+D*0.85*(1-Math.pow(1-i/12,1.7)),3520+i*40,"sine",0.001,0.016,0.002,0.04); sdBell(b,t+D,1760,0.05,-0.2,1.2); sdBell(b,t+D+0.11,2637.02,0.05,0.2,1.4); } } };
   // the film: the still lands, a projector flutter under it, every frame wound on with a ratchet and a woosh panned across
   // the film: a score, not a beat. Warm held chords (Amaj9, F#m9, Dmaj9, E6/9, Amaj9, Dmaj9, then Esus under the exit),
   // one soft felt-piano note as each frame lands, a low pulse under it, and the light opening up as it goes.
@@ -138,7 +184,16 @@
       for(i=0;i<n;i++){ dv.setInt16(44+i*4,Math.max(-1,Math.min(1,L[i]))*32767,true); dv.setInt16(46+i*4,Math.max(-1,Math.min(1,R[i]))*32767,true); }
       var bytes=new Uint8Array(dv.buffer), str=""; for(i=0;i<bytes.length;i+=32768) str+=String.fromCharCode.apply(null,bytes.subarray(i,i+32768));
       return {peak:+pk.toFixed(3), wav:btoa(str)}; }); }
-  if(/[?&]dev/.test(location.search)) window.__sd={ render:sdRender };
+  function sdRenderBegin(v){ var was=SD_V; SD_V=v; var sr=44100, dur=16, oc=new OfflineAudioContext(2,sr*dur,sr), pc=SD.ctx; SD.off=true; SD.ctx=null; SD.vb=null; sdWire(oc);
+    var D0=1.4, S0=D0+LA_T.detail, F=S0+2.3, P0=F+0.42, E0=P0+LA_T.spin;
+    sdAmbStart(0); sdScan(D0); sdLensUp(S0+0.05); sdRack(S0+0.75,1.4); sdShutter(F,false); sdSpin(P0,false); sdAmbStop(E0+1.6,1.2);
+    return oc.startRendering().then(function(buf){ SD_V=was; SD.off=false; SD.ctx=null; SD.seq=null; SD.amb=null; SD.vb=null; if(pc) sdWire(pc);
+      var n=buf.length, L=buf.getChannelData(0), R=buf.getChannelData(1), pk=0, i, dv=new DataView(new ArrayBuffer(44+n*4)); for(i=0;i<n;i++) pk=Math.max(pk,Math.abs(L[i]),Math.abs(R[i]));
+      function ws(o,x){ for(var k=0;k<x.length;k++) dv.setUint8(o+k,x.charCodeAt(k)); } ws(0,"RIFF"); dv.setUint32(4,36+n*4,true); ws(8,"WAVEfmt "); dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,2,true); dv.setUint32(24,sr,true); dv.setUint32(28,sr*4,true); dv.setUint16(32,4,true); dv.setUint16(34,16,true); ws(36,"data"); dv.setUint32(40,n*4,true);
+      for(i=0;i<n;i++){ dv.setInt16(44+i*4,Math.max(-1,Math.min(1,L[i]))*32767,true); dv.setInt16(46+i*4,Math.max(-1,Math.min(1,R[i]))*32767,true); }
+      var bytes=new Uint8Array(dv.buffer), str=""; for(i=0;i<bytes.length;i+=32768) str+=String.fromCharCode.apply(null,bytes.subarray(i,i+32768));
+      return {peak:+pk.toFixed(3), wav:btoa(str)}; }); }
+  if(/[?&]dev/.test(location.search)) window.__sd={ render:sdRender, begin:sdRenderBegin };
   // ---- the camera ----
   function laSubject(){ return (CH.spec&&CH.spec.subject)||[0,0]; }
   function laShotSpec(){ var s=CH.spec&&CH.spec.challenges, c=null; (s||[]).forEach(function(x){ if(x.id==="stump-dof") c=x; }); return c||{az:-75, dist:2.2, h:0.8, look:[0,0.3,0]}; }   /* the shallow-depth gold frame knows where the stump looks best */

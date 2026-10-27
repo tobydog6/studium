@@ -37,7 +37,7 @@ try {
   const n = await fr.evaluate(() => { __lt.prints.slice(0,3).forEach(p=>__lt.reject(p)); return { prints: __lt.prints.length, rejects: __lt.rejects.length }; });
   console.log('  before:', JSON.stringify(n)); await fr.evaluate(() => __lt.focus('board')); await page.waitForTimeout(2500); await shot('felt-board'); await fr.evaluate(() => __lt.focus('table')); await page.waitForTimeout(1500); await shot('shred-0-box');
   await fr.evaluate(() => __lt.shredAll()); await page.waitForTimeout(1000); console.log('  cam:', JSON.stringify(await fr.evaluate(() => ({ tx:__lt.cam.tx, ty:__lt.cam.ty, tz:__lt.cam.tz, p:__lt.cam.pitch, d:__lt.cam.d, dT:__lt.cam.dT, cp:__lt.cam.curPitch, view:__lt.cam.view, busy:__lt.SH.busy })))); await page.waitForTimeout(1100); await shot('shred-1-feeding');
-  await page.waitForTimeout(1500); await shot('shred-2-strips');
+  await fr.evaluate(() => { const c=__lt.cam; c.cx=c.tx; c.cy=c.ty; c.cz=c.tz; c.curPitch=c.pitch; c.d=c.dT; }); await page.waitForTimeout(1500); await shot('shred-2-strips');
   await page.waitForTimeout(9000); await shot('shred-3-back');
   const m = await fr.evaluate(() => ({ prints: __lt.prints.length, rejects: __lt.rejects.length, lib: __lt.library.length, strips: __lt.SH.strips.length, busy: __lt.SH.busy }));
   console.log('  after:', JSON.stringify(m));

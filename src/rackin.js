@@ -36,25 +36,27 @@
     setTimeout(function(){ RF.el.classList.add("out"); },520);
     setTimeout(function(){ rfClose(); if(typeof siAct==="function") siAct("demo"); },1250); }
   // ---- where the lens should be: the nearest solid splats under the pointer, like the AF point but anywhere ----
-  function rfPickAt(x,y){ var P=viewer&&viewer.P, A=viewer&&viewer.A; if(!P||!camera) return null;
+  function rfSample(){ var P=viewer&&viewer.P, A=viewer&&viewer.A; if(!P) return null; if(RF.sP===P) return RF.sI;
+    var N=P.length/3, want=150000, st=Math.max(1,Math.floor(N/want/1.6)), I=[]; for(var i=0;i<N;i+=st){ if(!A||A[i]>=0.3) I.push(i); }
+    RF.sP=P; RF.sI=new Uint32Array(I); return RF.sI; }
+  function rfPickAt(x,y){ var P=viewer&&viewer.P, I=rfSample(); if(!P||!I||!camera) return null;
     var v=new THREE.Vector3((x/innerWidth)*2-1, -(y/innerHeight)*2+1, 0.5).unproject(camera), o=camera.position, f=v.sub(o).normalize();
-    var N=P.length/3, st=N>900000?3:N>400000?2:1, sc=sceneScale(), mt=0.25*sc, ts=[];
-    for(var i=0;i<N;i+=st){ if(A&&A[i]<0.15) continue; var vx=P[i*3]-o.x, vy=P[i*3+1]-o.y, vz=P[i*3+2]-o.z, t=vx*f.x+vy*f.y+vz*f.z; if(t<mt) continue; var p2=vx*vx+vy*vy+vz*vz-t*t, lim=t*0.02+0.008*sc; if(p2<lim*lim) ts.push(t); }
-    if(ts.length<3) return 18; ts.sort(function(a,b){ return a-b; }); return Math.max(0.3,Math.min(18,ts[Math.min(ts.length-1,4)]/sc)); }
+    var sc=sceneScale(), mt=0.25*sc, ts=[];
+    for(var k=0;k<I.length;k++){ var i=I[k]*3, vx=P[i]-o.x, vy=P[i+1]-o.y, vz=P[i+2]-o.z, t=vx*f.x+vy*f.y+vz*f.z; if(t<mt) continue; var p2=vx*vx+vy*vy+vz*vz-t*t, lim=t*0.03+0.01*sc; if(p2<lim*lim) ts.push(t); }
+    if(ts.length<3) return 18; ts.sort(function(a,b){ return a-b; }); return Math.max(0.3,Math.min(18,ts[Math.min(ts.length-1,3)]/sc)); }
   function rfOverWord(x,y){ var w=RF.el&&RF.el.querySelector(".rf-word"); if(!w) return false; var r=w.getBoundingClientRect(), px=r.width*0.06, py=r.height*0.22; return x>r.left-px&&x<r.right+px&&y>r.top-py&&y<r.bottom+py; }
   /* blur in screen pixels for something at d metres, matching what the lens does to the splats around it */
   function rfCoc(d){ var k=34*innerWidth/1440; return Math.abs(1/d-1/RF.f)*k; }
-  function rfPlace(t){ var c=(typeof laShotSpec==="function")?laShotSpec():{az:-75,dist:2.2,h:0.8,look:[0,0.3,0]}, S=(typeof laSubject==="function")?laSubject():[0,0], L=c.look||[0,0.3,0];
-    var still=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches, dr=still?0:1;
-    var a=c.az*Math.PI/180+Math.sin(t*0.06)*0.05*dr, r=(c.dist||2.2)*0.95+Math.sin(t*0.045)*0.04*dr, eye=(c.h||0.8)*0.85+Math.sin(t*0.08)*0.015*dr;
-    var tx=S[0]+(L[0]||0), tz=S[1]+(L[2]||0), x=S[0]+Math.sin(a)*r, z=S[1]+Math.cos(a)*r, gy=wkGround(S[0],S[1]); if(!(gy>-1e8)) gy=camPos.y-1.6;
-    if(typeof _vel!=="undefined") _vel.set(0,0,0); camPos.x=x; camPos.z=z; var g=WK.col?wkGround(x,z):gy; camPos.y=(g>-1e8?g:gy)+eye;
-    var ty=gy+(L[1]||0.3)+0.18; yaw=Math.atan2(x-tx, z-tz); pitch=Math.atan2(ty-camPos.y, Math.hypot(x-tx,z-tz)); if(typeof basis==="function") basis(); }
+  /* the Stump scan is y-down on disk and turned the right way up in the world (x, -y, -z); this is the test page's shot */
+  var RF_EYE=[-1.435,0.55,-0.80], RF_AT=[0.35,0.12,-0.15], RF_FOV=48;
+  function rfPlace(){ camPos.set(RF_EYE[0],RF_EYE[1],RF_EYE[2]); if(typeof _vel!=="undefined") _vel.set(0,0,0);
+    var dx=RF_AT[0]-RF_EYE[0], dy=RF_AT[1]-RF_EYE[1], dz=RF_AT[2]-RF_EYE[2]; yaw=Math.atan2(-dx,-dz); pitch=Math.atan2(dy,Math.hypot(dx,dz)); }
   /* called by sparkLens while the launch page is up: the 85 wide open, focused where the pointer says */
-  function rfLens(sp){ if(camera){ if(RF.fov==null) RF.fov=camera.fov; if(Math.abs(camera.fov-34)>0.01){ camera.fov=34; camera.updateProjectionMatrix(); } }
+  function rfLens(sp){ if(camera){ if(RF.fov==null) RF.fov=camera.fov; camera.position.set(RF_EYE[0],RF_EYE[1],RF_EYE[2]); camera.up.set(0,1,0); camera.lookAt(RF_AT[0],RF_AT[1],RF_AT[2]);
+      var asp=Math.max(1.3,innerWidth/Math.max(1,innerHeight)), vf=2*Math.atan(Math.tan(RF_FOV*Math.PI/360)/asp)*180/Math.PI; if(Math.abs(camera.fov-vf)>0.01){ camera.fov=vf; camera.updateProjectionMatrix(); }   /* RF_FOV is across the frame, like the test render */ camera.updateMatrixWorld(true); }
     var sc=sceneScale(), S=RF.f*sc, fm=RF_MM/1000*sc; sp.focalDistance=S; sp.apertureAngle=2*Math.atan(fm/RF_N/2/S)*Math.max(gDof,0.6); }
   function rfTick(now){ if(!RF.on) return; RF.raf=requestAnimationFrame(rfTick); var e=RF.el, t=(now-RF.t0)/1000;
-    if(loaded){ if(!e.classList.contains("ready")){ e.classList.add("ready"); RF.t0=now; t=0; } rfPlace(now/1000); if(App.state!=="scene") App.go("scene"); }
+    if(loaded){ if(!e.classList.contains("ready")){ e.classList.add("ready"); RF.t0=now; t=0; } rfPlace(); if(App.state!=="scene") App.go("scene"); }
     else return;
     if(RF.going) RF.ft=RF_WORD;
     else if(RF.over==="btn") RF.ft=RF_BTN;
@@ -63,4 +65,4 @@
     var lf=Math.log(RF.f), lt=Math.log(RF.ft); RF.f=Math.exp(lf+(lt-lf)*0.075);
     var wb=Math.min(7,rfCoc(RF_WORD)), bb=Math.min(7,rfCoc(RF_BTN)*0.8), w=e.querySelector(".rf-word"), b=e.querySelector(".rf-go");
     w.style.filter=wb>0.15?"blur("+wb.toFixed(2)+"px)":"none"; b.style.filter=bb>0.15?"blur("+bb.toFixed(2)+"px)":"none"; b.style.opacity=(1-Math.min(0.25,bb*0.04)).toFixed(3); }
-  if(/[?&]dev/.test(location.search)) window.__rf={ show:rfShow, close:rfClose, play:rfPlay, state:function(){ return {on:RF.on, f:+RF.f.toFixed(2), ft:+RF.ft.toFixed(2), ready:!!(RF.el&&RF.el.classList.contains("ready"))}; }, focus:function(d){ RF.idle=false; RF.px=-1; RF.ft=d; } };
+  if(/[?&]dev/.test(location.search)) window.__rf={ show:rfShow, close:rfClose, play:rfPlay, dbg:function(){ var P=viewer&&viewer.P, n=P?P.length/3:0, near=0, cx=0,cy=0,cz=0; for(var i=0;i<n;i+=50){ var x=P[i*3],y=P[i*3+1],z=P[i*3+2]; if(x*x+z*z<0.6){ near++; cx+=x; cy+=y; cz+=z; } } return {cam:camera.position.toArray().map(function(v){return +v.toFixed(2);}), fov:camera.fov, mesh:viewer&&viewer.mesh?viewer.mesh.position.toArray():null, q:viewer&&viewer.mesh?viewer.mesh.quaternion.toArray().map(function(v){return +v.toFixed(2);}):null, stump:near?[cx/near,cy/near,cz/near].map(function(v){return +v.toFixed(2);}):null, n:n}; }, state:function(){ return {on:RF.on, f:+RF.f.toFixed(2), ft:+RF.ft.toFixed(2), ready:!!(RF.el&&RF.el.classList.contains("ready"))}; }, focus:function(d){ RF.idle=false; RF.px=-1; RF.ft=d; } };

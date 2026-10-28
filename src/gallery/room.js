@@ -112,6 +112,7 @@ var _last=performance.now();
 function rmFrame(now){ requestAnimationFrame(rmFrame); var dt=Math.min(0.1,(now-_last)/1000); _last=now; if(RM.paused) return;
   gTick(dt); if(!RM.site){ RM.renderer&&RM.renderer.clear(); return; }
   rmCrowd(); RM.people.forEach(function(p){ rmStep(p,dt); }); RM.people=RM.people.filter(function(p){ return !p.gone; });
+  if(gScreen==="plan"||gScreen==="review") return;   /* the wall plan and the review cover the room: don't draw it underneath */
   rmPlaceCam(); RM.renderer.render(RM.scene, RM.cam); rmWatch(dt); }
 /* Studium's handle on this page (galleryroom.js): pause while the gallery is closed */
 window.GALapp={pause:function(on){ RM.paused=!!on; _last=performance.now(); }};

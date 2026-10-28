@@ -39,11 +39,13 @@
     else { _vel.x=0; _vel.z=0; }
     if(!stuck&&(camPos.x!==nx||camPos.z!==nz)&&Date.now()-(WK.bumpT||0)>900){ WK.bumpT=Date.now(); if(typeof achEvent==="function") achEvent("bump"); }   /* walked into something */
     if(!wkBlocked(camPos.x,camPos.z,wkFeet())) wkFree();
-    if(WK.mode==="walk"&&!stuck) sfxStepTick(dt, Math.hypot(_vel.x,_vel.z));
+    /* no footstep sound: Sam found it distracting */
     if(WK.mode==="fly"){ camPos.y+=_vel.y*dt; var gmin=wkGround(camPos.x,camPos.z)+0.15; if(camPos.y<gmin){ camPos.y=gmin; _vel.y=0; } } }
   /* the nearest clear spot, searched in rings out to a metre and a bit */
   function wkEscape(feet){ for(var d=0.1;d<=1.3;d+=0.1) for(var a=0;a<16;a++){ var an=a/16*Math.PI*2, x=camPos.x+Math.cos(an)*d, z=camPos.z+Math.sin(an)*d; if(!wkBlocked(x,z,feet)) return [x,z]; } return null; }
-  function wkSettle(dt){ if(!WK.col||WK.mode!=="walk") return; var tgt=wkGround(camPos.x,camPos.z)+WK.eye; camPos.y+=(tgt-camPos.y)*(1-Math.exp(-10*Math.min(dt,0.05))); }
+  /* the eye height follows the ground, averaged over a step's width so the bumps in a scan's ground don't jog the view */
+  function wkGroundSoft(x,z){ var r=0.3; return wkGround(x,z)*0.4+(wkGround(x+r,z)+wkGround(x-r,z)+wkGround(x,z+r)+wkGround(x,z-r))*0.15; }
+  function wkSettle(dt){ if(!WK.col||WK.mode!=="walk") return; var tgt=wkGroundSoft(camPos.x,camPos.z)+WK.eye; camPos.y+=(tgt-camPos.y)*(1-Math.exp(-6*Math.min(dt,0.05))); }
   function wkEye(d, dt){ var e=Math.max(WK_EYE_MIN,Math.min(WK_EYE_MAX,WK.eye+d*dt*0.9)); if(e===WK.eye) return; WK.eye=e;
     var now=performance.now(); if(now-WK.toastT>500){ WK.toastT=now; toast(e<0.7?"Crouching · eyes "+e.toFixed(1)+" m":e>1.9?"Standing tall · eyes "+e.toFixed(1)+" m":"Eyes "+e.toFixed(1)+" m off the ground"); } }
   // start a little back from the subject, on open ground, looking at it

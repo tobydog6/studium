@@ -566,7 +566,7 @@
     var k=1-Math.pow(0.0015, Math.max(dt,0.0001));
     fx.exposure+=(tgtE-fx.exposure)*k; fx.filmic+=(tgtF-fx.filmic)*k; fx.vignette+=(tgtV-fx.vignette)*k; fx.grain+=(tgtG-fx.grain)*k; fx.dof+=(tgtD-fx.dof)*k;
     renderer.setRenderTarget(sceneRT); renderer.setClearColor(0x0e0f13,1); renderer.clear(true,true,true);
-    if(viewer){ try{ skyFollow(); if(typeof weTick==="function") weTick(dt); wxSkyFor(camera.position); sparkLens(); ptRender(); wxSkyFor(camera.position); renderer.setRenderTarget(sceneRT); renderer.render(scene,camera); chRender(dt); if(typeof bndRender==="function") bndRender(dt); }catch(e){ if(!renderFrame.warned){ renderFrame.warned=1; console.error("render failed",e); } } }
+    if(viewer){ try{ skyFollow(); if(typeof weTick==="function") weTick(dt); wxSkyFor(camera.position); sparkLens(); ptRender(); wxSkyFor(camera.position); renderer.setRenderTarget(sceneRT); renderer.render(scene,camera); if(typeof bndRender==="function") bndRender(dt); }catch(e){ if(!renderFrame.warned){ renderFrame.warned=1; console.error("render failed",e); } } }
     var useD=false;
     if(loaded&&dt>0) chTick(dt);
     renderer.setRenderTarget(fsTarget);
@@ -581,6 +581,7 @@
     if(!cap) seedCounter=(seedCounter+1)%9973; fsMat.uniforms.seed.value=seedCounter;   /* grain moves every frame you watch, and holds still for the one the shutter records */
     if(dt>0){ var nowT=performance.now(); if(nowT-(renderFrame._lt||0)>250){ renderFrame._lt=nowT; if(Math.abs(Math.log(sceneLightLin())/Math.LN2-lightStops)>0.02) computeCam(); } }   /* the light changed (time of day, a lamp): the meter follows */
     renderer.render(fsScene,fsCam);
+    if(viewer){ try{ chRender(dt); }catch(e){} }   /* the gold frames draw after the last pass, at the screen's full resolution, so they're crisp however low the scene is drawing */
   }
   function animate(){ requestAnimationFrame(animate); var dt=Math.min(clock.getDelta(),0.1);
     if((typeof cbOpen!=="undefined" && cbOpen) || (typeof bg!=="undefined" && bg.open) || (typeof st!=="undefined" && st.open)) return;   // the camera back covers the scene: stop drawing it (big win on school PCs)
@@ -722,7 +723,7 @@
   // resolution first (down to 60%); if that's not enough, trim Spark's splat budget a little too. Both come back with headroom.
   function dynLod(){ var sp=viewer&&viewer.spark; return sp?sp.lodSplatScale:1; }
   function dynLodBase(){ var b=(DETAIL[sceneDetail]||DETAIL.balanced).lod||1; return CH.spec&&CH.spec.fullRes?Math.max(b,1.3):b; }
-  function dynTick(dt){ if(!loaded||!(dt>0)) return; dyn.ema=dyn.ema*0.9+dt*100; dyn.t+=dt; var mx=dynTop(), sp=viewer&&viewer.spark; if(dyn.scale>mx+0.001){ setScale(mx); return; }
+  function dynTick(dt){ if(!loaded||!(dt>0)) return; if(typeof CH!=="undefined"&&CH.intro) return;   /* no resolution steps mid-spin: each one reallocates the scene target and hitches the glide */ dyn.ema=dyn.ema*0.9+dt*100; dyn.t+=dt; var mx=dynTop(), sp=viewer&&viewer.spark; if(dyn.scale>mx+0.001){ setScale(mx); return; }
     if(dyn.t<0.6) return; dyn.t=0; var fps=1000/dyn.ema;
     /* when it's slow, thin the distant splats first (barely visible), and only then drop resolution, never below 0.85:
        a blurry picture looks far worse than a little less far-off detail */

@@ -72,7 +72,7 @@
   // is the camera inside frame P's pulse (grown by m metres)?
   function chInPulse(P,m){ var L=Math.hypot(P.d.x,P.d.z)||1, ax=-P.d.x/L, az=-P.d.z/L, dx=camPos.x-P.F.x, dz=camPos.z-P.F.z;
     var n=dx*ax+dz*az, u=Math.abs(dx*-az+dz*ax), k=Math.max(0,Math.min(1,n/CH_REACH));
-    return n>-0.25-m&&n<CH_REACH+m&&u<P.w*0.5*(1+CH_SPREAD*k)+0.2+m&&Math.abs(camPos.y-P.F.y)<P.h*0.5+1.3+m; }
+    return n>-0.25-m&&n<CH_REACH+m&&u<P.w*0.5*(1+CH_SPREAD*k)+0.2+m&&Math.abs(camPos.y-P.F.y)<P.h*0.5+2.0+m; }   /* any eye height: a low frame still takes you standing tall */
   var CH_INTRO_SETTLE=2500;   /* ms after the opening or welcome card has gone before the gold frames' spin may start */
   var CH_MOVE={KeyW:1,KeyA:1,KeyS:1,KeyD:1,KeyQ:1,KeyE:1,ArrowUp:1,ArrowDown:1,ArrowLeft:1,ArrowRight:1,Space:1}, CH_GRACE=1000;
   CH.glow=0; CH.bloom=0; CH.pt=0; CH.lockT=0;
@@ -107,9 +107,9 @@
     if(CH.cool>=0){ var C=CH.pads[CH.cool]; if(!C||(!chInPulse(C,0.3)&&Math.hypot(camPos.x-C.E.x,camPos.z-C.E.z)>0.6)) CH.cool=-1; }   // free again once you've stepped out of its pulse
     if(CH.pull>=0){ var Q=CH.pads[CH.pull];
       if(!chHold()&&(nudge||Math.hypot(camPos.x-Q.E.x,camPos.z-Q.E.z)>CH_LEAVE)){ chLetGo(); return; } }
-    else { if(CH.cool>=0) return;   // just let go of one: step out of its pulse before another can take you
+    else {   /* the one you just let go of waits until you've stepped out of its pulse; the others can take you straight away (Wide and sharp sits right beside the shallow depth of field one) */
       // in its pulse, or already standing on its spot; the nearest frame wins
-      var best=-1, bd=1e9; CH.pads.forEach(function(P,i){ if(CH.done[P.c.id]||!P.vis||!(chInPulse(P,0)||Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z)<0.3)) return; var dd=Math.hypot(camPos.x-P.F.x,camPos.z-P.F.z); if(dd<bd){ bd=dd; best=i; } });
+      var best=-1, bd=1e9; CH.pads.forEach(function(P,i){ if(i===CH.cool||CH.done[P.c.id]||!P.vis||!(chInPulse(P,0)||Math.hypot(camPos.x-P.E.x,camPos.z-P.E.z)<0.3)) return; var dd=Math.hypot(camPos.x-P.F.x,camPos.z-P.F.z); if(dd<bd){ bd=dd; best=i; } });
       if(best>=0) chGrab(best); }
     if(CH.pull<0||CH.locked) return; var P=CH.pads[CH.pull], A=CH.from, B=CH.to;
     CH.pt=Math.min(1,CH.pt+dt/CH.dur); var x=CH.pt, s=x*x*x*(x*(x*6-15)+10);   // smootherstep: eases out of where you were, settles softly
@@ -223,5 +223,6 @@
     window.__ch.aim=function(i){ var d=CH.pads[i].d; yaw=Math.atan2(-d.x,-d.z); pitch=Math.asin(Math.max(-1,Math.min(1,d.y))); basis(); };
     window.__ch.goto=function(i){ var P=CH.pads[i]; CH.pull=-1; CH.locked=false; CH.cool=i; camPos.x=P.E.x; camPos.z=P.E.z; WK.eye=P.E.y-wkGround(P.E.x,P.E.z); _vel.set(0,0,0); };
     window.__ch.approach=function(i,out,turn){ var P=CH.pads[i], L=Math.hypot(P.d.x,P.d.z)||1; out=out==null?0.35:out; camPos.x=P.F.x-P.d.x/L*out; camPos.z=P.F.z-P.d.z/L*out; yaw=Math.atan2(-P.d.x,-P.d.z)+(turn==null?0.3:turn); pitch=0; _vel.set(0,0,0); };
+    window.__ch.probe=function(i){ var P=CH.pads[i]; return {inPulse:chInPulse(P,0), cam:[camPos.x,camPos.y,camPos.z], F:[P.F.x,P.F.y,P.F.z], E:[P.E.x,P.E.y,P.E.z], d:[P.d.x,P.d.y,P.d.z], w:P.w, h:P.h, D:P.D, vis:P.vis, cool:CH.cool, intro:!!CH.intro, introAt:CH.introAt, off:chOff(), offWhy:[!!CH.hidden, typeof RF!=="undefined"&&RF.on, typeof LA!=="undefined"&&!!(LA.on||LA.wcard||LA.toTour), typeof coHidesFrames==="function"&&coHidesFrames()], pull:CH.pull, mm:P.c.mm, blocked:WK.col?wkBlocked(camPos.x,camPos.z,wkFeet()):null}; };   /* why a frame does or doesn't take you */
     window.__ch.pull=function(){ return {i:CH.pull, locked:CH.locked, cool:CH.cool, hold:chHold()}; }; window.__ch.nudge=function(){ CH.nudge=true; };
     window.__ch.force=function(i){ CH.intro=null; CH.pull=-1; CH.locked=false; CH.cool=i; CH.focus=i; CH.active=i; chCard(i>=0?CH.pads[i]:null); if(typeof cbRender==="function") cbRender(); if(typeof bagRender==="function") bagRender(); }; }

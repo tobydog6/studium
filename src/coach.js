@@ -69,7 +69,15 @@
   // 0 → 1 → 0 with a pause at each end, so there's time to see both
   function coSweep(now){ var T=5.6, u=(now/1000)%T/T, e=function(x){ return x<0?0:x>1?1:x*x*(3-2*x); };
     return u<0.12?0:u<0.45?e((u-0.12)/0.33):u<0.62?1:u<0.95?1-e((u-0.62)/0.33):0; }
-  function coMediaDraw(kind, cv, now){ if(CO_SCENE[kind]) return coSceneDraw(kind, cv); var M=CO_MEDIA[kind]; if(!M||!cv||!CO_IMG.complete||!CO_IMG.naturalWidth) return;
+  /* the exposure challenge's intro: the three lights it's about to throw at you, side by side */
+  function coLightsDraw(cv){ if(!cv||!CO_IMG.complete||!CO_IMG.naturalWidth) return; var dpr=Math.min(2,window.devicePixelRatio||1), W=cv.clientWidth||400, H=cv.clientHeight||240; if(cv.width!==Math.round(W*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
+    var g=cv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.fillStyle="#0c0b0a"; g.fillRect(0,0,W,H);
+    var L=[["day","1 · SUNNY DAY"],["night","2 · NIGHT"],["blur","3 · SOFT BACKGROUND"]], gap=6, tw=(W-gap*2)/3;
+    L.forEach(function(l,i){ var S=CO_SCENE[l[0]], img=(S.ap!=null&&CO_AP.ok)?CO_AP.im[S.ap]:CO_IMG, x0=i*(tw+gap), ir=img.naturalWidth/img.naturalHeight, dh=H, dw=H*ir;
+      g.save(); g.beginPath(); g.rect(x0,0,tw,H); g.clip(); g.filter=S.f; g.drawImage(img,x0+(tw-dw)/2,0,dw,dh); g.filter="none"; if(S.tint){ g.fillStyle=S.tint; g.fillRect(x0,0,tw,H); }
+      var gr=g.createLinearGradient(0,H-46,0,H); gr.addColorStop(0,"rgba(12,11,10,0)"); gr.addColorStop(1,"rgba(12,11,10,.85)"); g.fillStyle=gr; g.fillRect(x0,H-46,tw,46);
+      g.font="500 11px 'Geist Mono',ui-monospace,monospace"; g.fillStyle="#e3ad57"; g.fillText(l[1],x0+10,H-14); g.restore(); }); }
+  function coMediaDraw(kind, cv, now){ if(kind==="lights") return coLightsDraw(cv); if(CO_SCENE[kind]) return coSceneDraw(kind, cv); var M=CO_MEDIA[kind]; if(!M||!cv||!CO_IMG.complete||!CO_IMG.naturalWidth) return;
     var dpr=Math.min(2,window.devicePixelRatio||1), W=cv.clientWidth||400, H=cv.clientHeight||240;
     if(cv.width!==Math.round(W*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
     var g=cv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.globalAlpha=1; g.globalCompositeOperation="source-over"; g.filter="none";
@@ -82,7 +90,7 @@
       else { var path=[[0,0],[0.3,0.2],[0.55,-0.1],[0.8,0.35],[1,0.15],[0.7,-0.25],[0.45,0.05],[0.2,-0.3]], wob=Math.sin(now/170)*0.15;
         for(var k=0;k<path.length;k++){ g.globalAlpha=1/(k+1); g.drawImage(img,dx+(path[k][0]-0.5+wob)*L,dy+(path[k][1])*L,dw,dh); } g.globalAlpha=1; } }
     else if(kind==="aperture"&&CO_AP.ok){ var fi=t*(CO_AP.im.length-1), a0=Math.floor(fi), a1=Math.min(CO_AP.im.length-1,a0+1), fr=fi-a0, im0=CO_AP.im[a0], r0=im0.naturalWidth/im0.naturalHeight, w0=W, h0=W/r0; if(h0<H){ h0=H; w0=H*r0; }
-      g.filter="brightness("+(1.08-0.4*t).toFixed(3)+")";   /* the frames were metered; here the same shutter stays, so stopping down goes darker */
+      g.filter="none";   /* the frames were metered: the stump keeps the same brightness while the depth of field changes */
       g.drawImage(im0,(W-w0)/2,(H-h0)/2,w0,h0); if(fr>0.01){ g.globalAlpha=fr; g.drawImage(CO_AP.im[a1],(W-w0)/2,(H-h0)/2,w0,h0); g.globalAlpha=1; } g.filter="none"; coIris(g,W-52,50,34,t); }
     else if(kind==="aperture"){ bright=1.32-0.78*t; var B=(1-t)*7;
       g.filter="blur("+B.toFixed(2)+"px) brightness("+bright.toFixed(3)+")"; g.drawImage(img,dx-8,dy-8,dw+16,dh+16);
@@ -109,7 +117,7 @@
     var words=t<0.25?M.lo:t>0.75?M.hi:(M.mid&&Math.abs(t-0.5)<0.12?M.mid:"");
     if(words){ g.font="400 13px 'Geist',ui-sans-serif,system-ui,sans-serif"; g.fillStyle="#f4f1ea"; g.textAlign="right"; g.fillText(words,x1,H-26); g.textAlign="left"; } }
   // the warm-up's practice scenes: a picture of the target, the sliders ringed, and the meter reading as if the light were different
-  function coScene(kind, bias, line, sub, extra){ return {ch:"EXPOSE", media:kind, need:"back", dwell:1400, line:function(){ return line; }, sub:sub,
+  function coScene(kind, bias, line, sub, extra){ return {ch:"CHALLENGE", media:kind, need:"back", dwell:1400, line:function(){ return line; }, sub:sub,
     target:'#camback .cb-meter', place:"side", targets:function(){ return Array.prototype.slice.call(document.querySelectorAll('#camback .cb-scale')); }, nodim:true,
     start:function(){ meterBias=bias; computeCam(); if(typeof cbRender==="function") cbRender(); },
     done:function(){ return Math.abs(evStops)<=0.5&&(!extra||extra()); } }; }
@@ -145,9 +153,9 @@
       {ch:"MOVE", line:function(){ return 'Click, then move the mouse to look around'; }, sub:"Esc lets go of the mouse. The sharp thing in front of you is the subject; if you lose it, a gold ring points the way back.",
         done:function(){ return CO.look>1.6; }, bar:function(){ return CO.look/1.6; }},
       {ch:"MOVE", line:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return isFinite(d)&&d>4.5?'Head for the gold ring: that\'s '+(typeof chSubjectName==="function"?chSubjectName():"the subject")+', your subject':coK("W")+coK("A")+coK("S")+coK("D")+' to walk'; },
-        sub:"Have a wander, but stay close. A scan is only sharp near the thing it was made of; the edges always go soft.",
+        sub:"Just a few steps, and stay close. A scan is only sharp near the thing it was made of; the edges always go soft.",
         start:function(){ CO.s.d0=typeof chSubjectDist==="function"?chSubjectDist():Infinity; },   /* a scene that starts you far from its subject only asks you to head its way */
-        done:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return CO.walked>3&&(!isFinite(d)||d<4.5||d<CO.s.d0-2); }, bar:function(){ return Math.min(1,CO.walked/3); }},
+        done:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return CO.walked>1.2&&(!isFinite(d)||d<4.5||d<CO.s.d0-1); }, bar:function(){ return Math.min(1,CO.walked/1.2); }},
       {ch:"MOVE", line:function(){ return coK("Q")+' to crouch, '+coK("E")+' to stand tall'; }, sub:"Try shooting from low down and up high.",
         done:function(){ return CO.keys.Q&&CO.keys.E; }},
       {ch:"SHOOT", line:function(){ return '<kbd>RIGHT CLICK</kbd> raises the camera to your eye'; }, sub:"Right click again to lower it. "+coK("P")+" does the same.",
@@ -182,10 +190,13 @@
       coDial(2,"iso","ISO","Higher sees in the dark, lower keeps it clean."),
       {ch:"SETTINGS", media:"meter", info:true, need:"back", line:function(){ return 'The <b>light meter</b> adds them all up'; },
         sub:"Every setting moves the needle. Left of the middle is too dark, right is too bright. Get it near the middle, then trade one setting against another for the look you want."},
-      coScene("day", 3, 'A <b>bright sunny day</b>: get the needle to the middle', "There's eight times more light than here. Turn the sliders until the needle sits in the middle.", null),
-      coScene("night", -4, '<b>Night</b>: get the needle to the middle', "Sixteen times less light. You'll need to let a lot more in, with a slower shutter, a wider aperture or a higher ISO.", null),
-      coScene("blur", 0, 'A <b>blurred background</b>: f/2.8 or wider, needle in the middle', "Open the aperture to blur the background, then balance the light with the other two.", function(){ return APERTURES[apIdx]<=2.8; }),
-      {ch:"EXPOSE", line:function(){ return coK("SPACE")+' takes you back to the scene'; }, sub:"",
+      /* a clear break: the explaining's over, now it's a challenge with three lights to expose for */
+      {ch:"CHALLENGE", media:"lights", info:true, need:"back", line:function(){ return '<b>Challenge:</b> expose for three different lights'; },
+        sub:"Now it's your turn. We'll change the light on you three times: a bright sunny day, then night, then a soft background. Each time the needle swings off, and it's up to you to bring it back to the middle with what you've just learnt."},
+      coScene("day", 3, 'A <b>bright sunny day</b>: get the needle to the middle <span class="co-rng">1 of 3</span>', "There's eight times more light than here. Turn the sliders until the needle sits in the middle.", null),
+      coScene("night", -4, '<b>Night</b>: get the needle to the middle <span class="co-rng">2 of 3</span>', "Sixteen times less light. You'll need to let a lot more in, with a slower shutter, a wider aperture or a higher ISO.", null),
+      coScene("blur", 0, 'A <b>blurred background</b>: f/2.8 or wider, needle in the middle <span class="co-rng">3 of 3</span>', "Open the aperture to blur the background, then balance the light with the other two.", function(){ return APERTURES[apIdx]<=2.8; }),
+      {ch:"CHALLENGE", line:function(){ return coK("SPACE")+' takes you back to the scene'; }, sub:"",
         done:function(){ return !cbOpen; }}]},
     select:{where:function(){ return typeof st!=="undefined"&&st.open&&st.room==="select"; }, steps:[
       {ch:"LOOK", line:function(){ return 'Every photo you took is on the <b>light table</b>'; }, sub:"Look through them all before you choose.",
@@ -503,4 +514,4 @@
   document.addEventListener("click",function(e){ if(!CO.on) return; var s=coSteps()[CO.i]; if(s&&s.click&&e.target.closest&&e.target.closest(s.click)) CO.s.ok=true; }, true);
   document.addEventListener("keydown",function(e){ if(!CO.on) return; var m={KeyW:"W",KeyA:"A",KeyS:"S",KeyD:"D",KeyQ:"Q",KeyE:"E",KeyP:"P",KeyB:"B",Space:"SPACE",Digit2:"2",Backslash:"\\",Escape:"ESC",Enter:"ENTER",KeyC:"C"}[e.code]; if(m) CO.keys[m]=true; }, true);
   if(/[?&]dev/.test(location.search)) window.__co={ state:function(){ var s=coSteps()[CO.i]; return {on:CO.on, tour:CO.tour, done:CO.done, i:CO.i, n:coSteps().length, ch:s&&s.ch, shown:!!document.querySelector("#coCard.show"), ed:edState?{i:edState.i, a:edState.aspect, cx:+edState.cx.toFixed(3), cy:+edState.cy.toFixed(3)}:null}; }, skip:function(){ coFinish(true); },
-    start:coStart, stop:coStop, next:function(){ CO.s.ok=true; }, go:function(){ if(CO.on&&!CO.ticking) coTicked(); }, clip:function(kind,cv,ms){ coMediaDraw(kind,cv,ms); }, qclip:function(kind,cv,ms){ qClipDraw(kind,cv,ms); }, qmorph:qMorphOpen, nudge:function(o){ if(o.look) CO.look+=o.look; if(o.walk) CO.walked+=o.walk; if(o.keys) o.keys.forEach(function(k){ CO.keys[k]=true; }); } };
+    back:function(){ if(typeof openBack==="function") openBack(); }, start:coStart, stop:coStop, next:function(){ CO.s.ok=true; }, go:function(){ if(CO.on&&!CO.ticking) coTicked(); }, clip:function(kind,cv,ms){ coMediaDraw(kind,cv,ms); }, qclip:function(kind,cv,ms){ qClipDraw(kind,cv,ms); }, qmorph:qMorphOpen, nudge:function(o){ if(o.look) CO.look+=o.look; if(o.walk) CO.walked+=o.walk; if(o.keys) o.keys.forEach(function(k){ CO.keys[k]=true; }); } };

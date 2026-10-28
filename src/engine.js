@@ -7,3 +7,5 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 window.THREE = THREE;
 window.GLTFLoader = GLTFLoader; window.RoomEnvironment = RoomEnvironment;   /* the lighting kit's stands and fixtures (assets/kit/lightkit.glb, made in Blender by tools/build_kit.py) */
 window.Spark = { SparkRenderer, SplatMesh, PackedSplats, dyno };
+import { writePsd } from 'ag-psd';
+window.agPsd = { writePsd };   /* folio print sheets export layered PSDs for Photoshop (src/printsheets.js) */

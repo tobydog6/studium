@@ -283,7 +283,7 @@
         target:'#psUI .ps-third:first-child [data-how="a2"]', place:"bottom", start:function(){ if(ps.open&&ps.panel!==0){ ps.panel=0; psRenderBoard(); } }, done:function(){ return ps.open&&psSheets().some(function(s){ return s.mode==="third"; }); }},
       {ch:"PRINT", line:function(){ return 'Want to reprint a couple of photos? Drag them onto a sheet'; }, sub:"Aligned lines them up for you. Custom lets you place them yourself, with snapping. Portrait or landscape at the top. Press Got it when you've had a look.",
         target:'#psUI .ps-tools', info:true},
-      {ch:"PRINT", line:function(){ return '<b>Export for print</b> saves your sheets as a PDF'; }, sub:"Open it in Photoshop and print. Printed frames get a tick, so you can see what's left with ✓ Printed.",
+      {ch:"PRINT", line:function(){ return '<b>Export for print</b> saves each sheet as a Photoshop file'; }, sub:"Every frame is its own layer at true size, so you can tweak it in Photoshop, then print. Printed frames get a tick, so you can see what's left with ✓ Printed.",
         target:'#psUI [data-ps="export"]', start:function(){ CO.s.n=Object.keys(psData().printed).length; }, done:function(){ return Object.keys(psData().printed).length>CO.s.n; }}]},
     book:{where:function(){ return coRoom("book"); }, steps:[
       {ch:"BOOK", line:function(){ return 'The <b>Book</b> lays your picks out as a photobook'; }, sub:"You can export it as a PDF to print.",

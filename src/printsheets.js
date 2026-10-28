@@ -8,7 +8,11 @@
   var PS_PAPER={A4:[210,297],A3:[297,420],A2:[420,594]}, PS_MARGIN=6, PS_GAP=5, PS_PW=594, PS_PH=841, PS_DPI=300;
   var ps={open:false, cur:0, panel:0, sel:{}, pick:null, showPrinted:false, bScale:1, pScale:1, drag:null};
   function psData(){ var d=foB.doc_(); if(!d.print) d.print={sheets:[psNew()], printed:{}}; if(!d.print.sheets.length) d.print.sheets.push(psNew()); return d.print; }
-  function psSave(){ try{ st.foBoard=foB.doc_(); saveSession(); }catch(e){} }
+  var psHist=[], psHi=-1;
+  function psSnapState(){ var d=psData(); return JSON.stringify({sheets:d.sheets, printed:d.printed}); }
+  function psPush(){ var s=psSnapState(); if(psHist[psHi]===s) return; psHist=psHist.slice(0,psHi+1); psHist.push(s); if(psHist.length>80) psHist.shift(); psHi=psHist.length-1; }
+  function psUndo(dir){ var j=psHi+dir; if(j<0||j>=psHist.length){ toast(dir<0?"Nothing to undo":"Nothing to redo"); return; } psHi=j; var o=JSON.parse(psHist[j]), d=psData(); d.sheets=o.sheets; d.printed=o.printed; ps.pick=null; ps.cur=Math.min(ps.cur,d.sheets.length-1); try{ st.foBoard=foB.doc_(); saveSession(); }catch(e){} psRender(); toast(dir<0?"Undo":"Redo"); }
+  function psSave(){ psPush(); try{ st.foBoard=foB.doc_(); saveSession(); }catch(e){} }
   function psNew(from){ return {size:from?from.size:"A3", ori:from?from.ori:"portrait", mode:from&&from.mode!=="third"?from.mode:"aligned", items:[], done:false}; }
   function psSheets(){ return psData().sheets; }
   function psSheet(){ var S=psSheets(); ps.cur=Math.max(0,Math.min(S.length-1,ps.cur)); return S[ps.cur]; }
@@ -24,7 +28,7 @@
   function psDims(s){ var d=PS_PAPER[s.size]; return s.ori==="portrait"?[d[0],d[1]]:[d[1],d[0]]; }
   function psSz(it){ var f=psFr(it.fid); return it.rot?[f.h,f.w]:[f.w,f.h]; }
   function psClamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
-  function psWhere(id){ var S=psSheets(); for(var i=0;i<S.length;i++) if(S[i].items.some(function(it){ return it.fid===id; })) return i; return -1; }
+  function psWhere(id){ var S=psSheets(); for(var i=0;i<S.length;i++) if(!S[i].done&&S[i].items.some(function(it){ return it.fid===id; })) return i; return -1; }   /* only sheets not yet exported: a printed frame can go on again for a reprint */
   function psThirdRect(t){ var h=(PS_PH-12-8)/3; return {y:6+t*(h+4)-3, h:h+6}; }   /* the board's 6 mm border and 4 mm gutters */
 
   // Aligned: shelf packing, upright, tallest first. Returns what didn't fit.
@@ -40,7 +44,7 @@
     return s.items.some(function(o){ if(o===it) return false; var q=psSz(o); return it.x<o.x+q[0]+PS_GAP-0.5&&o.x<it.x+z[0]+PS_GAP-0.5&&it.y<o.y+q[1]+PS_GAP-0.5&&o.y<it.y+z[1]+PS_GAP-0.5; }); }
   function psBox(ids){ var x0=1e9,y0=1e9,x1=-1e9,y1=-1e9; ids.forEach(function(id){ var f=psFr(id); x0=Math.min(x0,f.x); y0=Math.min(y0,f.y); x1=Math.max(x1,f.x+f.w); y1=Math.max(y1,f.y+f.h); }); return {x:x0,y:y0,w:x1-x0,h:y1-y0}; }
   // put frames on the current sheet; overflow rolls onto the following sheets
-  function psAdd(ids, at){ var S=psSheets(); if(psSheet().mode==="third"){ S.push(psNew()); ps.cur=S.length-1; at=null; }
+  function psAdd(ids, at){ var S=psSheets(); if(psSheet().mode==="third"||psSheet().done){ S.push(psNew(psSheet().done&&psSheet().mode!=="third"?psSheet():null)); ps.cur=S.length-1; at=null; }
     var s=psSheet(), big=[], dup=ids.filter(function(id){ return psWhere(id)>=0; }).length; ids=ids.filter(function(id){ return psWhere(id)<0; });
     if(!ids.length){ toast(dup>1?"Those frames are already on a sheet.":"That frame is already on a sheet."); return; }
     if(s.mode==="custom"){ var b=psBox(ids), D=psDims(s);
@@ -56,7 +60,7 @@
   function psThird(k){ var ids=psFrames().filter(function(f){ return f.panel===ps.panel&&f.third===k; }).map(function(f){ return f.id; });
     if(!ids.length){ toast("That third is empty."); return; }
     var S=psSheets(), took=ids.some(function(id){ return psWhere(id)>=0; });
-    S.forEach(function(sh){ sh.items=sh.items.filter(function(it){ return ids.indexOf(it.fid)<0; }); if(sh.mode==="aligned") psPack(sh); });
+    S.forEach(function(sh){ if(sh.done) return; sh.items=sh.items.filter(function(it){ return ids.indexOf(it.fid)<0; }); if(sh.mode==="aligned") psPack(sh); });
     var R=psThirdRect(k), oy=(420-R.h)/2-R.y, t={size:"A2",ori:"landscape",mode:"third",panel:ps.panel,third:k,label:"Panel "+(ps.panel+1)+" · "+["top","middle","bottom"][k]+" third",items:[],done:false};
     ids.forEach(function(id){ var f=psFr(id); t.items.push({fid:id,x:f.x,y:f.y+oy,rot:0}); });
     var keep=S.filter(function(sh){ return sh.items.length||sh===S[ps.cur]&&sh.mode!=="third"; }); keep.push(t); psData().sheets=keep; ps.cur=keep.length-1; ps.pick=null; ps.sel={}; psSave(); psRender();
@@ -65,7 +69,7 @@
   // ---- the print mode ----
   function psOpen(){ if(!foB||!foB.doc_) return; psRefreshFrames(); if(!psFrames().length){ toast("Put some photos on your folio board first."); return; }
     var u=$("psUI"); if(!u){ u=document.createElement("div"); u.id="psUI"; document.body.appendChild(u); u.innerHTML=psShell(); psWire(); }
-    ps.open=true; u.classList.remove("hidden"); ps.sel={}; ps.pick=null; requestAnimationFrame(psRender); }
+    ps.open=true; u.classList.remove("hidden"); ps.sel={}; ps.pick=null; psHist=[]; psHi=-1; psPush(); requestAnimationFrame(psRender); }
   function psClose(){ ps.open=false; var u=$("psUI"); if(u) u.classList.add("hidden"); psSave(); }
   function psShell(){ return '<div class="ps-app">'
     +'<header class="ps-head"><button class="ps-btn" data-ps="back">‹ Back to the folio</button><h2>Print sheets</h2><span class="ps-sp"></span>'
@@ -93,17 +97,16 @@
   function psRenderSheet(){ var s=psSheet(), D=psDims(s), stg=$("psStage").getBoundingClientRect(), sc=Math.max(0.05,Math.min((stg.width-60)/D[0],(stg.height-60)/D[1])); ps.pScale=sc;
     var pp=$("psPaper"); pp.style.width=(D[0]*sc)+"px"; pp.style.height=(D[1]*sc)+"px";
     var h=s.mode==="third"?'':'<div class="ps-margin" style="inset:'+(PS_MARGIN*sc)+'px"></div>', used=0, bad=0;
-    if(s.mode==="third"){ var R=psThirdRect(s.third), oy=(420-R.h)/2; h+='<div class="ps-thirdbg'+(foB.doc_().paper==="black"?' dark':'')+'" style="top:'+(oy*sc)+'px;height:'+(R.h*sc)+'px"></div>'; }
+    if(s.mode==="third"){ var R=psThirdRect(s.third), oy=(D[1]-R.h)/2; h+='<div class="ps-thirdbg'+(foB.doc_().paper==="black"?' dark':'')+'" style="top:'+(oy*sc)+'px;height:'+(R.h*sc)+'px"></div>'; }
     s.items.forEach(function(it,i){ var f=psFr(it.fid), z=psSz(it), isBad=psBad(s,it); used+=z[0]*z[1]; if(isBad) bad++;
       var inner=it.rot?'width:'+(f.w*sc)+'px;height:'+(f.h*sc)+'px;left:'+((z[0]-f.w)/2*sc)+'px;top:'+((z[1]-f.h)/2*sc)+'px;transform:rotate(90deg)':'inset:0';
-      h+='<div class="ps-it'+(isBad?' bad':'')+(ps.pick===i?' pick':'')+(s.mode==="third"?' locked':'')+'" data-si="'+i+'" style="left:'+(it.x*sc)+'px;top:'+(it.y*sc)+'px;width:'+(z[0]*sc)+'px;height:'+(z[1]*sc)+'px">'
+      h+='<div class="ps-it'+(isBad?' bad':'')+(ps.pick===i?' pick':'')+'" data-si="'+i+'" style="left:'+(it.x*sc)+'px;top:'+(it.y*sc)+'px;width:'+(z[0]*sc)+'px;height:'+(z[1]*sc)+'px">'
         +'<i style="'+psBg(f)+';'+inner+'"></i>'+(s.mode==="third"?'':'<b class="cm tl"></b><b class="cm tr"></b><b class="cm bl"></b><b class="cm br"></b>')
         +'<span class="sz">'+f.n+' · '+Math.round(z[0])+' × '+Math.round(z[1])+' mm'+(it.rot?' · turned':'')+'</span></div>'; });
     pp.innerHTML=h; var pct=Math.round(used/(D[0]*D[1])*100);
     $("psReadout").innerHTML='<span>Sheet <b>'+(ps.cur+1)+'</b> of '+psSheets().length+'</span><span><b>'+s.size+'</b> '+s.ori+' · '+D[0]+' × '+D[1]+' mm</span><span>'+s.items.length+' frame'+(s.items.length===1?'':'s')+'</span><span><span class="ps-meter"><i style="width:'+pct+'%"></i></span> '+pct+'% of the paper used</span>'
       +(bad?'<span class="warn">'+bad+' frame'+(bad===1?' overlaps or sits':'s overlap or sit')+' off the safe area</span>':'')
-      +(s.mode==="third"?'<span>'+s.label+' · edge to edge, as on the board</span>':s.mode==="custom"?'<span>Drag to place · R turns the picked frame · Delete takes it off</span>':'<span>Packs itself upright · drag a frame off the paper to take it off</span>');
-    $("psTools").classList.toggle("locked",s.mode==="third");
+      +(s.mode==="third"?'<span>'+s.label+' · edge to edge, as on the board. Drag to tweak, R turns one</span>':s.mode==="custom"?'<span>Drag to place · R turns the picked frame · Delete takes it off</span>':'<span>Packs itself upright · drag a frame off the paper to take it off</span>');
     ["psSize","psOri","psMode"].forEach(function(g){ Array.prototype.forEach.call($(g).children,function(b){ var v=b.dataset.s||b.dataset.o||b.dataset.m; b.classList.toggle("on",v===s.size||v===s.ori||v===s.mode); }); }); }
   function psRenderStrip(){ var S=psSheets();
     $("psStrip").innerHTML=S.map(function(s,i){ var D=psDims(s), k=56/Math.max(D[0],D[1]);
@@ -112,28 +115,37 @@
         +(s.done?'<span class="done">✓</span>':'')+(S.length>1?'<span class="x" data-del="'+i+'" title="Remove this sheet">×</span>':'')+'</span>Sheet '+(i+1)+' · '+s.size+(s.mode==="third"?' third':'')+'</button>'; }).join("")
       +'<button class="ps-btn" data-ps="add">+ New sheet</button>'; }
 
-  // ---- export: one PDF, every sheet at 300 ppi, crop marks round each frame ----
-  function psExport(){ var S=psSheets().filter(function(s){ return s.items.length; }), bad=0; S.forEach(function(s){ s.items.forEach(function(it){ if(psBad(s,it)) bad++; }); });
-    if(!S.length){ toast("Put some frames on a sheet first."); return; } if(bad){ toast("Fix the frames outlined in red first: they overlap or sit outside the safe area."); return; }
-    var ppm=PS_DPI/25.4, out=[], si=0, dk=foB.doc_().paper==="black"; toast("Building "+S.length+" sheet"+(S.length===1?"":"s")+" at "+PS_DPI+" ppi…");
-    (function nextSheet(){ if(si>=S.length){ pbBuildPDF(out, "print-sheets.pdf", "Print sheets downloaded, ready for Photoshop", PS_DPI);
-        var pr=psData().printed, now=Date.now(); S.forEach(function(s){ s.done=true; s.items.forEach(function(it){ pr[it.fid]=now; }); }); psSave(); psRender(); return; }
-      var s=S[si++], D=psDims(s), cv=document.createElement("canvas"); cv.width=Math.round(D[0]*ppm); cv.height=Math.round(D[1]*ppm); var g=cv.getContext("2d");
-      g.fillStyle="#ffffff"; g.fillRect(0,0,cv.width,cv.height);
-      if(s.mode==="third"){ var R=psThirdRect(s.third); g.fillStyle=dk?"#0f0e0c":"#f4f1ea"; g.fillRect(0,(420-R.h)/2*ppm,cv.width,R.h*ppm); }
-      var j=0; (function nextIt(){ if(j>=s.items.length){ out.push(cv); nextSheet(); return; } var it=s.items[j++], f=psFr(it.fid), z=psSz(it), im=new Image();
+  // ---- export: a layered PSD per sheet at 300 ppi, true size: paper, each frame its own layer, crop marks on top ----
+  function psExport(){ var S=psSheets().filter(function(s){ return s.items.length&&!s.done; }), bad=0; S.forEach(function(s){ s.items.forEach(function(it){ if(psBad(s,it)) bad++; }); });
+    if(!S.length){ toast(psSheets().some(function(s){ return s.done; })?"Every sheet is already exported. Add frames to a new sheet to print more.":"Put some frames on a sheet first."); return; }
+    if(bad){ toast("Fix the frames outlined in red first: they overlap or sit outside the safe area."); return; }
+    if(!window.agPsd){ toast("Couldn't load the Photoshop exporter."); return; }
+    var ppm=PS_DPI/25.4, si=0, dk=foB.doc_().paper==="black"; toast("Building "+S.length+" Photoshop file"+(S.length===1?"":"s")+" at "+PS_DPI+" ppi…");
+    (function nextSheet(){ if(si>=S.length){ var pr=psData().printed, now=Date.now(); S.forEach(function(s){ s.done=true; s.items.forEach(function(it){ pr[it.fid]=now; }); }); psSave(); psRender();
+        toast("Saved "+S.length+" PSD"+(S.length===1?"":"s")+". Open in Photoshop: each frame is its own layer, at true size."); return; }
+      var s=S[si++], num=psSheets().indexOf(s)+1, D=psDims(s), W=Math.round(D[0]*ppm), H=Math.round(D[1]*ppm), comp=psCanvas(W,H), cg=comp.getContext("2d"), layers=[];
+      cg.fillStyle="#ffffff"; cg.fillRect(0,0,W,H); var paper=psCanvas(W,H), pgx=paper.getContext("2d"); pgx.fillStyle="#ffffff"; pgx.fillRect(0,0,W,H); layers.push({name:"Paper", canvas:paper});
+      if(s.mode==="third"){ var R=psThirdRect(s.third), ty=Math.round((D[1]-R.h)/2*ppm), th=Math.round(R.h*ppm), tb=psCanvas(W,th), tg=tb.getContext("2d"); tg.fillStyle=dk?"#0f0e0c":"#f4f1ea"; tg.fillRect(0,0,W,th); cg.drawImage(tb,0,ty); layers.push({name:"Board "+(dk?"black":"white"), top:ty, left:0, canvas:tb}); }
+      var j=0; (function nextIt(){ if(j>=s.items.length){ if(s.mode!=="third"){ var mk=psCanvas(W,H), mg=mk.getContext("2d"); s.items.forEach(function(it){ var z=psSz(it); psMarks(mg,it.x*ppm,it.y*ppm,z[0]*ppm,z[1]*ppm,ppm); }); cg.drawImage(mk,0,0); layers.push({name:"Crop marks", canvas:mk}); }
+          var buf; try{ buf=agPsd.writePsd({width:W, height:H, children:layers, canvas:comp, imageResources:{resolutionInfo:{horizontalResolution:PS_DPI, horizontalResolutionUnit:"PPI", widthUnit:"Centimeters", verticalResolution:PS_DPI, verticalResolutionUnit:"PPI", heightUnit:"Centimeters"}}}, {generateThumbnail:false}); }
+          catch(er){ console.warn("psd:",er); toast("Couldn't build sheet "+num+" as a PSD."); nextSheet(); return; }
+          var url=URL.createObjectURL(new Blob([buf],{type:"image/vnd.adobe.photoshop"})), a=document.createElement("a"); a.href=url; a.download=namePrefix()+"folio-print-sheet-"+num+"-"+s.size+"-"+s.ori+".psd"; document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function(){ try{ URL.revokeObjectURL(url); }catch(e){} },8000); setTimeout(nextSheet,400); return; }
+        var it=s.items[j++], f=psFr(it.fid), z=psSz(it), im=new Image();
         im.onload=function(){ var cw=f.w, ch=f.h, ia=im.naturalWidth/im.naturalHeight, ca=cw/ch, sx=0, sy=0, sw=im.naturalWidth, sh=im.naturalHeight;   /* cropped to its frame, like the board shows it */
           if(ia>ca){ sw=sh*ca; sx=(im.naturalWidth-sw)/2; } else { sh=sw/ca; sy=(im.naturalHeight-sh)/2; }
-          g.save(); g.filter=BD_FILTERS[f.f]?BD_FILTERS[f.f][1]:"none"; g.translate((it.x+z[0]/2)*ppm,(it.y+z[1]/2)*ppm); if(it.rot) g.rotate(Math.PI/2); g.drawImage(im,sx,sy,sw,sh,-cw/2*ppm,-ch/2*ppm,cw*ppm,ch*ppm); g.restore();
-          if(s.mode!=="third") psMarks(g,it.x*ppm,it.y*ppm,z[0]*ppm,z[1]*ppm,ppm); nextIt(); };
+          var lw=Math.max(1,Math.round(z[0]*ppm)), lh=Math.max(1,Math.round(z[1]*ppm)), lc=psCanvas(lw,lh), g=lc.getContext("2d");
+          g.filter=BD_FILTERS[f.f]?BD_FILTERS[f.f][1]:"none"; g.translate(lw/2,lh/2); if(it.rot) g.rotate(Math.PI/2); g.drawImage(im,sx,sy,sw,sh,-cw/2*ppm,-ch/2*ppm,cw*ppm,ch*ppm);
+          var lx=Math.round(it.x*ppm), ly=Math.round(it.y*ppm); cg.drawImage(lc,lx,ly); layers.push({name:f.n+" · "+Math.round(z[0])+" × "+Math.round(z[1])+" mm", left:lx, top:ly, canvas:lc}); nextIt(); };
         im.onerror=nextIt; im.src=f.url; })(); })(); }
+  function psCanvas(w,h){ var c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
   function psMarks(g,x,y,w,h,ppm){ var o=1*ppm, L=4*ppm; g.save(); g.strokeStyle="#000"; g.lineWidth=Math.max(1,0.2*ppm); g.beginPath();
     [[x,y,-1,-1],[x+w,y,1,-1],[x,y+h,-1,1],[x+w,y+h,1,1]].forEach(function(c){ g.moveTo(c[0]+c[2]*o,c[1]); g.lineTo(c[0]+c[2]*(o+L),c[1]); g.moveTo(c[0],c[1]+c[3]*o); g.lineTo(c[0],c[1]+c[3]*(o+L)); });
     g.stroke(); g.restore(); }
 
   // ---- wiring ----
   function psOverPaper(e,pad){ var r=$("psPaper").getBoundingClientRect(); pad=pad||0; return e.clientX>r.left-pad&&e.clientX<r.right+pad&&e.clientY>r.top-pad&&e.clientY<r.bottom+pad; }
-  function psSet(k,v){ var s=psSheet(); if(s.mode==="third") return; s[k]=v; ps.pick=null;
+  function psSet(k,v){ var s=psSheet(); s[k]=v; ps.pick=null; if(k==="mode") delete s.label;
     if(s.mode==="aligned"){ var over=psPack(s); if(over.length){ var S=psSheets(), t=S[ps.cur+1]&&S[ps.cur+1].mode==="aligned"?S[ps.cur+1]:null; if(!t){ t=psNew(s); S.splice(ps.cur+1,0,t); } t.items=t.items.concat(over); psPack(t); toast(over.length+" frame"+(over.length===1?"":"s")+" moved to sheet "+(ps.cur+2)+" to fit."); } }
     else { var D=psDims(s); s.items.forEach(function(it){ var z=psSz(it); it.x=psClamp(it.x,0,D[0]-z[0]); it.y=psClamp(it.y,0,D[1]-z[1]); }); }
     psSave(); psRender(); }
@@ -150,7 +162,8 @@
       if(a){ var w=a.getAttribute("data-ps");
         if(w==="back") psClose(); else if(w==="export") psExport(); else if(w==="clear"){ psSheet().items=[]; ps.pick=null; psSave(); psRender(); }
         else if(w==="add"){ psSheets().push(psNew(psSheet())); ps.cur=psSheets().length-1; ps.pick=null; psSave(); psRender(); }
-        else if(w==="printed"){ ps.showPrinted=!ps.showPrinted; a.classList.toggle("on",ps.showPrinted); psRenderBoard(); if(ps.showPrinted) toast(Object.keys(psData().printed).length?"Green is printed. Faded frames haven't been exported yet.":"Nothing exported yet."); }
+        else if(w==="printed"){ ps.showPrinted=!ps.showPrinted; a.classList.toggle("on",ps.showPrinted); a.textContent=ps.showPrinted?"✓ Showing printed":"✓ Printed"; psRenderBoard();
+          if(ps.showPrinted){ var all=psFrames(), pr=psData().printed, n=all.filter(function(f){ return pr[f.id]; }).length; toast(n?n+" of "+all.length+" frames printed. Green is printed, faded ones aren't yet.":"Nothing exported yet."); } }
         return; }
       if((t=e.target.closest("[data-del]"))){ e.stopPropagation(); psSheets().splice(+t.dataset.del,1); ps.cur=Math.min(ps.cur,psSheets().length-1); ps.pick=null; psSave(); psRender(); return; }
       if((t=e.target.closest("[data-st]"))){ ps.cur=+t.dataset.st; ps.pick=null; psRender(); return; }
@@ -166,7 +179,6 @@
       else { ps.drag={kind:"marq", x0:e.clientX-r.left, y0:e.clientY-r.top, hit:{}}; if(!(e.ctrlKey||e.metaKey)) ps.sel={}; var m=document.createElement("div"); m.className="ps-marq"; bd.appendChild(m); ps.drag.m=m; }
       e.preventDefault(); });
     $("psPaper").addEventListener("pointerdown",function(e){ if(e.button!==0) return; var s=psSheet(), el=e.target.closest("[data-si]");
-      if(s.mode==="third"){ if(el) toast("This sheet is a whole third, exactly as it is on the board. Change it on the board."); return; }
       if(!el){ ps.pick=null; psRenderSheet(); return; } var i=+el.dataset.si, it=s.items[i]; ps.pick=i; el.classList.add("pick");
       ps.drag={kind:"sheet", i:i, sx:e.clientX, sy:e.clientY, ox:it.x, oy:it.y, moved:false, el:el}; e.preventDefault(); });
     document.addEventListener("pointermove",function(e){ var d=ps.drag; if(!d||!ps.open) return;
@@ -180,8 +192,8 @@
       if(d.kind==="sheet"){ var s2=psSheet(), it=s2.items[d.i]; if(!it) return; var D=psDims(s2), z=psSz(it);
         if(!d.moved&&Math.hypot(e.clientX-d.sx,e.clientY-d.sy)<4) return; d.moved=true;
         var nx=d.ox+(e.clientX-d.sx)/ps.pScale, ny=d.oy+(e.clientY-d.sy)/ps.pScale;
-        if(s2.mode==="custom"){ var sn=psSnap(s2,it,nx,ny,z,D); nx=sn.x; ny=sn.y; psGuides(sn.g); }
-        it.x=nx; it.y=ny; d.el.style.left=(nx*ps.pScale)+"px"; d.el.style.top=(ny*ps.pScale)+"px"; d.el.classList.toggle("bad",s2.mode==="custom"&&psBad(s2,it)); d.el.style.opacity=psOverPaper(e,40)?"1":".4"; } });
+        if(s2.mode!=="aligned"){ var sn=psSnap(s2,it,nx,ny,z,D); nx=sn.x; ny=sn.y; psGuides(sn.g); }
+        it.x=nx; it.y=ny; d.el.style.left=(nx*ps.pScale)+"px"; d.el.style.top=(ny*ps.pScale)+"px"; d.el.classList.toggle("bad",psBad(s2,it)); d.el.style.opacity=psOverPaper(e,40)?"1":".4"; } });
     document.addEventListener("pointerup",function(e){ var d=ps.drag; if(!d) return; ps.drag=null; $("psPaper").classList.remove("drop"); psGuides([]);
       if(d.kind==="marq"){ d.m.remove(); for(var k in d.hit) if(d.hit[k]) ps.sel[k]=true; psRenderBoard(); return; }
       if(d.kind==="board"){ if(d.g) d.g.remove(); if(d.started&&psOverPaper(e)){ var r=$("psPaper").getBoundingClientRect(); psAdd(d.ids,[(e.clientX-r.left)/ps.pScale,(e.clientY-r.top)/ps.pScale]); } return; }
@@ -189,8 +201,10 @@
         else if(d.moved&&s.mode==="aligned") psPack(s); psSave(); psRender(); } });
     window.addEventListener("keydown",function(e){ if(!ps.open) return; var tg=e.target&&e.target.tagName; if(tg==="INPUT"||tg==="TEXTAREA") return;
       if(e.key==="Escape"){ e.preventDefault(); e.stopImmediatePropagation(); if(ps.pick!=null){ ps.pick=null; psRenderSheet(); } else psClose(); return; }
-      var s=psSheet(); e.stopImmediatePropagation(); if(ps.pick==null||!s.items[ps.pick]) return; var it=s.items[ps.pick];
-      if((e.key==="r"||e.key==="R")&&s.mode==="custom"){ it.rot=it.rot?0:1; var D=psDims(s), z=psSz(it); it.x=psClamp(it.x,0,D[0]-z[0]); it.y=psClamp(it.y,0,D[1]-z[1]); psSave(); psRenderSheet(); psRenderStrip(); }
+      e.stopImmediatePropagation(); var mod=e.ctrlKey||e.metaKey;
+      if(mod&&(e.key==="z"||e.key==="Z")){ e.preventDefault(); psUndo(e.shiftKey?1:-1); return; } if(mod&&(e.key==="y"||e.key==="Y")){ e.preventDefault(); psUndo(1); return; }
+      var s=psSheet(); if(ps.pick==null||!s.items[ps.pick]) return; var it=s.items[ps.pick];
+      if((e.key==="r"||e.key==="R")&&s.mode!=="aligned"){ it.rot=it.rot?0:1; var D=psDims(s), z=psSz(it); it.x=psClamp(it.x,0,D[0]-z[0]); it.y=psClamp(it.y,0,D[1]-z[1]); psSave(); psRenderSheet(); psRenderStrip(); }
       if(e.key==="Delete"||e.key==="Backspace"){ e.preventDefault(); var n=psFr(it.fid).n; s.items.splice(ps.pick,1); ps.pick=null; if(s.mode==="aligned") psPack(s); psSave(); psRender(); toast(n+" taken off the sheet."); } },true);
     var rz; window.addEventListener("resize",function(){ if(!ps.open) return; clearTimeout(rz); rz=setTimeout(psRender,80); }); }
   /* the way in: the board redraws its side panel often, so the Print sheets button is put back whenever it does.

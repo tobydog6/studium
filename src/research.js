@@ -164,7 +164,7 @@
   function rsAmPack(){ var p=rs.pack; return p&&p.id!=null&&p.id!=="*"?rsPack(p.id):null; }
   function rsAmFromPack(){ var p=rsAmPack(); if(!p) return 0; var ids={}; p.imgs.forEach(function(im){ ids[String(im.id)]=1; }); return (rs.am||[]).filter(function(id){ return ids[id]; }).length; }
   function rsAmStage(){ var am=rs.am||[], need=rsAmNeed(); if(am.length>=need) return "write"; var pk=rsAmPack(); if(pk&&rsAmFromPack()<Math.min(RS_AM_PACK,pk.imgs.length)) return "pack"; return rs.lib==="*"?"more":"toall"; }
-  function rsAmReady(){ return (rs.am||[]).length>=rsAmNeed()&&rsWhyOk(rs.amWhy); }
+  function rsAmReady(){ return (rs.am||[]).length>=rsAmNeed(); }
   function rsFind(id){ var P=rs.packs||[]; for(var i=0;i<P.length;i++){ var im=P[i].imgs.filter(function(x){ return String(x.id)===String(id); })[0]; if(im) return {im:im, pack:P[i]}; } return null; }
   function rsLibItems(){ var q=String(rs.q||"").trim().toLowerCase(), out=[]; (rs.packs||[]).forEach(function(p){ if(rs.lib&&rs.lib!=="*"&&String(p.id)!==String(rs.lib)) return; if(q&&p.name.toLowerCase().indexOf(q)<0) return; p.imgs.forEach(function(im){ out.push({im:im, pack:p}); }); }); return out; }
   function rsAllHTML(top){ var p=rs.pack, am=rs.am||(rs.am=[]), need=rsAmNeed(), P=rs.packs||[], items=rsLibItems(), total=rsAll().length;
@@ -177,17 +177,17 @@
     var lead=stg==="pack"?'<b>Choose '+RS_AM_PACK+' photographs from '+rsEsc(pk.name)+'</b> that show how they work. '+Math.max(0,Math.min(RS_AM_PACK,pk.imgs.length)-fp)+' to go.'
       :stg==="toall"?'<b>Now click All artists</b>, on the left, and choose '+more+' more from any photographer.'
       :stg==="more"?'<b>Choose '+more+' more</b> from any photographer. Look for ones that feel different to the first ones you picked.'
-      :'That\'s enough for a page. Now answer the question below, then make the page.';
+      :'That\'s enough for a page. Make it, then answer the question on the page.';
     return top+'<span class="rs-count">CHOSEN · '+am.length+' / '+need+'</span></div><div class="rs-lib">'+rail+'<div class="rs-libm"><p class="rs-q rs-amlead">'+lead+'</p>'
       +'<div class="rs-mgrid rs-masonry"'+(items.length?'':' style="display:none"')+'>'+items.map(function(e){ var im=e.im, k=am.indexOf(String(im.id)), r=(rs.pack&&e.pack===rs.pack)?ranked.indexOf(String(im.id)):-1;
           return '<button class="rs-mt rs-at'+(k>=0?' on':'')+'" data-rs-act="ampick" data-rs-img="'+rsEsc(im.id)+'"><img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'+(k>=0?'<b>'+(k+1)+'</b>':'')+'<span>'+(r>=0?'YOUR #'+(r+1)+' · ':'')+rsEsc(e.pack.name)+'</span></button>'; }).join("")+'</div><div class="rs-none"'+(items.length?' style="display:none"':'')+'>No photographer called that.</div>' 
-      +'<div class="rs-mbar rs-ambar">'+(am.length>=need?'<label class="rs-f rs-amq"><span>'+rsEsc(RS_AM_Q.toUpperCase())+'</span><textarea data-rs-amwhy rows="2" placeholder="I like ... more than ... because...">'+rsEsc(rs.amWhy||"")+'</textarea><em class="rs-whyhint'+(rsWhyOk(rs.amWhy)?' ok':'')+'">'+rsEsc(rsWhyOk(rs.amWhy)?"Lovely. That goes on the page next to the photographs.":rsWhyHint(rs.amWhy))+'</em></label>':'')
+      +'<div class="rs-mbar">'
       +'<button class="rs-go" data-rs-act="amake"'+(rsAmReady()?'':' disabled')+'>Make my artist model page ›</button><button class="rs-go2" data-rs-act="amclear">CLEAR</button></div></div></div>'; }
   function rsAmToggle(id){ var am=rs.am||(rs.am=[]), i=am.indexOf(String(id)), was=rsAmStage(); if(i>=0) am.splice(i,1); else if(am.length<RS_AM_MAX) am.push(String(id)); else toast("That's "+RS_AM_MAX+": take one off first"); rsRender();
     var now=rsAmStage(), box=$("st-research"); if(!box||now===was) return;
     if(now==="toall") toast("That's three. Now click All artists.");
-    if(now==="write"){ var t=box.querySelector("[data-rs-amwhy]"); if(t) setTimeout(function(){ try{ t.scrollIntoView({block:"center",behavior:"smooth"}); t.focus({preventScroll:true}); }catch(e){} },60); } }
-  function rsAmMake(){ var ids=(rs.am||[]).slice(); if(!rsAmReady()) return; var why=String(rs.amWhy||"").trim(); var hits=ids.map(rsFind).filter(Boolean), ims=hits.map(function(h){ return h.im; }), names=[];
+    if(now==="write") toast("That's seven. Make your page."); }
+  function rsAmMake(){ var ids=(rs.am||[]).slice(); if(!rsAmReady()) return; var hits=ids.map(rsFind).filter(Boolean), ims=hits.map(function(h){ return h.im; }), names=[];
     hits.forEach(function(h){ if(names.indexOf(h.pack.name)<0) names.push(h.pack.name); });
     var pids=hits.map(function(h){ var im=h.im, i=-1; photos.forEach(function(x,j){ if(x.url===im.url&&x.research) i=j; }); if(i<0){ photos.push({url:im.url, t:new Date(), place:"Research", research:true, credit:h.pack.name}); i=photos.length-1; } return stId(i); });
     if(typeof refreshCount==="function") refreshCount();
@@ -200,10 +200,9 @@
         best.rows.forEach(function(r,j){ var h=best.hs[j]*best.f, rw=0; r.forEach(function(i){ rw+=A[i]*h; }); rw+=g*(r.length-1); var x=box.x+(box.w-rw)/2;
           r.forEach(function(i){ items.push({t:"photo", pid:pids[i], x:x, y:y, w:A[i]*h}); x+=A[i]*h+g; }); y+=h+g; });
         items.push({t:"text", role:"caption", x:15, y:268, w:262, h:14, text:"Photographs: "+names.join(", ")});
-        /* the question on the right, with their answer under it */
-        items.push({t:"text", role:"caption", x:288, y:34, w:117, h:24, text:RS_AM_Q});
-        items.push({t:"text", role:"text", x:288, y:62, w:117, h:200, text:why, ph:"Write your answer here."});
-        wsEnsure(); wsB.applyTemplate({id:"artist", name:"Artist model", build:function(){ return {bg:"white", items:items}; }}); rs.sent=(rs.sent||0)+1; rs.am=[]; rs.amWhy=""; stRoom("workshop"); }); }
+        /* one text box on the right with the question in it: they write their answer on the page (Finished waits for it) */
+        items.push({t:"text", role:"text", x:288, y:34, w:117, h:228, text:"", ph:RS_AM_Q, sentence:true});
+        wsEnsure(); wsB.applyTemplate({id:"artist", name:"Artist model", build:function(){ return {bg:"white", items:items}; }}); rs.sent=(rs.sent||0)+1; rs.am=[]; stRoom("workshop"); setTimeout(function(){ toast("Now answer the question on the page: "+RS_AM_Q); },200); }); }
   function rsResults(top){ var res=rs.res, p=rs.pack, h=top+'</div><div class="rs-res">';
     if(res.kind==="punctum"){ var rr=res.round, mine=rr.imgs.filter(function(im){ return rr.struck[im.id]; });
       h+='<div class="rs-rh"><span class="eb">YOUR PUNCTUMS</span><h3>'+(mine.length?mine.length+' of '+rr.imgs.length+' pricked you':'Nothing pricked you this time')+'</h3><p class="rs-q">'+(res.counts?'The numbers show how many in your class were caught by each one. ':'')+(mine.length?'Take one into your workbook to write it up.':'Try the Culling Game, or another pack.')+'</p></div><div class="rs-grid">'

@@ -355,19 +355,20 @@
     function tick(){ var show=false, pg=null, kind=null, anchor=null, n=0, ok=false;
       if(st.open&&st.room==="workshop"&&typeof wsB!=="undefined"){ pg=wsB.page(); kind=pageKind(pg); }
       if(kind==="compare"){ var k=-1, it=null; pg.items.forEach(function(x,j){ if(k<0&&x.t==="text"&&x.sentence){ k=j; it=x; } }); anchor=k>=0?document.querySelector('#st-workshop .bd-sheet [data-bd="'+k+'"]'):null; n=it?words(it.text):0; ok=n>=MIN; }
-      else if(kind==="artist"){ anchor=document.querySelector('#st-workshop .bd-sheet'); n=pg.items.filter(function(x){ return x.t==="photo"; }).length; ok=n>=1; }
+      else if(kind==="artist"){ anchor=document.querySelector('#st-workshop .bd-sheet'); n=pg.items.filter(function(x){ return x.t==="photo"; }).length; ok=n>=1;
+        var aq=pg.items.filter(function(x){ return x.t==="text"&&x.sentence; })[0]; if(aq&&ok){ n=words(String(aq.text||"").replace(aq.ph||"","")); ok=n>=MIN; kind="answer"; } }   /* a page with a question to answer waits for the answer */
       var r=anchor?anchor.getBoundingClientRect():null;
       if(r&&r.width>4&&r.bottom>0&&r.top<innerHeight){ show=true;
         if(!btn){ btn=document.createElement("button"); btn.id="wsDone"; btn.className="ws-done"; document.body.appendChild(btn);
           btn.addEventListener("click",function(e){ e.stopPropagation(); var pg2=wsB.page(), kd=pageKind(pg2); if(!pg2||pg2.done) return;
-            if(kd==="compare"){ var t=pg2.items.filter(function(x){ return x.t==="text"&&x.sentence; })[0]; if(!t||words(t.text)<MIN) return; }
+            var t=pg2.items.filter(function(x){ return x.t==="text"&&x.sentence; })[0]; if((kd==="compare"||t)&&(!t||words(kd==="compare"?t.text:String(t.text||"").replace(t.ph||"",""))<MIN)) return;
             pg2.done=true; if(kd==="compare"&&typeof qFlag==="function") qFlag("compared"); try{ if(typeof wsB.save==="function") wsB.save(); }catch(er){} btn.classList.add("ok");
             toast(kd==="compare"?"Finished. Your comparison is saved in the workbook.":"Finished. Your artist model page is in the workbook."); if(typeof qTick==="function") qTick(); }); }
         var done=!!pg.done;
         if(done&&!btn._doneAt) btn._doneAt=Date.now(); if(!done) btn._doneAt=0;
         if(done&&Date.now()-btn._doneAt>1600) show=false;   /* a finished page doesn't keep a button on it */
         btn.disabled=!ok||done; btn.classList.toggle("ok",done); btn.classList.toggle("ready",ok&&!done); btn.classList.toggle("count",!ok&&!done);
-        btn.innerHTML=done?'✓ FINISHED':ok?'FINISHED ›':kind==="compare"?'<small>'+n+' / '+MIN+' WORDS</small>':'<small>ADD A PHOTO</small>';
+        btn.innerHTML=done?'✓ FINISHED':ok?'FINISHED ›':(kind==="compare"||kind==="answer")?'<small>'+n+' / '+MIN+' WORDS</small>':'<small>ADD A PHOTO</small>';
         var x, y; if(kind==="compare"){ x=Math.min(innerWidth-btn.offsetWidth-12, r.right+12); y=r.bottom-btn.offsetHeight; if(x<r.right+4){ x=r.right-btn.offsetWidth; y=r.bottom+10; } }
         else { x=r.right-btn.offsetWidth-14; y=r.bottom+14; if(y+btn.offsetHeight>innerHeight-8) y=r.bottom-btn.offsetHeight-14; }
         btn.style.left=x+"px"; btn.style.top=Math.max(8,y)+"px"; }

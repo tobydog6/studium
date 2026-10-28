@@ -125,7 +125,6 @@
         toast("Saved "+S.length+" PSD"+(S.length===1?"":"s")+". Open in Photoshop: each frame is its own layer, at true size."); return; }
       var s=S[si++], num=psSheets().indexOf(s)+1, D=psDims(s), W=Math.round(D[0]*ppm), H=Math.round(D[1]*ppm), comp=psCanvas(W,H), cg=comp.getContext("2d"), layers=[];
       cg.fillStyle="#ffffff"; cg.fillRect(0,0,W,H); var paper=psCanvas(W,H), pgx=paper.getContext("2d"); pgx.fillStyle="#ffffff"; pgx.fillRect(0,0,W,H); layers.push({name:"Paper", canvas:paper});
-      if(s.mode==="third"){ var R=psThirdRect(s.third), ty=Math.round((D[1]-R.h)/2*ppm), th=Math.round(R.h*ppm), tb=psCanvas(W,th), tg=tb.getContext("2d"); tg.fillStyle=dk?"#0f0e0c":"#f4f1ea"; tg.fillRect(0,0,W,th); cg.drawImage(tb,0,ty); layers.push({name:"Board "+(dk?"black":"white"), top:ty, left:0, canvas:tb}); }
       var j=0; (function nextIt(){ if(j>=s.items.length){ if(s.mode!=="third"){ var mk=psCanvas(W,H), mg=mk.getContext("2d"); s.items.forEach(function(it){ var z=psSz(it); psMarks(mg,it.x*ppm,it.y*ppm,z[0]*ppm,z[1]*ppm,ppm); }); cg.drawImage(mk,0,0); layers.push({name:"Crop marks", canvas:mk}); }
           var buf; try{ buf=agPsd.writePsd({width:W, height:H, children:layers, canvas:comp, imageResources:{resolutionInfo:{horizontalResolution:PS_DPI, horizontalResolutionUnit:"PPI", widthUnit:"Centimeters", verticalResolution:PS_DPI, verticalResolutionUnit:"PPI", heightUnit:"Centimeters"}}}, {generateThumbnail:false}); }
           catch(er){ console.warn("psd:",er); toast("Couldn't build sheet "+num+" as a PSD."); nextSheet(); return; }

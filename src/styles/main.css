@@ -3282,3 +3282,12 @@ body.la-warm #viewfinder,body.la-warm #crosshair{visibility:hidden!important}   
 .co-demo .hand{width:22px;height:22px;margin:-6px 0 0 -6px;border-radius:50%;background:rgba(var(--gold-rgb),.35);border:2px solid var(--accent);box-shadow:0 0 14px rgba(var(--gold-rgb),.8)}
 @keyframes coSwapMove{0%,12%{left:var(--ax);top:var(--ay);opacity:0}20%{opacity:1}70%,82%{left:var(--bx);top:var(--by);opacity:1}100%{left:var(--bx);top:var(--by);opacity:0}}
 @media (prefers-reduced-motion:reduce){ .co-demo{display:none} }
+
+/* film advance between studio rooms (advance.js) */
+#stAdvance{position:fixed;left:0;right:0;bottom:0;z-index:1090;display:none;flex-direction:column;pointer-events:none;background:#0a0908;box-shadow:0 0 60px rgba(0,0,0,.8)}
+#stAdvance.on{display:flex}
+#stAdvance .adv-strip{height:34px;flex:none;background:#0a0908 radial-gradient(circle,transparent 0,transparent 0) ;background-image:repeating-linear-gradient(90deg,transparent 0 14px,#2a2620 14px 30px,transparent 30px 44px);background-size:44px 12px;background-repeat:repeat-x;background-position:0 50%;border-color:#1d1a15;border-style:solid;border-width:0}
+#stAdvance .adv-strip.top{border-bottom-width:1px}#stAdvance .adv-strip.bot{border-top-width:1px}
+#stAdvance .adv-frame{flex:1;display:flex;align-items:center;justify-content:space-between;padding:0 6vw;background:linear-gradient(90deg,#120f0c,#1a150f 50%,#120f0c)}
+#stAdvance .adv-frame span{font:500 12px var(--mono);letter-spacing:.2em;color:rgba(227,173,87,.55)}
+#stAdvance .adv-to{color:var(--accent)!important}

@@ -1151,6 +1151,7 @@
 @@include finder.js@@
 @@include bag.js@@
 @@include studio.js@@
+@@include advance.js@@
 @@include lighttable.js@@
 @@include crtables.js@@
 @@include crdev.js@@

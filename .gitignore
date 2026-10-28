@@ -6,3 +6,6 @@ original.html
 __pycache__/
 docs/media/walk/
 .claude/settings.local.json
+
+# agent worktrees
+.claude/worktrees/

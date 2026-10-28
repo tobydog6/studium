@@ -44,12 +44,13 @@ export function createDev(S) {
   el.addEventListener('pointerdown', e => e.stopPropagation()); el.addEventListener('wheel', e => e.stopPropagation());
   el.addEventListener('keydown', e => e.stopPropagation());
   /* the options from the brief */
-  dev.define('case', 'Vault case', { hard: 'Hard case', safe: 'Steel safe', walnut: 'Walnut + brass', vitrine: 'Glass vitrine' }, 'hard');
-  dev.define('hole', 'Table hole', { doors: 'Split doors', tiles: 'Tile cascade', sink: 'Sink + slide' }, 'doors');
+  dev.define('case', 'Vault case', { pelican: 'Ribbed polymer', flight: 'Flight case', carbon: 'Carbon' }, 'pelican');
+  dev.define('hole', 'Round opening', { lift: 'Lift', iris: 'Aperture', petals: 'Petals', rings: 'Rings' }, 'lift');
   dev.define('clearing', 'Clearing prints', { sweep: 'Sweep', lift: 'Lift + drift' }, 'sweep');
   dev.define('keypad', 'Keypad', { rubber: 'Backlit rubber', brass: 'Brass + amber', glass: 'Glass touch' }, 'rubber');
-  dev.define('dissolve', 'Dissolve', { vortex: 'Vortex', scatter: 'Scatter', sand: 'Sand' }, 'vortex');
-  dev.define('reel', 'Loot reel', { horizontal: 'Horizontal reel', drum: 'Vertical drum', wheel: 'Wheel' }, 'horizontal');
+  dev.define('dissolve', 'Dissolve', { vortex: 'Vortex', scatter: 'Scatter', sand: 'Sand' }, 'sand');
+  dev.define('reel', 'Loot rail look', { neon: 'Neon rail', screen: 'Screen', lightbox: 'Lightbox' }, 'neon');
+  dev.define('parcel', 'Delivery', { courier: 'Courier box', mailer: 'Padded mailer', crate: 'Mini crate' }, 'courier');
   const fin = { tier: 'By tier' }; FINISHES.forEach(f => { fin[f.id] = f.name + (f.tier ? ' (' + f.tier + ')' : ''); });
   dev.define('finish', 'Test finish', fin, 'tier');
   dev.define('speed', 'Speed', { 1: 'Normal', 0.5: 'Half', 0.25: 'Quarter' }, '1');

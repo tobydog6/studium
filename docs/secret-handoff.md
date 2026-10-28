@@ -17,7 +17,10 @@ Sam's full brief is the "Studium secret collector layer" spec (unlock with `=` +
 
 ## Sam's design picks (from the options pages)
 - Slab Designs (https://claude.ai/artifact/RE7qg9WAk2k3e5iCeTWD6x): Case A clear acrylic · Label L1 top strip · Mount M2 full bleed. Finishes: the integrated versions (bands along the photo's tones, etch on its contours, flakes in its highlights, prism off its edges); flat washes read as cheap.
-- Vault and Loot Designs (https://claude.ai/artifact/C45kJ6jaFauCgepUnRcgit): case / hole / keypad / reel / button / dissolve, picks pending.
+- Vault and Loot Designs (https://claude.ai/artifact/C45kJ6jaFauCgepUnRcgit) and Round 2 (https://claude.ai/artifact/TtBRoRSyqjMiUuqk3PRjoN): hard case = ribbed polymer with graphite (not chrome) hardware · round opening = lift (the disc sinks into a lit shaft with the case on it and rises) · keypad = backlit rubber · reel = horizontal, neon rail look, no spotlight, raw prints on it (no grade) · loot button = red cap · dissolve = sand, fine grains · delivery = courier box.
+- Label (Round 2): textured black-and-gold / gold / black-and-tier-colour, rolled per pull; sub-grades Light, Frame, Moment, Print; holo verification sticker with the cert. Portrait: label on top, photo as wide as the label. Landscape: label stood on end down the left. Both slabs the same size.
+- The Pull (https://claude.ai/artifact/JX7vE1r4EKWcB5kj93z2RP): the whole loot run with the landing scaled by tier (common settle · uncommon foil sweep · rare spin + glints · epic starburst + sparks + flood · legendary slow-mo gold flood, embers, slam · mythic blackout, eclipse corona, 1 OF 1 stamp, flash). This is the spec for loot.js and holo.reveal.
+- Sam's loop: a pull comes out raw (no grade), goes away for grading (a real day; dev panel: a minute / instant / Skip the wait), and comes back as a parcel on the table; opening it is the grade reveal (slabs.js: sendForGrading / gradingState / receiveGraded).
 
 ## What the repo looks like
 - Light table = iframe app, `src/lighttable/main.js` (one ES module, esbuild bundles it, so new files under `secret/` can be imported).

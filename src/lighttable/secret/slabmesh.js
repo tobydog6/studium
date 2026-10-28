@@ -56,34 +56,60 @@ function processPhoto(base, finish, variant) {
 export function tex(c) { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; return t; }
 
 /* ---------- the label ---------- */
-function labelCanvas(slab, w, h) {
-  const PX = 420, W = Math.round(w * PX), H = Math.round(h * PX), c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
-  const t = TIER[slab.tier], gold = slab.tier === 'legendary', noir = slab.tier === 'mythic';
-  if (gold) { const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#8a6020'); gr.addColorStop(0.4, '#f3d48a'); gr.addColorStop(0.6, '#b07c25'); gr.addColorStop(1, '#ffe6a8'); g.fillStyle = gr; }
-  else g.fillStyle = noir ? '#0a0a0c' : '#f4f1ea';
-  g.fillRect(0, 0, W, H);
-  const ink = noir ? '#e8c26a' : gold ? '#3a2606' : '#1e1b18', dim = noir ? 'rgba(232,194,106,0.6)' : gold ? 'rgba(58,38,6,0.6)' : 'rgba(30,27,24,0.55)';
-  g.fillStyle = t.color; g.fillRect(0, 0, Math.round(H * 0.09), H);
-  const x0 = Math.round(H * 0.2);
-  g.fillStyle = ink; g.textBaseline = 'alphabetic'; g.textAlign = 'left';
-  g.font = '700 ' + Math.round(H * 0.17) + 'px "Geist Mono", ui-monospace, monospace'; g.fillText('STUDIUM', x0, H * 0.3);
-  g.font = '500 ' + Math.round(H * 0.11) + 'px "Geist Mono", ui-monospace, monospace'; g.fillStyle = dim; g.fillText('G R A D E D', x0, H * 0.44);
-  g.fillStyle = t.color; g.font = '700 ' + Math.round(H * 0.12) + 'px "Geist Mono", ui-monospace, monospace'; g.fillText(t.name.toUpperCase(), x0, H * 0.66);
-  g.fillStyle = ink; g.font = '400 ' + Math.round(H * 0.105) + 'px "Geist", system-ui, sans-serif'; g.fillText(slab.title || '', x0, H * 0.84);
-  const xr = W - Math.round(H * 0.16); g.textAlign = 'right';
-  g.fillStyle = ink; g.font = '400 ' + Math.round(H * 0.62) + 'px "Fraunces", Georgia, serif'; g.fillText(String(slab.grade), xr, H * 0.62);
-  g.font = '600 ' + Math.round(H * 0.1) + 'px "Geist Mono", ui-monospace, monospace'; g.fillText(GRADES[slab.grade] || '', xr, H * 0.8);
-  g.fillStyle = dim; g.font = '500 ' + Math.round(H * 0.09) + 'px "Geist Mono", ui-monospace, monospace';
-  const serial = slab.serial ? slab.serial : slab.stamp ? 'No. ' + pad(slab.stamp, 2) + '/50' : '';
-  g.fillText((serial ? serial + '   ' : '') + slab.cert, xr, H * 0.94);
-  if (slab.variant) { g.textAlign = 'left'; g.fillStyle = dim; g.fillText((VARIANT[slab.variant] || {}).name || '', x0, H * 0.96); }
+/* Sam's label (Round 2 page): textured ground, bold wordmark, four photography sub-grades, a holographic
+   verification sticker with the cert, the grade big. Colourway is part of the roll (slab.label: black / gold / tier).
+   Portrait slabs carry it as a strip on top; landscape slabs stand it on end down the left side, so both end up the same size. */
+export const LABEL_W = 1320, LABEL_H = 400;
+const SUBS = ['LIGHT', 'FRAME', 'MOMENT', 'PRINT'];
+function labelStyle(slab) { return slab.label || (slab.tier === 'legendary' ? 'gold' : 'black'); }
+function sparkle(g, W, H, light) { for (let i = 0; i < 9000; i++) { g.fillStyle = light ? 'rgba(255,255,255,' + (Math.random() * 0.35) + ')' : 'rgba(255,220,150,' + (Math.random() * 0.22) + ')'; g.fillRect(Math.random() * W, Math.random() * H, 1.4, 1.4); } for (let i = 0; i < 4000; i++) { g.fillStyle = 'rgba(0,0,0,' + (Math.random() * 0.25) + ')'; g.fillRect(Math.random() * W, Math.random() * H, 1.2, 1.2); } }
+function labelInks(style, tc) { return { ink: style === 'gold' ? '#111111' : style === 'tier' ? tc : '#e8c67a', dim: style === 'gold' ? 'rgba(17,17,17,0.6)' : style === 'tier' ? tc + 'aa' : 'rgba(232,198,122,0.62)' }; }
+function labelGround(g, W, H, style) { if (style === 'gold') { const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, '#9a7024'); gr.addColorStop(0.35, '#f1cf7c'); gr.addColorStop(0.6, '#c08f2c'); gr.addColorStop(1, '#f6dd98'); g.fillStyle = gr; g.fillRect(0, 0, W, H); sparkle(g, W, H, true); } else { g.fillStyle = '#0d0d10'; g.fillRect(0, 0, W, H); sparkle(g, W, H, false); } }
+function serialOf(slab) { return slab.serial ? slab.serial : slab.stamp ? 'No. ' + pad(slab.stamp, 2) + '/50' : ''; }
+function labelCanvas(slab) {
+  const W = LABEL_W, H = LABEL_H, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); const t = TIER[slab.tier], style = labelStyle(slab), { ink, dim } = labelInks(style, t.color);
+  labelGround(g, W, H, style); if (style === 'tier') { g.fillStyle = t.color; g.fillRect(0, 0, 14, H); }
+  g.strokeStyle = dim; g.lineWidth = 2; g.strokeRect(44, 96, 208, 208);
+  g.fillStyle = ink; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.font = '700 112px "Geist", system-ui, sans-serif'; g.fillText('STUDIUM', 290, 190);
+  g.font = '500 26px "Geist Mono", ui-monospace, monospace'; g.fillStyle = dim; g.fillText('G R A D E D   P H O T O G R A P H', 294, 232);
+  g.fillStyle = ink; g.font = '600 34px "Geist", system-ui, sans-serif'; g.fillText(slab.title || '', 292, 296);
+  g.fillStyle = dim; g.font = '500 24px "Geist Mono", ui-monospace, monospace'; g.fillText(['Studium · 2026 · NZ', t.name.toUpperCase(), slab.variant ? (VARIANT[slab.variant] || {}).name : '', serialOf(slab)].filter(Boolean).join(' · '), 294, 336);
+  g.fillStyle = dim; g.fillRect(762, 70, 2, 260); g.fillRect(1052, 70, 2, 260);
+  const subs = slab.subs || [slab.grade, slab.grade, slab.grade, slab.grade]; g.font = '600 30px "Geist Mono", ui-monospace, monospace';
+  SUBS.forEach((k, i) => { const y = 122 + i * 62; g.fillStyle = ink; g.textAlign = 'left'; g.fillText(k, 796, y); g.textAlign = 'right'; g.fillText(String(subs[i]), 1022, y); const kw = g.measureText(k).width; g.fillStyle = dim; g.fillRect(796 + kw + 18, y - 8, Math.max(0, 1022 - 60 - (796 + kw + 18)), 2); });
+  g.fillStyle = dim; g.font = '500 22px "Geist Mono", ui-monospace, monospace'; g.textAlign = 'left'; g.fillText('CERT  ' + slab.cert, 796, 366);
+  g.fillStyle = ink; g.textAlign = 'right'; g.font = '400 210px "Fraunces", Georgia, serif'; g.fillText(String(slab.grade), 1284, 248);
+  g.font = '600 34px "Geist Mono", ui-monospace, monospace'; g.fillText(GRADES[slab.grade] || '', 1282, 320);
   return c;
 }
+function labelCanvasVertical(slab) {
+  const W = LABEL_H, H = LABEL_W, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); const t = TIER[slab.tier], style = labelStyle(slab), { ink, dim } = labelInks(style, t.color);
+  labelGround(g, W, H, style); if (style === 'tier') { g.fillStyle = t.color; g.fillRect(0, 0, W, 14); }
+  g.strokeStyle = dim; g.lineWidth = 2; g.strokeRect(96, 44, 208, 208);
+  g.fillStyle = ink; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.font = '700 74px "Geist", system-ui, sans-serif'; g.fillText('STUDIUM', W / 2, 346);
+  g.fillStyle = dim; g.font = '500 20px "Geist Mono", ui-monospace, monospace'; g.fillText('G R A D E D  P H O T O G R A P H', W / 2, 382);
+  g.fillStyle = ink; g.font = '600 27px "Geist", system-ui, sans-serif'; const parts = String(slab.title || '').split(' · '); g.fillText(parts[0] || '', W / 2, 448); g.fillText(parts.slice(1).join(' · '), W / 2, 486);
+  g.fillStyle = dim; g.font = '500 19px "Geist Mono", ui-monospace, monospace'; g.fillText(['2026 · NZ', t.name.toUpperCase(), serialOf(slab)].filter(Boolean).join(' · '), W / 2, 524);
+  if (slab.variant) g.fillText(((VARIANT[slab.variant] || {}).name || '').toUpperCase(), W / 2, 552);
+  g.fillStyle = dim; g.fillRect(50, 566, 300, 2);
+  const subs = slab.subs || [slab.grade, slab.grade, slab.grade, slab.grade]; g.font = '600 27px "Geist Mono", ui-monospace, monospace';
+  SUBS.forEach((k, i) => { const y = 626 + i * 58; g.fillStyle = ink; g.textAlign = 'left'; g.fillText(k, 56, y); g.textAlign = 'right'; g.fillText(String(subs[i]), 344, y); const kw = g.measureText(k).width; g.fillStyle = dim; g.fillRect(56 + kw + 16, y - 7, Math.max(0, 344 - 46 - (56 + kw + 16)), 2); });
+  g.fillStyle = dim; g.font = '500 20px "Geist Mono", ui-monospace, monospace'; g.textAlign = 'left'; g.fillText('CERT  ' + slab.cert, 56, 892);
+  g.fillStyle = dim; g.fillRect(50, 924, 300, 2);
+  g.fillStyle = ink; g.textAlign = 'center'; g.font = '400 230px "Fraunces", Georgia, serif'; g.fillText(String(slab.grade), W / 2, 1168);
+  g.font = '600 32px "Geist Mono", ui-monospace, monospace'; g.fillText(GRADES[slab.grade] || '', W / 2, 1236);
+  return c;
+}
+/* the holographic verification sticker: a foil square that reacts to tilt, with the wordmark and cert over it */
+function sticker(slab, size) { const g = new THREE.Group(); const base = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ color: 0xc8c8cc })); g.add(base);
+  const foil = new THREE.Mesh(new THREE.PlaneGeometry(size, size), foilMaterial({ strength: 1.3 })); foil.position.z = 0.002; g.add(foil); g.userData.foil = foil;
+  const c = document.createElement('canvas'); c.width = c.height = 256; const gg = c.getContext('2d'); gg.strokeStyle = 'rgba(0,0,0,0.55)'; gg.lineWidth = 6; gg.strokeRect(8, 8, 240, 240); gg.fillStyle = 'rgba(0,0,0,0.78)'; gg.textAlign = 'center'; gg.font = '700 54px "Geist", system-ui, sans-serif'; gg.fillText('STUDIUM', 128, 108); gg.font = '600 26px "Geist Mono", ui-monospace, monospace'; gg.fillText('VERIFIED', 128, 146); gg.font = '500 30px "Geist Mono", ui-monospace, monospace'; gg.fillText(String(slab.cert || '').replace('#', '').padStart(7, '0'), 128, 208);
+  const txt = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true })); txt.position.z = 0.004; g.add(txt); g.traverse(m => { if (m.isMesh) m.userData.order = 5; }); return g; }
 
 /* ---------- the slab ---------- */
-/* Sam's picks from the Slab Designs page: clear acrylic case (A), top strip label (L1), full bleed mount (M2: border 0).
-   The Full art variant then runs the photo under the label as well, with the label floating over it. */
-export const SLAB = { long: 2.4, border: 0, margin: 0.17, label: 0.6, th: 0.19 };
+/* Sam's picks: clear acrylic case, full bleed mount, the Round 2 label. Portrait photos are as wide as the label (lw); landscape
+   photos are as tall as the stood-up label, which sits down the left. The Full art variant runs the photo under the label too. */
+export const SLAB = { lw: 2.6, lab: 0.78, gap: 0.08, margin: 0.17, th: 0.19 };
 export function makeSlab(slab, S) {
   const group = new THREE.Group(); group.userData.slab = slab; const inner = new THREE.Group(); group.add(inner);
   const obj = { group, inner, slab, w: 0, h: 0, th: SLAB.th, photoW: 0, photoH: 0, finish: null, tilt: new THREE.Vector2(), pointer: new THREE.Vector2(), time: Math.random() * 100, base: null, parts: {}, built: false, ready: null, top: false };
@@ -91,7 +117,7 @@ export function makeSlab(slab, S) {
   obj.ready = photoCanvas(slab, S).then(base => { obj.base = base; build(obj, S, env); return obj; });
   obj.setFinish = id => { if (!obj.built) return; applyFinish(obj, S, env, id); };
   obj.refresh = () => { if (obj.built) applyFinish(obj, S, env, obj.finishId); };
-  obj.update = (dt, pointer) => { obj.time += dt; if (pointer) obj.pointer.copy(pointer); if (obj.finish && obj.finish.def.update) try { obj.finish.def.update(obj.finish.mesh, { THREE, dt, time: obj.time, tilt: obj.tilt, pointer: obj.pointer, slab, obj }); } catch (e) { console.error(e); } };
+  obj.update = (dt, pointer) => { obj.time += dt; if (pointer) obj.pointer.copy(pointer); if (obj.parts.sticker) { const u = obj.parts.sticker.userData.foil.material.uniforms; u.uTilt.value.copy(obj.tilt); u.uTime.value = obj.time; } if (obj.finish && obj.finish.def.update) try { obj.finish.def.update(obj.finish.mesh, { THREE, dt, time: obj.time, tilt: obj.tilt, pointer: obj.pointer, slab, obj }); } catch (e) { console.error(e); } };
   /* while inspected the slab draws over everything, like an inspected print */
   obj.setTop = on => { obj.top = on; group.traverse(m => { if (!m.isMesh) return; [].concat(m.material).forEach(mt => { if (mt.userData.t0 === undefined) mt.userData.t0 = mt.transparent; mt.depthTest = !on; mt.transparent = on || mt.userData.t0; }); m.renderOrder = on ? 20 + (m.userData.order || 0) : (m.userData.order || 0); }); };
   obj.dispose = () => { group.traverse(m => { if (m.isMesh) { m.geometry.dispose(); [].concat(m.material).forEach(mt => { if (mt.map && mt.map !== obj.parts.photoTex) mt.map.dispose(); mt.dispose(); }); } }); if (obj.parts.photoTex) obj.parts.photoTex.dispose(); if (group.parent) group.parent.remove(group); };
@@ -99,32 +125,35 @@ export function makeSlab(slab, S) {
 }
 function build(obj, S, env) {
   const { slab, inner, base } = obj, aspect = base.width / base.height, full = slab.variant === 'full', clear = slab.variant === 'clear', neg = slab.variant === 'negative';
-  const pw = aspect >= 1 ? SLAB.long : SLAB.long * aspect, ph = aspect >= 1 ? SLAB.long / aspect : SLAB.long;
-  const cw = pw + SLAB.border * 2, ch = ph + SLAB.border * 2;
-  obj.photoW = pw; obj.photoH = ph; obj.w = cw + SLAB.margin * 2; obj.h = ch + SLAB.label + SLAB.margin * 2 + 0.08;
-  const th = SLAB.th, z0 = -th / 2 + 0.03;
+  const land = aspect > 1.05, m = SLAB.margin, lab = SLAB.lab, gap = SLAB.gap;
+  const pw = land ? SLAB.lw * aspect : SLAB.lw, ph = land ? SLAB.lw : SLAB.lw / aspect;
+  obj.photoW = pw; obj.photoH = ph; obj.land = land; obj.w = land ? lab + gap + pw + m * 2 : pw + m * 2; obj.h = land ? ph + m * 2 : ph + lab + gap + m * 2;
+  const cw = pw, ch = ph, th = SLAB.th, z0 = -th / 2 + 0.03;
   /* backing card */
   const gold = slab.tier === 'legendary', noir = slab.tier === 'mythic';
   if (!clear) { let m; if (gold) { const c = document.createElement('canvas'); c.width = 64; c.height = 256; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 64, 256); gr.addColorStop(0, '#8a6020'); gr.addColorStop(0.4, '#f3d48a'); gr.addColorStop(0.6, '#b07c25'); gr.addColorStop(1, '#ffe6a8'); g.fillStyle = gr; g.fillRect(0, 0, 64, 256); m = new THREE.MeshLambertMaterial({ map: tex(c) }); }
     else m = new THREE.MeshLambertMaterial({ color: noir || neg ? 0x08080a : 0xf2eee6 });
     const card = new THREE.Mesh(new THREE.PlaneGeometry(obj.w - 0.1, obj.h - 0.1), m); card.position.z = z0; card.userData.order = 1; inner.add(card); obj.parts.card = card; }
   /* the photograph */
-  const cy = -(obj.h / 2) + SLAB.margin + ch / 2;
+  const cx = land ? -(obj.w / 2) + m + lab + gap + pw / 2 : 0, cy = land ? 0 : -(obj.h / 2) + m + ph / 2;
   const photoMat = new THREE.MeshBasicMaterial({ map: null, transparent: clear, opacity: clear ? 0.82 : 1 });
   /* full art: the photo fills the whole case, cropped to the slab's shape, and the label floats over it */
-  const photo = new THREE.Mesh(new THREE.PlaneGeometry(full ? obj.w - 0.1 : pw, full ? obj.h - 0.1 : ph), photoMat); photo.position.set(0, full ? 0 : cy, z0 + 0.012); photo.userData.order = 2; inner.add(photo); obj.parts.photo = photo;
+  const photo = new THREE.Mesh(new THREE.PlaneGeometry(full ? obj.w - 0.1 : pw, full ? obj.h - 0.1 : ph), photoMat); photo.position.set(full ? 0 : cx, full ? 0 : cy, z0 + 0.012); photo.userData.order = 2; inner.add(photo); obj.parts.photo = photo;
   if (full) { const sw = (obj.w - 0.1) / pw, sh = (obj.h - 0.1) / ph, k = Math.max(sw, sh); const uv = photo.geometry.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, 0.5 + (uv.getX(i) - 0.5) * sw / k, 0.5 + (uv.getY(i) - 0.5) * sh / k); uv.needsUpdate = true; }
   if (slab.variant === 'misprint') { photo.position.x += 0.07; photo.position.y -= 0.04;
-    const ghost = new THREE.Mesh(photo.geometry, new THREE.MeshBasicMaterial({ map: null, transparent: true, opacity: 0.32, depthWrite: false })); ghost.position.set(0.16, cy + 0.05, z0 + 0.016); ghost.userData.order = 3; inner.add(ghost); obj.parts.ghost = ghost;
-    const band = new THREE.Mesh(new THREE.PlaneGeometry(cw * 1.1, 0.14), foilMaterial({ strength: 1.6 })); band.position.set(0, cy - ph * 0.28, z0 + 0.02); band.rotation.z = -0.06; band.userData.order = 4; inner.add(band); obj.parts.band = band; }
+    const ghost = new THREE.Mesh(photo.geometry, new THREE.MeshBasicMaterial({ map: null, transparent: true, opacity: 0.32, depthWrite: false })); ghost.position.set(cx + 0.16, cy + 0.05, z0 + 0.016); ghost.userData.order = 3; inner.add(ghost); obj.parts.ghost = ghost;
+    const band = new THREE.Mesh(new THREE.PlaneGeometry(cw * 1.1, 0.14), foilMaterial({ strength: 1.6 })); band.position.set(cx, cy - ph * 0.28, z0 + 0.02); band.rotation.z = -0.06; band.userData.order = 4; inner.add(band); obj.parts.band = band; }
   if (neg) { /* sprocket holes down both long edges of the card */
     const sp = document.createElement('canvas'); sp.width = 512; sp.height = 64; const g = sp.getContext('2d'); g.fillStyle = '#08080a'; g.fillRect(0, 0, 512, 64); g.fillStyle = '#d8d2c4'; for (let x = 10; x < 512; x += 36) { g.beginPath(); g.roundRect(x, 20, 22, 24, 4); g.fill(); }
-    const sm = new THREE.MeshBasicMaterial({ map: tex(sp) }); [1, -1].forEach(s => { const r = new THREE.Mesh(new THREE.PlaneGeometry(cw, 0.12), sm); r.position.set(0, cy + s * (ch / 2 - 0.07), z0 + 0.012); r.userData.order = 3; inner.add(r); }); }
+    const sm = new THREE.MeshBasicMaterial({ map: tex(sp) }); [1, -1].forEach(s => { const r = new THREE.Mesh(new THREE.PlaneGeometry(cw, 0.12), sm); r.position.set(cx, cy + s * (ch / 2 - 0.07), z0 + 0.012); r.userData.order = 3; inner.add(r); }); }
   if (slab.variant === 'stamped') { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#e3ad57'; g.beginPath(); g.arc(64, 64, 58, 0, 7); g.fill(); g.fillStyle = '#3a2606'; g.font = '700 30px "Geist Mono", monospace'; g.textAlign = 'center'; g.fillText(pad(slab.stamp, 2), 64, 60); g.font = '500 18px "Geist Mono", monospace'; g.fillText('/ 50', 64, 88);
-    const st = new THREE.Mesh(new THREE.CircleGeometry(0.17, 32), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true })); st.position.set(pw / 2 - 0.2, cy - ph / 2 + 0.2, z0 + 0.02); st.userData.order = 4; inner.add(st); }
-  /* the label */
-  const lw = obj.w - SLAB.margin * 2, ly = obj.h / 2 - SLAB.margin - SLAB.label / 2;
-  const label = new THREE.Mesh(new THREE.PlaneGeometry(lw, SLAB.label), new THREE.MeshBasicMaterial({ map: tex(labelCanvas(slab, lw, SLAB.label)), transparent: full, opacity: full ? 0.92 : 1 })); label.position.set(0, ly, z0 + (full ? 0.03 : 0.012)); label.userData.order = full ? 5 : 2; inner.add(label); obj.parts.label = label;
+    const st = new THREE.Mesh(new THREE.CircleGeometry(0.17, 32), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true })); st.position.set(cx + pw / 2 - 0.2, cy - ph / 2 + 0.2, z0 + 0.02); st.userData.order = 4; inner.add(st); }
+  /* the label and its sticker */
+  const lz = z0 + (full ? 0.03 : 0.012), lmat = new THREE.MeshBasicMaterial({ map: tex(land ? labelCanvasVertical(slab) : labelCanvas(slab)), transparent: full, opacity: full ? 0.92 : 1 });
+  const label = land ? new THREE.Mesh(new THREE.PlaneGeometry(lab, ph), lmat) : new THREE.Mesh(new THREE.PlaneGeometry(pw, lab), lmat);
+  if (land) label.position.set(-(obj.w / 2) + m + lab / 2, 0, lz); else label.position.set(0, obj.h / 2 - m - lab / 2, lz);
+  label.userData.order = full ? 5 : 2; inner.add(label); obj.parts.label = label;
+  const stk = sticker(slab, lab * 0.52); if (land) stk.position.set(label.position.x, ph / 2 - 0.112 * ph, lz + 0.002); else stk.position.set(-pw / 2 + 0.112 * pw, label.position.y, lz + 0.002); inner.add(stk); obj.parts.sticker = stk;
   /* the acrylic */
   const acr = new THREE.Mesh(new RoundedBoxGeometry(obj.w, obj.h, th, 3, 0.05), new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: clear ? 0.3 : 0.2, roughness: 0.05, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04, envMap: env, envMapIntensity: 1.1, depthWrite: false }));
   acr.userData.order = 6; acr.userData.noParticles = true; inner.add(acr); obj.parts.acrylic = acr;

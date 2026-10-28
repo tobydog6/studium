@@ -96,7 +96,7 @@ export function makeCloud(from, to, colA, colB, o = {}) {
   g.setAttribute('aFrom', new THREE.BufferAttribute(from, 3)); g.setAttribute('aTo', new THREE.BufferAttribute(to, 3));
   g.setAttribute('aColor', new THREE.BufferAttribute(colA, 3)); g.setAttribute('aColor2', new THREE.BufferAttribute(colB || colA, 3)); g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
   g.boundingSphere = new THREE.Sphere(o.centre ? o.centre.clone() : new THREE.Vector3(), 1e3);
-  const u = { uT: { value: 0 }, uDir: { value: o.dir ?? 1 }, uMode: { value: MODES[o.mode] ?? 0 }, uCentre: { value: o.centre || new THREE.Vector3() }, uSize: { value: o.size ?? 2.2 }, uSpread: { value: o.spread ?? 3 }, uTime: { value: 0 }, uAlpha: { value: 1 } };
+  const u = { uT: { value: 0 }, uDir: { value: o.dir ?? 1 }, uMode: { value: MODES[o.mode] ?? 2 }, uCentre: { value: o.centre || new THREE.Vector3() }, uSize: { value: o.size ?? 0.5 }, uSpread: { value: o.spread ?? 3 }, uTime: { value: 0 }, uAlpha: { value: 1 } };
   const mat = new THREE.ShaderMaterial({ uniforms: u, vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false });
   const pts = new THREE.Points(g, mat); pts.frustumCulled = false; pts.renderOrder = o.renderOrder ?? 6;
   return { points: pts, u, dispose() { if (pts.parent) pts.parent.remove(pts); g.dispose(); mat.dispose(); } };
@@ -108,7 +108,8 @@ function run(cloud, o, dur) {
   const parent = o.scene || SCENE; if (parent) parent.add(cloud.points); live.add(cloud);
   return tween({ dur, ease: o.ease || E.linear, delay: o.delay || 0, tag: o.tag, update: e => { cloud.u.uT.value = e; } }).then(ok => { live.delete(cloud); cloud.dispose(); return ok; });
 }
-const count = (o, size) => o.count || Math.min(9000, Math.max(1500, Math.round(size * 900)));
+/* fine grains (Sam: much smaller particles): lots of small points rather than a few blobs */
+const count = (o, size) => o.count || Math.min(16000, Math.max(4000, Math.round(size * 2600)));
 
 /* dissolve(obj) hides obj at once and blows its surface away; resolves when the last point has faded */
 export function dissolve(obj, o = {}) {

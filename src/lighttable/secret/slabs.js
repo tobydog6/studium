@@ -86,9 +86,14 @@ export function roll(o = {}) {
     graded: !!o.graded, sentAt: null, readyAt: null };
   if (variant === 'stamped') slab.stamp = 1 + Math.floor(r() * 50);
   if (tier === 'mythic') slab.serial = '1/1';
-  slab.title = slab.photo.title;
+  slab.title = slab.photo.title; slab.label = rollLabel(r, tier); slab.subs = rollSubs(r, grade);
   return slab;
 }
+/* the label colourway is its own small roll (Sam's call): mostly black and gold, sometimes the tier colour, now and then gold */
+export const LABELS = { black: 'Black and gold', gold: 'Gold', tier: 'Black and tier colour' };
+export function rollLabel(r, tier) { const v = r() * 100, big = tier === 'legendary' || tier === 'mythic'; if (v < (big ? 45 : 10)) return 'gold'; if (v < (big ? 60 : 28)) return 'tier'; return 'black'; }
+/* four sub-grades (Light, Frame, Moment, Print) that sit around the grade: none below it by more than one, at least one equal */
+export function rollSubs(r, grade) { const s = [0, 1, 2, 3].map(() => Math.max(1, Math.min(10, grade + (r() < 0.55 ? 0 : r() < 0.5 ? -1 : 1)))); s[Math.floor(r() * 4)] = grade; return s; }
 /* post a raw card off: it is away until readyAt (waitMs lets the dev panel shorten the day) */
 export function sendForGrading(slab, waitMs) { if (slab.graded || slab.sentAt) return slab; slab.sentAt = Date.now(); slab.readyAt = slab.sentAt + (waitMs ?? GRADING_MS); store.save(); return slab; }
 export function gradingState(slab, now) { if (slab.graded) return 'graded'; if (!slab.sentAt) return 'raw'; return (now || Date.now()) >= slab.readyAt ? 'back' : 'away'; }

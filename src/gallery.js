@@ -13,8 +13,18 @@
   var CROWDS={quiet:["Quiet",6], busy:["Busy",30], packed:["Packed",90]};
   var W=16, D=12, H=3.4, T=0.2;   /* room width (x), depth (z), wall height, wall thickness */
   var look="balanced", crowd="busy", renderer=null, scene=null, cam=null, walls=[], art=[], people=[], tex=[];
-  var yaw=Math.PI/4, zoom=1, canvas=document.getElementById("gl");
-  PHOTOS.forEach(function(u){ var t=new THREE.TextureLoader().load(u); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=4; tex.push(t); });
+  var yaw=Math.PI/4, zoom=1, canvas=document.getElementById("gl"), paused=false;
+  // inside Studium (galleryroom.js opens this page in an iframe) the walls carry the student's own photos: folio ones
+  // first, then picks, then any. Standalone, or with fewer than four photos, the samples hang instead.
+  var BR=null; try{ if(window.parent!==window&&window.parent.GAL_BRIDGE) BR=window.parent.GAL_BRIDGE; }catch(e){}
+  var OWN=null; if(BR){ try{ var all=(BR.data().photos||[]).filter(function(p){ return p&&p.url; }), rank=function(p){ return p.folio?0:p.pick?1:2; };
+    all=all.map(function(p,i){ return [rank(p),i,p]; }).sort(function(a,b){ return a[0]-b[0]||a[1]-b[1]; }).map(function(x){ return x[2]; });
+    if(all.length>=4) OWN=all.slice(0,12); }catch(e){} }
+  if(OWN) PHOTOS=OWN.map(function(p){ return p.url; });
+  var asp=[], hung=[], slot=0;   /* each photo's real aspect (width/height), once its image is in; the frames hung this build */
+  PHOTOS.forEach(function(u,i){ var t=new THREE.TextureLoader().load(u, function(tx){ var im=tx.image; if(im&&im.width&&im.height){ asp[i]=im.width/im.height; hung.forEach(function(f){ if(f.userData.ti===i) fit(f); }); } });
+    t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=4; tex.push(t); });
+  if(BR){ var back=document.createElement("button"); back.className="gal-back"; back.textContent="Back to Studium"; back.onclick=function(){ try{ BR.close(); }catch(e){} }; document.body.appendChild(back); }
 
   function mat(L, hex, rough){ return L.std?new THREE.MeshStandardMaterial({color:hex, roughness:rough==null?0.85:rough, metalness:0}):new THREE.MeshLambertMaterial({color:hex}); }
   function box(L, w,h,d, hex, rough){ var m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(L,hex,rough)); m.castShadow=m.receiveShadow=!!L.shadows; return m; }
@@ -34,10 +44,13 @@
   // walls carry their own hung works, so a cut-away wall takes its art with it
   function wall(L, x,z, len, horiz, nx,nz){ var g=new THREE.Group(), m=box(L, horiz?len:T, H, horiz?T:len, 0xefece6, 0.95); m.position.y=H/2; g.add(m);
     g.position.set(x,0,z); g.userData.n=new THREE.Vector3(nx,0,nz); scene.add(g); walls.push(g); return g; }
-  function hang(L, g, along, horiz, side, ti, wide){ var w=wide||1.9, h=w*(400/600), f=new THREE.Group();
-    var fr=box(L, w+0.12, h+0.12, 0.05, 0x1b1a18, 0.6); f.add(fr);
-    var pic=new THREE.Mesh(new THREE.PlaneGeometry(w,h), L.std?new THREE.MeshStandardMaterial({map:tex[ti%tex.length], roughness:0.7}):new THREE.MeshLambertMaterial({map:tex[ti%tex.length]}));
-    pic.position.z=0.03; f.add(pic);
+  /* size a frame to its photo: landscape keeps the slot's width, portrait gets a height that fits the wall */
+  function fit(f){ var u=f.userData, a=asp[u.ti]||1.5, w, h; if(a>=1){ w=u.wide; h=w/a; } else { h=Math.min(u.wide, 2.1); w=h*a; }
+    u.fr.scale.set(w+0.12, h+0.12, 1); u.pic.scale.set(w, h, 1); }
+  function hang(L, g, along, horiz, side, ti, wide){ var f=new THREE.Group(); if(OWN) ti=slot++; ti=ti%tex.length;
+    var fr=box(L, 1, 1, 0.05, 0x1b1a18, 0.6); f.add(fr);
+    var pic=new THREE.Mesh(new THREE.PlaneGeometry(1,1), L.std?new THREE.MeshStandardMaterial({map:tex[ti], roughness:0.7}):new THREE.MeshLambertMaterial({map:tex[ti]}));
+    pic.position.z=0.03; f.add(pic); f.userData={ti:ti, wide:wide||1.9, fr:fr, pic:pic}; fit(f); hung.push(f);
     var off=T/2+0.03; if(horiz){ f.position.set(along,1.65,side*off); f.rotation.y=side>0?0:Math.PI; } else { f.position.set(side*off,1.65,along); f.rotation.y=side>0?Math.PI/2:-Math.PI/2; }
     g.add(f);
     var wp=new THREE.Vector3(), n=new THREE.Vector3(0,0,1).applyQuaternion(f.getWorldQuaternion(new THREE.Quaternion())); f.updateWorldMatrix(true,false); f.getWorldPosition(wp);
@@ -55,7 +68,7 @@
     var a=art[(Math.random()*art.length)|0]; g.position.set(a.spot.x+(Math.random()-0.5)*2, 0, a.spot.z+(Math.random()-0.5)*2);
     return {g:g, to:null, wait:Math.random()*4, sp:0.7+Math.random()*0.5, ph:Math.random()*6}; }
 
-  function build(){ var L=LOOKS[look]; makeRenderer(L); walls=[]; art=[]; people=[];
+  function build(){ var L=LOOKS[look]; makeRenderer(L); walls=[]; art=[]; people=[]; hung=[]; slot=0;
     scene=new THREE.Scene(); scene.background=new THREE.Color(0x14120f);
     if(L.env){ var pm=new THREE.PMREMGenerator(renderer); scene.environment=pm.fromScene(new window.RoomEnvironment(),0.04).texture; scene.environmentIntensity=0.35; }
     scene.add(new THREE.HemisphereLight(0xfff6ea, 0x3a342c, L.std?(L.env?0.5:1.1):0.9));
@@ -94,7 +107,7 @@
     p.ph+=dt*8; p.g.position.y=Math.abs(Math.sin(p.ph))*0.03; }
 
   var last=performance.now(), acc=0, frames=0;
-  function frame(now){ requestAnimationFrame(frame); var dt=Math.min(0.1,(now-last)/1000); last=now;
+  function frame(now){ requestAnimationFrame(frame); var dt=Math.min(0.1,(now-last)/1000); last=now; if(paused) return;
     people.forEach(function(p){ step(p,dt); }); placeCam(); renderer.render(scene,cam);
     acc+=dt; frames++; if(acc>=0.5){ document.getElementById("fps").textContent=Math.round(frames/acc)+" fps";
       document.getElementById("ms").textContent=(acc/frames*1000).toFixed(1)+" ms a frame · "+LOOKS[look].name+" · "+people.length+" visitors"; acc=0; frames=0; } }
@@ -119,5 +132,7 @@
   buttons("crowds", CROWDS, crowd, function(k){ crowd=k; addPeople(); });
   function sync(){ document.querySelectorAll("#looks button,#crowds button").forEach(function(x){ x.classList.toggle("on", x.dataset.k===look||x.dataset.k===crowd); }); }
   window.__gl={set:function(l,c){ if(c){ crowd=c; } look=l||look; sync(); build(); }, info:function(){ return renderer.info.render; }};
+  /* Studium's handle on this page (galleryroom.js): pause while the gallery is closed */
+  window.GALapp={pause:function(on){ paused=!!on; last=performance.now(); }};
   build(); requestAnimationFrame(frame);
 })();

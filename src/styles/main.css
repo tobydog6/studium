@@ -3109,6 +3109,9 @@ body.la-wel-on #prompt,body.la-wel-on #crosshair,body.la-wel-on #navCoach,body.l
 #st-table{left:0;right:0;bottom:0;top:72px;display:block;overflow:hidden;background:#0c0b0a}
 #st-table .lt-frame{display:block;width:100%;height:100%;border:0}
 #st-table .lt-err{margin:40px;font:14px/1.5 var(--sans);color:var(--muted)}
+#gal-room{position:fixed;inset:0;z-index:10000;background:#0c0b0a}
+#gal-room .gal-frame{display:block;width:100%;height:100%;border:0}
+#gal-room .gal-err{margin:40px;font:14px/1.5 var(--sans);color:var(--muted)}
 body[data-state="studio.table"] #stHints{display:none}
 .q-grid.n4{grid-template-columns:repeat(4,1fr)}
 .qm-acts .q-try{background:none;border:1px solid var(--accent);color:var(--accent)}

@@ -3,7 +3,7 @@
   // to the location). Edit hosts the develop panel under the studio bar; every other room is drawn here, and
   // Gallery's "walk the show" opens the 3D gallery show.
   var ST_ROOMS=[["research","Research"],["select","Library"],["edit","Edit"],["table","Light table"],["workshop","Workbook"],["folio","Folio"],["book","Book"],["gallery","Gallery"]];
-  var st={open:false, room:"select", cur:-1, cols:4, wsPages:[], wsBoard:null, foBoard:null, projects:[], lightTable:null, thumb:"m", hideRej:false, cmp:-1};
+  var st={open:false, room:"select", cur:-1, cols:4, wsPages:[], wsBoard:null, foBoard:null, projects:[], lightTable:null, galGame:null, thumb:"m", hideRej:false, cmp:-1};
 
   function stPencil(seed){   // a loose grease-pencil loop on a superellipse, overshooting where it started
     var cx=107, cy=74, a=102, b=69, n=7, N=54, k0=seed*1.7, pts=[];

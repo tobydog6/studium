@@ -584,7 +584,7 @@
     if(viewer){ try{ chRender(dt); }catch(e){} }   /* the gold frames draw after the last pass, at the screen's full resolution, so they're crisp however low the scene is drawing */
   }
   function animate(){ requestAnimationFrame(animate); var dt=Math.min(clock.getDelta(),0.1);
-    if((typeof cbOpen!=="undefined" && cbOpen) || (typeof bg!=="undefined" && bg.open) || (typeof st!=="undefined" && st.open)) return;   // the camera back covers the scene: stop drawing it (big win on school PCs)
+    if((typeof cbOpen!=="undefined" && cbOpen) || (typeof bg!=="undefined" && bg.open) || (typeof st!=="undefined" && st.open) || (typeof GAL!=="undefined" && GAL.on)) return;   /* the camera back, studio or gallery covers the scene: stop drawing it (big win on school PCs) */
     if(typeof RF!=="undefined"&&RF.on){ if(!loaded&&(RF.bg=(RF.bg||0)+1)%3===0) renderFrame(dt); return; }   /* the launch page is a still with its own lens; Spark only finishes building the scan while it's being drawn, so it's drawn now and then, small, under the still, until it's in */
     if(!(typeof LA!=="undefined"&&LA.on)&&(App.is("hub")||App.is("signin")||document.body.classList.contains("la-wel-on"))){ if(!loaded&&viewer&&(animate.bg=(animate.bg||0)+1)%3===0) renderFrame(dt); return; }   /* the hub, sign-in and the welcome card cover the scene: don't draw it (a scan still loading is drawn now and then so Spark finishes building it) */
     if(loaded) updateCamera(dt); renderFrame(dt); dynTick(dt); if(viewfinderOn) vfLevelTick(); }
@@ -793,13 +793,13 @@
   /* empty the workspace in memory only (nothing saved is deleted): photos, boards, book, gallery, folio */
   function wipeWorkspace(){ clearTimeout(_saveT); if(typeof lsDB!=="undefined"&&lsDB.wbOwner){ delete lsDB.wbOwner; lsSave(); } photos.length=0; briefDone={}; if(typeof foItems!=="undefined") foItems=[]; if(typeof pbPages!=="undefined") pbPages=[];
     if(typeof foClearBoard==="function") try{ foClearBoard(); }catch(e){}
-    if(typeof st!=="undefined"){ st.wsBoard=null; st.foBoard=null; st.projects=[]; st.wsPages=[]; st.lightTable=null; if(typeof ltReset==="function") ltReset(); if(typeof wsB!=="undefined") wsB.reset(null); if(typeof foB!=="undefined") foB.reset(null); }
+    if(typeof st!=="undefined"){ st.wsBoard=null; st.foBoard=null; st.projects=[]; st.wsPages=[]; st.lightTable=null; st.galGame=null; if(typeof ltReset==="function") ltReset(); if(typeof wsB!=="undefined") wsB.reset(null); if(typeof foB!=="undefined") foB.reset(null); }
     if(typeof bk!=="undefined") bk.pages=[]; if(typeof ga!=="undefined"){ ga.title=""; ga.list=null; ga.sizes={}; ga.pos={}; }
     refreshCount(); }
   function sessionData(){ return { v:1, savedAt:sessionSavedAt||Date.now(),   /* when the work last changed, not when it was last written */ studentName:studentName, briefDone:briefDone,
     photos:photos.map(function(p){ return {url:p.url,orig:p.orig||null,dev:p.dev||null,id:p.id||null,copy:!!p.copy,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,baked:p.baked||null,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order,challenge:p.challenge||null,lens:p.lens||null,shake:p.shake||0,research:!!p.research,credit:p.credit||null,light:p.light||null,ev:p.ev==null?null:p.ev,cap:p.cap||null}; }),
     quests:(typeof Q!=="undefined"?Q:null), presets:(typeof prData==="function"?prData():null),
-    workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), projects:(typeof st!=="undefined"?st.projects:[]), lightTable:(typeof st!=="undefined"?st.lightTable||null:null), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title,list:ga.list,label:ga.label}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
+    workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), projects:(typeof st!=="undefined"?st.projects:[]), lightTable:(typeof st!=="undefined"?st.lightTable||null:null), galGame:(typeof st!=="undefined"?st.galGame||null:null), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title,list:ga.list,label:ga.label}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
   function saveSessionNow(){ if(!photos.length && !(typeof foItems!=="undefined"&&foItems&&foItems.length)) return;
@@ -821,7 +821,7 @@
     if(d.workshop&&d.workshop.length&&typeof st!=="undefined") st.wsPages=d.workshop;
     if(d.book&&d.book.pages&&typeof bk!=="undefined"){ bk.size=d.book.size||"20x25"; bk.pages=d.book.pages; }
     if(d.galleryPrefs&&typeof ga!=="undefined"){ ga.frame=d.galleryPrefs.frame||"black"; ga.gap=d.galleryPrefs.gap||250; ga.sizes=d.galleryPrefs.sizes||{}; ga.pos=d.galleryPrefs.pos||{}; ga.title=d.galleryPrefs.title||""; ga.list=d.galleryPrefs.list||null; ga.label=d.galleryPrefs.label||{x:null,y:null,style:"card",size:1}; }
-    if(typeof st!=="undefined"){ st.lightTable=d.lightTable||null; if(typeof ltReset==="function") ltReset(); }
+    if(typeof st!=="undefined"){ st.lightTable=d.lightTable||null; st.galGame=d.galGame||null; if(typeof ltReset==="function") ltReset(); }
     if(d.wsBoard&&typeof st!=="undefined"){ st.wsBoard=d.wsBoard; wsB.reset(d.wsBoard); }
     if(d.foBoard&&typeof st!=="undefined"){ st.foBoard=d.foBoard; foB.reset(d.foBoard); }
     if(d.projects&&typeof st!=="undefined") st.projects=d.projects;
@@ -1161,6 +1161,7 @@
 @@include studio.js@@
 @@include advance.js@@
 @@include lighttable.js@@
+@@include galleryroom.js@@
 @@include crtables.js@@
 @@include crdev.js@@
 @@include edpanels.js@@

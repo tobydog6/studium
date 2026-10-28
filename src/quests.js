@@ -108,7 +108,7 @@
      steps:[{t:"Set up a key and a fill with the lighting tour", tour:"lightrig", go:"scene", check:function(){ return qTour("lightrig")||qTour("lighting"); }},
        {t:"A night frame with both your lights on", go:"scene", check:function(q){ return qPhotosSince(q).some(function(p){ return qTime(p)==="night"&&qLightsOn(p)>=2; }); }},
        {t:"A frame at golden hour", tour:"golden", go:"scene", check:function(q){ return qPhotosSince(q).some(function(p){ return qTime(p)==="golden"; }); }}]},
-    {id:"d5", type:"main", pillar:"context", mins:5, title:"Look at others", blurb:"Rank a photographer's work in the Culling Game, then choose six photographs from the archive for an artist model page.", go:"research", page:"artist",
+    {id:"d5", type:"main", pillar:"context", mins:5, title:"Look at others", blurb:"Rank a photographer's work in the Culling Game, then choose seven photographs from the archive for an artist model page.", go:"research", page:"artist",
      steps:[{t:"Play a Culling Game", go:"research", check:function(){ return qPacks("cull").length>=1; }},
        {t:"Make an Artist model page and press Finished", tour:"artist", go:"research", check:function(){ return qPages("artist").some(function(pg){ return !!pg.done; }); }}]},
     {id:"d6", type:"main", pillar:"drive", mins:4, title:"Show your thinking", blurb:"Put two of your photos side by side and say, in one sentence, what makes them different.", go:"workshop", page:"compare",

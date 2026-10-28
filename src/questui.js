@@ -62,9 +62,9 @@
       +'<div class="bar"><b style="width:'+((r.i)/x.steps.length*100).toFixed(0)+'%"></b></div>'; }
 
   // ---- the quest board: rows of three. One tile per quest; a row opens when the row above is done. Click a tile for its page. ----
-  function qTile(x){ var s=qStatus(x.id), p=qProgress(x.id), lock=qLockReason(x), tr=Q.tracked===x.id, sug=!tr&&!lock&&s!=="done"&&(qSuggest()||{}).id===x.id, mins=x.mins?x.mins+" MIN":"";
+  function qTile(x){ var s=qStatus(x.id), p=qProgress(x.id), lock=qLockReason(x), tr=Q.tracked===x.id, sug=!tr&&!lock&&s!=="done"&&(!qSet().rows||(function(ri){ return ri<0||ri===0||qRowDone(ri-1); })(qRowOf(x.id))), mins=x.mins?x.mins+" MIN":"";
     var dots=qSteps(x.id).map(function(c){ return '<i class="'+(c.ok?'ok':'')+'"></i>'; }).join("");
-    var word=tr?"TRACKING":s==="done"?"DONE":s==="active"?"IN PROGRESS":lock?"LOCKED":sug?"SUGGESTED":"";
+    var word=tr?"TRACKING":s==="done"?"DONE":s==="active"?"IN PROGRESS":lock?"LOCKED":sug?"OPEN":"";
     var tst=qClipKind(x)==="lighting"||x.go==="folio";   /* testing: jump straight into the lighting rig or the folio tour, even while it's locked */
     return '<button class="q-tile s-'+s+(tr?' tr':'')+(sug?' sug':'')+'"'+(lock&&!x.try?(tst?' aria-disabled="true"':' disabled'):' data-q-see="'+x.id+'"')+'>'+(tst?'<span class="q-test" data-q-test="'+x.id+'" title="'+(x.go==="folio"?'Testing: straight into the folio tour, with your photos on the board':'Testing: skip ahead to the lighting rig')+'">TEST</span>':'')
       +'<span class="q-tk">'+qPillarChip(x)+(mins?'<em>'+mins+'</em>':'')+'</span>'
@@ -80,10 +80,13 @@
     if(wall){ el.innerHTML=h+achWallHtml()+'</div>'; el.classList.add("show"); QU.log=true; qHud(); return; }
     h+='<p class="q-bp0">'+(Q.tracked?'You can switch quests whenever you like. Your progress is kept.':'Pick one to see what it looks like, then track it. Any order within a row.')+'</p>';
     R.forEach(function(r,i){ var done=r.quests.filter(function(x){ return qIsDone(x.id); }).length, open=i===0||qRowDone(i-1), newly=open&&!QU.rowSeen[i];
-      h+='<div class="q-rowh'+(open?'':' shut')+'"><span class="q-rn">'+(i+1)+'</span><span class="q-rt">'+qEsc(r.n.toUpperCase())+'</span><span class="q-rp">'+(open?done+' / '+r.quests.length:'OPENS WHEN ROW '+i+' IS DONE')+'</span><i class="q-rl"><b style="width:'+(done/Math.max(1,r.quests.length)*100).toFixed(0)+'%"></b></i></div>'
+      h+='<div class="q-rowh'+(open?'':' shut')+'" data-q-row="'+i+'"><span class="q-rn">'+(i+1)+'</span><span class="q-rt">'+qEsc(r.n.toUpperCase())+'</span><span class="q-rp">'+(open?done+' / '+r.quests.length:'OPENS WHEN ROW '+i+' IS DONE')+'</span><i class="q-rl"><b style="width:'+(done/Math.max(1,r.quests.length)*100).toFixed(0)+'%"></b></i></div>'
         +'<div class="q-grid'+(newly?' rise':'')+(r.quests.length===4?' n4':'')+'">'+r.quests.map(qTile).join("")+'</div>'; if(open) QU.rowSeen[i]=1; });
+    var hi=-1; R.forEach(function(r,i){ if(i===0||qRowDone(i-1)) hi=i; });
     if(qDemo()) h+='<div class="q-demo"><span>DEMO · '+qTook()+'</span><button class="gd-skip" data-q="restart">Restart demo</button></div>';
-    el.innerHTML=h+'</div>'; el.classList.add("show"); QU.log=true; qHud(); }
+    el.innerHTML=h+'</div>'; el.classList.add("show"); QU.log=true; qHud();
+    /* the first time a row opens, bring it into view (small laptops have to scroll the board) */
+    var seenTo=Q.rowScroll|0; if(hi>0&&hi>seenTo){ Q.rowScroll=hi; qSave(); var rh=el.querySelector('[data-q-row="'+hi+'"]'); if(rh) setTimeout(function(){ try{ rh.scrollIntoView({behavior:"smooth",block:"start"}); }catch(e){} },550); } }
   QU.rowSeen={};
   function qPickOpen(){ qBoardOpen("q"); }
   function qPickClose(){ qLogClose(); }
@@ -187,7 +190,7 @@
   function qcTag(g,t){ g.font="500 10.5px 'Geist Mono',ui-monospace,monospace"; var w=g.measureText(t).width; g.fillStyle="rgba(12,11,10,.74)"; g.fillRect(10,10,w+20,22); g.fillStyle="#e3ad57"; g.textBaseline="alphabetic"; g.textAlign="left"; g.fillText(t,20,25); }
   function qcFrame(g,x,y,w,h,c){ g.strokeStyle=c||"#e3ad57"; g.lineWidth=2; g.strokeRect(x+1,y+1,w-2,h-2); }
   function qClipDraw(kind, cv, ms){ var dpr=Math.min(2,window.devicePixelRatio||1), W=cv.clientWidth||340, H=cv.clientHeight||227; if(cv.width!==Math.round(W*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
-    var g=cv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.globalAlpha=1; g.filter="none"; g.fillStyle="#0c0b0a"; g.fillRect(0,0,W,H); var T=5200, u=(ms%T)/T, k, i;
+    var g=cv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.globalAlpha=1; g.filter="none"; g.fillStyle="#0c0b0a"; g.fillRect(0,0,W,H); var T=3400, u=(ms%T)/T, k, i;
     if(kind==="shoot"){ qcImg(g,0,0,W,H); k=qcS(u,.05,.3); var ih=qcL(H,H*0.6,k), iw=qcL(W,W*0.6,k); g.fillStyle="rgba(8,7,6,.78)"; g.fillRect(0,0,W,(H-ih)/2); g.fillRect(0,(H+ih)/2,W,(H-ih)/2); g.fillRect(0,(H-ih)/2,(W-iw)/2,ih); g.fillRect((W+iw)/2,(H-ih)/2,(W-iw)/2,ih);
       if(k>.95){ var af=u<.56?"#e3ad57":"#5fe08a", s=u<.56?22+Math.sin(ms/40)*2:20; g.strokeStyle=af; g.lineWidth=2; g.strokeRect(W/2-s/2,H/2-s/2,s,s); }
       var fl=u>.62&&u<.7?1-qcS(u,.62,.7):0; if(fl){ g.fillStyle="rgba(255,255,255,"+fl*0.9+")"; g.fillRect(0,0,W,H); }

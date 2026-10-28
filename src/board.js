@@ -333,7 +333,12 @@
       h+='</div></div>';
       if(o.papers) h+='<div class="bd-sec"><span class="eb">PAPER</span><div class="bd-chips">'+o.papers.map(function(p){ return '<button data-bd-paper="'+p+'" class="'+((d.paper||"white")===p?'on':'')+'"><i class="sw '+p+'"></i>'+p.toUpperCase()+'</button>'; }).join("")+'</div></div>';
       h+='<button class="ws-gold bd-export" data-bd-act="export">'+o.exportLabel+'</button>';
-      el.innerHTML=h; }
+      el.innerHTML=h; bgNudge(el); }
+    /* the tour asks for a black page: on a small screen the colour chips sit far down the side panel, so bring them into view once */
+    var bgNudged=null;
+    function bgNudge(el){ setTimeout(function(){ try{ if(typeof CO==="undefined"||!CO.on||typeof coSteps!=="function") return; var st=coSteps()[CO.i]; if(!st||typeof st.target!=="string"||st.target.indexOf("data-bd-bg")<0){ return; }
+        var key=CO.tour+":"+CO.i; if(bgNudged===key) return; var b=el.querySelector('[data-bd-bg="black"]'); if(!b||!b.offsetParent) return; bgNudged=key; b.scrollIntoView({block:"center",behavior:"smooth"}); }catch(e){} },80); }
+    setInterval(function(){ if(typeof CO==="undefined"||!CO.on) return; var r=$(o.el), el=r&&r.querySelector(".bd-side"); if(el) bgNudge(el); },800);
     function inkChips(one){ var cur=one.color||inkOf(page()); return '<div class="bd-chips">'+Object.keys(BD_INKS).map(function(c){ return '<button data-bd-ink="'+BD_INKS[c][0]+'" class="'+(cur===BD_INKS[c][0]?'on':'')+'" title="'+BD_INKS[c][1]+'">'+swatch(BD_INKS[c][0])+'</button>'; }).join("")+'</div>'; }
     function renderTray(){ libRender($(o.el).querySelector(".bd-tray"), "board"); }
     // ---- editing ----

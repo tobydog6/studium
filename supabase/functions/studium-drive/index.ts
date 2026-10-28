@@ -23,8 +23,8 @@ const RETURN = Deno.env.get("STUDIUM_RETURN_URL") ?? "https://studium.nz/?full";
 const BUCKET = "studium-workbooks";
 const A3 = { w: 15120000, h: 10692000 };   // 420 × 297 mm in EMU
 const PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-// where "back" may point: the live site, Netlify previews, and a local dev server
-const BACK_OK = /^(https:\/\/(www\.)?studium\.nz|https:\/\/[a-z0-9-]+\.netlify\.app|http:\/\/localhost(:\d+)?)(\/|$)/;
+// where "back" may point: the live site and a local dev server
+const BACK_OK = /^(https:\/\/(www\.)?studium\.nz|http:\/\/localhost(:\d+)?)(\/|$)/;
 
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, apikey, content-type", "Access-Control-Allow-Methods": "POST, GET, OPTIONS" };
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { ...CORS, "Content-Type": "application/json" } });
@@ -92,9 +92,12 @@ async function buildFor(userId: string, force = false): Promise<Result> {
   if (!wb || !wb.class_code) return { ok: false, reason: "no-workbook" };
   const cls = await one(`studium_classes?code=eq.${encodeURIComponent(wb.class_code)}&select=code,name,teacher_id`);
   if (!cls) return { ok: false, reason: "no-class" };
+  // the workbook row is written by the student: only trust a class they really joined, and only their own page images
+  if (!await one(`studium_members?class_code=eq.${encodeURIComponent(cls.code)}&user_id=eq.${userId}&select=user_id`)) return { ok: false, reason: "not-a-member" };
   const tg = await one(`studium_teacher_google?teacher_id=eq.${cls.teacher_id}&select=*`);
   if (!tg) return { ok: false, reason: "not-connected" };
-  const pages: { id: string; path: string; hash: string }[] = wb.pages ?? [];
+  const pages: { id: string; path: string; hash: string }[] = (wb.pages ?? []).filter((p: { path?: string }) =>
+    typeof p.path === "string" && p.path.startsWith(userId + "/") && !p.path.includes(".."));
   const name = `${wb.student || "Student"} · Workbook`;
   const hash = await sha(name + "|" + pages.map((p) => p.id + ":" + p.hash).join(","));
   const deckRow = await one(`studium_decks?user_id=eq.${userId}&select=*`);
@@ -125,8 +128,11 @@ async function buildFor(userId: string, force = false): Promise<Result> {
       body: JSON.stringify({ expiresIn: 900, paths: pages.map((p) => p.path) }) });
     const signed = await r.json();
     if (!r.ok) throw new Error("sign " + r.status);
-    urls = signed.map((s: { signedURL: string }) => SB + "/storage/v1" + s.signedURL);
+    urls = signed.map((s: { signedURL: string | null }) => s.signedURL ? SB + "/storage/v1" + s.signedURL : "");
   }
+  // a page whose image is missing is left out rather than failing the whole deck
+  const keepIdx = pages.map((_, i) => i).filter((i) => urls[i]);
+  const pagesOk = keepIdx.map((i) => pages[i]), urlsOk = keepIdx.map((i) => urls[i]);
 
   // rebuild: new slides first (on the blank layout the deck started with), then the old ones go
   const pres = await g(tok, `https://slides.googleapis.com/v1/presentations/${deck}?fields=slides(objectId,slideProperties(layoutObjectId)),layouts(objectId),pageSize`);
@@ -134,11 +140,11 @@ async function buildFor(userId: string, force = false): Promise<Result> {
   const layout = pres.slides?.[0]?.slideProperties?.layoutObjectId ?? pres.layouts?.[0]?.objectId;
   const W = pres.pageSize?.width?.magnitude ?? A3.w, H = pres.pageSize?.height?.magnitude ?? A3.h;
   const stamp = Date.now().toString(36), reqs: unknown[] = [];
-  const slides = pages.length ? pages : [null];
+  const slides = pagesOk.length ? pagesOk : [null];
   slides.forEach((_, i) => {
     const sid = `s${stamp}_${i}`;
     reqs.push({ createSlide: { objectId: sid, insertionIndex: i, ...(layout ? { slideLayoutReference: { layoutId: layout } } : {}) } });
-    if (pages.length) reqs.push({ createImage: { objectId: `i${stamp}_${i}`, url: urls[i], elementProperties: { pageObjectId: sid,
+    if (pagesOk.length) reqs.push({ createImage: { objectId: `i${stamp}_${i}`, url: urlsOk[i], elementProperties: { pageObjectId: sid,
       size: { width: { magnitude: W, unit: "EMU" }, height: { magnitude: H, unit: "EMU" } }, transform: { scaleX: 1, scaleY: 1, translateX: 0, translateY: 0, unit: "EMU" } } } });
     else {
       reqs.push({ createShape: { objectId: `t${stamp}`, shapeType: "TEXT_BOX", elementProperties: { pageObjectId: sid,
@@ -151,7 +157,7 @@ async function buildFor(userId: string, force = false): Promise<Result> {
 
   await db("studium_decks?on_conflict=user_id", { method: "POST", prefer: "resolution=merge-duplicates",
     body: JSON.stringify({ user_id: userId, deck_id: deck, built_hash: hash, built_at: new Date().toISOString() }) });
-  return { ok: true, pages: pages.length };
+  return { ok: true, pages: pagesOk.length };
 }
 
 // ---------- the request ----------
@@ -215,13 +221,16 @@ Deno.serve(async (req) => {
         const cls = await one(`studium_classes?code=eq.${encodeURIComponent(body.class_code)}&select=teacher_id`);
         if (!cls || cls.teacher_id !== me.id) return json({ ok: false, reason: "not-your-class" }, 403);
         if (!await one(`studium_teacher_google?teacher_id=eq.${me.id}&select=teacher_id`)) return json({ ok: false, reason: "not-connected" });
-        const ms = (await db(`studium_members?class_code=eq.${encodeURIComponent(body.class_code)}&select=user_id`)) ?? [];
-        let built = 0, skipped = 0, failed = 0;
-        for (const m of ms) {
-          try { const r = await buildFor(m.user_id); if (r.skipped) skipped++; else if (r.ok) built++; }
-          catch (e) { failed++; console.error("build", m.user_id, e); }
-        }
-        return json({ ok: failed === 0 || built + skipped > 0, built, skipped, failed });
+        const ms: { user_id: string }[] = (await db(`studium_members?class_code=eq.${encodeURIComponent(body.class_code)}&select=user_id`)) ?? [];
+        // a whole class can take longer than one request may run, so it carries on in the background, four at a time
+        const queue = ms.map((m) => m.user_id);
+        const work = Promise.all([0, 1, 2, 3].map(async () => {
+          for (let id = queue.shift(); id; id = queue.shift()) { try { await buildFor(id); } catch (e) { console.error("build", id, e); } }
+        }));
+        // deno-lint-ignore no-explicit-any
+        const rt = (globalThis as any).EdgeRuntime;
+        if (rt?.waitUntil) rt.waitUntil(work); else await work;
+        return json({ ok: true, started: ms.length });
       }
       return json(await buildFor(me.id));
     }

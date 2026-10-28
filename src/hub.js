@@ -113,7 +113,7 @@
     if(a==="join"){ var code=($("siCode").value||"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
       if(code.length<6){ toast("Class codes are six letters and numbers."); return; }
       if(siGoogle){ Sync.joinClass(code).then(function(c){ if(!c){ toast("We couldn't find that code. Check the board?"); return; }   /* signed in with Google: their Google name is the name, no second step */
-          lsDB.classes[code]=c; lsSave(); return Sync.addMember(code, siGoogle.name).then(function(){ var g=siGoogle; siGoogle=null; lsSetWho({role:"student", name:g.name, code:code, google:true}); siDone(); }); })
+          lsDB.classes[code]=c; lsSave(); return Sync.addMember(code, siGoogle.name).then(function(nm){ siGoogle=null; lsSetWho({role:"student", name:nm, code:code, google:true}); siDone(); }); })
           .catch(function(){ toast("That didn't go through. Check the internet and try again."); }); return; }
       var hit=lsDB.classes[code]; if(!hit&&typeof Sync!=="undefined"&&Sync.on()){ Sync.joinClass(code).then(function(c){ if(c){ lsDB.classes[code]=c; lsSave(); siPending=code; siAskName(); } else toast("We couldn't find that code. Check the board?"); }); return; }
       if(!hit){ toast("We couldn't find that code. Check the board?"); return; } siPending=code; return siAskName(); }

@@ -20,7 +20,8 @@ create table if not exists studium_members (     -- a student in a class
   name       text not null,
   email      text,
   joined_at  timestamptz default now(),
-  primary key (class_code, user_id)
+  primary key (class_code, user_id),
+  unique (class_code, name)                -- notes find a student by name, so a name is never shared in a class
 );
 
 create table if not exists studium_plans (       -- one plan per class per day; body is the plan JSON from lesson.js
@@ -110,10 +111,10 @@ do $$ declare r record; begin
     execute format('drop policy %I on %I', r.policyname, r.tablename); end loop; end $$;
 
 -- anyone signed in can look a class up by its code (that's how joining works); only its teacher changes it
-create policy "read class by code"   on studium_classes  for select using (auth.role() = 'authenticated');
+-- classes: only their teacher and their students see them. Joining looks one up by its exact code (studium_class_by_code)
 create policy "teacher owns class"   on studium_classes  for all    using (teacher_id = auth.uid()) with check (teacher_id = auth.uid());
-create policy "join a class"         on studium_members  for insert with check (user_id = auth.uid());
-create policy "update own name"      on studium_members  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "students see their class" on studium_classes for select using (exists (select 1 from studium_members m where m.class_code = studium_classes.code and m.user_id = auth.uid()));
+create policy "join a class"         on studium_members  for insert with check (user_id = auth.uid());   -- no update: a name can't be changed to someone else's
 create policy "see own membership"   on studium_members  for select using (user_id = auth.uid() or exists (select 1 from studium_classes c where c.code = class_code and c.teacher_id = auth.uid()));
 create policy "class reads plan"     on studium_plans    for select using (exists (select 1 from studium_members m where m.class_code = studium_plans.class_code and m.user_id = auth.uid()) or exists (select 1 from studium_classes c where c.code = studium_plans.class_code and c.teacher_id = auth.uid()));
 create policy "teacher writes plan"  on studium_plans    for all    using (exists (select 1 from studium_classes c where c.code = studium_plans.class_code and c.teacher_id = auth.uid()));
@@ -124,6 +125,13 @@ create policy "student reads notes"  on studium_notes    for select using (exist
 create policy "anyone leaves feedback" on studium_feedback for insert with check (true);   -- the public demo has no login
 create policy "own workbook"         on studium_workbooks for all   using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "teacher reads workbooks" on studium_workbooks for select using (exists (select 1 from studium_classes c where c.code = studium_workbooks.class_code and c.teacher_id = auth.uid()));
+
+-- one class by its exact code, for the sign-in screen (never a list)
+create or replace function studium_class_by_code(c text) returns table(code text, name text, teacher text, period text, start int)
+  language sql security definer set search_path = public as $$
+  select code, name, teacher, period, start from studium_classes where code = upper(c) and auth.role() = 'authenticated' limit 1;
+$$;
+grant execute on function studium_class_by_code(text) to authenticated;
 
 -- achievement rarity: "% of your class has this". Returns only counts, never who.
 create or replace function studium_ach_rarity(code text) returns table(id text, pct int) language sql security definer set search_path = public as $$

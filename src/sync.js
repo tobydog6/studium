@@ -44,9 +44,11 @@
     function forget(){ session=null; user=null; keep(); }
 
     // ---- classes ----
-    function joinClass(code){ return rest("studium_classes?code=eq."+enc(code)+"&select=code,name,teacher,period,start").then(function(r){ return r&&r[0]||null; }).catch(function(){ return null; }); }
+    function joinClass(code){ return rest("rpc/studium_class_by_code",{method:"POST", body:{c:code}}).then(function(r){ return r&&r[0]||null; }).catch(function(){ return null; }); }
     function myMembership(){ return me().then(function(u){ if(!u) return null; return rest("studium_members?user_id=eq."+u.id+"&select=class_code,name&order=joined_at.desc&limit=1").then(function(r){ return r&&r[0]||null; }); }).catch(function(){ return null; }); }
-    function addMember(code, name){ return me().then(function(u){ return rest("studium_members?on_conflict=class_code,user_id",{method:"POST", prefer:"resolution=merge-duplicates", body:{class_code:code, user_id:u.id, name:name, email:u.email}}); }); }
+    /* names are unique in a class (teacher notes find a student by name): a second "Sam Smith" joins with their email name added. Resolves to the name used. */
+    function addMember(code, name){ return me().then(function(u){ var put=function(nm){ return rest("studium_members",{method:"POST", body:{class_code:code, user_id:u.id, name:nm, email:u.email}}).then(function(){ return nm; }); };
+      return put(name).catch(function(){ return myMembership().then(function(m){ if(m&&m.class_code===code) return m.name; return put(name+" ("+(u.email||"").split("@")[0]+")"); }); }); }); }
     function myClasses(){ return me().then(function(u){ if(!u) return []; return rest("studium_classes?teacher_id=eq."+u.id+"&select=code,name,teacher,period,start&order=created_at.asc"); }).catch(function(){ return []; }); }
     var classT=0;
     function pushClass(c){ if(!signedIn()||!c) return; clearTimeout(classT);   /* typing in the class popup: send once it settles */

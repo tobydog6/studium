@@ -210,7 +210,7 @@
     if(a==="out"){ $("teacher").classList.add("hidden"); return siSignOut(siShow); }
     if(a==="gsign"){ return Sync.signIn("google", "teacher"); }
     if(a==="drive"){ toast("Opening Google…"); return Sync.driveConnect().then(function(j){ if(!j||!j.url) toast(j&&j.error==="no-google-client"?"Google isn't set up on the server yet (docs/google-setup.md).":"Couldn't reach Google. Try again."); }); }
-    if(a==="decks"){ toast("Updating every student's deck…"); return Sync.driveRebuild(c.code).then(function(j){ toast(j&&j.ok?"Updated "+(j.built||0)+" deck"+(j.built===1?"":"s")+(j.skipped?", "+j.skipped+" already up to date":"")+".":"Couldn't update the decks"+(j&&j.reason==="not-connected"?": connect Google Drive first.":".")); }); } }
+    if(a==="decks"){ return Sync.driveRebuild(c.code).then(function(j){ toast(j&&j.ok?(j.started?"Updating "+j.started+" deck"+(j.started===1?"":"s")+". They'll be in your Drive in a minute or two.":"No students have joined yet."):"Couldn't update the decks"+(j&&j.reason==="not-connected"?": connect Google Drive first.":".")); }); } }
   (function wireTeacher(){ var t=$("teacher"); if(!t) return;
     t.addEventListener("click",function(e){ var b=e.target.closest("[data-tc],[data-tc-tab],[data-tc-tpl],[data-tc-blk],[data-tc-open],[data-tc-firm],[data-tc-f],[data-tc-st],[data-tc-q]"); if(!b) return; var pl=tcPlan();
       if(b.hasAttribute("data-tc")) return tcAct(b.getAttribute("data-tc"), b);

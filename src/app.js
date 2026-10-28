@@ -785,7 +785,7 @@
   function studioReturn(){ if(suiteFrom==="studio"){ suiteFrom="scene"; hubShow("studio"); studioSync(); } }
 
   // ---- session persistence (IndexedDB — survives closing the tab, fully offline) ----
-  var _db=null, _saveT=null, sessionRestored=false, sessionLoaded=false, sessionSavedAt=0;   /* loaded: this computer's saved work has been read (the cloud restore waits for it) */
+  var _db=null, _saveT=null, sessionRestored=false, sessionLoaded=false, sessionSavedAt=0, sessionLocalAt=0, _sessEdit=false;   /* loaded: this computer's saved work has been read (the cloud restore waits for it) */
   function idb(cb){ if(_db){ cb(_db); return; } try{ var r=indexedDB.open("splatstudio",1);
     r.onupgradeneeded=function(e){ try{ e.target.result.createObjectStore("state"); }catch(_){} };
     r.onsuccess=function(e){ _db=e.target.result; cb(_db); }; r.onerror=function(){ cb(null); }; }catch(e){ cb(null); } }
@@ -796,15 +796,21 @@
     if(typeof st!=="undefined"){ st.wsBoard=null; st.foBoard=null; st.projects=[]; st.wsPages=[]; st.lightTable=null; if(typeof ltReset==="function") ltReset(); if(typeof wsB!=="undefined") wsB.reset(null); if(typeof foB!=="undefined") foB.reset(null); }
     if(typeof bk!=="undefined") bk.pages=[]; if(typeof ga!=="undefined"){ ga.title=""; ga.list=null; ga.sizes={}; ga.pos={}; }
     refreshCount(); }
-  function sessionData(){ return { v:1, savedAt:Date.now(), studentName:studentName, briefDone:briefDone,
+  function sessionData(){ return { v:1, savedAt:sessionSavedAt||Date.now(),   /* when the work last changed, not when it was last written */ studentName:studentName, briefDone:briefDone,
     photos:photos.map(function(p){ return {url:p.url,orig:p.orig||null,dev:p.dev||null,id:p.id||null,copy:!!p.copy,t:p.t,f:p.f,sh:p.sh,iso:p.iso,mm:p.mm,body:p.body,brief:p.brief,edited:p.edited,baked:p.baked||null,uploaded:p.uploaded,rating:p.rating||0,pick:!!p.pick,reject:!!p.reject,note:p.note||"",place:p.place||null,order:p.order==null?null:p.order,challenge:p.challenge||null,lens:p.lens||null,shake:p.shake||0,research:!!p.research,credit:p.credit||null,light:p.light||null,ev:p.ev==null?null:p.ev,cap:p.cap||null}; }),
     quests:(typeof Q!=="undefined"?Q:null), presets:(typeof prData==="function"?prData():null),
     workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), projects:(typeof st!=="undefined"?st.projects:[]), lightTable:(typeof st!=="undefined"?st.lightTable||null:null), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title,list:ga.list,label:ga.label}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
-  function saveSessionNow(){ if(!photos.length && !(typeof foItems!=="undefined"&&foItems&&foItems.length)) return; idb(function(db){ if(!db) return; try{ db.transaction("state","readwrite").objectStore("state").put(sessionData(),sessKey()); sessionSavedAt=Date.now(); }catch(e){} }); if(typeof Sync!=="undefined"&&Sync.cloudSoon) Sync.cloudSoon(); }
-  function saveSession(){ clearTimeout(_saveT); _saveT=setTimeout(saveSessionNow, 700); }
-  function loadSession(cb0){ var cb=function(a,b){ sessionLoaded=true; if(cb0) cb0(a,b); }; idb(function(db){ if(!db){ cb&&cb(false); return; } try{ var rq=db.transaction("state","readonly").objectStore("state").get(sessKey());
+  function saveSessionNow(){ if(!photos.length && !(typeof foItems!=="undefined"&&foItems&&foItems.length)) return;
+    var edited=_sessEdit; _sessEdit=false; if(edited||!sessionSavedAt) sessionSavedAt=Date.now();   /* looking round without changing anything never makes an old copy look newest */
+    idb(function(db){ if(!db) return; try{ db.transaction("state","readwrite").objectStore("state").put(sessionData(),sessKey()); }catch(e){} });
+    /* work done while not signed in to Google is this computer's, not the last Google student's */
+    var wh=(typeof lsWho==="function")?lsWho():null;
+    if(edited&&typeof lsDB!=="undefined"&&lsDB.csOwner&&!(typeof Sync!=="undefined"&&Sync.signedIn())&&!(wh&&(wh.google||wh.demo))){   /* a Google student whose sign-in lapsed is still that student */ delete lsDB.csOwner; lsSave(); }
+    if(typeof Sync!=="undefined"&&Sync.cloudSoon) Sync.cloudSoon(); }
+  function saveSession(){ _sessEdit=true; clearTimeout(_saveT); _saveT=setTimeout(saveSessionNow, 700); }
+  function loadSession(cb0){ var cb=function(a,b){ sessionLocalAt=sessionSavedAt; sessionLoaded=true; if(cb0) cb0(a,b); };   /* sessionLocalAt: when this computer's saved work was last current, before anything saves over it */ idb(function(db){ if(!db){ cb&&cb(false); return; } try{ var rq=db.transaction("state","readonly").objectStore("state").get(sessKey());
     rq.onsuccess=function(){ var d=rq.result; if(d&&d.photos&&d.photos.length){ applySession(d); cb&&cb(true,d.photos.length); } else cb&&cb(false); };
     rq.onerror=function(){ cb&&cb(false); }; }catch(e){ cb&&cb(false); } }); }
   function applySession(d, cloud){ try{   /* cloud: the student's saved work from their account, which replaces this computer's quest progress too */
@@ -819,7 +825,7 @@
     if(d.wsBoard&&typeof st!=="undefined"){ st.wsBoard=d.wsBoard; wsB.reset(d.wsBoard); }
     if(d.foBoard&&typeof st!=="undefined"){ st.foBoard=d.foBoard; foB.reset(d.foBoard); }
     if(d.projects&&typeof st!=="undefined") st.projects=d.projects;
-    if(d.quests&&d.quests.v&&typeof Q!=="undefined"&&(cloud||!(Q.quests&&Object.keys(Q.quests).length))){ for(var qk in d.quests) Q[qk]=d.quests[qk]; if(cloud&&typeof qSave==="function") qSave(); }   // quest progress saved with the session wins only when this browser has none
+    if(d.quests&&d.quests.v&&typeof Q!=="undefined"&&(cloud||!(Q.quests&&Object.keys(Q.quests).length))){ for(var qk in d.quests) Q[qk]=d.quests[qk]; if(cloud&&typeof qSave==="function") qSave(); }   /* quest progress saved with the session wins when this browser has none, or when it's the student's own from the cloud */
     if(typeof qFixMoodboards==="function"&&qFixMoodboards()) wsB.reset(st.wsBoard);
     (d.photos||[]).forEach(function(p){ p.t=p.t?new Date(p.t):new Date(); photos.push(p); });
     if(d.folio&&d.folio.length&&typeof foItems!=="undefined") foItems=d.folio.map(function(x){ return {url:x.url,size:x.size}; });

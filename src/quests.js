@@ -96,9 +96,9 @@
     {id:"d1", type:"foundation", order:1, pillar:"craft", mins:8, title:"Getting started", blurb:"Learn to move, shoot and set the camera, then take the three gold-frame shots.", go:"scene",
      steps:[{t:"Do the warm-up", tour:"basics", go:"scene", check:function(){ return qTour("basics"); }},
        {t:"Complete the 3 gold frames", go:"scene", check:function(){ return qChDone()>=3; }, now:function(){ return qCount(qChDone(),3); }}]},
-    {id:"d2", type:"foundation", order:2, pillar:"craft", mins:4, title:"Shoot it your way", blurb:"Swap to another camera from the bag, then take at least five frames of your own.", go:"scene",
-     steps:[{t:"Try another camera", check:function(q){ return qOtherBody(q); }},
-       {t:"Take 5 photos", check:function(q){ return qPhotosSince(q).length>=5; }, now:function(q){ return qCount(qPhotosSince(q).length,5); }}]},
+    {id:"d2", type:"foundation", order:2, pillar:"craft", mins:4, title:"Shoot it your way", blurb:"Take at least five frames of your own, then swap to a different camera from the bag.", go:"scene",
+     steps:[{t:"Take 5 photos", check:function(q){ return qPhotosSince(q).length>=5; }, now:function(q){ return qCount(qPhotosSince(q).length,5); }},
+       {t:"Try another camera", check:function(q){ return qOtherBody(q); }}]},
     {id:"d3", type:"foundation", order:3, pillar:"craft", mins:7, title:"Choose and edit", blurb:"Pick your strongest five, edit one, then copy that look onto another.", go:"select",
      steps:[{t:"Learn to pick and reject", tour:"select", go:"select", check:function(){ return qTour("select"); }},
        {t:"Pick 5 frames", go:"select", check:function(){ return qPicks().length>=5; }, now:function(){ return qCount(qPicks().length,5); }},
@@ -129,7 +129,8 @@
      steps:[{t:"Make your own folder", tour:"library", go:"select", check:function(){ return ((typeof st!=="undefined"&&st.projects)||[]).length>=1; }}]}
   ]};
   /* any frame on a camera other than the one you start with */
-  function qOtherBody(q){ var b0=(typeof BODIES!=="undefined"&&BODIES[0])?BODIES[0].name:null, seen={}; photos.forEach(function(p){ if(p.body&&!p.research&&!p.uploaded) seen[p.body]=1; }); return Object.keys(seen).length>=2||qPhotosSince(q).some(function(p){ return p.body&&p.body!==b0; }); }
+  /* a different camera from the one you had when the quest started: photos already taken with other bodies don't count */
+  function qOtherBody(q){ if(!q||!q.base||typeof curBody!=="function") return false; var id=curBody().id; if(!q.base.body){ q.base.body=id; qSave(); return false; } return id!==q.base.body; }
   function qLensesUsed(q){ var L={}; qPhotosSince(q).forEach(function(p){ if(p.lens) L[p.lens]=1; }); return Q_LENSES.filter(function(k){ return L[k]; }).length; }
   function qBriefs(){ return BRIEFS.filter(function(b){ return (briefDone[b.id]||0)>=3; }).length; }
   function qTimes(q){ var c={day:0, golden:0, night:0}; qPhotosSince(q).forEach(function(p){ var t=qTime(p); if(c[t]!=null) c[t]++; }); return ["day","golden","night"].filter(function(t){ return c[t]>=3; }).length; }
@@ -188,7 +189,7 @@
     return x.steps.map(function(st0,i){ var ok=!!done||!!(s&&s.stepDone[i]); if(!ok&&s){ try{ ok=!!st0.check(s); }catch(e){ ok=false; } if(ok) s.stepDone[i]=true; }
       var now=null; if(!ok&&st0.now&&s){ try{ now=st0.now(s); }catch(e){} } return {t:st0.t, ok:ok, now:now, tour:st0.tour||null, go:st0.go||x.go}; }); }
   function qProgress(id){ var st=qSteps(id); return {done:st.filter(function(s){ return s.ok; }).length, of:st.length}; }
-  function qTrack(id){ var x=qGet(id); if(!x||qLockReason(x)) return false; if(typeof QU!=="undefined"&&QU.replay&&QU.replay.id!==id&&typeof qReplayEnd==="function") qReplayEnd(false); /* tracking another quest ends a replay */ if(Q.tracked!==id) sfx("qPick"); if(!Q.quests[id]) Q.quests[id]={started:Date.now(), base:{photos:photos.length, t:Date.now()}, done:null, stepDone:{}};
+  function qTrack(id){ var x=qGet(id); if(!x||qLockReason(x)) return false; if(typeof QU!=="undefined"&&QU.replay&&QU.replay.id!==id&&typeof qReplayEnd==="function") qReplayEnd(false); /* tracking another quest ends a replay */ if(Q.tracked!==id) sfx("qPick"); if(!Q.quests[id]) Q.quests[id]={started:Date.now(), base:{photos:photos.length, t:Date.now(), body:(typeof curBody==="function"?curBody().id:null)}, done:null, stepDone:{}};
     Q.tracked=id; qSave(); if(typeof qUI==="function") qUI(); return true; }
   // once a second-ish: tick the tracked quest (and any started one) and finish what's finished
   var Q_EVENTS=[];
@@ -221,7 +222,7 @@
   if(/[?&]dev/.test(location.search)) window.__q={
     state:function(){ return {set:Q.set, tracked:Q.tracked, board:!!Q.boardOpen, tours:Object.keys(Q.tours), flags:Q.flags, rs:Q.rs, checkpoints:qCheckpoints(),
       quests:qAll().map(function(x){ var p=qProgress(x.id); return {id:x.id, type:x.type, status:qStatus(x.id), lock:qLockReason(x), done:p.done, of:p.of, steps:qSteps(x.id).map(function(s){ return [s.ok?1:0, s.t, s.now]; })}; })}; },
-    track:qTrack, tick:qTick, complete:function(id,i){ var s=Q.quests[id]||(Q.quests[id]={started:Date.now(), base:{photos:photos.length, t:Date.now()}, done:null, stepDone:{}}); if(i==null){ s.done=Date.now(); } else s.stepDone[i]=true; qTick(); qSave(); },
+    track:qTrack, tick:qTick, complete:function(id,i){ var s=Q.quests[id]||(Q.quests[id]={started:Date.now(), base:{photos:photos.length, t:Date.now(), body:(typeof curBody==="function"?curBody().id:null)}, done:null, stepDone:{}}); if(i==null){ s.done=Date.now(); } else s.stepDone[i]=true; qTick(); qSave(); },
     setCheckpoints:function(o){ Q.cps=o; qSave(); },
     // test helpers: a scripted session without walking anywhere
     frames:function(n){ (CH.list||[]).slice(0,n).forEach(function(c){ CH.done[c.id]=1; }); return qChDone(); },

@@ -13,7 +13,10 @@
     if(p==="shoot") return lsGo("shoot");
     if(p==="critique"){ if(typeof cbOpen!=="undefined"&&cbOpen) closeBack(false); if(bg.open) closeBag(); hubHide("punctum"); hubHide("landing"); return openStudio("research"); }   // Punctum lives in the studio now, as Research
     if(p==="studio"){ if(typeof cbOpen!=="undefined"&&cbOpen) closeBack(false); if(bg.open) closeBag(); hubHide("punctum"); hubHide("landing"); return openStudio(st.room&&st.room!=="edit"?st.room:"select"); } }
-  function navRender(){ var d=$("dock"); if(!d) return; var here=navHere(), show=App.is("hub")||App.is("landing")||App.is("punctum");
+  /* the dock only shows over a place that's actually on screen: at page open the state is already "hub" behind the launch page and sign-in, so it used to pop up before the home card */
+  function navUp(id){ var e=$(id); return !!e&&!e.classList.contains("hidden"); }
+  function navRender(){ var d=$("dock"); if(!d) return; var here=navHere(), B=document.body.classList, busy=B.contains("launching")||B.contains("rackin")||navUp("signin")||(typeof LA!=="undefined"&&LA.on),
+      show=!busy&&((App.is("hub")&&navUp("hub"))||(App.is("landing")&&navUp("landing"))||(App.is("punctum")&&navUp("punctum")));
     d.classList.toggle("show", show);
     if(show) d.innerHTML=NAV_PLACES.map(function(p){ return '<button class="'+(p[0]===here?'on':'')+'" data-nav="'+p[0]+'"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">'+p[3]+'</svg>'+p[1]+'<span>'+p[2]+'</span></button>'; }).join("");
     navScene(); }
@@ -40,6 +43,15 @@
       var ed=$("editor"); if(ed&&!ed.classList.contains("hidden")) return;
       if(e.code==="KeyH"){ e.preventDefault(); e.stopImmediatePropagation(); navGo("home"); }
       else if(e.code==="KeyC"&&!App.is("punctum")){ e.preventDefault(); e.stopImmediatePropagation(); navGo("critique"); } }, true);
+    /* overlays come and go without a state change (launch, sign-in, the hub card), so the dock re-checks when they do */
+    var navQ=0, navObs=function(){ if(navQ) return; navQ=requestAnimationFrame(function(){ navQ=0; navRender(); }); };
+    if(window.MutationObserver){ var mo=new MutationObserver(navObs); mo.observe(document.body,{attributes:true, attributeFilter:["class"]});
+      ["hub","landing","punctum","signin"].forEach(function(id){ var e=$(id); if(e) mo.observe(e,{attributes:true, attributeFilter:["class"]}); }); }
+    /* Space in the studio: close it and go back to shooting */
+    window.addEventListener("keydown",function(e){ if(e.code!=="Space"||e.repeat||!st.open) return; var t=e.target, tag=t&&t.tagName;
+      if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT"||(t&&t.isContentEditable)||e.ctrlKey||e.metaKey||e.altKey||lsMoveOpen()) return;
+      if(typeof anyOutputOpen==="function"&&anyOutputOpen()) return;
+      e.preventDefault(); e.stopImmediatePropagation(); closeStudio(); if(!loaded) lsGo("shoot"); navRender(); }, true);
     navRender(); })();
   /* in a location the bar refreshes every couple of seconds (frame count, today's task); anywhere else it stops */
   var navTimer=0;
@@ -54,7 +66,7 @@
   function kitStudioArt(){ var L=photos.filter(function(p){ return !p.research; }).slice(-3).reverse(), h="";
     for(var i=0;i<3;i++){ var p=L[i]; h+=p?'<img class="ka-p ka-p'+(i+1)+'" src="'+p.url+'" alt="" draggable="false">':'<i class="ka-p ka-p'+(i+1)+'"></i>'; } return h; }
   var KIT_ART={
-    back:'<img class="ka-back" src="asset:assets/camera/dslr-back.webp" alt="" draggable="false">',
+    back:'<span class="ka-cam"><img class="ka-back" src="asset:assets/camera/dslr-back.webp" alt="" draggable="false"><span class="ka-scr"></span></span>',
     bag:'<i class="ka-shelf"></i><i class="ka-bspot"></i><img class="ka-t ka-t1" src="asset:assets/bag/thumb-2470.webp" alt="" draggable="false"><img class="ka-t ka-t3" src="asset:assets/bag/thumb-85.webp" alt="" draggable="false"><img class="ka-t ka-t2" src="asset:assets/bag/thumb-50.webp" alt="" draggable="false">',
     lights:'<i class="ka-floor"></i><i class="ka-glow"></i><img class="ka-soft" src="asset:assets/kit/softbox.webp" alt="" draggable="false">'};
   function kitRender(){ var k=$("kitMenu"); if(!k){ k=document.createElement("div"); k.id="kitMenu"; document.body.appendChild(k);
@@ -64,7 +76,12 @@
     k.innerHTML='<div class="kit-wrap"><div class="kit-top"><span class="kit-eb">MENU</span><h2>What do you need?</h2><em>Press Space any time to open this.</em></div>'
       +'<div class="kit-row">'+KIT_ITEMS.map(function(it,i){ return '<button class="kit-card" data-kit="'+it[0]+'" data-kit-i="'+i+'" style="--w:'+((i>>1)+(i&1))+'"><div class="kit-art ka-'+it[0]+'">'+(it[0]==="studio"?kitStudioArt():KIT_ART[it[0]])+'</div><div class="kit-meta"><b>'+it[1]+'</b><span>'+it[2]+'</span></div><kbd>'+it[3]+'</kbd></button>'; }).join("")+'</div>'
       +(typeof weKitHTML==="function"?weKitHTML():"")+'<div class="kit-foot"><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> or click to choose</span><span><kbd>5</kbd><kbd>6</kbd><kbd>7</kbd> weather</span><span><kbd>Space</kbd> or <kbd>Esc</kbd> back to the scene</span></div></div>';
-    kitMark(); }
+    kitScreen(); kitMark();
+    /* the tiles come in on a short wave; if a busy GPU stalls the animation (a Mac's Retina screen behind the scan), they still land */
+    clearTimeout(KIT.settleT); k.classList.remove("settled"); KIT.settleT=setTimeout(function(){ k.classList.add("settled"); },900); }
+  /* the camera back's own screen on the Settings tile: what the camera is set to right now */
+  function kitScreen(){ var e=document.querySelector("#kitMenu .ka-scr"); if(!e) return;
+    try{ e.innerHTML='<span class="t">SETTINGS</span><span class="v"><b>'+cbEsc(SHUTTER_LABELS[shIdx])+'</b><b>f/'+cbEsc(APERTURES[apIdx])+'</b><b>ISO '+cbEsc(ISOS[isoIdx])+'</b></span><span class="t">'+cbEsc(curBody().name.toUpperCase())+' · '+focalMM+' MM</span>'; }catch(x){ e.innerHTML=""; } }
   function kitMark(){ Array.prototype.forEach.call(document.querySelectorAll("#kitMenu .kit-card"),function(c,i){ c.classList.toggle("on", i===KIT.sel); }); }
   /* the menu remembers whether you were looking round or had the camera up, so closing it puts you straight back (like the bag does) */
   function kitOpen(){ if(!loaded||(typeof st!=="undefined"&&st.open)) return; KIT.vf=!!viewfinderOn; KIT.look=!!looking||KIT.vf; if(looking) document.exitPointerLock(); KIT.open=true; KIT.sel=0; kitRender(); sfx("kitOpen"); }

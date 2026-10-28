@@ -112,7 +112,7 @@
     {key:"sh", cap:"Shutter", unit:"seconds", vals:SHUTTER_LABELS, o:0, idx:shIdx, lo:"Freezes motion · darker", hi:"Brighter · hands shake", dir:1},
     {key:"ap", cap:"Aperture", unit:"f-stop", vals:APERTURES.slice(apLo,apHi+1).map(function(a){ return String(a); }), o:apLo, idx:apIdx-apLo, lo:"Brighter · soft background", hi:"Darker · sharp all through", dir:-1},
     {key:"iso",cap:film?"Film ISO":"ISO", unit:film?"roll":"sensor", vals:ISOS.slice(0,iHi+1).map(String), o:0, idx:Math.min(isoIdx,iHi), lo:film?"Fine grain · needs light":"Clean · needs light", hi:film?"Faster film · grainier":"Brighter · grainy", dir:1,
-      lock:film&&filmIsoLocked(), note:film?(filmIsoLocked()?"This roll is ISO "+ISOS[isoIdx]+". Load a new roll to change it.":"A fresh roll: choose its ISO. It's fixed once you take the first frame."):""}]; }
+      lock:film&&filmIsoLocked(), note:""}]; }
   var CB_ICON={sh:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="13" r="8"/><path d="M12 13V8.5M12 13l3 2M9.5 2.5h5"/></svg>',
     ap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 3l3.6 7.2M21 12l-7.8 1.2M16.5 19.8L11 14.3M6 18.6l2.7-7.4M3.3 9.3l7.9 1.1M9 3.5l1.5 7.9"/></svg>',
     iso:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 8h.01M12 8h.01M16 8h.01M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01" stroke-width="2.4" stroke-linecap="round"/></svg>'};

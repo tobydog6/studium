@@ -2377,7 +2377,7 @@ body.rl-open .nav-acts,body.rl-open .nav-coach,body.rl-open #hint{opacity:0!impo
 .rs-mt span{position:absolute;left:0;right:0;bottom:0;padding:14px 8px 6px;background:linear-gradient(transparent,rgba(0,0,0,.75));color:var(--ink-2);font-size:11px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rs-mbar{position:sticky;bottom:0;display:flex;gap:10px;padding:14px 0;background:linear-gradient(transparent,#0f0d0a 30%)}
 .rs-mbar .rs-go[disabled]{opacity:.4;cursor:default}
-#kitMenu{position:fixed;inset:0;z-index:940;display:none;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 55%,rgba(14,11,7,.42),rgba(8,7,5,.62) 80%);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+#kitMenu{position:fixed;inset:0;z-index:940;display:none;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 55%,rgba(14,11,7,.6),rgba(8,7,5,.78) 80%)}   /* no backdrop blur: over the live scan it re-blurs every frame, and on a Mac that starved the tiles */
 #kitMenu.show{display:flex}
 #kitMenu .kit-wrap{width:min(1240px,92vw)}
 #kitMenu .kit-top{display:flex;align-items:baseline;gap:22px;flex-wrap:wrap;margin:0 4px 34px}
@@ -2451,6 +2451,21 @@ body[data-co-kit="bag"] #kitMenu .kit-card[data-kit="bag"],body[data-co-kit="bac
 #kitMenu .ka-p2{left:12%;top:30%;transform:rotate(-11deg);z-index:2}
 #kitMenu .ka-p3{left:46%;top:34%;transform:rotate(8deg);z-index:1}
 #kitMenu .kit-card.on .ka-p1{transform:rotate(-2deg) translateY(-6px)}#kitMenu .kit-card.on .ka-p2{transform:rotate(-14deg) translateX(-8px)}#kitMenu .kit-card.on .ka-p3{transform:rotate(11deg) translateX(8px)}
+/* the Settings tile: the whole camera back, zoomed onto its screen, with what it's set to on the screen (fits a small Mac window too) */
+#kitMenu .kit-art{height:clamp(130px,21vh,200px)}
+#kitMenu .ka-cam{position:absolute;left:50%;top:50%;height:160%;aspect-ratio:1760/1328;transform:translate(-50%,-62.8%);transition:transform .35s cubic-bezier(.2,.7,.2,1)}
+#kitMenu .kit-card.on .ka-cam{transform:translate(-50%,-62.8%) scale(1.04)}
+#kitMenu .ka-cam .ka-back{left:0;top:0;width:100%;height:100%;transform:none;-webkit-mask-image:none;mask-image:none}
+#kitMenu .kit-card.on .ka-cam .ka-back{transform:none}
+#kitMenu .ka-scr{position:absolute;left:21.5%;top:45%;width:38.9%;height:35.5%;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:.6vh;background:#0a0806;border-radius:2px;font-family:var(--mono);color:var(--accent);overflow:hidden}
+#kitMenu .ka-scr .t{font-size:clamp(7px,.95vh,10px);letter-spacing:.16em;color:var(--ink-4);white-space:nowrap}
+#kitMenu .ka-scr .v{display:flex;gap:1.1vh}
+#kitMenu .ka-scr .v b{font-weight:500;font-size:clamp(10px,1.7vh,17px);white-space:nowrap}
+/* animations that never finished (a stalled frame clock) can't leave the menu blank */
+#kitMenu.settled .kit-top,#kitMenu.settled .kit-card,#kitMenu.settled .kit-foot,#kitMenu.settled .kit-wx{animation:none}
+body[data-co-kit="bag"] #kitMenu.settled .kit-card[data-kit="bag"],body[data-co-kit="back"] #kitMenu.settled .kit-card[data-kit="back"],body[data-co-kit="lights"] #kitMenu.settled .kit-card[data-kit="lights"]{animation:coKit 1.5s ease-in-out infinite}
+/* the tour's "choose one of these" lens step: the three lenses glow on their own, not a ring round the whole tray */
+body:has(#bag .bg-tray.co-target) .co-ring{display:none!important}
 #rlPanel .rl-sun{margin-top:6px}
 #rlPlanUI .rlp-sun{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none}
 #rlPlanUI .rlp-sun i{position:absolute;left:-17px;top:-17px;width:34px;height:34px;border-radius:50%;background:radial-gradient(circle,#fff3d0 30%,#f2b54e 62%,rgba(242,181,78,0) 72%);box-shadow:0 0 26px 8px rgba(242,181,78,.45)}

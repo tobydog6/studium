@@ -236,7 +236,7 @@
   var _isoBody=null, _digIso=null;
   function filmShots(){ var b=curBody(); return photos.filter(function(p){ return p.body===b.name; }).length; }
   function filmFresh(){ var b=curBody(); return !!b.film&&filmShots()%(b.roll||10)===0; }
-  function filmIsoLocked(){ return !!curBody().film&&!filmFresh(); }
+  function filmIsoLocked(){ return false; }   /* for now ISO on film moves freely; loading a new roll to change it comes later */
   function rollIsoIdx(){ var b=curBody();
     if(!filmFresh()){ for(var p=photos.length-1;p>=0;p--) if(photos[p].body===b.name){ if(photos[p].iso) b.rollIso=photos[p].iso; break; } }   /* a roll part-shot (a saved session too): it's the speed its frames were taken at */
     var i=ISOS.indexOf(b.rollIso||400); return Math.max(0,Math.min(FILM_ISO_MAX,i<0?2:i)); }
@@ -245,7 +245,7 @@
       if(b.film){ if(!(was&&was.film)) _digIso=isoIdx; isoIdx=rollIsoIdx(); }
       else if(was&&was.film&&_digIso!=null){ isoIdx=_digIso; _digIso=null; } return; }
     if(!b.film) return; isoIdx=Math.max(0,Math.min(FILM_ISO_MAX,isoIdx));
-    if(isoIdx!==rollIsoIdx()){ if(filmFresh()) b.rollIso=ISOS[isoIdx]; else { isoIdx=rollIsoIdx(); if(typeof toast==="function") toast("This roll is ISO "+(b.rollIso||400)+". You can change it when you load a new roll."); } } }
+    b.rollIso=ISOS[isoIdx]; }
   /* stops as a photographer says them: 0, +⅓, −1, +1⅔ (a true minus sign) */
   function evText(ev){ var n=Math.round(Math.abs(ev)*3), w=Math.floor(n/3), r=n%3; if(!n) return "0"; return (ev<0?"−":"+")+(w?String(w):"")+(r===1?"⅓":r===2?"⅔":""); }
   function stopWords(ev){ var n=Math.round(Math.abs(ev)*3), w=Math.floor(n/3), r=n%3, f=r===1?"⅓":r===2?"⅔":"";

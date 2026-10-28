@@ -537,7 +537,7 @@
   function rbSec(id,title,body,extra){ var col=RLB.coll&&RLB.coll[id]; return '<section class="lr-sec'+(col?' collapsed':'')+'" data-rb-sec="'+id+'"><header class="lr-sechdr"><span class="lr-chev">⌄</span><span class="lr-secname">'+title+'</span>'+(extra||'')+'</header><div class="lr-body">'+body+'</div></section>'; }
   function rbRow(k,label,v,mn,mx,step,txt,trk){ return '<div class="lr-row"><span class="lr-n">'+label+'</span><input type="range" data-rb-k="'+k+'"'+(trk?' class="trk-var" style="--trk:'+trk+'"':'')+' min="'+mn+'" max="'+mx+'" step="'+step+'" value="'+v+'"><span class="lr-v">'+txt+'</span></div>'; }
   var RLB_KTRK="linear-gradient(90deg,#ff8a2a,#ffb46a 18%,#ffe2bf 40%,#fff6ec 52%,#e3ecff 70%,#a9c4ff)";
-  function rbRatioTxt(r){ return r==null?["–","No key light yet"]:[(r<10?r.toFixed(1):Math.round(r))+" : 1", rbRatioWord(r).charAt(0).toUpperCase()+rbRatioWord(r).slice(1)]; }
+  function rbRatioTxt(r){ return r==null?["–","No key light yet"]:[(r>16?"16+":r<10?r.toFixed(1):Math.round(r))+" : 1", rbRatioWord(r).charAt(0).toUpperCase()+rbRatioWord(r).slice(1)]; }
   function rbPanel(full){ var p=$("rbSide"); if(!p||!RLB.open) return; var L=rbCur(), roles=RLB.roles=rbRoles(), ratio=rbRatio(roles), rt=rbRatioTxt(ratio);
     if(!full&&p.firstChild){ var rv=p.querySelector("#rbRatioV"), rw=p.querySelector("#rbRatioW"); if(rv) rv.textContent=rt[0]; if(rw) rw.textContent=rt[1];
       var f=p.querySelector(".rb-facts"); if(f&&L) f.textContent=rbFacts(L,roles[RLB.sel]);
@@ -697,8 +697,18 @@
   /* the tour's views: wide to place a light, from where you shoot to judge it, from the side to watch a shadow's edge */
   var RLB_VIEWS={wide:{el:0.6, need:2.0, min:2.6}, shoot:{el:0.18, need:0.95, min:1.3}, judge:{el:0.32, need:1.4, min:1.8}, side:{el:0.45, need:1.3, min:1.8, turn:-75}};
   function rbView(name){ var V=RLB_VIEWS[name]; if(!V) return false; var H=rbHome(), h=H;
+    if(name==="side"&&rbSideView()) return true;
     if(V.turn){ var a=V.turn*(RLB.keySide||1)*Math.PI/180, ca=Math.cos(a), sa=Math.sin(a); h={x:H.x*ca-H.z*sa, z:H.x*sa+H.z*ca}; }
     rbFrame(h,V); return true; }
+  /* side, to compare a big light and a small one: from the light's side, so its stand sits at the left edge of the set, the stump in
+     the middle catches it and the shadow's edge runs across. The tour card takes the clear right-hand side */
+  function rbSideView(){ var T=rbTarget(), S=RL.S, L=null; ["fresnel","softbox"].some(function(fx){ var x=rbFind(fx); if(x&&x.on) L=x; return !!L; }); if(!L) L=rbFind("fresnel")||rbFind("softbox"); if(!L) return false;
+    var lx=L.x-T.x, lz=L.z-T.z, ld=Math.hypot(lx,lz); if(ld<0.2*S) return false; lx/=ld; lz/=ld;
+    var th=-96*Math.PI/180, hx=lx*Math.cos(th)-lz*Math.sin(th), hz=lx*Math.sin(th)+lz*Math.cos(th);   /* square on to the light, a touch behind it, so its head sits below the daylight bar; it lands on screen left */
+    var vf=(camera.fov||50)*Math.PI/360, sw=Math.max(200,innerWidth-RLB_SIDE), shH=Math.max(200,innerHeight-260), hh=Math.atan(Math.tan(vf)*sw/innerHeight);   /* half the set's width, as an angle */
+    var lat=ld*Math.sin(-th), dep=ld*Math.cos(-th), el=0.34, want=Math.tan(hh*0.72);   /* the light sits most of the way to the left edge, high enough to clear the daylight bar */
+    var dd=Math.max(1.4*S, (lat/want+dep)/Math.cos(el)); dd=Math.min(dd,14*S);
+    var half=Math.min(vf,Math.atan(Math.tan(vf)*Math.max(0.5,sw/shH))); rbFrame({x:hx,z:hz},{el:el, need:dd*Math.tan(half)/S, min:0}); return true; }
   function rbStepView(){ if(typeof CO==="undefined"||!CO||!CO.on||typeof coSteps!=="function") return null; var s=coSteps()[CO.i]; if(!s||!s.view) return null; return typeof s.view==="function"?s.view():s.view; }
   function rbFit(){ var v=rbStepView(); if(!(v&&rbView(v))) rbFrame(); }   /* Fit: back to the tour's view, or just step back */
   function rbViewTick(){ if(!RLB.open||viewfinderOn||RLB.drag||RLB.kdrag) return; var v=rbStepView(); if(!v) return; var k=CO.tour+"|"+CO.i; if(!RLB.viewSeen||RLB.viewSeen.k!==k) RLB.viewSeen={k:k, n:{}}; if(RLB.viewSeen.n[v]) return; RLB.viewSeen.n[v]=1; rbView(v); }   /* each view once per step, never back and forth */   /* each step lines the camera up once; drag away freely after */

@@ -25,6 +25,13 @@
   function coArrow(){ var a=null; coWs().items.forEach(function(it){ if(it.t==="line"&&it.head!=="none") a=it; }); return a; }
   function coInPhoto(x,y){ return coWs().items.some(function(it){ if(it.t!=="photo") return false; var h=it.w/((typeof stAspect==="function"&&stById(it.pid)>=0)?stAspect(stById(it.pid)):1.5); return x>=it.x&&x<=it.x+it.w&&y>=it.y&&y<=it.y+h; }); }
   function coRanked(){ return coWs().items.filter(function(it){ return it.t==="text"&&it.rank&&String(it.text||"").trim().length>=8; }).length; }
+  /* the n-th frame in panel 1's top third, on screen */
+  function coFoEl(n){ if(typeof foB==="undefined") return null; var pg=foB.page(), k=-1, c=0; pg.items.forEach(function(it,j){ if(k<0&&it.t==="photo"&&it.sec==="0.0"&&!it.hidden){ if(c===n) k=j; c++; } }); return k<0?null:document.querySelector('#st-folio .bd-sheet [data-bd="'+k+'"]'); }
+  /* a ghost hand that drags the first frame onto the second, over and over, so it's clear what to do */
+  function coSwapDemo(){ var a=coFoEl(0), b=coFoEl(1), g=document.querySelector(".co-demo"); if(!a||!b||CO.down){ if(g) g.style.opacity="0"; return; }
+    var ra=a.getBoundingClientRect(), rb=b.getBoundingClientRect(); if(!g){ g=document.createElement("div"); g.className="co-demo"; g.innerHTML='<i class="ghost"></i><b class="hand"></b>'; document.body.appendChild(g); }
+    var gh=g.querySelector(".ghost"), w=Math.min(ra.width,140)*0.5, h=w*ra.height/Math.max(1,ra.width); gh.style.width=w+"px"; gh.style.height=h+"px"; var im=a.querySelector("img"); if(im&&gh._src!==im.src){ gh._src=im.src; gh.style.backgroundImage="url("+im.src+")"; }
+    g.style.setProperty("--ax",(ra.left+ra.width/2)+"px"); g.style.setProperty("--ay",(ra.top+ra.height/2)+"px"); g.style.setProperty("--bx",(rb.left+rb.width/2)+"px"); g.style.setProperty("--by",(rb.top+rb.height/2)+"px"); g.style.opacity="1"; }
   function coFoSec(){ return typeof foB!=="undefined"?foB.secItems("0.0"):[]; }
   function coRoom(r){ return typeof st!=="undefined"&&st.open&&st.room===r; }
 
@@ -111,7 +118,7 @@
   function coMark(id,lo,hi){ coUnmark(); var inp=coInp(id); if(!inp) return; var row=inp.closest(".lr-row"); if(!row) return; row.classList.add("co-markrow");
     var mn=+inp.min, mx=+inp.max, th=7, span=inp.offsetWidth-2*th, fa=(lo-mn)/(mx-mn), fb=(hi-mn)/(mx-mn), m=document.createElement("i"); m.className="co-mark co-band";
     m.style.left=(inp.offsetLeft+th+fa*span).toFixed(1)+"px"; m.style.width=Math.max(6,(fb-fa)*span).toFixed(1)+"px"; m.style.top=(inp.offsetTop+inp.offsetHeight/2)+"px"; row.appendChild(m); }
-  function coUnmark(){ Array.prototype.forEach.call(document.querySelectorAll(".co-mark,.co-patch"),function(m){ m.parentNode.removeChild(m); }); Array.prototype.forEach.call(document.querySelectorAll(".co-markrow"),function(r){ r.classList.remove("co-markrow"); }); }
+  function coUnmark(){ Array.prototype.forEach.call(document.querySelectorAll(".co-mark,.co-patch,.co-demo"),function(m){ m.parentNode.removeChild(m); }); Array.prototype.forEach.call(document.querySelectorAll(".co-markrow"),function(r){ r.classList.remove("co-markrow"); }); }
   function coPatch(k,hue,sat){ var d=document.querySelector('#lrGrade .cg-disc[data-cg="'+k+'"]'); if(!d||d.querySelector(".co-patch")) return; var a=hue*Math.PI/180, r=sat/100*50, m=document.createElement("i"); m.className="co-patch";
     m.style.left=(50+Math.cos(a)*r).toFixed(1)+"%"; m.style.top=(50-Math.sin(a)*r).toFixed(1)+"%"; d.appendChild(m); }
   function coFmt(key,v){ return key==="exposure"?fmtExp(v):/^(sharpen|gShS|gShH)$/.test(key)?""+v:(v>0?"+":"")+v; }   /* one-way sliders and the hue read without a plus */
@@ -268,7 +275,8 @@
       {ch:"FILL", line:function(){ return 'Fill it up: <b>5 photos</b>'; }, sub:"The same photo more than once is fine. They always fill the whole third: no white space.",
         target:'#st-folio .lib-grid', done:function(){ return coFoSec().length>=5; }, bar:function(){ return coFoSec().length/5; }},
       {ch:"ARRANGE", line:function(){ return '<b>Drag one photo onto another</b> to swap them'; }, sub:"The order changes how the third fills and reads.",
-        target:'#st-folio .bd-sheet .bd-it.ph', start:function(){ CO.s.o=coFoSec().map(function(it){ return it.id; }).join(); }, done:function(){ return coFoSec().map(function(it){ return it.id; }).join()!==CO.s.o; }},
+        target:function(){ return coFoEl(0); }, targets:function(){ var a=coFoEl(0), b=coFoEl(1); return [a,b].filter(Boolean); }, nodim:true,
+        start:function(){ CO.s.o=coFoSec().map(function(it){ return it.id; }).join(); }, done:function(){ coSwapDemo(); return coFoSec().map(function(it){ return it.id; }).join()!==CO.s.o; }},
       {ch:"ARRANGE", line:function(){ return 'Click <b>SIZE</b> in the middle of a photo to make it bigger'; }, sub:"Click again for bigger still, and once more to go back. The rest make room.",
         target:'#st-folio .bd-sheet .bd-szb', start:function(){ CO.s.z=foB.sizes_(); }, done:function(){ return foB.sizes_()>CO.s.z; }},
       {ch:"ARRANGE", line:function(){ return 'Try <b>Rows</b>, <b>Columns</b> or <b>Hero</b>'; }, sub:"This keeps the same photos and changes the layout. Hero gives your biggest photo its own block.",

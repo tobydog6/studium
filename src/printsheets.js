@@ -212,6 +212,15 @@
   function psEnsureBtn(){ var ex=document.querySelector("#st-folio .bd-side .bd-export:not(.ps-go)"); if(!ex||ex.previousElementSibling&&ex.previousElementSibling.id==="psGo") return;
     var old=document.getElementById("psGo"); if(old) old.remove(); var b=document.createElement("button"); b.id="psGo"; b.className="ws-gold ps-go"; b.innerHTML="Print sheets <span>for Photoshop</span>"; b.onclick=psOpen; ex.parentNode.insertBefore(b,ex);
     ex.classList.add("ps-quick"); if(!/Quick/.test(ex.textContent)) ex.textContent="Quick PDF of the panels (not for printing)"; }
+  /* swaps and re-packs on the folio slide frames to their new places, so a swap is easy to see (only after a drop, never mid-drag) */
+  var psFlip={rects:{}, w:0, up:0, down:false};
+  document.addEventListener("pointerdown",function(){ psFlip.down=true; },true); document.addEventListener("pointerup",function(){ psFlip.down=false; psFlip.up=performance.now(); },true);
+  function psFlipRun(){ var sh=document.querySelector("#st-folio .bd-sheet"); if(!sh||typeof foB==="undefined") return; var sr=sh.getBoundingClientRect(), pg=foB.page(), now={}, anim=!psFlip.down&&performance.now()-psFlip.up<700&&Math.abs(sr.width-psFlip.w)<1;
+    Array.prototype.forEach.call(sh.querySelectorAll(".bd-it.ph[data-bd]"),function(el){ var it=pg.items[+el.getAttribute("data-bd")]; if(!it||!it.id) return; var r=el.getBoundingClientRect(), q={x:r.left-sr.left,y:r.top-sr.top,w:r.width,h:r.height}; now[it.id]=q;
+      var o=psFlip.rects[it.id]; if(!anim||!o||el._flip) return; var dx=o.x-q.x, dy=o.y-q.y; if(Math.abs(dx)+Math.abs(dy)<4) return;
+      el._flip=1; el.style.transition="none"; el.style.transformOrigin="0 0"; el.style.transform="translate("+dx+"px,"+dy+"px) scale("+(o.w/Math.max(1,q.w))+","+(o.h/Math.max(1,q.h))+")"; el.style.zIndex=50;
+      requestAnimationFrame(function(){ el.style.transition="transform .32s cubic-bezier(.2,.75,.2,1)"; el.style.transform="none"; setTimeout(function(){ el.style.transition=""; el.style.zIndex=""; el._flip=0; },360); }); });
+    psFlip.rects=now; psFlip.w=sr.width; }
   (function psHook(){ var room=document.getElementById("st-folio"); if(!room||typeof MutationObserver==="undefined") return; var q=false;
-    new MutationObserver(function(){ if(q) return; q=true; requestAnimationFrame(function(){ q=false; psEnsureBtn(); }); }).observe(room,{childList:true,subtree:true}); })();
+    new MutationObserver(function(){ if(q) return; q=true; requestAnimationFrame(function(){ q=false; psEnsureBtn(); psFlipRun(); }); }).observe(room,{childList:true,subtree:true}); })();
   if(/[?&]dev/.test(location.search)) window.__ps={ seed:function(n){ var pg=foB.page(); for(var i=0;i<n&&i<photos.length;i++) pg.items.push({id:bdUid(),t:"photo",pid:stId(i),sec:"0.0",x:20,y:20,w:180}); st.foBoard=foB.doc_(); foB.render(); }, open:psOpen, close:psClose, state:function(){ return {open:ps.open, sheets:psSheets().map(function(s){ return {size:s.size,ori:s.ori,mode:s.mode,n:s.items.length}; }), frames:psFrames().length, printed:Object.keys(psData().printed).length}; }, third:psThird, add:psAdd, frames:psFrames, exp:psExport };

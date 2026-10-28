@@ -3274,3 +3274,11 @@ body.la-warm #viewfinder,body.la-warm #crosshair{visibility:hidden!important}   
 #st-folio .ps-go span{opacity:.7;font-weight:400}
 #st-folio .bd-export.ps-quick{margin-top:0;background:none!important;border:1px solid rgba(var(--bone-rgb),.14)!important;color:var(--ink-4)!important;font-size:12px!important;padding:9px 0!important}
 #st-folio .bd-export.ps-quick:hover{color:var(--ink-2)!important;border-color:rgba(var(--bone-rgb),.3)!important}
+
+/* folio tour: a ghost hand drags the first frame onto the second, on a loop */
+.co-demo{position:fixed;left:0;top:0;width:0;height:0;z-index:1098;pointer-events:none;transition:opacity .2s}
+.co-demo .ghost,.co-demo .hand{position:fixed;left:var(--ax);top:var(--ay);animation:coSwapMove 2.2s cubic-bezier(.45,0,.25,1) infinite}
+.co-demo .ghost{margin:-14px 0 0 -14px;transform:translate(-50%,-50%);border-radius:3px;background:center/cover no-repeat #2a2620;outline:2px solid var(--accent);box-shadow:0 12px 26px rgba(0,0,0,.6);opacity:.9}
+.co-demo .hand{width:22px;height:22px;margin:-6px 0 0 -6px;border-radius:50%;background:rgba(var(--gold-rgb),.35);border:2px solid var(--accent);box-shadow:0 0 14px rgba(var(--gold-rgb),.8)}
+@keyframes coSwapMove{0%,12%{left:var(--ax);top:var(--ay);opacity:0}20%{opacity:1}70%,82%{left:var(--bx);top:var(--by);opacity:1}100%{left:var(--bx);top:var(--by);opacity:0}}
+@media (prefers-reduced-motion:reduce){ .co-demo{display:none} }

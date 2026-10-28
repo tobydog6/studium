@@ -10,6 +10,11 @@
   function ltData(){ var want=ltWant; ltWant=false; return {photos:ltPhotos(), projects:(st.projects||[]).map(function(p){ return {id:p.id, name:p.name, ids:(p.ids||[]).slice()}; }), state:st.lightTable||null, startTour:want}; }
   window.LT_BRIDGE={
     data:ltData,
+    /* the artist packs for the secret layer's pulls: live if Research has loaded them, else the cache, else the sample pack. URLs absolute, the table is a srcdoc iframe. */
+    packs:function(){ var list=null; try{ if(typeof rs!=="undefined"&&rs.packs&&rs.packs.length) list=rs.packs; }catch(e){}
+      if(!list){ try{ list=JSON.parse(localStorage.getItem("studium_rs")||"null"); }catch(e){ list=null; } }
+      if((!list||!list.length)&&typeof RS_SAMPLE!=="undefined") list=[RS_SAMPLE];
+      return (list||[]).map(function(p){ return {id:p.id, name:p.name, imgs:(p.imgs||[]).map(function(im){ var u=im.url; try{ u=new URL(u, document.baseURI).href; }catch(e){} return {id:im.id, url:u}; })}; }); },
     sfx:function(id,o){ return sfx(id,o); },
     shutter:function(){ try{ if(typeof shutterSound==="function") shutterSound(); else sfx("capture"); }catch(e){} },
     save:function(s){ st.lightTable=s; saveSession(); },

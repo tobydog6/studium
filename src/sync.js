@@ -41,7 +41,7 @@
     function justBack(){ var b=back; back=false; var a=null; try{ a=sessionStorage.getItem("studium_after"); sessionStorage.removeItem("studium_after"); }catch(e){} return b?(a||"student"):null; }
     function me(){ if(!session) return Promise.resolve(null); if(user) return Promise.resolve(user);
       return req("/auth/v1/user").then(function(u){ var m=(u&&u.user_metadata)||{}; user=u?{id:u.id, email:u.email||"", name:m.full_name||m.name||(u.email||"").split("@")[0]}:null; return user; }); }
-    function forget(){ session=null; user=null; keep(); }
+    function forget(){ session=null; user=null; csReady=false; clearTimeout(csT); keep(); }
 
     // ---- classes ----
     function joinClass(code){ return rest("rpc/studium_class_by_code",{method:"POST", body:{c:code}}).then(function(r){ return r&&r[0]||null; }).catch(function(){ return null; }); }
@@ -98,9 +98,71 @@
     function driveConnect(){ return drive("link",{back:location.href.split("#")[0]}).then(function(j){ if(j&&j.url) location.href=j.url; return j; }); }
     function driveRebuild(code){ return drive("build",{class_code:code}); }
 
-    // ---- signing out: the workbook goes up, the deck is rebuilt, then the session is forgotten ----
+    // ---- the whole session in the cloud: a signed-in student's photos, edits, presets, boards and quests follow their
+    // Google account to any computer. <uid>/session.json is the session with every image swapped for an "sb:<path>"
+    // reference; each image is its own file at <uid>/i/<hash>.<ext>, uploaded once, so a save only sends what's new.
+    var SAVES="studium-saves", csBusy=null, csAgain=false, csT=null, csReady=false, csRestoring=null;
+    function csOk(){ var w=lsWho(); return signedIn()&&!!w&&w.role==="student"&&!w.demo; }
+    function csHave(uid){ try{ return JSON.parse(localStorage.getItem("studium_cs_"+uid)||"{}")||{}; }catch(e){ return {}; } }
+    function csKeep(uid,h){ try{ localStorage.setItem("studium_cs_"+uid, JSON.stringify(h)); }catch(e){} }
+    function csExt(t){ return /png/.test(t||"")?"png":/webp/.test(t||"")?"webp":"jpg"; }
+    function csWalk(o, fn){ if(typeof o==="string") return fn(o);
+      if(Array.isArray(o)){ for(var i=0;i<o.length;i++) o[i]=csWalk(o[i],fn); return o; }
+      if(o&&typeof o==="object"){ for(var k in o) if(Object.prototype.hasOwnProperty.call(o,k)) o[k]=csWalk(o[k],fn); }
+      return o; }
+    function csImg(s){ return s.length>100&&(/^data:image\//.test(s)||/^blob:/.test(s)); }
+    /* run jobs a few at a time */
+    function csPool(items, n, fn){ var i=0; function lane(){ if(i>=items.length) return Promise.resolve(); var k=i++; return Promise.resolve(fn(items[k],k)).then(lane); }
+      var ls=[]; for(var j=0;j<Math.min(n,items.length);j++) ls.push(lane()); return Promise.all(ls); }
+    function csGet(path){ return fresh().then(function(){ return fetch(cfg.url+"/storage/v1/object/authenticated/"+SAVES+"/"+path,{cache:"no-store", headers:{apikey:cfg.anonKey, Authorization:"Bearer "+session.access_token}}); }); }
+    function csPut(path, blob, type){ return req("/storage/v1/object/"+SAVES+"/"+path,{method:"POST", raw:blob, headers:{"Content-Type":type, "x-upsert":"true", "cache-control":path.slice(-5)===".json"?"no-cache":"31536000"}}); }
+    function cloudSave(){ if(!csOk()||!csReady) return Promise.resolve(false);
+      if(csBusy){ csAgain=true; return csBusy; }
+      csBusy=me().then(function(u){ if(!u) return false;
+        if(lsDB.csOwner&&lsDB.csOwner!==u.id) return false;   /* this computer's work belongs to another student */
+        var d=JSON.parse(JSON.stringify(sessionData())); if(!d.photos.length&&!(d.folio&&d.folio.length)) return false;
+        var have=csHave(u.id), urls=[], at={};
+        csWalk(d, function(s){ if(!csImg(s)) return s; if(!(s in at)){ at[s]=urls.length; urls.push(s); } return "\u0000cs"+at[s]; });
+        var paths=[];
+        return csPool(urls, 3, function(s,k){ return fetch(s).then(function(r){ return r.blob(); }).then(function(b){ return sha(b).then(function(h){
+            var p=u.id+"/i/"+h+"."+csExt(b.type); paths[k]=p; if(have[h]) return; return csPut(p, b, b.type||"image/jpeg").then(function(){ have[h]=1; }); }); }); })
+          .then(function(){ csWalk(d, function(s){ return s.charAt(0)==="\u0000"&&s.slice(0,3)==="\u0000cs"?"sb:"+paths[+s.slice(3)]:s; });
+            d.owner=u.id; return csPut(u.id+"/session.json", new Blob([JSON.stringify(d)],{type:"application/json"}), "application/json"); })
+          .then(function(){ csKeep(u.id, have); return true; }); })
+        .catch(function(e){ console.warn("cloud save", e); return false; })
+        .then(function(v){ csBusy=null; if(csAgain){ csAgain=false; cloudSoon(); } return v; });
+      return csBusy; }
+    function cloudSoon(){ if(!csOk()) return; clearTimeout(csT); csT=setTimeout(cloudSave, 20000); }
+    function cloudLoad(u){ return csGet(u.id+"/session.json").then(function(r){ if(!r.ok) return null; return r.json(); }).then(function(d){ if(!d) return null;
+        var refs=[], at={}, have=csHave(u.id);
+        csWalk(d, function(s){ if(s.slice(0,3)==="sb:"&&!(s in at)){ at[s]=refs.length; refs.push(s); } return s; });
+        var got={};
+        return csPool(refs, 4, function(s){ return csGet(s.slice(3)).then(function(r){ if(!r.ok) throw new Error("image "+r.status); return r.blob(); })
+            .then(function(b){ return new Promise(function(res){ var fr=new FileReader(); fr.onload=function(){ got[s]=fr.result; res(); }; fr.onerror=function(){ res(); }; fr.readAsDataURL(b); }); })
+            .then(function(){ var h=/\/i\/([0-9a-f]+)\./.exec(s); if(h) have[h[1]]=1; }); })
+          .then(function(){ csKeep(u.id, have); return csWalk(d, function(s){ return (s in got)?got[s]:s; }); }); })
+      .catch(function(e){ console.warn("cloud load", e); return null; }); }
+    /* signing in on any computer: the newer of this computer's work and the cloud's wins; another student's work here is never uploaded as yours */
+    function cloudRestore(){ if(!csOk()) return Promise.resolve(false); if(csRestoring) return csRestoring;
+      csRestoring=me().then(function(u){ if(!u) return false;
+        return new Promise(function(res){ (function wait(){ if(typeof sessionLoaded!=="undefined"&&sessionLoaded) res(); else setTimeout(wait,150); })(); })
+          .then(function(){ return cloudLoad(u); }).then(function(d){ var mine=!lsDB.csOwner||lsDB.csOwner===u.id;
+            if(d&&(!mine||!photos.length||(d.savedAt||0)>(sessionSavedAt||0))){
+              wipeWorkspace(); applySession(d, true); lsDB.csOwner=u.id; lsSave(); csReady=true; saveSessionNow();
+              if(typeof studioSync==="function") studioSync(); if(typeof App!=="undefined"&&App.is("hub")&&typeof hubRender==="function") hubRender();
+              var n=photos.length; toast("Your work is back · "+n+" photo"+(n===1?"":"s")); return true; }
+            if(!mine){ wipeWorkspace(); if(typeof studioSync==="function") studioSync(); }
+            lsDB.csOwner=u.id; lsSave(); csReady=true; cloudSave(); return false; }); })
+        .catch(function(e){ console.warn("cloud restore", e); return false; })
+        .then(function(v){ csRestoring=null; return v; });
+      return csRestoring; }
+    /* a reload in the same tab keeps the sign-in: pick the cloud back up once the page has settled */
+    if(on()&&session) setTimeout(function(){ if(csOk()) cloudRestore(); }, 3000);
+
+    // ---- signing out: the session and workbook go up, the deck is rebuilt, then the session is forgotten ----
     function signOut(){ if(!signedIn()){ forget(); return Promise.resolve(); }
-      var w=lsWho(), job=(w&&w.role==="student")?saveWorkbook().then(function(){ return drive("build"); }):Promise.resolve();
+      clearTimeout(csT); if(typeof saveSessionNow==="function") saveSessionNow();
+      var w=lsWho(), job=(w&&w.role==="student")?cloudSave().then(function(){ return saveWorkbook(); }).then(function(){ return drive("build"); }):Promise.resolve();
       var cap=new Promise(function(res){ setTimeout(res, 30000); });   /* a slow network never strands someone on a shared computer */
       return Promise.race([job.catch(function(){}), cap]).then(forget); }
 
@@ -125,7 +187,7 @@
     return {on:on, providers:providers, signIn:signIn, signedIn:signedIn, justBack:justBack, me:me, signOut:signOut,
       joinClass:joinClass, myMembership:myMembership, addMember:addMember, myClasses:myClasses, pushClass:pushClass,
       pushPlan:pushPlan, pullPlan:pullPlan, roster:roster, sendNote:sendNote, sendFeedback:sendFeedback, rarity:rarity, pullNotes:pullNotes,
-      saveWorkbook:saveWorkbook, driveStatus:driveStatus, driveConnect:driveConnect, driveRebuild:driveRebuild,
+      saveWorkbook:saveWorkbook, cloudSave:cloudSave, cloudSoon:cloudSoon, cloudRestore:cloudRestore, driveStatus:driveStatus, driveConnect:driveConnect, driveRebuild:driveRebuild,
       beat:beat, dirty:function(){ dirty=true; }};
   })();
   if(/[?&]dev(&|=|$)/.test(location.search)) window.__sy={Sync:Sync, who:function(){ return lsWho(); }, st:function(){ return st; }, hub:function(a){ return hubAct(a); }, si:function(a){ return siAct(a); }, pop:function(o){ return tcPop(o); }};   /* dev hook for the sign-in / workbook checks */

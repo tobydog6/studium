@@ -113,7 +113,7 @@
     if(a==="join"){ var code=($("siCode").value||"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
       if(code.length<6){ toast("Class codes are six letters and numbers."); return; }
       if(siGoogle){ Sync.joinClass(code).then(function(c){ if(!c){ toast("We couldn't find that code. Check the board?"); return; }   /* signed in with Google: their Google name is the name, no second step */
-          lsDB.classes[code]=c; lsSave(); return Sync.addMember(code, siGoogle.name).then(function(nm){ siGoogle=null; lsSetWho({role:"student", name:nm, code:code, google:true}); siDone(); }); })
+          lsDB.classes[code]=c; lsSave(); return Sync.addMember(code, siGoogle.name).then(function(nm){ siGoogle=null; lsSetWho({role:"student", name:nm, code:code, google:true}); siDone(); Sync.cloudRestore(); }); })
           .catch(function(){ toast("That didn't go through. Check the internet and try again."); }); return; }
       var hit=lsDB.classes[code]; if(!hit&&typeof Sync!=="undefined"&&Sync.on()){ Sync.joinClass(code).then(function(c){ if(c){ lsDB.classes[code]=c; lsSave(); siPending=code; siAskName(); } else toast("We couldn't find that code. Check the board?"); }); return; }
       if(!hit){ toast("We couldn't find that code. Check the board?"); return; } siPending=code; return siAskName(); }
@@ -141,7 +141,7 @@
         lsSetWho({role:"teacher", name:cls.teacher, code:cls.code, google:true, email:u.email}); Sync.pushClass(cls);
         if(s) s.classList.add("hidden"); openTeacher("plan"); });
       return Sync.myMembership().then(function(m){
-        if(m) return Sync.joinClass(m.class_code).then(function(c){ if(!c) throw new Error("class gone"); lsDB.classes[c.code]=c; lsSetWho({role:"student", name:m.name, code:c.code, google:true}); if(s) s.classList.add("hidden"); siDone(); });
+        if(m) return Sync.joinClass(m.class_code).then(function(c){ if(!c) throw new Error("class gone"); lsDB.classes[c.code]=c; lsSetWho({role:"student", name:m.name, code:c.code, google:true}); if(s) s.classList.add("hidden"); siDone(); Sync.cloudRestore(); });
         siGoogle=u; siShow(); var s2=$("signin"); s2.querySelector(".si-sub").textContent="Kia ora "+u.name.split(" ")[0]+". Type your class code to join your class."; s2.querySelector(".si-help").textContent="Your teacher has it on the board. You only need it once."; setTimeout(function(){ $("siCode").focus(); },30); }); })
       .catch(function(e){ console.warn(e); siShow(); toast("Google sign-in didn't finish. Try again, or join with a class code."); });
     return true; }

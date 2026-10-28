@@ -785,7 +785,7 @@
   function studioReturn(){ if(suiteFrom==="studio"){ suiteFrom="scene"; hubShow("studio"); studioSync(); } }
 
   // ---- session persistence (IndexedDB — survives closing the tab, fully offline) ----
-  var _db=null, _saveT=null, sessionRestored=false;
+  var _db=null, _saveT=null, sessionRestored=false, sessionLoaded=false, sessionSavedAt=0;   /* loaded: this computer's saved work has been read (the cloud restore waits for it) */
   function idb(cb){ if(_db){ cb(_db); return; } try{ var r=indexedDB.open("splatstudio",1);
     r.onupgradeneeded=function(e){ try{ e.target.result.createObjectStore("state"); }catch(_){} };
     r.onsuccess=function(e){ _db=e.target.result; cb(_db); }; r.onerror=function(){ cb(null); }; }catch(e){ cb(null); } }
@@ -802,12 +802,13 @@
     workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), projects:(typeof st!=="undefined"?st.projects:[]), lightTable:(typeof st!=="undefined"?st.lightTable||null:null), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title,list:ga.list,label:ga.label}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
-  function saveSessionNow(){ if(!photos.length && !(typeof foItems!=="undefined"&&foItems&&foItems.length)) return; idb(function(db){ if(!db) return; try{ db.transaction("state","readwrite").objectStore("state").put(sessionData(),sessKey()); }catch(e){} }); }
+  function saveSessionNow(){ if(!photos.length && !(typeof foItems!=="undefined"&&foItems&&foItems.length)) return; idb(function(db){ if(!db) return; try{ db.transaction("state","readwrite").objectStore("state").put(sessionData(),sessKey()); sessionSavedAt=Date.now(); }catch(e){} }); if(typeof Sync!=="undefined"&&Sync.cloudSoon) Sync.cloudSoon(); }
   function saveSession(){ clearTimeout(_saveT); _saveT=setTimeout(saveSessionNow, 700); }
-  function loadSession(cb){ idb(function(db){ if(!db){ cb&&cb(false); return; } try{ var rq=db.transaction("state","readonly").objectStore("state").get(sessKey());
+  function loadSession(cb0){ var cb=function(a,b){ sessionLoaded=true; if(cb0) cb0(a,b); }; idb(function(db){ if(!db){ cb&&cb(false); return; } try{ var rq=db.transaction("state","readonly").objectStore("state").get(sessKey());
     rq.onsuccess=function(){ var d=rq.result; if(d&&d.photos&&d.photos.length){ applySession(d); cb&&cb(true,d.photos.length); } else cb&&cb(false); };
     rq.onerror=function(){ cb&&cb(false); }; }catch(e){ cb&&cb(false); } }); }
-  function applySession(d){ try{
+  function applySession(d, cloud){ try{   /* cloud: the student's saved work from their account, which replaces this computer's quest progress too */
+    if(d.savedAt) sessionSavedAt=d.savedAt;
     if(d.studentName){ studentName=d.studentName; var nm=$("mName"); if(nm) nm.value=studentName; }
     if(d.briefDone) briefDone=d.briefDone;
     if(d.presets&&typeof prLoad==="function"){ prLoad(d.presets); try{ localStorage.setItem("studium_presets_v1",JSON.stringify(prData())); }catch(e){} }
@@ -818,7 +819,7 @@
     if(d.wsBoard&&typeof st!=="undefined"){ st.wsBoard=d.wsBoard; wsB.reset(d.wsBoard); }
     if(d.foBoard&&typeof st!=="undefined"){ st.foBoard=d.foBoard; foB.reset(d.foBoard); }
     if(d.projects&&typeof st!=="undefined") st.projects=d.projects;
-    if(d.quests&&d.quests.v&&typeof Q!=="undefined"&&!(Q.quests&&Object.keys(Q.quests).length)){ for(var qk in d.quests) Q[qk]=d.quests[qk]; }   // quest progress saved with the session wins only when this browser has none
+    if(d.quests&&d.quests.v&&typeof Q!=="undefined"&&(cloud||!(Q.quests&&Object.keys(Q.quests).length))){ for(var qk in d.quests) Q[qk]=d.quests[qk]; if(cloud&&typeof qSave==="function") qSave(); }   // quest progress saved with the session wins only when this browser has none
     if(typeof qFixMoodboards==="function"&&qFixMoodboards()) wsB.reset(st.wsBoard);
     (d.photos||[]).forEach(function(p){ p.t=p.t?new Date(p.t):new Date(); photos.push(p); });
     if(d.folio&&d.folio.length&&typeof foItems!=="undefined") foItems=d.folio.map(function(x){ return {url:x.url,size:x.size}; });

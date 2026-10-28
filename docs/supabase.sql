@@ -151,3 +151,13 @@ drop policy if exists "studium: own workbook images" on storage.objects;
 create policy "studium: own workbook images" on storage.objects for all to authenticated
   using (bucket_id = 'studium-workbooks' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'studium-workbooks' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------- storage: each signed-in student's whole session (photos, edits, presets, boards, quests) ----------
+-- <user id>/session.json plus one file per image at <user id>/i/<hash>.<ext>. Only the student can read or write their own folder.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('studium-saves', 'studium-saves', false, 26214400, array['image/jpeg','image/png','image/webp','application/json'])
+  on conflict (id) do nothing;
+drop policy if exists "studium: own saves" on storage.objects;
+create policy "studium: own saves" on storage.objects for all to authenticated
+  using (bucket_id = 'studium-saves' and (storage.foldername(name))[1] = auth.uid()::text)
+  with check (bucket_id = 'studium-saves' and (storage.foldername(name))[1] = auth.uid()::text);

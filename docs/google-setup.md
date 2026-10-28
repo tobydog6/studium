@@ -62,6 +62,11 @@ studium.nz is unchanged (except playtesters' finish-card answers now save to `st
 
 ## How it behaves
 
+- **Everything follows the student.** Signed in, a student's photos, edits, presets, folio, light table, workbook and
+  quests save to their Google account (the private `studium-saves` bucket) about 20 seconds after each change, and again
+  on sign-out. Signing in on another computer brings it all back; the newer copy wins. Another student's work left on a
+  shared computer is never uploaded as yours. Needs the SQL from step 1 run again (it adds the bucket).
+
 - A student's deck updates when they sign out. While they work, the workbook pages also save in the background
   every 10 minutes (only if something changed), so *Update all now* catches people who just closed the tab.
 - Only pages that changed are uploaded. Decks only rebuild when a page changed.

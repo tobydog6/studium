@@ -1,11 +1,10 @@
 # Google sign-in and workbook decks: one-time setup
 
-Studium uses Punctum's Supabase project (`xddjfwoppmuhyagkhalk`). Its tables are all `studium_*`, so Punctum's
-tables are never touched. Do these once, in this order. Sign in to Google Cloud as **samquinn2009@gmail.com**.
+Studium has its own Supabase project, Studium (`ircgijvxzcxmcnyugdvm`). Its tables are all `studium_*`. Do these once, in this order. Sign in to Google Cloud as **samquinn2009@gmail.com**.
 
 ## 1. Supabase: the tables
 
-Supabase → the Punctum project → **SQL Editor** → New query → paste all of `docs/supabase.sql` → **Run**.
+Supabase → the Studium project → **SQL Editor** → New query → paste all of `docs/supabase.sql` → **Run**.
 It makes the `studium_*` tables, their permissions, and a private storage bucket called `studium-workbooks`.
 It is safe to run again later.
 
@@ -25,8 +24,8 @@ At console.cloud.google.com:
 4. **Clients → Create client → Web application**, name *Studium*:
    - Authorised JavaScript origins: `https://studium.nz`
    - Authorised redirect URIs (both):
-     - `https://xddjfwoppmuhyagkhalk.supabase.co/auth/v1/callback`
-     - `https://xddjfwoppmuhyagkhalk.supabase.co/functions/v1/studium-drive`
+     - `https://ircgijvxzcxmcnyugdvm.supabase.co/auth/v1/callback`
+     - `https://ircgijvxzcxmcnyugdvm.supabase.co/functions/v1/studium-drive`
    - Copy the **Client ID** and **Client secret**.
 
 ## 3. Supabase: switch Google on
@@ -44,7 +43,7 @@ Either way works:
 - **Dashboard**: Edge Functions → Deploy a new function → Via editor → name it `studium-drive` → replace the
   code with all of `supabase/functions/studium-drive/index.ts` → Deploy. Then open the function's **Details**
   and turn **Verify JWT** off (Google's redirect back to it has no Supabase login; the function checks logins itself).
-- **Terminal** (from the repo): `npx supabase functions deploy studium-drive --project-ref xddjfwoppmuhyagkhalk --no-verify-jwt`
+- **Terminal** (from the repo): `npx supabase functions deploy studium-drive --project-ref ircgijvxzcxmcnyugdvm --no-verify-jwt`
 
 ## 5. Put the new build on studium.nz
 

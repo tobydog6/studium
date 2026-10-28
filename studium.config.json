@@ -1,7 +1,9 @@
 {
   "supabase": {
-    "url": "https://xddjfwoppmuhyagkhalk.supabase.co",
-    "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkZGpmd29wcG11aHlhZ2toYWxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNDQ5MzMsImV4cCI6MjEwMTkyMDkzM30.uXmvMIZHbmjj_beQVm3KawhbvwtisAAFB6e-9-D9JBU",
-    "providers": ["google"]
+    "url": "https://ircgijvxzcxmcnyugdvm.supabase.co",
+    "anonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlyY2dpanZ4emN4bWNueXVnZHZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMxNjc1MjQsImV4cCI6MjEwODc0MzUyNH0.4gVJAC8y4uOgW2pSLWzfeXFHlDjqPs6UcQPkMBl2C9c",
+    "providers": [
+      "google"
+    ]
   }
 }

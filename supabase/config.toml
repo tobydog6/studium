@@ -1,5 +1,5 @@
-# Only what Studium needs from the Supabase CLI. The project is Punctum's (xddjfwoppmuhyagkhalk).
-project_id = "xddjfwoppmuhyagkhalk"
+# Only what Studium needs from the Supabase CLI. The project is Studium (ircgijvxzcxmcnyugdvm).
+project_id = "ircgijvxzcxmcnyugdvm"
 
 [functions.studium-drive]
 # Google's redirect back after "Connect Google Drive" has no Supabase token, so the function checks tokens itself.

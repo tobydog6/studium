@@ -1,4 +1,4 @@
-  // ================= SYNC: Supabase (Sydney), the same project as Punctum =================
+  // ================= SYNC: Supabase, the Studium project =================
   // Off until the page defines window.STUDIUM_SUPABASE = {url, anonKey, providers:["google"]} (build.mjs writes it from
   // studium.config.json). With it on: school Google sign-in, class codes looked up on the server, the teacher's plan
   // pushed to the class, each student's presence and the teacher's notes both ways, and the workbook saved page by page

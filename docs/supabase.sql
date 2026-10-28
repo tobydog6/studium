@@ -1,5 +1,5 @@
--- Studium on Supabase. It shares Punctum's project (xddjfwoppmuhyagkhalk, Sydney), so every Studium table is
--- named studium_* and Punctum's own tables (classes, images, packs, feedback, ...) are never touched.
+-- Studium on Supabase: its own project, Studium (ircgijvxzcxmcnyugdvm). Every table is named studium_*, so it can
+-- share a project with Punctum later (Punctum's own tables are classes, images, packs, feedback, ...).
 -- Run this whole file once in the SQL editor. It is safe to run again.
 -- Auth: Google provider on (Authentication > Providers). Setup steps: docs/google-setup.md.
 

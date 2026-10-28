@@ -62,7 +62,7 @@
     var d={ranked:res.ids}; if(why) d.why=why; if(why23) d.why23=why23; rsPost("plays", [{student_name:rsWho(), class_name:rsClass(), pack_id:p.id, pack_name:p.name, game:"culling", detail:d}]); }
   /* "a few words": at least four words and twenty characters */
   function rsWhyOk(t){ t=String(t||"").trim(); return t.length>=20&&t.split(/\s+/).length>=4; }
-  function rsWhyHint(t){ t=String(t||"").trim(); if(!t) return "Write a sentence or two. Then it can go straight into your workbook."; if(rsWhyOk(t)) return "Lovely. That's ready for your workbook."; return "Keep going, a few more words."; }
+  function rsWhyHint(t){ t=String(t||"").trim(); if(!t) return "Write a sentence or two."; if(rsWhyOk(t)) return "Lovely."; return "Keep going, a few more words."; }
   /* one move: the top three on an Artist model page, #1 big with an arrow from your why, then off to the workbook */
   function rsCullWorkbook(){ var res=rs.res; if(!res||res.kind!=="cull"||!rsWhyOk(res.why)||res.sent) return; res.sent=true; /* one page per game, however many clicks */ var p=res.pack, top=res.top.slice(0,RS_TOP), why=String(res.why).trim(), why23=String(res.why23||"").trim();
     rsCullPost(why, why23);
@@ -158,12 +158,9 @@
   /* the library: every photograph from every photographer, with a rail of folders down the side. Choose three from one photographer, then four more from anyone (up to twelve),
      from one photographer or across several, and they become an artist model page. Opened from the Culling Game's results, it starts
      on the pack you just culled, with your top three badged. */
-  var RS_AM_MAX=12, RS_AM_PACK=3, RS_AM_MORE=4, RS_AM_Q="Why do you like one over the other?";
-  /* three from the pack you just culled, then four more from All artists */
-  function rsAmNeed(){ return Math.min(RS_AM_PACK+RS_AM_MORE, rsAll().length||7); }
-  function rsAmPack(){ var p=rs.pack; return p&&p.id!=null&&p.id!=="*"?rsPack(p.id):null; }
-  function rsAmFromPack(){ var p=rsAmPack(); if(!p) return 0; var ids={}; p.imgs.forEach(function(im){ ids[String(im.id)]=1; }); return (rs.am||[]).filter(function(id){ return ids[id]; }).length; }
-  function rsAmStage(){ var am=rs.am||[], need=rsAmNeed(); if(am.length>=need) return "write"; var pk=rsAmPack(); if(pk&&rsAmFromPack()<Math.min(RS_AM_PACK,pk.imgs.length)) return "pack"; return rs.lib==="*"?"more":"toall"; }
+  var RS_AM_MAX=12, RS_AM_N=8, RS_AM_Q="How would you describe the feeling this group conveys?";
+  /* eight favourites from All artists */
+  function rsAmNeed(){ return Math.min(RS_AM_N, rsAll().length||RS_AM_N); }
   function rsAmReady(){ return (rs.am||[]).length>=rsAmNeed(); }
   function rsFind(id){ var P=rs.packs||[]; for(var i=0;i<P.length;i++){ var im=P[i].imgs.filter(function(x){ return String(x.id)===String(id); })[0]; if(im) return {im:im, pack:P[i]}; } return null; }
   function rsLibItems(){ var q=String(rs.q||"").trim().toLowerCase(), out=[]; (rs.packs||[]).forEach(function(p){ if(rs.lib&&rs.lib!=="*"&&String(p.id)!==String(rs.lib)) return; if(q&&p.name.toLowerCase().indexOf(q)<0) return; p.imgs.forEach(function(im){ out.push({im:im, pack:p}); }); }); return out; }
@@ -171,22 +168,19 @@
     if(rs.lib==null) rs.lib=p?String(p.id):"*";
     var ranked=(rs.res&&rs.res.kind==="cull"&&rs.res.top)?rs.res.top.map(function(x){ return String(x.id); }):[];
     var rail='<aside class="rs-libr"><input class="rs-search" type="search" placeholder="Search artists" value="'+rsEsc(rs.q||"")+'" data-rs-q>'
-      +'<button class="rs-libf'+(rs.lib==="*"?' on':'')+(rsAmStage()==="toall"?' rs-nudge':'')+'" data-rs-lib="*"><b>All artists</b><em>'+total+'</em></button><span class="eb">ARTISTS</span>'
+      +'<button class="rs-libf'+(rs.lib==="*"?' on':'')+(rs.lib!=="*"&&am.length<need?' rs-nudge':'')+'" data-rs-lib="*"><b>All artists</b><em>'+total+'</em></button><span class="eb">ARTISTS</span>'
       +P.map(function(k){ var culled=!!(typeof Q!=="undefined"&&Q.rs&&Q.rs.cull&&Q.rs.cull[k.id]); return '<button class="rs-libf'+(String(k.id)===String(rs.lib)?' on':'')+'" data-rs-lib="'+rsEsc(k.id)+'"><b>'+rsEsc(k.name)+'</b>'+(culled?'<i title="Culled">✓</i>':'')+'<em>'+k.imgs.length+'</em></button>'; }).join("")+'</aside>';
-    var stg=rsAmStage(), pk=rsAmPack(), fp=rsAmFromPack(), more=Math.max(0,need-am.length);
-    var lead=stg==="pack"?'<b>Choose '+RS_AM_PACK+' photographs from '+rsEsc(pk.name)+'</b> that show how they work. '+Math.max(0,Math.min(RS_AM_PACK,pk.imgs.length)-fp)+' to go.'
-      :stg==="toall"?'<b>Now click All artists</b>, on the left, and choose '+more+' more from any photographer.'
-      :stg==="more"?'<b>Choose '+more+' more</b> from any photographer. Look for ones that feel different to the first ones you picked.'
-      :'That\'s enough for a page. Make it, then answer the question on the page.';
+    var more=Math.max(0,need-am.length);
+    var lead=am.length>=need?'That\'s your '+need+'. Make the page, then write about them on it.'
+      :rs.lib!=="*"?'<b>Click All artists</b>, on the left, and choose '+need+' favourites from any photographer.'
+      :'<b>Choose your '+need+' favourites</b> from any photographer. '+more+' to go.';
     return top+'<span class="rs-count">CHOSEN · '+am.length+' / '+need+'</span></div><div class="rs-lib">'+rail+'<div class="rs-libm"><p class="rs-q rs-amlead">'+lead+'</p>'
       +'<div class="rs-mgrid rs-masonry"'+(items.length?'':' style="display:none"')+'>'+items.map(function(e){ var im=e.im, k=am.indexOf(String(im.id)), r=(rs.pack&&e.pack===rs.pack)?ranked.indexOf(String(im.id)):-1;
           return '<button class="rs-mt rs-at'+(k>=0?' on':'')+'" data-rs-act="ampick" data-rs-img="'+rsEsc(im.id)+'"><img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'+(k>=0?'<b>'+(k+1)+'</b>':'')+'<span>'+(r>=0?'YOUR #'+(r+1)+' · ':'')+rsEsc(e.pack.name)+'</span></button>'; }).join("")+'</div><div class="rs-none"'+(items.length?' style="display:none"':'')+'>No photographer called that.</div>' 
       +'<div class="rs-mbar">'
       +'<button class="rs-go" data-rs-act="amake"'+(rsAmReady()?'':' disabled')+'>Make my artist model page ›</button><button class="rs-go2" data-rs-act="amclear">CLEAR</button></div></div></div>'; }
-  function rsAmToggle(id){ var am=rs.am||(rs.am=[]), i=am.indexOf(String(id)), was=rsAmStage(); if(i>=0) am.splice(i,1); else if(am.length<RS_AM_MAX) am.push(String(id)); else toast("That's "+RS_AM_MAX+": take one off first"); rsRender();
-    var now=rsAmStage(), box=$("st-research"); if(!box||now===was) return;
-    if(now==="toall") toast("That's three. Now click All artists.");
-    if(now==="write") toast("That's seven. Make your page."); }
+  function rsAmToggle(id){ var am=rs.am||(rs.am=[]), i=am.indexOf(String(id)), had=am.length>=rsAmNeed(); if(i>=0) am.splice(i,1); else if(am.length<RS_AM_MAX) am.push(String(id)); else toast("That's "+RS_AM_MAX+": take one off first"); rsRender();
+    if(!had&&am.length>=rsAmNeed()) toast("That's "+rsAmNeed()+". Make your page."); }
   function rsAmMake(){ var ids=(rs.am||[]).slice(); if(!rsAmReady()) return; var hits=ids.map(rsFind).filter(Boolean), ims=hits.map(function(h){ return h.im; }), names=[];
     hits.forEach(function(h){ if(names.indexOf(h.pack.name)<0) names.push(h.pack.name); });
     var pids=hits.map(function(h){ var im=h.im, i=-1; photos.forEach(function(x,j){ if(x.url===im.url&&x.research) i=j; }); if(i<0){ photos.push({url:im.url, t:new Date(), place:"Research", research:true, credit:h.pack.name}); i=photos.length-1; } return stId(i); });
@@ -202,7 +196,7 @@
         items.push({t:"text", role:"caption", x:15, y:268, w:262, h:14, text:"Photographs: "+names.join(", ")});
         /* one text box on the right with the question in it: they write their answer on the page (Finished waits for it) */
         items.push({t:"text", role:"text", x:288, y:34, w:117, h:228, text:"", ph:RS_AM_Q, sentence:true});
-        wsEnsure(); wsB.applyTemplate({id:"artist", name:"Artist model", build:function(){ return {bg:"white", items:items}; }}); rs.sent=(rs.sent||0)+1; rs.am=[]; stRoom("workshop"); setTimeout(function(){ toast("Now answer the question on the page: "+RS_AM_Q); },200); }); }
+        wsEnsure(); wsB.applyTemplate({id:"artist", name:"Artist model", build:function(){ return {bg:"black", items:items}; }}); rs.sent=(rs.sent||0)+1; rs.am=[]; stRoom("workshop"); setTimeout(function(){ toast("Now answer the question on the page: "+RS_AM_Q); },200); }); }
   function rsResults(top){ var res=rs.res, p=rs.pack, h=top+'</div><div class="rs-res">';
     if(res.kind==="punctum"){ var rr=res.round, mine=rr.imgs.filter(function(im){ return rr.struck[im.id]; });
       h+='<div class="rs-rh"><span class="eb">YOUR PUNCTUMS</span><h3>'+(mine.length?mine.length+' of '+rr.imgs.length+' pricked you':'Nothing pricked you this time')+'</h3><p class="rs-q">'+(res.counts?'The numbers show how many in your class were caught by each one. ':'')+(mine.length?'Take one into your workbook to write it up.':'Try the Culling Game, or another pack.')+'</p></div><div class="rs-grid">'
@@ -210,13 +204,14 @@
           return '<div class="rs-tile'+(on?' on':'')+'"><div class="rs-imgw"><img src="'+rsEsc(im.url)+'" alt="" loading="lazy">'+rsDot(rr.tap[im.id])+'</div>'
             +'<div class="rs-tm">'+(k?'<span>'+k.y+' of '+k.n+' caught</span>':'<span></span>')+(on?'<button class="rs-wb" data-rs-act="wb" data-rs-img="'+rsEsc(im.id)+'">INTO WORKBOOK ›</button>':'')+'</div></div>'; }).join("")+'</div>'; }
     else { var ct=res.cls, row=function(im,k){ return im?'<div class="rs-ri"><b>'+(k+1)+'</b><img src="'+rsEsc(im.url)+'" alt=""></div>':''; };
-      h+='<div class="rs-rh"><span class="eb">YOUR TOP FIVE</span><h3>Your ranking'+(ct&&ct.n>1?', next to your class':'')+'</h3><p class="rs-q">'+(ct&&ct.n>1?'Look at where your picks differ from your class. ':'')+'Then say what it is about your #1.</p></div><div class="rs-cullw"><div class="rs-rank"><div><span class="eb">YOU</span>'+res.top.map(row).join("")+'</div>'
+      h+='<div class="rs-rh"><span class="eb">YOUR TOP FIVE</span><h3>Your ranking'+(ct&&ct.n>1?', next to your class':'')+'</h3><p class="rs-q">'+(ct&&ct.n>1?'Look at where your picks differ from your class. ':'')+'Then answer the two questions next to it.</p></div><div class="rs-cullw"><div class="rs-rank"><div><span class="eb">YOU</span>'+res.top.map(row).join("")+'</div>'
         +(ct&&ct.n>1?'<div><span class="eb">CLASS · '+ct.n+' PLAYED</span>'+ct.ids.map(function(id,k){ return row(p.imgs.filter(function(x){ return String(x.id)===String(id); })[0],k); }).join("")+'</div>':'')+'</div>'
         +(res.top.length?'<div class="rs-why"><span class="eb">PUNCTUM · YOUR #1</span><h3>What is it in your #1 that holds you?</h3><p class="rs-q">Name the detail and say why it caught you. Barthes called it the punctum, the small thing that pricks you and stays.</p>'
           +'<label class="rs-f"><span>WHY IT\'S YOUR #1</span><textarea data-rs-why="why" rows="3" placeholder="The detail I keep coming back to is...">'+rsEsc(res.why)+'</textarea></label><p class="rs-whyhint'+(rsWhyOk(res.why)?' ok':'')+'">'+rsEsc(rsWhyHint(res.why))+'</p>'
-          +(res.top.length>1?'<label class="rs-f rs-f2"><span>AND #2'+(res.top.length>2?' TO #'+res.top.length:'')+' · OPTIONAL</span><input type="text" data-rs-why="why23" maxlength="200" placeholder="One line, if you like" value="'+rsEsc(res.why23)+'"></label>':'')
-          +'<button class="rs-go rs-whygo" data-rs-act="cullwb"'+(rsWhyOk(res.why)&&!res.sent?'':' disabled')+'>'+(res.sent?'In your workbook ✓':'Put it in my workbook ›')+'</button></div>':'')+'</div>'; }
-    return h+'<div class="rs-yn"><button class="rs-go2" data-rs-act="'+(res.kind==="punctum"?"cull":"all")+'" data-rs-id="'+rsEsc(p.id)+'">'+(res.kind==="punctum"?"Now the Culling Game":"See all the photos ›")+'</button><button class="rs-go2" data-rs-act="shelf">All packs</button></div></div>'; }
+          +(res.top.length>1?'<label class="rs-f"><span>WHY DO YOU LIKE ONE OVER THE OTHER?</span><textarea data-rs-why="why23" rows="3" placeholder="I like my #1 more than my #2 because...">'+rsEsc(res.why23)+'</textarea></label><p class="rs-whyhint rs-whyhint2'+(rsWhyOk(res.why23)?' ok':'')+'">'+rsEsc(rsWhyHint(res.why23))+'</p>':'')
+          +'<button class="rs-go rs-whygo" data-rs-act="cullnext"'+(rsCullAnswered()?'':' disabled')+'>Next: choose from All artists ›</button></div>':'')+'</div>'; }
+    return h+'<div class="rs-yn">'+(res.kind==="punctum"?'<button class="rs-go2" data-rs-act="cull" data-rs-id="'+rsEsc(p.id)+'">Now the Culling Game</button>':'')+'<button class="rs-go2" data-rs-act="shelf">All packs</button></div></div>'; }
+  function rsCullAnswered(){ var res=rs.res; return !!res&&rsWhyOk(res.why)&&(res.top.length<2||rsWhyOk(res.why23)); }
   function rsRender(){ if(rs.res&&rs.res.kind==="cull"&&!rs.res.posted&&rs.view!=="results") rsCullPost("");
     var box=$("st-research"); if(!box||!st.open||st.room!=="research") return;
     var fa=document.activeElement, fk=fa&&box.contains(fa)&&fa.getAttribute&&(fa.getAttribute("data-rs-why")||(fa.hasAttribute("data-rs-amwhy")?"*am":null)), fs=fk?fa.selectionStart:0;
@@ -231,7 +226,9 @@
   (function rsWire(){ var box=$("st-research"); if(!box) return;
     box.addEventListener("input",function(e){ var wf=e.target.closest&&e.target.closest("[data-rs-why]");
       if(wf&&rs.res&&rs.res.kind==="cull"){ rs.res[wf.getAttribute("data-rs-why")]=wf.value; var ok=rsWhyOk(rs.res.why), hb=box.querySelector(".rs-whyhint"), gb=box.querySelector(".rs-whygo");
-        if(hb){ hb.textContent=rsWhyHint(rs.res.why); hb.classList.toggle("ok",ok); } if(gb){ if(ok) gb.removeAttribute("disabled"); else gb.setAttribute("disabled",""); } return; }
+        var hb2=box.querySelector(".rs-whyhint2"); ok=rsCullAnswered(); hb=box.querySelector(".rs-whyhint:not(.rs-whyhint2)");
+        if(hb){ hb.textContent=rsWhyHint(rs.res.why); hb.classList.toggle("ok",rsWhyOk(rs.res.why)); } if(hb2){ hb2.textContent=rsWhyHint(rs.res.why23); hb2.classList.toggle("ok",rsWhyOk(rs.res.why23)); }
+        if(gb){ if(ok) gb.removeAttribute("disabled"); else gb.setAttribute("disabled",""); } return; }
       var aw=e.target.closest&&e.target.closest("[data-rs-amwhy]");
       if(aw){ rs.amWhy=aw.value; var ok2=rsWhyOk(rs.amWhy), hb2=box.querySelector(".rs-amq .rs-whyhint"), gb2=box.querySelector('[data-rs-act="amake"]');
         if(hb2){ hb2.textContent=ok2?"Lovely. That goes on the page next to the photographs.":rsWhyHint(rs.amWhy); hb2.classList.toggle("ok",ok2); } if(gb2){ if(rsAmReady()) gb2.removeAttribute("disabled"); else gb2.setAttribute("disabled",""); } return; }
@@ -246,7 +243,7 @@
       var t=e.target.closest("[data-rs-act]"); if(!t) return; var a=t.getAttribute("data-rs-act"), id=t.getAttribute("data-rs-id");
       if(a==="shelf"){ rs.view="shelf"; rs.pack=null; return rsRender(); }
       if(a==="mood"){ rs.view="mood"; rs.pack=null; rs.moodOrder=null; box.scrollTop=0; return rsRender(); }
-      if(a==="all"){ var pk=rsPack(id)||rs.pack; rs.pack=pk||rs.pack||null; rs.lib=pk?String(pk.id):"*"; rs.q=""; rs.view="all"; box.scrollTop=0; return rsRender(); }
+      if(a==="all"){ var pk=rsPack(id)||rs.pack; rs.pack=pk||rs.pack||null; rs.lib="*"; rs.q=""; rs.view="all"; box.scrollTop=0; return rsRender(); }
       if(a==="ampick") return rsAmToggle(t.getAttribute("data-rs-img")); if(a==="amclear"){ rs.am=[]; return rsRender(); } if(a==="amake") return rsAmMake(); if(a==="mpick") return rsMoodToggle(t.getAttribute("data-rs-url"));
       if(a==="mclear"){ rs.mood=[]; return rsRender(); } if(a==="moodmake") return rsMoodMake();
       if(a==="round") return rsStartRound(rsPack(id)||rs.pack); if(a==="cull") return rsStartCull(rsPack(id)||rs.pack);
@@ -254,5 +251,6 @@
       if(a==="retap"){ delete r.tap[r.imgs[r.k].id]; return rsRender(); }
       if(a==="pick") return rsCullPick(t.getAttribute("data-rs-win")==="1");
       if(a==="cullwb"){ if(!t.disabled) rsCullWorkbook(); return; }
+      if(a==="cullnext"){ if(t.disabled||!rsCullAnswered()) return; rsCullPost(String(rs.res.why).trim(), String(rs.res.why23||"").trim()); rs.lib="*"; rs.q=""; rs.view="all"; box.scrollTop=0; return rsRender(); }
       if(a==="wb"){ var im=rs.res.round.imgs.filter(function(x){ return String(x.id)===t.getAttribute("data-rs-img"); })[0]; if(im) rsToWorkbook(im); } }); })();
   if(/[?&]dev/.test(location.search)) window.__rs={ state:function(){ return {view:rs.view, packs:(rs.packs||[]).map(function(p){ return {id:p.id, n:p.imgs.length}; }), offline:rs.offline, k:rs.round&&rs.round.k, step:rs.round&&rs.round.step, top:rs.cull&&rs.cull.top.length, rounds:rs.rounds||0, culls:rs.culls||0, mood:(rs.mood||[]).length, moods:rs.moods||0, sent:rs.sent||0, taps:rs.taps||0}; } };

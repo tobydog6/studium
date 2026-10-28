@@ -12,7 +12,7 @@ export function createDev(S) {
   const el = S.el('div', 'sk-dev', ''); el.id = 'skDev'; document.body.appendChild(el);
   let rt = 0; const render = () => { clearTimeout(rt); rt = setTimeout(draw, 0); };
   const dev = {
-    el, on: false, order: 0,
+    el, shown: false, order: 0,
     /* define('case', 'Vault case', { hard:'Hard case', safe:'Steel safe' }, 'hard') */
     define(key, label, choices, def) { const d = defs.find(x => x.key === key); if (d) { Object.assign(d.choices, choices); } else defs.push({ key, label, choices, def }); if (saved[key] == null || !(saved[key] in choices)) saved[key] = def; render(); return dev; },
     opt(key) { return saved[key]; },
@@ -20,7 +20,7 @@ export function createDev(S) {
     on(key, fn) { (subs[key] || (subs[key] = [])).push(fn); return dev; },
     action(label, fn, group) { actions.push({ label, fn, group: group || 'Try' }); render(); return dev; },
     info(fn) { info.push(fn); render(); return dev; },
-    toggle(on) { dev.on = on === undefined ? !dev.on : !!on; el.classList.toggle('on', dev.on); if (dev.on) draw(); },
+    toggle(on) { dev.shown = on === undefined ? !dev.shown : !!on; el.classList.toggle('on', dev.shown); if (dev.shown) draw(); },
     refresh: render,
   };
   function draw() {

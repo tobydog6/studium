@@ -78,9 +78,10 @@ export function installSecret(ctx) {
 
   /* ---------- the unlock box ---------- */
   const box = S.el('div', 'sk-box', '<input id="skIn" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Secret word" maxlength="24">'); box.id = 'sk'; document.body.appendChild(box);
-  const input = box.querySelector('input'); let boxT = 0;
-  function showBox() { clearTimeout(boxT); box.classList.add('on'); input.value = ''; setTimeout(() => input.focus(), 30); }
-  function hideBox() { box.classList.remove('on'); input.blur(); }
+  const input = box.querySelector('input'); let boxT = 0, hideT = 0; box.hidden = true;
+  function showBox() { clearTimeout(boxT); clearTimeout(hideT); box.hidden = false; void box.offsetWidth; box.classList.add('on'); input.value = ''; setTimeout(() => input.focus(), 30); }
+  /* hidden for real (display none) once it has faded, so it is never in the Tab order while the table is in use */
+  function hideBox() { box.classList.remove('on'); input.blur(); clearTimeout(hideT); hideT = setTimeout(() => { box.hidden = true; }, 480); }
   input.addEventListener('keydown', e => { e.stopPropagation();
     if (e.key === 'Escape') { hideBox(); return; }
     if (e.key !== 'Enter') return; const v = input.value.trim().toLowerCase();
@@ -147,7 +148,7 @@ export function installSecret(ctx) {
     restore() { store.get().table.forEach(t => { const slab = store.pull(t.id); if (slab) S.table.place(slab, t.x, t.z, t.yaw, { quiet: true }); }); },
   };
   /* a pull straight onto the table (the dev panel's Roll; loot.js lays its slab down the long way) */
-  S.rollToTable = function (o) { const slab = SL.roll(o); store.addPull(slab); const sp = S.table.freeSpot(); const obj = S.table.place(slab, sp.x, sp.z, (Math.random() - 0.5) * 0.5, { drop: true }); hud();
+  S.rollToTable = function (o) { const slab = SL.roll({ graded: true, ...(o || {}) }); store.addPull(slab); const sp = S.table.freeSpot(); const obj = S.table.place(slab, sp.x, sp.z, (Math.random() - 0.5) * 0.5, { drop: true }); hud();
     const t = SL.tierOf(slab); S.toast(t.name + ' · grade ' + slab.grade + (slab.variant ? ' · ' + SL.VARIANT[slab.variant].name : '') + ' · ' + slab.title); return obj; };
   async function inspectTableSlab(obj) {
     const r = await inspect.open(obj, { actions: [{ id: 'back', label: 'Put back' }, { id: 'vault', label: 'Into the vault', primary: true }] });
@@ -163,6 +164,8 @@ export function installSecret(ctx) {
           LOOT: (p, M) => M.defined('loot.open') ? 'loot.open' : (S.toast('The loot board is still being built. Soon.'), undefined),
           ROOM: 'room.knock' },
     pointer(kind, e, M) {
+      /* a print, wall group or string being dragged keeps the table's own handling; the buttons only take a free pointer */
+      if (ctx.drag.p || ctx.drag.pending || ctx.drag.wall || ctx.isBusy()) { setHot(null); return false; }
       if (kind === 'move') { const h = S.hitAny(e, hittable()); setHot(h ? h.root : null); if (h) { ctx.canvas.style.cursor = 'pointer'; ctx.hideActs(); return true; } return false; }
       if (kind === 'down') { if (e.button !== 0) return false; const h = S.hitAny(e, hittable()); if (!h) return false; S.sfx('detent');
         if (h.root === btnLoot) M.send('LOOT'); else if (h.root === btnVault) M.send('VAULT'); else if (h.root === btnKey) M.send('ROOM');
@@ -176,9 +179,12 @@ export function installSecret(ctx) {
   /* ---------- unlock / lock ---------- */
   function unlock() { store.get().unlocked = true; store.save(); M.go('idle'); S.sfx('kitOpen'); hud();
     buttons.forEach((b, i) => { b.visible = true; b.scale.setScalar(0.001); T.tween({ dur: 0.6, delay: 0.1 + i * 0.12, ease: T.E.outBack, update: e => b.scale.setScalar(Math.max(0.001, e)) }); });
+    if (!tableSlabs.length) S.table.restore();
     S.toast('Three things on the table that were not there before.'); }
+  /* locking hides every trace: the buttons dissolve and the slabs on the table go too (they stay in the store for next time) */
   function lock() { store.get().unlocked = false; store.save(); if (inspect.active()) inspect.close('back'); M.go('locked'); hud(); dev.toggle(false);
-    buttons.forEach((b, i) => { P.dissolve(b, { mode: dev.opt('dissolve'), dur: 1.1, delay: i * 0.1, spread: 1.4 }); }); }
+    buttons.forEach((b, i) => { P.dissolve(b, { mode: dev.opt('dissolve'), dur: 1.1, delay: i * 0.1, spread: 1.4 }); });
+    tableSlabs.slice().forEach((o, i) => { P.dissolve(o.group, { mode: dev.opt('dissolve'), dur: 1.1, delay: 0.2 + i * 0.08, spread: 1.6 }); S.table.remove(o, true); }); }
   function resetAll() { tableSlabs.slice().forEach(o => S.table.remove(o, true)); store.reset(); SL.store.get().unlocked = true; store.save(); hud(); S.toast('Secret layer reset. Pulls, vault and binder are empty again.'); }
   S.unlock = unlock; S.lock = lock;
 
@@ -199,8 +205,8 @@ export function installSecret(ctx) {
   [holo, vault, binder, loot, arm].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
 
   /* ---------- boot ---------- */
-  if (S.unlocked()) { buttons.forEach(b => { b.visible = true; }); M.go('idle'); } else M.go('locked');
-  S.table.restore(); hud();
+  if (S.unlocked()) { buttons.forEach(b => { b.visible = true; }); M.go('idle'); S.table.restore(); } else M.go('locked');
+  hud();
 
   /* ---------- what main.js calls ---------- */
   const api = {

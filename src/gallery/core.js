@@ -58,7 +58,7 @@ var PRINT={s:{name:"Small", long:0.45, cost:35, base:220}, m:{name:"Medium", lon
 /* an item's printed width and height in metres */
 function itemSize(it){ var p=phById(it.pid), a=p?p.asp:1.5, L=PRINT[it.size||"m"].long; return a>=1?[L, L/a]:[L*a, L]; }
 /* what a collector thinks a work is worth: print size, the photo's quality, and your reputation */
-function itemWorth(it){ var p=phById(it.pid); return PRINT[it.size||"m"].base*(0.55+(p?p.q:0.5))*(1+G.rep/40); }
+function itemWorth(it){ var p=phById(it.pid); return PRINT[it.size||"m"].base*(0.55+(p?p.q:0.5))*(1+G.rep/40)*(typeof gTrendMult==="function"?gTrendMult(it):1); }   /* the trends (trends.js) swing it about 0.8 to 1.3 */
 
 // ---------- the game state, saved into Studium (st.galGame) or, standalone, localStorage ----------
 // G.t is game minutes since Monday 00:00 of week 1. hung: [{id, pid, face, x (m from the face's left end, centre), y (centre

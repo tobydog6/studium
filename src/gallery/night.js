@@ -3,7 +3,7 @@
 // runs live in the room (gNightCrowd guests) with a small panel, moments as toasts and night sales, until NIGHT_END or
 // "Wrap up the night", then galNightDone(result). review(r): next morning, the newspaper clipping with the reception and
 // "What the critic noticed" (the teachable part). Two clipping designs: ?review=local (default) or ?review=broadsheet.
-// Scoring (ntScore) is plain on purpose so students can see why: quality, hang, coherence, pricing and turnout.
+// Scoring (ntScore) is plain on purpose so students can see why: quality, hang, coherence, pricing, turnout and trend fit.
 var NT={on:false, guests:[], lastT:0, sold:0, take:0, arrived:0, critic:null, nextMoment:0, said:{}, raf:0, panel:null};
 var NT_CRITICS=[{name:"Hinemoa Pāora", role:"Visual arts writer"}, {name:"Graeme Lusk", role:"Arts editor"},
   {name:"Priya Naidoo-Hart", role:"Photography critic"}, {name:"Tom Fairweather", role:"Arts reporter"}];
@@ -190,7 +190,9 @@ function ntScore(turnout){ turnout=turnout||0; var hung=G.hung.filter(function(i
   var ratios=hung.map(function(it){ return it.price/Math.max(1,itemWorth(it)); }), avgR=ratios.reduce(function(a,b){ return a+b; },0)/n, dear=ratios.filter(function(r){ return r>1.35; }).length;
   var pS=Math.round(100*ntClamp(1-Math.max(0, avgR-1.05)*1.4));
   var tS=Math.round(100*ntClamp(turnout/40)), full=Math.min(1, n/6);
-  var critic=Math.round((0.4*qS+0.32*hS+0.28*cS)*(0.72+0.28*full)), pub=Math.round(0.25*qS+0.15*hS+0.3*pS+0.3*tS);
+  /* trend fit (trends.js): the public follows the trends, the critics only a little */
+  var trF=typeof gTrendFit==="function"?gTrendFit(hung):null, trN=trF==null?0:(trF-50)/50;
+  var critic=Math.round((0.4*qS+0.32*hS+0.28*cS)*(0.72+0.28*full)+4*trN), pub=Math.round((0.25*qS+0.15*hS+0.3*pS+0.3*tS)*(trF==null?1:0.82)+(trF==null?0:0.18*trF));
   var stars=Math.max(1, Math.min(5, Math.round(critic/10)/2));
   /* what the critic noticed: the good first, then what to try next time */
   if(qS>=65) note("up", "Strong photos. "+ntQ(ntName(top))+" and your other Folio picks carry the show.");
@@ -209,10 +211,12 @@ function ntScore(turnout){ turnout=turnout||0; var hung=G.hung.filter(function(i
   if(dear) note("down", ntCap(ntNum(dear))+" work"+(dear===1?" was":"s were")+" priced well above what collectors think "+(dear===1?"it's":"they're")+" worth. Guests noticed, and fewer bought.");
   else if(avgR<0.75) note("tip", "Prices ran low. Guests loved the bargains, but you left money on the table.");
   else note("up", "Fair prices. Guests felt welcome to buy.");
+  if(trF!=null&&trF>=70) note("up", "Right on trend. The work matched what's hot this season, and the public loved it.");
+  else if(trF!=null&&trF<35) note("tip", "Out of step with the trends. Check the What's hot board before you hang: the public follows it more than critics do.");
   if(tS>=75) note("up", "A full room: "+turnout+" guests came.");
   else if(tS<40) note("tip", "A small crowd of "+turnout+". Reputation, buzz and a busier site all bring more people in.");
   if(kinds.indexOf("up")<0){ kinds.unshift("up"); notes.unshift("You hung a show and opened your doors to the public. That's the hardest step, and now you know what to try next."); }
-  return {critic:critic, stars:stars, public:pub, sold:0, take:0, turnout:turnout, parts:{quality:qS, hang:hS, coherence:cS, pricing:pS, turnout:tS},
+  return {critic:critic, stars:stars, public:pub, sold:0, take:0, turnout:turnout, parts:{quality:qS, hang:hS, coherence:cS, pricing:pS, turnout:tS, trend:trF},
     notes:notes, noteKinds:kinds, top:top.pid, series:share>=0.6?places[0]:"", realSeries:share>=0.6&&ntReal(places[0]), places:places.length, n:n, crowd:H.crowdFace, bare:H.bareFace, uneven:H.unevenFace, offLine:H.offLine, dear:dear, cheap:avgR<0.75}; }
 
 // ---------- 4. the review ----------
@@ -264,7 +268,7 @@ function ntReview(r){ r=r||{}; if(r.stars==null){ var x=ntScore(r.turnout||0); f
   G.shows.push({title:r.title, stars:r.stars, critic:r.criticWho.name, criticScore:r.critic, public:r.public, sold:r.sold, take:r.take, turnout:r.turnout, day:r.day!=null?r.day:gDay()-1});
   gScreen="review"; document.body.dataset.screen="review"; galHud();
   var style=ntStyle(), dev=/[?&]dev/.test(ntQs()), d=gEl("div","ntrev"); d.setAttribute("role","dialog"); d.setAttribute("aria-modal","true"); d.setAttribute("aria-label","Your review in The Press");
-  var parts=[["quality","Quality"],["hang","The hang"],["coherence","Coherence"],["pricing","Pricing"],["turnout","Turnout"]].map(function(p){ var v=Math.round(r.parts[p[0]]||0);
+  var parts=[["quality","Quality"],["hang","The hang"],["coherence","Coherence"],["pricing","Pricing"],["turnout","Turnout"],["trend","Trend fit"]].filter(function(p){ return r.parts[p[0]]!=null; }).map(function(p){ var v=Math.round(r.parts[p[0]]||0);
     return '<div><span>'+p[1]+'</span><span class="b"><i style="width:'+v+'%"></i></span><em>'+v+'</em></div>'; }).join("");
   function draw(style){ d.innerHTML='<div class="wrap"><div class="lead"><span class="k">The morning paper · '+gEsc(r.title)+'</span>'+
       (dev?'<span class="styles"><button type="button" data-st="local"'+(style==="local"?' class="on"':'')+'>Local</button><button type="button" data-st="broadsheet"'+(style==="broadsheet"?' class="on"':'')+'>Broadsheet</button></span>':'')+'</div>'+

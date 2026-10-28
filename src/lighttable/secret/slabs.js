@@ -74,16 +74,28 @@ function pickPhoto(r, want) {
   const i = Math.floor(r() * pk.imgs.length), im = pk.imgs[i];
   return { packId: pk.id, pack: pk.name, imgId: im.id, url: im.url, plate: i + 1, title: pk.name.replace(/\s*·.*$/, '') + ' · Plate ' + pad(i + 1, 3) };
 }
+/* Sam's loop: a pull comes out as a raw card (tier, variant and finish known, no grade), you post it off for grading,
+   and GRADING_MS later it is back on the table as a parcel; opening the parcel is the grade reveal. The grade is
+   rolled at the pull and kept hidden, so a reload can't re-roll it. The dev panel can make the wait instant. */
+export const GRADING_MS = 24 * 60 * 60 * 1000;
 export function roll(o = {}) {
   const seed = o.seed ?? (Math.random() * 2 ** 31) >>> 0, r = rng(seed), d = store.get();
   const tier = o.tier || rollTier(r()), grade = o.grade || rollGrade(r()), variant = o.variant !== undefined ? o.variant : rollVariant(r());
   const slab = { id: 's' + Date.now().toString(36) + Math.floor(r() * 1e6).toString(36), seed, tier, grade, variant, finish: TIER[tier].finish,
-    cert: '#' + pad(++d.certN, 5), photo: pickPhoto(r, o.pack), ts: Date.now(), points: TIER[tier].points + (grade >= 10 ? 50 : grade >= 9 ? 20 : 0) };
+    cert: '#' + pad(++d.certN, 5), photo: pickPhoto(r, o.pack), ts: Date.now(), points: TIER[tier].points + (grade >= 10 ? 50 : grade >= 9 ? 20 : 0),
+    graded: !!o.graded, sentAt: null, readyAt: null };
   if (variant === 'stamped') slab.stamp = 1 + Math.floor(r() * 50);
   if (tier === 'mythic') slab.serial = '1/1';
   slab.title = slab.photo.title;
   return slab;
 }
+/* post a raw card off: it is away until readyAt (waitMs lets the dev panel shorten the day) */
+export function sendForGrading(slab, waitMs) { if (slab.graded || slab.sentAt) return slab; slab.sentAt = Date.now(); slab.readyAt = slab.sentAt + (waitMs ?? GRADING_MS); store.save(); return slab; }
+export function gradingState(slab, now) { if (slab.graded) return 'graded'; if (!slab.sentAt) return 'raw'; return (now || Date.now()) >= slab.readyAt ? 'back' : 'away'; }
+/* the parcel is opened: the grade shows from now on */
+export function receiveGraded(slab) { slab.graded = true; store.save(); return slab; }
+export function skipGrading(slab) { if (slab.sentAt && !slab.graded) { slab.readyAt = Date.now(); store.save(); } return slab; }
+export function timeLeft(slab, now) { return Math.max(0, (slab.readyAt || 0) - (now || Date.now())); }
 export const gradeText = g => GRADES[g] || '';
 export const tierOf = slab => TIER[slab.tier] || TIER.common;
 /* the finish a slab shows right now: the dev panel's test finish wins, then a per-slab override, then the tier's */

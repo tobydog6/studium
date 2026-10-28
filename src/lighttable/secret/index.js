@@ -188,6 +188,9 @@ export function installSecret(ctx) {
   dev.on('finish', () => S.slabs.refreshFinish()); dev.on('speed', v => T.setTimeScale(+v || 1)); T.setTimeScale(+dev.opt('speed') || 1);
   dev.action('Roll a slab', () => S.rollToTable(), 'Try'); dev.action('Roll a Mythic', () => S.rollToTable({ tier: 'mythic' }), 'Try'); dev.action('Roll a variant', () => S.rollToTable({ variant: SL.VARIANTS[Math.floor(Math.random() * SL.VARIANTS.length)].id }), 'Try');
   dev.action('Open vault', () => M.is('idle') && M.send('VAULT'), 'Try'); dev.action('Open loot', () => M.is('idle') && M.send('LOOT'), 'Try');
+  /* grading wait per the dev panel: a real day, a minute, or none */
+  S.gradingWait = () => ({ day: SL.GRADING_MS, minute: 60000, instant: 0 }[dev.opt('grading')] ?? SL.GRADING_MS);
+  dev.action('Skip the wait', () => { let n = 0; store.get().pulls.forEach(p => { if (p.sentAt && !p.graded && Date.now() < p.readyAt) { SL.skipGrading(p); n++; } }); S.toast(n ? n + ' parcel' + (n === 1 ? '' : 's') + ' back on the table.' : 'Nothing is away for grading.'); hud(); }, 'Try');
   dev.action('Lock again', () => lock(), 'Reset'); dev.action('Reset secret data', () => resetAll(), 'Reset');
   dev.info(() => { const d = store.get(); return d.pulls.length + ' pulls · ' + d.vault.length + ' in vault'; });
   S.css(BASE_CSS + DEV_CSS + INSPECT_CSS);

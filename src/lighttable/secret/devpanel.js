@@ -53,6 +53,8 @@ export function createDev(S) {
   const fin = { tier: 'By tier' }; FINISHES.forEach(f => { fin[f.id] = f.name + (f.tier ? ' (' + f.tier + ')' : ''); });
   dev.define('finish', 'Test finish', fin, 'tier');
   dev.define('speed', 'Speed', { 1: 'Normal', 0.5: 'Half', 0.25: 'Quarter' }, '1');
+  /* the wait for grading: a real day for students, shorter for testing (plus Skip the wait under Try) */
+  dev.define('grading', 'Grading wait', { day: 'A real day', minute: 'One minute', instant: 'Instant' }, 'day');
   return dev;
 }
 export const DEV_CSS = `

@@ -78,8 +78,19 @@ const shell = resolveAssets(readFileSync(join(ROOT, 'src', 'index.html'), 'utf8'
 // Included files may themselves contain @@include lines (e.g. app.js pulls in back.js inside its closure).
 const readSrc = (p) => stripNl(readFileSync(join(ROOT, 'src', p), 'utf8'))
   .replace(/^[ \t]*@@include (\S+)@@$/gm, (_, q) => readSrc(q));
-const html = shell.replace(/^@@include (\S+)@@$/gm, (_, p) =>
+// Supabase (sign-in, class data, workbooks): studium.config.json, the same public project key Punctum ships with.
+// --no-supabase leaves it out (an offline build); --supabase <url>,<anonKey> overrides it.
+const argSb = process.argv.indexOf('--supabase');
+let SUPA = null;
+if (!process.argv.includes('--no-supabase')) {
+  if (argSb > -1) { const [url, anonKey] = process.argv[argSb + 1].split(','); SUPA = { url, anonKey, providers: ['google'] }; }
+  else if (existsSync(join(ROOT, 'studium.config.json'))) SUPA = JSON.parse(readFileSync(join(ROOT, 'studium.config.json'), 'utf8')).supabase || null;
+}
+const sbTag = SUPA ? `<script>window.STUDIUM_SUPABASE=${JSON.stringify(SUPA)};</script>\n` : '';
+const html0 = shell.replace(/^@@include (\S+)@@$/gm, (_, p) =>
   p === 'engine' ? engine : resolveAssets(readSrc(p)).replace('@@lighttable-b64@@', () => lightTable) + (ONLY && p === 'scenes.js' ? `\nSPLAT_SCENES=SPLAT_SCENES.filter(function(s){ return ${JSON.stringify(ONLY)}.indexOf(s.id)>=0; });   /* dev build: --only */` : ''));
+const html = html0.replace('<script id="engine">', () => sbTag + '<script id="engine">');
+if (SUPA) console.log('Supabase on: ' + SUPA.url);
 
 if (/@@include|\basset(-b64)?:[A-Za-z]/.test(html.replace(engine, ''))) throw new Error('Unresolved include or asset token');
 // every inline script must at least parse: a stray comment or quote fails the build, not a student's session

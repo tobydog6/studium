@@ -791,7 +791,7 @@
     r.onsuccess=function(e){ _db=e.target.result; cb(_db); }; r.onerror=function(){ cb(null); }; }catch(e){ cb(null); } }
   function sessKey(){ return typeof qDemo==="function"&&qDemo()?"session_demo":"session"; }   // the demo saves apart from real work
   /* empty the workspace in memory only (nothing saved is deleted): photos, boards, book, gallery, folio */
-  function wipeWorkspace(){ clearTimeout(_saveT); photos.length=0; briefDone={}; if(typeof foItems!=="undefined") foItems=[]; if(typeof pbPages!=="undefined") pbPages=[];
+  function wipeWorkspace(){ clearTimeout(_saveT); if(typeof lsDB!=="undefined"&&lsDB.wbOwner){ delete lsDB.wbOwner; lsSave(); } photos.length=0; briefDone={}; if(typeof foItems!=="undefined") foItems=[]; if(typeof pbPages!=="undefined") pbPages=[];
     if(typeof foClearBoard==="function") try{ foClearBoard(); }catch(e){}
     if(typeof st!=="undefined"){ st.wsBoard=null; st.foBoard=null; st.projects=[]; st.wsPages=[]; st.lightTable=null; if(typeof ltReset==="function") ltReset(); if(typeof wsB!=="undefined") wsB.reset(null); if(typeof foB!=="undefined") foB.reset(null); }
     if(typeof bk!=="undefined") bk.pages=[]; if(typeof ga!=="undefined"){ ga.title=""; ga.list=null; ga.sizes={}; ga.pos={}; }
@@ -1635,7 +1635,7 @@
   var bootDemo=/[?&]demo(&|=|$)/.test(location.search)&&!(lsWho()&&lsWho().demo);
   loadSession(function(ok,n){ if(bootDemo){ siShow(); siAct("demo"); return; }   // a ?demo link starts a fresh demo once saved work has loaded (it stays saved)
     if(ok){ if(typeof studioSync==="function") studioSync(); if(lsWho()) toast("Restored your last session · "+n+" photo"+(n>1?"s":"")); } if(App.is("hub")) hubRender(); });
-  if(!lsWho()||(typeof SI_DEMO_ONLY!=="undefined"&&SI_DEMO_ONLY)) siShow(); else if(lsRole()==="teacher")   /* the playtest build always opens on the title page, even for someone who has been before */ openTeacher("plan"); else { if(lsWho().name) studentName=lsWho().name; hubRender(); }
+  if(typeof siGoogleBack==="function"&&siGoogleBack()){ /* back from Google: it routes itself */ } else if(!lsWho()||(typeof SI_DEMO_ONLY!=="undefined"&&SI_DEMO_ONLY)) siShow(); else if(lsRole()==="teacher")   /* the playtest build always opens on the title page, even for someone who has been before */ openTeacher("plan"); else { if(lsWho().name) studentName=lsWho().name; hubRender(); }
   window.addEventListener("beforeunload", saveSessionNow);
   document.addEventListener("visibilitychange", function(){ if(document.hidden) saveSessionNow(); });
   setInterval(function(){ if(photos.length||(typeof foItems!=="undefined"&&foItems&&foItems.length)) saveSessionNow(); }, 9000);

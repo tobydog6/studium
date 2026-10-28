@@ -34,12 +34,25 @@
   function tcPop(open){ var p=$("teacher").querySelector(".tc-pop"), c=tcClass(); if(open===false||!p.classList.contains("hidden")&&open==null){ p.classList.add("hidden"); return; }
     p.innerHTML='<label>CLASS<input data-cf="name" value="'+cbEsc(c.name)+'"></label><label>TEACHER<input data-cf="teacher" value="'+cbEsc(c.teacher||"")+'" placeholder="Mr Quinn"></label>'
       +'<div class="two"><label>PERIOD<input data-cf="period" value="'+cbEsc(String(c.period||""))+'" placeholder="3"></label><label>STARTS<input data-cf="start" type="time" value="'+("0"+Math.floor((c.start||600)/60)).slice(-2)+':'+("0"+(c.start||600)%60).slice(-2)+'"></label></div>'
-      +'<div class="code"><span>CLASS CODE</span><b>'+cbEsc(c.code)+'</b><small>Students type this once, on the sign-in screen.</small></div>';
-    p.classList.remove("hidden");
+      +'<div class="code"><span>CLASS CODE</span><b>'+cbEsc(c.code)+'</b><small>Students type this once, on the sign-in screen.</small></div>'
+      +tcDriveHTML();
+    p.classList.remove("hidden"); tcDriveCheck();
     Array.prototype.forEach.call(p.querySelectorAll("input"),function(i){ i.addEventListener("keydown",function(e){ e.stopPropagation(); if(e.key==="Enter"||e.key==="Escape") tcPop(false); });
       i.addEventListener("input",function(){ var f=i.getAttribute("data-cf"), v=i.value;
         if(f==="start"){ var m=/^(\d\d):(\d\d)$/.exec(v); if(!m) return; c.start=+m[1]*60+ +m[2]; var pl=tcPlan(); if(pl) pl.start=c.start; } else c[f]=v;
-        if(f==="teacher"){ var w=lsWho(); w.name=v; } lsSave(); tcRenderBar(); if(tc.tab==="plan") tcRenderPlan(true); }); }); }
+        if(f==="teacher"){ var w=lsWho(); w.name=v; } lsSave(); if(typeof Sync!=="undefined") Sync.pushClass(c); tcRenderBar(); if(tc.tab==="plan") tcRenderPlan(true); }); }); }
+
+  // ---- workbooks to Google Slides: the class popup's last block ----
+  // Signed in with Google, the teacher connects the Drive the decks go into (once), and can rebuild every deck.
+  var tcDrive={checked:0, email:null};
+  function tcDriveHTML(){ if(typeof Sync==="undefined"||!Sync.on()) return "";
+    if(!Sync.signedIn()) return '<div class="code tc-drive"><span>WORKBOOKS IN GOOGLE SLIDES</span><small>Sign in with Google to save this class and send each student’s workbook to your Drive.</small><button class="tc-ghost" data-tc="gsign">SIGN IN WITH GOOGLE</button></div>';
+    return '<div class="code tc-drive"><span>WORKBOOKS IN GOOGLE SLIDES</span>'
+      +(tcDrive.email?'<small>Each student’s workbook goes to <b>'+cbEsc(tcDrive.email)+'</b>, in Studium Workbooks › '+cbEsc(tcClass().name)+'. It updates when they sign out.</small><div class="two"><button class="tc-ghost" data-tc="decks">UPDATE ALL NOW</button><button class="tc-ghost" data-tc="drive">CHANGE ACCOUNT</button></div>'
+        :'<small>Connect the Google Drive the decks go into. One deck per student, updated when they sign out. Students can’t open them.</small><button class="tc-ghost" data-tc="drive">CONNECT GOOGLE DRIVE</button>')+'</div>'; }
+  function tcDriveCheck(){ if(typeof Sync==="undefined"||!Sync.signedIn()||Date.now()-tcDrive.checked<30000) return; tcDrive.checked=Date.now();
+    Sync.driveStatus().then(function(j){ var was=tcDrive.email; tcDrive.email=j&&j.connected?(j.email||"your Drive"):null;
+      if(was!==tcDrive.email){ var p=$("teacher").querySelector(".tc-pop"), d=p&&p.querySelector(".tc-drive"); if(d){ var t=document.createElement("div"); t.innerHTML=tcDriveHTML(); d.replaceWith(t.firstChild); } } }).catch(function(){}); }
 
   // ---- plan ----
   function tcUnit(ph){ var k=lsKind(ph); return k==="none"?"":LS_UNIT[k][ph.n===1?0:1]; }
@@ -194,7 +207,10 @@
     if(a==="unboard") return tcUnboard();
     if(a==="look") return tcLook();
     if(a==="preview"){ lsSetWho({role:"student", name:TC_PREVIEW, code:c.code, preview:true, teacherName:c.teacher}); $("teacher").classList.add("hidden"); return showHub(); }
-    if(a==="out"){ lsSetWho(null); $("teacher").classList.add("hidden"); return siShow(); } }
+    if(a==="out"){ $("teacher").classList.add("hidden"); return siSignOut(siShow); }
+    if(a==="gsign"){ return Sync.signIn("google", "teacher"); }
+    if(a==="drive"){ toast("Opening Google…"); return Sync.driveConnect().then(function(j){ if(!j||!j.url) toast(j&&j.error==="no-google-client"?"Google isn't set up on the server yet (docs/google-setup.md).":"Couldn't reach Google. Try again."); }); }
+    if(a==="decks"){ toast("Updating every student's deck…"); return Sync.driveRebuild(c.code).then(function(j){ toast(j&&j.ok?"Updated "+(j.built||0)+" deck"+(j.built===1?"":"s")+(j.skipped?", "+j.skipped+" already up to date":"")+".":"Couldn't update the decks"+(j&&j.reason==="not-connected"?": connect Google Drive first.":".")); }); } }
   (function wireTeacher(){ var t=$("teacher"); if(!t) return;
     t.addEventListener("click",function(e){ var b=e.target.closest("[data-tc],[data-tc-tab],[data-tc-tpl],[data-tc-blk],[data-tc-open],[data-tc-firm],[data-tc-f],[data-tc-st],[data-tc-q]"); if(!b) return; var pl=tcPlan();
       if(b.hasAttribute("data-tc")) return tcAct(b.getAttribute("data-tc"), b);

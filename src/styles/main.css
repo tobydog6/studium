@@ -1348,6 +1348,8 @@ body.st-legacy #galleryshow{top:64px;z-index:56}
 .tc-pop .code span{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;color:var(--accent)}
 .tc-pop .code b{font-family:var(--mono);font-weight:400;font-size:26px;letter-spacing:.3em}
 .tc-pop .code small{font-size:12px;color:var(--ink-4)}
+.tc-pop .tc-drive small b{font-family:var(--sans);font-size:12px;letter-spacing:0;font-weight:500;color:var(--text)}
+.tc-pop .tc-drive button{margin-top:6px;align-self:flex-start;height:30px;padding:0 12px;border:1px solid rgba(var(--gold-rgb),.35);border-radius:6px;color:var(--accent)!important}.tc-pop .tc-drive button:hover{border-color:var(--accent)}.tc-pop .tc-drive .two{gap:8px}.tc-pop .tc-drive .two button{flex:1;align-self:auto}
 .tc-bar .rr{display:flex;align-items:center;gap:14px;width:auto}
 .tc-tabs{display:flex;gap:2px;padding:3px;border-radius:7px;background:#17140f}
 .tc-tabs button{height:26px;padding:0 12px;border-radius:5px;background:none;border:0;cursor:pointer;font-family:var(--mono)!important;font-size:10px;letter-spacing:.14em;color:var(--ink-4)!important}

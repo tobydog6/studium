@@ -1,8 +1,10 @@
--- Studium + Punctum on Supabase (project region: ap-southeast-2, Sydney).
--- Run in the SQL editor of a new project, then set window.STUDIUM_SUPABASE = {url, anonKey} in the build.
--- Auth: enable Google and Azure (Microsoft) providers; restrict sign-ups to the school's domains.
+-- Studium on Supabase. It shares Punctum's project (xddjfwoppmuhyagkhalk, Sydney), so every Studium table is
+-- named studium_* and Punctum's own tables (classes, images, packs, feedback, ...) are never touched.
+-- Run this whole file once in the SQL editor. It is safe to run again.
+-- Auth: Google provider on (Authentication > Providers). Setup steps: docs/google-setup.md.
 
-create table if not exists classes (
+-- ---------- classes, students, plans, presence, notes ----------
+create table if not exists studium_classes (
   code       text primary key check (code ~ '^[A-Z2-9]{6}$'),
   name       text not null,
   teacher    text,
@@ -12,79 +14,133 @@ create table if not exists classes (
   created_at timestamptz default now()
 );
 
-create table if not exists members (     -- a student in a class
-  class_code text references classes(code) on delete cascade,
+create table if not exists studium_members (     -- a student in a class
+  class_code text references studium_classes(code) on delete cascade,
   user_id    uuid references auth.users(id) default auth.uid(),
   name       text not null,
+  email      text,
+  joined_at  timestamptz default now(),
   primary key (class_code, user_id)
 );
 
-create table if not exists plans (       -- one plan per class per day; body is the plan JSON from lesson.js
-  class_code text references classes(code) on delete cascade,
+create table if not exists studium_plans (       -- one plan per class per day; body is the plan JSON from lesson.js
+  class_code text references studium_classes(code) on delete cascade,
   date       date not null,
   body       jsonb not null,
   updated_at timestamptz default now(),
   primary key (class_code, date)
 );
 
-create table if not exists presence (    -- where each student is, every 20 s
-  class_code text references classes(code) on delete cascade,
+create table if not exists studium_presence (    -- where each student is, every 20 s
+  class_code text references studium_classes(code) on delete cascade,
   student    text not null,
   user_id    uuid default auth.uid(),
   state      text, frames int, picks int, edits int,
-  quest      jsonb,                       -- {tracked, title, step, f, done[], tally, by[]} from qSummary()
+  quest      jsonb,                       -- {tracked, title, step, f, done[], tally, by[], ach} from qSummary()
   seen_at    timestamptz default now(),
   primary key (class_code, student)
 );
 
-create table if not exists notes (       -- teacher to student
+create table if not exists studium_notes (       -- teacher to student. "§tick:<quest>[:<step>]" is a quest tick, never shown
   id         bigint generated always as identity primary key,
-  class_code text references classes(code) on delete cascade,
+  class_code text references studium_classes(code) on delete cascade,
   student    text not null,
   body       text not null,
   read_at    timestamptz,
   created_at timestamptz default now()
 );
 
-alter table classes  enable row level security;
-alter table members  enable row level security;
-alter table plans    enable row level security;
-alter table presence enable row level security;
-alter table notes    enable row level security;
-
--- anyone signed in can look a class up by its code (that's how joining works); only its teacher changes it
-create policy "read class by code"   on classes for select using (auth.role() = 'authenticated');
-create policy "teacher owns class"   on classes for all    using (teacher_id = auth.uid()) with check (teacher_id = auth.uid());
-create policy "join a class"         on members for insert with check (user_id = auth.uid());
-create policy "see own membership"   on members for select using (user_id = auth.uid() or exists (select 1 from classes c where c.code = class_code and c.teacher_id = auth.uid()));
-create policy "class reads plan"     on plans   for select using (exists (select 1 from members m where m.class_code = plans.class_code and m.user_id = auth.uid()) or exists (select 1 from classes c where c.code = plans.class_code and c.teacher_id = auth.uid()));
-create policy "teacher writes plan"  on plans   for all    using (exists (select 1 from classes c where c.code = plans.class_code and c.teacher_id = auth.uid()));
-create policy "student writes self"  on presence for all   using (user_id = auth.uid()) with check (user_id = auth.uid());
-create policy "teacher reads class"  on presence for select using (exists (select 1 from classes c where c.code = presence.class_code and c.teacher_id = auth.uid()));
-create policy "teacher writes notes" on notes   for all    using (exists (select 1 from classes c where c.code = notes.class_code and c.teacher_id = auth.uid()));
-create policy "student reads notes"  on notes   for select using (exists (select 1 from members m where m.class_code = notes.class_code and m.user_id = auth.uid() and m.name = notes.student));
-
--- quests (added with the quest system). Run on an existing project:
-alter table presence add column if not exists quest jsonb;
--- A teacher ticking a quest off for a student is a note whose body is "§tick:<quest id>" or "§tick:<quest id>:<step>".
--- The student's app applies it once and never shows it. Class checkpoint dates ride on the plan body as "cps".
-
--- demo feedback from playtesters (the finish card's three optional questions)
-create table if not exists feedback (
+create table if not exists studium_feedback (    -- playtesters' answers on the demo's finish card
   id         bigint generated always as identity primary key,
-  body       jsonb not null,
+  body       jsonb not null check (length(body::text) < 8000),
   created_at timestamptz default now()
 );
-alter table feedback enable row level security;
-create policy "anyone signed in can leave feedback" on feedback for insert with check (auth.role() = 'authenticated');
+
+-- ---------- the workbook, for the teacher's Google Slides decks ----------
+-- Each workbook page is saved as a JPEG in the private "studium-workbooks" bucket at <user id>/<page id>.jpg.
+-- pages = [{id, path, hash}] in workbook order.
+create table if not exists studium_workbooks (
+  user_id    uuid primary key references auth.users(id) default auth.uid(),
+  class_code text references studium_classes(code) on delete set null,
+  student    text,
+  pages      jsonb not null default '[]',
+  updated_at timestamptz default now()
+);
+
+-- Server-only tables (row level security on, no policies: only the studium-drive function can read them)
+create table if not exists studium_teacher_google (   -- the Google account a teacher's decks go into
+  teacher_id    uuid primary key references auth.users(id) on delete cascade,
+  email         text,
+  refresh_token text not null,
+  root_folder   text,                                -- "Studium Workbooks" folder id
+  connected_at  timestamptz default now()
+);
+create table if not exists studium_google_states (    -- one-time codes for the connect round trip
+  state      text primary key,
+  teacher_id uuid not null,
+  back       text,                                   -- the Studium page to come back to
+  created_at timestamptz default now()
+);
+create table if not exists studium_class_folders (    -- each class's folder inside "Studium Workbooks"
+  class_code text primary key references studium_classes(code) on delete cascade,
+  folder_id  text not null
+);
+create table if not exists studium_decks (            -- each student's deck
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  deck_id    text not null,
+  built_hash text,
+  built_at   timestamptz
+);
+
+alter table studium_classes        enable row level security;
+alter table studium_members        enable row level security;
+alter table studium_plans          enable row level security;
+alter table studium_presence       enable row level security;
+alter table studium_notes          enable row level security;
+alter table studium_feedback       enable row level security;
+alter table studium_workbooks      enable row level security;
+alter table studium_teacher_google enable row level security;
+alter table studium_google_states  enable row level security;
+alter table studium_class_folders  enable row level security;
+alter table studium_decks          enable row level security;
+
+-- policies (dropped first so the file can be run again)
+do $$ declare r record; begin
+  for r in select policyname, tablename from pg_policies where schemaname='public' and tablename like 'studium\_%' loop
+    execute format('drop policy %I on %I', r.policyname, r.tablename); end loop; end $$;
+
+-- anyone signed in can look a class up by its code (that's how joining works); only its teacher changes it
+create policy "read class by code"   on studium_classes  for select using (auth.role() = 'authenticated');
+create policy "teacher owns class"   on studium_classes  for all    using (teacher_id = auth.uid()) with check (teacher_id = auth.uid());
+create policy "join a class"         on studium_members  for insert with check (user_id = auth.uid());
+create policy "update own name"      on studium_members  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "see own membership"   on studium_members  for select using (user_id = auth.uid() or exists (select 1 from studium_classes c where c.code = class_code and c.teacher_id = auth.uid()));
+create policy "class reads plan"     on studium_plans    for select using (exists (select 1 from studium_members m where m.class_code = studium_plans.class_code and m.user_id = auth.uid()) or exists (select 1 from studium_classes c where c.code = studium_plans.class_code and c.teacher_id = auth.uid()));
+create policy "teacher writes plan"  on studium_plans    for all    using (exists (select 1 from studium_classes c where c.code = studium_plans.class_code and c.teacher_id = auth.uid()));
+create policy "student writes self"  on studium_presence for all    using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "teacher reads class"  on studium_presence for select using (exists (select 1 from studium_classes c where c.code = studium_presence.class_code and c.teacher_id = auth.uid()));
+create policy "teacher writes notes" on studium_notes    for all    using (exists (select 1 from studium_classes c where c.code = studium_notes.class_code and c.teacher_id = auth.uid()));
+create policy "student reads notes"  on studium_notes    for select using (exists (select 1 from studium_members m where m.class_code = studium_notes.class_code and m.user_id = auth.uid() and m.name = studium_notes.student));
+create policy "anyone leaves feedback" on studium_feedback for insert with check (true);   -- the public demo has no login
+create policy "own workbook"         on studium_workbooks for all   using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "teacher reads workbooks" on studium_workbooks for select using (exists (select 1 from studium_classes c where c.code = studium_workbooks.class_code and c.teacher_id = auth.uid()));
 
 -- achievement rarity: "% of your class has this". Returns only counts, never who.
-create or replace function ach_rarity(code text) returns table(id text, pct int) language sql security definer as $$
-  with c as (select quest from presence where class_code = code and quest ? 'ach'
-         and exists (select 1 from members m where m.class_code = code and m.user_id = auth.uid())),
+create or replace function studium_ach_rarity(code text) returns table(id text, pct int) language sql security definer set search_path = public as $$
+  with c as (select quest from studium_presence where class_code = code and quest ? 'ach'
+         and exists (select 1 from studium_members m where m.class_code = code and m.user_id = auth.uid())),
        n as (select greatest(count(*),1) as total from c)
   select a.id, round(100.0 * count(*) / (select total from n))::int
   from c, jsonb_array_elements_text(c.quest->'ach'->'ids') as a(id)
   group by a.id;
 $$;
-grant execute on function ach_rarity(text) to authenticated;
+grant execute on function studium_ach_rarity(text) to authenticated;
+
+-- ---------- storage: workbook page images ----------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('studium-workbooks', 'studium-workbooks', false, 10485760, array['image/jpeg'])
+  on conflict (id) do nothing;
+drop policy if exists "studium: own workbook images" on storage.objects;
+create policy "studium: own workbook images" on storage.objects for all to authenticated
+  using (bucket_id = 'studium-workbooks' and (storage.foldername(name))[1] = auth.uid()::text)
+  with check (bucket_id = 'studium-workbooks' and (storage.foldername(name))[1] = auth.uid()::text);

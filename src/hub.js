@@ -80,7 +80,7 @@
   function hubNote(){ var w=lsWho(); if(!w||!w.code) return null; var list=(lsDB.notes[w.code+"/"+w.name]||[]).filter(function(n){ return !n.read; }); return list[list.length-1]||null; }
   function hubAct(a, el){ var who=lsWho();
     if(a==="go"){ if(typeof qMode==="function"&&qMode()&&!qPlanLive()) return qHubGo(); return lsGo(el.getAttribute("data-h6-go")||"shoot"); }
-    if(a==="me"){ if(who&&who.preview){ lsSetWho({role:"teacher", name:who.teacherName||"Teacher", code:who.code}); return openTeacher("plan"); } if(who&&who.role==="student") lsSetWho(null); return siShow(); }
+    if(a==="me"){ if(who&&who.preview){ lsSetWho({role:"teacher", name:who.teacherName||"Teacher", code:who.code}); return openTeacher("plan"); } if(who&&who.role==="student") return siSignOut(siShow); return siShow(); }
     if(a==="teacher") return openTeacher("plan");
     if(a==="read"){ var w=lsWho(), L=lsDB.notes[w.code+"/"+w.name]||[]; L.forEach(function(n){ n.read=true; }); lsSave(); return hubRender(); } }
   (function wireHub(){ var h=$("hub"); if(!h) return;
@@ -102,15 +102,19 @@
     s.querySelector(".si-sub").textContent=pl?"Starts "+lsHM(pl.start)+". Sign in with your school account.":"Sign in with your school account.";
     // the playtest build: only the demo. ?full brings back school sign-in, class codes and the teacher view
     s.classList.toggle("demo-only", SI_DEMO_ONLY);
+    var pv=(typeof Sync!=="undefined"&&Sync.on())?Sync.providers():null; s.querySelector(".si-m").classList.toggle("hidden", !!pv&&pv.indexOf("microsoft")<0);   /* only the providers switched on in Supabase */
     if(SI_DEMO_ONLY){ s.querySelector(".si-eb").textContent="A PHOTOGRAPHY STUDIO FOR YEARS 11 TO 13"; s.querySelector(".si-sub").textContent="Walk into a real place, shoot it with a real camera, then edit your photos and lay out a folio."; }
     s.querySelector(".si-name").classList.add("hidden"); s.querySelector(".si-code").classList.remove("hidden"); $("siCode").value=""; siTime(); if(!siTimer) siTimer=setInterval(siTick, 15000); }
   function siTime(){ var t=$("signin")&&$("signin").querySelector(".si-time"); if(!t) return; var d=lsNow(); t.textContent=d.toLocaleDateString("en-NZ",{weekday:"short",day:"numeric",month:"short"}).toUpperCase()+" · "+lsHM(lsMinOf(d)); }
   var siPending=null, siDemoAsk=false, SI_DEMO_ONLY=!/[?&]full(&|=|$)/.test(location.search);
   var SI_DEMO_LABEL='<span class="t">Launch the demo</span><span class="d">ABOUT 40 MINUTES · SHOOT · PICK · EDIT · CHOOSE YOUR OWN</span><span class="go">→</span>';
   function siAct(a){ var s=$("signin");
-    if(a==="google"||a==="microsoft"){ if(typeof Sync!=="undefined"&&Sync.on()) return Sync.signIn(a); toast("School sign-in isn't connected on this computer yet. Join with a class code, or try it on your own."); return; }
+    if(a==="google"||a==="microsoft"){ if(typeof Sync!=="undefined"&&Sync.providers().indexOf(a)>=0) return Sync.signIn(a, "student"); toast("School sign-in isn't connected on this computer yet. Join with a class code, or try it on your own."); return; }
     if(a==="join"){ var code=($("siCode").value||"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
       if(code.length<6){ toast("Class codes are six letters and numbers."); return; }
+      if(siGoogle){ Sync.joinClass(code).then(function(c){ if(!c){ toast("We couldn't find that code. Check the board?"); return; }   /* signed in with Google: their Google name is the name, no second step */
+          lsDB.classes[code]=c; lsSave(); return Sync.addMember(code, siGoogle.name).then(function(){ var g=siGoogle; siGoogle=null; lsSetWho({role:"student", name:g.name, code:code, google:true}); siDone(); }); })
+          .catch(function(){ toast("That didn't go through. Check the internet and try again."); }); return; }
       var hit=lsDB.classes[code]; if(!hit&&typeof Sync!=="undefined"&&Sync.on()){ Sync.joinClass(code).then(function(c){ if(c){ lsDB.classes[code]=c; lsSave(); siPending=code; siAskName(); } else toast("We couldn't find that code. Check the board?"); }); return; }
       if(!hit){ toast("We couldn't find that code. Check the board?"); return; } siPending=code; return siAskName(); }
     if(a==="name"){ var nm=($("siName").value||"").trim(); if(nm.length<2){ toast("Type your name the way your teacher knows it."); return; }
@@ -121,6 +125,29 @@
       siDemoAsk=false; b.classList.remove("ask"); b.innerHTML=SI_DEMO_LABEL;
       if(typeof saveSessionNow==="function") saveSessionNow(); wipeWorkspace(); lsSetWho({role:"solo", name:"", demo:true}); siDone(); qDemoStart(); return; }   // a fresh demo every time; a real student's saved work is left alone
     if(a==="teacher"){ return openTeacher("plan"); } }
+  // ---- back from Google (Sync read the token from the address bar). Students: their class if they've joined one, else
+  // the class code once. Teachers: their classes from the server, then the teacher view. Returns true when it takes over boot.
+  var siGoogle=null;
+  function siGoogleBack(){ if(typeof Sync==="undefined"||!Sync.on()) return false;
+    var h=location.hash||"", dm=/drive=(ok|error)/.exec(h);
+    if(dm){ try{ history.replaceState(null,"",location.pathname+location.search); }catch(e){} setTimeout(function(){ toast(dm[1]==="ok"?"Google Drive connected. Workbooks will go into the Studium Workbooks folder.":"Google Drive didn't connect. Try again from the class menu."); }, 600); }
+    var after=Sync.justBack(); if(!after) return false;
+    var s=$("signin"); ["hub","landing","studio","punctum","teacher","hud"].forEach(hubHide); if(s){ s.classList.remove("hidden","demo-only"); App.go("signin"); s.querySelector(".si-sub").textContent="Signing you in…"; }
+    Sync.me().then(function(u){ if(!u) throw new Error("no user");
+      if(after==="teacher") return Sync.myClasses().then(function(list){ (list||[]).forEach(function(c){ lsDB.classes[c.code]=c; });
+        var cls=(list&&list[0])||null; if(!cls){ Object.keys(lsDB.classes).forEach(function(k){ cls=lsDB.classes[k]; }); }
+        if(!cls){ var d=lsNow(); cls={code:lsCode(), name:"My class", teacher:u.name, period:"", start:Math.floor(lsMinOf(d)/5)*5}; lsDB.classes[cls.code]=cls; }
+        if(!cls.teacher||cls.teacher==="Teacher") cls.teacher=u.name;
+        lsSetWho({role:"teacher", name:cls.teacher, code:cls.code, google:true, email:u.email}); Sync.pushClass(cls);
+        if(s) s.classList.add("hidden"); openTeacher("plan"); });
+      return Sync.myMembership().then(function(m){
+        if(m) return Sync.joinClass(m.class_code).then(function(c){ if(!c) throw new Error("class gone"); lsDB.classes[c.code]=c; lsSetWho({role:"student", name:m.name, code:c.code, google:true}); if(s) s.classList.add("hidden"); siDone(); });
+        siGoogle=u; siShow(); var s2=$("signin"); s2.querySelector(".si-sub").textContent="Kia ora "+u.name.split(" ")[0]+". Type your class code to join your class."; s2.querySelector(".si-help").textContent="Your teacher has it on the board. You only need it once."; setTimeout(function(){ $("siCode").focus(); },30); }); })
+      .catch(function(e){ console.warn(e); siShow(); toast("Google sign-in didn't finish. Try again, or join with a class code."); });
+    return true; }
+  // signing out on a shared computer: the workbook goes up (and the teacher's deck is rebuilt) before the session goes
+  function siSignOut(then){ if(typeof Sync!=="undefined"&&Sync.signedIn()){ toast("Saving your workbook…"); Sync.signOut().then(function(){ lsSetWho(null); then(); toast("Signed out. Your work is saved."); }); return; }
+    lsSetWho(null); then(); }
   function siAskName(){ var s=$("signin"); s.querySelector(".si-code").classList.add("hidden"); s.querySelector(".si-name").classList.remove("hidden");
     var c=lsDB.classes[siPending]; s.querySelector(".si-help").textContent="Joining "+c.name+(c.teacher?" with "+c.teacher:"")+"."; setTimeout(function(){ $("siName").focus(); },30); }
   function siDone(){ var s=$("signin"); s.classList.add("hidden"); s.querySelector(".si-help").textContent="Your teacher has it on the board. You only need it once."; if(typeof launchStart==="function"&&!(lsWho()||{}).demo) launchStart(); else showHub(); }   /* the demo starts its own opening */

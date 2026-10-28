@@ -18,6 +18,7 @@
   function galApp(){ try{ return GAL.frame&&GAL.frame.contentWindow&&GAL.frame.contentWindow.GALapp||null; }catch(e){ return null; } }
   function galOpen(){ if(!GAL.box){ GAL.box=document.createElement("div"); GAL.box.id="gal-room"; GAL.box.className="hidden"; document.body.appendChild(GAL.box); }
     if(!GAL.frame){ var html; try{ html=decodeURIComponent(escape(atob(GAL_B64))); }catch(e){ GAL.box.innerHTML='<p class="gal-err">The gallery didn’t load. Try reloading Studium.</p>'; GAL.box.classList.remove("hidden"); GAL.on=true; return; }
+      if(typeof ltFonts==="function") html=html.replace("</head>","<style>"+ltFonts()+"</style></head>");   /* Studium's own fonts, as the light table does */
       GAL.frame=document.createElement("iframe"); GAL.frame.className="gal-frame"; GAL.frame.title="Gallery"; GAL.frame.srcdoc=html; GAL.box.appendChild(GAL.frame);
       GAL.frame.addEventListener("load", function(){ try{ GAL.frame.contentWindow.focus(); }catch(e){} }); }
     else { var a=galApp(); if(a) try{ a.pause(false); }catch(e){} try{ GAL.frame.contentWindow.focus(); }catch(e){} }

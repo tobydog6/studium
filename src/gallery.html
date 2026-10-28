@@ -1,37 +1,24 @@
 <!doctype html>
 <html lang="en-NZ"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Gallery look lab</title>
+<title>Gallery</title>
 <style>
-  html,body{margin:0;height:100%;background:#0c0b0a;color:#f4f1ea;font-family:-apple-system,system-ui,sans-serif;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+  :root{--bg:#0c0b0a;--panel:#17150f;--line:#2b2820;--text:#f4f1ea;--dim:#a69f91;--gold:#e3ad57;--safelight:#e4552e;--paper:#efe9dc;--ink:#1d1a15;
+    --display:Fraunces,Georgia,serif;--body:Geist,-apple-system,system-ui,sans-serif;--mono:"Geist Mono",ui-monospace,Menlo,monospace;color-scheme:dark}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:var(--body);overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
   canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block}
-  .panel{position:fixed;top:16px;left:16px;background:rgba(20,18,14,.82);backdrop-filter:blur(10px);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;max-width:calc(100vw - 64px);z-index:2}
-  .panel h1{font:500 20px Georgia,serif;margin:0}
-  .panel p{margin:0;color:#a69f91;font-size:12.5px;line-height:1.45;max-width:300px}
-  .row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-  .row span{font:600 10.5px -apple-system,system-ui,sans-serif;letter-spacing:.1em;color:#a69f91;width:52px}
-  .row button{border:0;border-radius:999px;background:#26231b;color:#f4f1ea;padding:7px 13px;font:600 12.5px -apple-system,system-ui,sans-serif;cursor:pointer}
-  .row button.on{background:#e3ad57;color:#17140d}
-  .stats{position:fixed;top:16px;right:16px;background:rgba(20,18,14,.82);backdrop-filter:blur(10px);border-radius:14px;padding:12px 14px;font:12px ui-monospace,Menlo,monospace;line-height:1.6;text-align:right;z-index:2;max-width:46vw}
-  .stats b{font:600 26px ui-monospace,Menlo,monospace;display:block}
-  .stats .gpu{color:#a69f91;font-size:10.5px;max-width:240px;display:block;white-space:normal}
-  .gal-back{position:fixed;left:16px;bottom:16px;z-index:3;border:0;border-radius:999px;background:#e3ad57;color:#17140d;padding:9px 16px;font:600 13px -apple-system,system-ui,sans-serif;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.35)}
-  .gal-back:hover{background:#f0bd68}
-  .hint{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:rgba(20,18,14,.7);padding:8px 14px;border-radius:999px;font-size:12.5px;color:#a69f91;z-index:2;white-space:nowrap}
+  button{font-family:inherit}
 </style></head><body>
 <canvas id="gl"></canvas>
-<div class="panel">
-  <h1>Gallery look lab</h1>
-  <p>Try each look on this computer. Watch the frame rate: 60 is smooth, under 30 starts to feel sluggish.</p>
-  <div class="row" id="looks"><span>LOOK</span></div>
-  <div class="row" id="crowds"><span>CROWD</span></div>
-</div>
-<div class="stats" id="stats"><b id="fps">--</b><span id="ms"></span><span class="gpu" id="gpu"></span></div>
-<div class="hint">Drag to turn the room. Scroll or pinch to zoom.</div>
 <script id="engine">
 @@include engine@@
 </script>
 <script>
-@@include gallery.js@@
+@@include gallery/core.js@@
+@@include gallery/room.js@@
+@@include gallery/map.js@@
+@@include gallery/plan.js@@
+@@include gallery/night.js@@
+@@include gallery/main.js@@
 </script>
 </body></html>

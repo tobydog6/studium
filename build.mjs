@@ -9,7 +9,7 @@
 //   @@include engine@@   is replaced by the esbuild bundle of src/engine.js (three + Spark 2).
 //   asset:<path>         inside any included file becomes a base64 data: URI of <path> (repo-relative).
 //   asset-b64:<path>     becomes the bare base64 of <path> (used for the scene data and Punctum).
-import { readFileSync, writeFileSync, mkdirSync, rmSync, statSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, rmSync, statSync, existsSync, readdirSync, copyFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -91,6 +91,8 @@ const html0 = shell.replace(/^@@include (\S+)@@$/gm, (_, p) =>
   p === 'engine' ? engine : resolveAssets(readSrc(p)).replace('@@lighttable-b64@@', () => lightTable) + (ONLY && p === 'scenes.js' ? `\nSPLAT_SCENES=SPLAT_SCENES.filter(function(s){ return ${JSON.stringify(ONLY)}.indexOf(s.id)>=0; });   /* dev build: --only */` : ''));
 const html = html0.replace('<script id="engine">', () => sbTag + '<script id="engine">');
 if (SUPA) console.log('Supabase on: ' + SUPA.url);
+// web build: the site files (link-preview image, robots.txt, sitemap.xml) from assets/web/ go at the site root
+if (WEB) for (const f of readdirSync(join(ROOT, 'assets', 'web'))) copyFileSync(join(ROOT, 'assets', 'web', f), join(WEBDIR, f));
 
 if (/@@include|\basset(-b64)?:[A-Za-z]/.test(html.replace(engine, ''))) throw new Error('Unresolved include or asset token');
 // every inline script must at least parse: a stray comment or quote fails the build, not a student's session

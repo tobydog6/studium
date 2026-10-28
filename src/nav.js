@@ -8,7 +8,9 @@
     ["studio","STUDIO","Tab",'<rect x="3" y="3" width="6" height="6" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="3" width="6" height="6" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="11" width="6" height="6" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="11" width="6" height="6" fill="none" stroke="currentColor" stroke-width="1.5"/>'],
     ["critique","RESEARCH","C",'<circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="10" cy="10" r="2" fill="currentColor"/>']];
   function navHere(){ var s=App.state; if(s==="hub") return "home"; if(s==="punctum"||s==="studio.research") return "critique"; if(s.indexOf("studio")===0) return "studio"; if(s==="landing"||s==="scene"||s==="viewfinder"||s==="back"||s==="bag") return "shoot"; return ""; }
-  function navGo(p){ if(lsMoveOpen()) return;
+  /* Home is for signed-in school accounts (the teacher's plan, notes, sign-out). The demo has no Home: the Space menu covers it */
+  function navNoHome(){ return typeof qDemo==="function"&&qDemo(); }
+  function navGo(p){ if(lsMoveOpen()) return; if(p==="home"&&navNoHome()) return;
     if(p==="home"){ if(st.open){ stHideLegacy(); st.open=false; $("studioX").classList.add("hidden"); } return showHub(); }
     if(p==="shoot") return lsGo("shoot");
     if(p==="critique"){ if(typeof cbOpen!=="undefined"&&cbOpen) closeBack(false); if(bg.open) closeBag(); hubHide("punctum"); hubHide("landing"); return openStudio("research"); }   // Punctum lives in the studio now, as Research
@@ -17,8 +19,9 @@
   function navUp(id){ var e=$(id); return !!e&&!e.classList.contains("hidden"); }
   function navRender(){ var d=$("dock"); if(!d) return; var here=navHere(), B=document.body.classList, busy=B.contains("launching")||B.contains("rackin")||navUp("signin")||(typeof LA!=="undefined"&&LA.on),
       show=!busy&&((App.is("hub")&&navUp("hub"))||(App.is("landing")&&navUp("landing"))||(App.is("punctum")&&navUp("punctum")));
+    document.body.classList.toggle("no-home", navNoHome());
     d.classList.toggle("show", show);
-    if(show) d.innerHTML=NAV_PLACES.map(function(p){ return '<button class="'+(p[0]===here?'on':'')+'" data-nav="'+p[0]+'"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">'+p[3]+'</svg>'+p[1]+'<span>'+p[2]+'</span></button>'; }).join("");
+    if(show) d.innerHTML=NAV_PLACES.filter(function(p){ return !(p[0]==="home"&&navNoHome()); }).map(function(p){ return '<button class="'+(p[0]===here?'on':'')+'" data-nav="'+p[0]+'"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">'+p[3]+'</svg>'+p[1]+'<span>'+p[2]+'</span></button>'; }).join("");
     navScene(); }
   // in a location
   function navScene(){ var on=App.is("scene"), top=$("navTop"), acts=$("navActs"), task=$("navTask"); if(!top) return;
@@ -41,7 +44,7 @@
     window.addEventListener("keydown",function(e){ var t=e.target, tag=t&&t.tagName; if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT"||(t&&t.isContentEditable)) return;
       if(e.ctrlKey||e.metaKey||e.altKey||lsMoveOpen()) return; if(App.is("teacher")||App.is("signin")) return;
       var ed=$("editor"); if(ed&&!ed.classList.contains("hidden")) return;
-      if(e.code==="KeyH"){ e.preventDefault(); e.stopImmediatePropagation(); navGo("home"); }
+      if(e.code==="KeyH"&&!navNoHome()){ e.preventDefault(); e.stopImmediatePropagation(); navGo("home"); }
       else if(e.code==="KeyC"&&!App.is("punctum")){ e.preventDefault(); e.stopImmediatePropagation(); navGo("critique"); } }, true);
     /* overlays come and go without a state change (launch, sign-in, the hub card), so the dock re-checks when they do */
     var navQ=0, navObs=function(){ if(navQ) return; navQ=requestAnimationFrame(function(){ navQ=0; navRender(); }); };
@@ -70,10 +73,10 @@
     bag:'<i class="ka-shelf"></i><i class="ka-bspot"></i><img class="ka-t ka-t1" src="asset:assets/bag/thumb-2470.webp" alt="" draggable="false"><img class="ka-t ka-t3" src="asset:assets/bag/thumb-85.webp" alt="" draggable="false"><img class="ka-t ka-t2" src="asset:assets/bag/thumb-50.webp" alt="" draggable="false">',
     lights:'<i class="ka-floor"></i><i class="ka-glow"></i><img class="ka-soft" src="asset:assets/kit/softbox.webp" alt="" draggable="false">'};
   function kitRender(){ var k=$("kitMenu"); if(!k){ k=document.createElement("div"); k.id="kitMenu"; document.body.appendChild(k);
-      k.addEventListener("click",function(e){ var b=e.target.closest("[data-kit]"); if(b){ e.stopPropagation(); kitGo(b.getAttribute("data-kit")); } else if(!e.target.closest(".kit-card")) kitClose(); });
+      k.addEventListener("click",function(e){ var r=e.target.closest("[data-kit-reset]"); if(r){ e.stopPropagation(); kitReset(r); return; } var b=e.target.closest("[data-kit]"); if(b){ e.stopPropagation(); kitGo(b.getAttribute("data-kit")); } else if(!e.target.closest(".kit-card")) kitClose(); });
       k.addEventListener("mouseover",function(e){ var b=e.target.closest("[data-kit-i]"); if(b&&+b.getAttribute("data-kit-i")!==KIT.sel){ KIT.sel=+b.getAttribute("data-kit-i"); kitMark(); } }); }
     k.classList.toggle("show",KIT.open); if(!KIT.open) return;
-    k.innerHTML='<div class="kit-wrap"><div class="kit-top"><span class="kit-eb">MENU</span><h2>What do you need?</h2><em>Press Space any time to open this.</em></div>'
+    k.innerHTML=(typeof qDemo==="function"&&qDemo()?'<button class="kit-reset" data-kit-reset><svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10a6 6 0 1 0 2-4.5M4 3v3.5h3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>RESET DEMO</span></button>':'')+'<div class="kit-wrap"><div class="kit-top"><span class="kit-eb">MENU</span><h2>What do you need?</h2><em>Press Space any time to open this.</em></div>'
       +'<div class="kit-row">'+KIT_ITEMS.map(function(it,i){ return '<button class="kit-card" data-kit="'+it[0]+'" data-kit-i="'+i+'" style="--w:'+((i>>1)+(i&1))+'"><div class="kit-art ka-'+it[0]+'">'+(it[0]==="studio"?kitStudioArt():KIT_ART[it[0]])+'</div><div class="kit-meta"><b>'+it[1]+'</b><span>'+it[2]+'</span></div><kbd>'+it[3]+'</kbd></button>'; }).join("")+'</div>'
       +(typeof weKitHTML==="function"?weKitHTML():"")+'<div class="kit-foot"><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd> or click to choose</span><span><kbd>5</kbd><kbd>6</kbd><kbd>7</kbd> weather</span><span><kbd>Space</kbd> or <kbd>Esc</kbd> back to the scene</span></div></div>';
     kitScreen(); kitMark();
@@ -82,6 +85,10 @@
   /* the camera back's own screen on the Settings tile: what the camera is set to right now */
   function kitScreen(){ var e=document.querySelector("#kitMenu .ka-scr"); if(!e) return;
     try{ e.innerHTML='<span class="t">SETTINGS</span><span class="v"><b>'+cbEsc(SHUTTER_LABELS[shIdx])+'</b><b>f/'+cbEsc(APERTURES[apIdx])+'</b><b>ISO '+cbEsc(ISOS[isoIdx])+'</b></span><span class="t">'+cbEsc(curBody().name.toUpperCase())+' · '+focalMM+' MM</span>'; }catch(x){ e.innerHTML=""; } }
+  /* the demo's reset, for the next person: click once to ask, again to wipe and start the opening over */
+  function kitReset(b){ if(!b.classList.contains("ask")){ b.classList.add("ask"); b.querySelector("span").textContent="CLICK AGAIN TO START OVER"; clearTimeout(KIT.resetT);
+      KIT.resetT=setTimeout(function(){ if(b.isConnected){ b.classList.remove("ask"); b.querySelector("span").textContent="RESET DEMO"; } },4000); return; }
+    clearTimeout(KIT.resetT); KIT.open=false; KIT.vf=KIT.look=false; kitRender(); if(typeof qDemoRestart==="function") qDemoRestart(); }
   function kitMark(){ Array.prototype.forEach.call(document.querySelectorAll("#kitMenu .kit-card"),function(c,i){ c.classList.toggle("on", i===KIT.sel); }); }
   /* the menu remembers whether you were looking round or had the camera up, so closing it puts you straight back (like the bag does) */
   function kitOpen(){ if(!loaded||(typeof st!=="undefined"&&st.open)) return; KIT.vf=!!viewfinderOn; KIT.look=!!looking||KIT.vf; if(looking) document.exitPointerLock(); KIT.open=true; KIT.sel=0; kitRender(); sfx("kitOpen"); }

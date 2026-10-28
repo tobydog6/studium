@@ -210,7 +210,7 @@
     {k:"upscale",g:"HANDLING", label:"Upscaling (faster)", val:upOn?"ON":"OFF", on:upOn},
     {k:"recentre",g:"PLACE",  label:"Back to the start point", val:"↵"},
     {k:"photos",g:"PLACE",    label:"Open the studio",    val:"↵"},
-    {k:"leave", g:"PLACE",    label:"Leave location",     val:"↵", danger:true}]; }
+    {k:"leave", g:"PLACE",    label:"Leave location",     val:"↵", danger:true}].filter(function(r){ return !(r.k==="leave"&&typeof navNoHome==="function"&&navNoHome()); }); }   /* the demo has no Home to leave to */
   function cbSetupHtml(){ var rows=cbSetupRows(), html="", lastG="";
     rows.forEach(function(r,i){ if(r.g!==lastG){ html+='<span class="cb-g">'+r.g+'</span>'; lastG=r.g; }
       var right;

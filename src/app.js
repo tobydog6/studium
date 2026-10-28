@@ -1340,7 +1340,7 @@
     if(e.target && (e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")) return;
     if(lsKey(e)) return;                                          // the move-on card holds the keys while it's up
     if(App.is("teacher")||App.is("signin")) return;
-    if(App.is("landing")&&!landing.classList.contains("hidden")){ if(e.code==="Escape"){ e.preventDefault(); showHub(); } else if(e.code==="Enter"){ var cur=curSceneId(), sc0=(window.SPLAT_SCENES||[]).filter(function(x){ return x.id===cur; })[0]||(window.SPLAT_SCENES||[])[0]; if(cur){ e.preventDefault(); hubHide("landing"); hubShow("hud"); App.go("scene"); return; } if(sc0){ e.preventDefault(); loadBundled(sc0); } } return; }
+    if(App.is("landing")&&!landing.classList.contains("hidden")){ if(e.code==="Escape"){ e.preventDefault(); if(!(typeof navNoHome==="function"&&navNoHome())) showHub(); } else if(e.code==="Enter"){ var cur=curSceneId(), sc0=(window.SPLAT_SCENES||[]).filter(function(x){ return x.id===cur; })[0]||(window.SPLAT_SCENES||[])[0]; if(cur){ e.preventDefault(); hubHide("landing"); hubShow("hud"); App.go("scene"); return; } if(sc0){ e.preventDefault(); loadBundled(sc0); } } return; }
     if(cbOpen){ cbKey(e); return; }
     if(bg.open){ bagKey(e); return; }
     if(st.open && stKey(e)) return;

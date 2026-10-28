@@ -2466,6 +2466,12 @@ body[data-co-kit="bag"] #kitMenu .kit-card[data-kit="bag"],body[data-co-kit="bac
 body[data-co-kit="bag"] #kitMenu.settled .kit-card[data-kit="bag"],body[data-co-kit="back"] #kitMenu.settled .kit-card[data-kit="back"],body[data-co-kit="lights"] #kitMenu.settled .kit-card[data-kit="lights"]{animation:coKit 1.5s ease-in-out infinite}
 /* the tour's "choose one of these" lens step: the three lenses glow on their own, not a ring round the whole tray */
 body:has(#bag .bg-tray.co-target) .co-ring{display:none!important}
+/* the demo has no Home (src/nav.js navNoHome) */
+body.no-home [data-nav="home"]{display:none!important}
+/* reset the demo for the next person: top-right of the Space menu, asks before it wipes */
+#kitMenu .kit-reset{position:absolute;top:22px;right:24px;display:flex;align-items:center;gap:8px;height:34px;padding:0 14px;border-radius:17px;border:1px solid rgba(var(--bone-rgb),.16);background:rgba(17,15,12,.7);color:var(--ink-3);font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;cursor:pointer;transition:color .2s,border-color .2s,background .2s}
+#kitMenu .kit-reset:hover{color:var(--text);border-color:rgba(var(--gold-rgb),.5)}
+#kitMenu .kit-reset.ask{color:var(--accent-ink);background:var(--accent);border-color:var(--accent)}
 #rlPanel .rl-sun{margin-top:6px}
 #rlPlanUI .rlp-sun{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none}
 #rlPlanUI .rlp-sun i{position:absolute;left:-17px;top:-17px;width:34px;height:34px;border-radius:50%;background:radial-gradient(circle,#fff3d0 30%,#f2b54e 62%,rgba(242,181,78,0) 72%);box-shadow:0 0 26px 8px rgba(242,181,78,.45)}

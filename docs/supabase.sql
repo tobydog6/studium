@@ -110,7 +110,6 @@ do $$ declare r record; begin
   for r in select policyname, tablename from pg_policies where schemaname='public' and tablename like 'studium\_%' loop
     execute format('drop policy %I on %I', r.policyname, r.tablename); end loop; end $$;
 
--- anyone signed in can look a class up by its code (that's how joining works); only its teacher changes it
 -- classes: only their teacher and their students see them. Joining looks one up by its exact code (studium_class_by_code)
 create policy "teacher owns class"   on studium_classes  for all    using (teacher_id = auth.uid()) with check (teacher_id = auth.uid());
 create policy "students see their class" on studium_classes for select using (exists (select 1 from studium_members m where m.class_code = studium_classes.code and m.user_id = auth.uid()));

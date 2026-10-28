@@ -93,10 +93,10 @@
     if(!loaded||!App.is("scene")) qGoDest("scene"); var t0=Date.now();
     (function w(){ if(loaded&&App.is("scene")&&!menuOpen()){ if(typeof CH!=="undefined"){ CH.hidden=true; if(typeof chFramesBtn==="function") chFramesBtn(); if(typeof chMarkers==="function") chMarkers(); }   /* frames away for this session only */
       if(typeof rlOpen==="function"&&!RL.ui) rlOpen(); setTimeout(function(){ if(RL.ui&&typeof coStart==="function") coStart("lightrig"); },600); return; }   /* straight into the lighting tour from the top */ if(Date.now()-t0<180000) setTimeout(w,400); })(); }
-  /* testing the folio workflow: a few photos on the board if it's empty, then the folio tour from the top (print sheets at the end) */
+  /* testing the folio workflow: an empty folio and the folio tour from the top (print sheets at the end) */
   function qTestFolio(){ qLogClose(); if(typeof CO!=="undefined"&&CO.on) coStop(); if(viewfinderOn) lowerCamera(); if(!photos.length){ toast("Take a few photos first, then test the folio."); return; }
-    var d=foB.doc_(), pg=d.pages[Math.max(0,Math.min(d.pages.length-1,d.cur||0))], have=pg.items.filter(function(it){ return it.t==="photo"&&!it.hidden; }).length;
-    if(!have){ var keys=["0.0","0.0","0.0","0.1","0.1","1.0","1.0","2.0"]; for(var i=0;i<Math.min(keys.length,photos.length);i++) pg.items.push({id:bdUid(), t:"photo", pid:stId(i), sec:keys[i], x:20, y:20, w:180}); st.foBoard=d; saveSession(); }
+    try{ if(st.foBoard) localStorage.setItem("studium_folio_before_test",JSON.stringify(st.foBoard)); }catch(e){}   /* your board before the test, just in case */
+    st.foBoard=null; foB.reset(null); foB.doc=null; saveSession();   /* the tour runs on an empty folio, as a student first sees it */
     Q.tourStep.folio=0; Q.tours.folio=false; openStudio("folio"); setTimeout(function(){ try{ foB.render(); }catch(er){} if(typeof coStart==="function") coStart("folio",true); },700); }
   function qLogClose(){ var el=$("qLog"); if(el) el.classList.remove("show"); QU.log=false; QU.pick=false; qHud(); if(typeof qMorphHide==="function") qMorphHide(); }
 

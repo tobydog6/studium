@@ -193,7 +193,11 @@
       if((e.key==="r"||e.key==="R")&&s.mode==="custom"){ it.rot=it.rot?0:1; var D=psDims(s), z=psSz(it); it.x=psClamp(it.x,0,D[0]-z[0]); it.y=psClamp(it.y,0,D[1]-z[1]); psSave(); psRenderSheet(); psRenderStrip(); }
       if(e.key==="Delete"||e.key==="Backspace"){ e.preventDefault(); var n=psFr(it.fid).n; s.items.splice(ps.pick,1); ps.pick=null; if(s.mode==="aligned") psPack(s); psSave(); psRender(); toast(n+" taken off the sheet."); } },true);
     var rz; window.addEventListener("resize",function(){ if(!ps.open) return; clearTimeout(rz); rz=setTimeout(psRender,80); }); }
-  /* the way in: a Print sheets button beside the folio's export */
-  (function psHook(){ if(typeof foB==="undefined"||!foB.render) return; var _r=foB.render;
-    foB.render=function(){ _r.apply(this,arguments); var ex=document.querySelector("#st-folio .bd-export"); if(ex&&!document.getElementById("psGo")){ var b=document.createElement("button"); b.id="psGo"; b.className="ws-gold bd-export ps-go"; b.textContent="Print sheets for Photoshop"; b.onclick=psOpen; ex.parentNode.insertBefore(b,ex); } }; })();
-  if(/[?&]dev/.test(location.search)) window.__ps={ open:psOpen, close:psClose, state:function(){ return {open:ps.open, sheets:psSheets().map(function(s){ return {size:s.size,ori:s.ori,mode:s.mode,n:s.items.length}; }), frames:psFrames().length, printed:Object.keys(psData().printed).length}; }, third:psThird, add:psAdd, frames:psFrames, exp:psExport };
+  /* the way in: the board redraws its side panel often, so the Print sheets button is put back whenever it does.
+     It's the main (gold) way to print; the board's own PDF export stays as a quiet quick export underneath. */
+  function psEnsureBtn(){ var ex=document.querySelector("#st-folio .bd-side .bd-export:not(.ps-go)"); if(!ex||ex.previousElementSibling&&ex.previousElementSibling.id==="psGo") return;
+    var old=document.getElementById("psGo"); if(old) old.remove(); var b=document.createElement("button"); b.id="psGo"; b.className="ws-gold ps-go"; b.innerHTML="Print sheets <span>for Photoshop</span>"; b.onclick=psOpen; ex.parentNode.insertBefore(b,ex);
+    ex.classList.add("ps-quick"); if(!/Quick/.test(ex.textContent)) ex.textContent="Quick PDF of the panels (not for printing)"; }
+  (function psHook(){ var room=document.getElementById("st-folio"); if(!room||typeof MutationObserver==="undefined") return; var q=false;
+    new MutationObserver(function(){ if(q) return; q=true; requestAnimationFrame(function(){ q=false; psEnsureBtn(); }); }).observe(room,{childList:true,subtree:true}); })();
+  if(/[?&]dev/.test(location.search)) window.__ps={ seed:function(n){ var pg=foB.page(); for(var i=0;i<n&&i<photos.length;i++) pg.items.push({id:bdUid(),t:"photo",pid:stId(i),sec:"0.0",x:20,y:20,w:180}); st.foBoard=foB.doc_(); foB.render(); }, open:psOpen, close:psClose, state:function(){ return {open:ps.open, sheets:psSheets().map(function(s){ return {size:s.size,ori:s.ori,mode:s.mode,n:s.items.length}; }), frames:psFrames().length, printed:Object.keys(psData().printed).length}; }, third:psThird, add:psAdd, frames:psFrames, exp:psExport };

@@ -3269,4 +3269,7 @@ body.la-warm #viewfinder,body.la-warm #crosshair{visibility:hidden!important}   
 #psUI .ps-st .x{position:absolute;right:-6px;top:-6px;width:16px;height:16px;border-radius:50%;background:var(--s4);color:var(--ink-2);font-size:10px;line-height:16px;text-align:center;display:none}
 #psUI .ps-st:hover .x{display:block}
 #psUI .ps-st .done{position:absolute;left:3px;bottom:3px;font-size:8.5px;background:var(--ok);color:#10201a;border-radius:3px;padding:0 3px}
-#st-folio .ps-go{margin-bottom:8px;background:none!important;border:1px solid var(--accent)!important;color:var(--accent)!important}
+#st-folio .ps-go{margin-top:auto;margin-bottom:8px}
+#st-folio .ps-go span{opacity:.7;font-weight:400}
+#st-folio .bd-export.ps-quick{margin-top:0;background:none!important;border:1px solid rgba(var(--bone-rgb),.14)!important;color:var(--ink-4)!important;font-size:12px!important;padding:9px 0!important}
+#st-folio .bd-export.ps-quick:hover{color:var(--ink-2)!important;border-color:rgba(var(--bone-rgb),.3)!important}

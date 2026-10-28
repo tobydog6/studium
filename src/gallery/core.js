@@ -124,7 +124,8 @@ function gSold(it){ if(it.sold) return; it.sold=true; it.soldFor=it.price; it.so
 
 // ---------- actions the screens use ----------
 function galSignLease(id){ var s=siteById(id); if(!s) return; var bond=s.rent*2;
-  G.site=id; G.cash-=bond; G.leaseStart=gWeek(); G.rentPaidWeek=gWeek(); G.hung=[]; galLog("You signed the lease on "+s.name+", "+s.street+". Bond paid: "+gMoney(bond)+".", "money");
+  if(G.site&&G.bond){ G.cash+=G.bond; galLog("Your old bond came back: "+gMoney(G.bond)+".", "money"); }   /* moving out refunds the last bond */
+  G.site=id; G.cash-=bond; G.bond=bond; G.leaseStart=gWeek(); G.rentPaidWeek=gWeek(); G.hung=[]; galLog("You signed the lease on "+s.name+", "+s.street+". Bond paid: "+gMoney(bond)+".", "money");
   if(typeof roomBuild==="function") roomBuild(s); galGo("floor"); galSave(true); }
 /* hang a print: pays for printing, returns the item */
 function galHang(o){ var it={id:"h"+Date.now().toString(36)+Math.floor(Math.random()*1e4), pid:o.pid, face:o.face, x:o.x, y:o.y==null?1.45:o.y, size:o.size||"m", price:o.price||0, sold:false};
@@ -165,6 +166,7 @@ gCSS(
   "@keyframes tin{from{opacity:0;transform:translateY(6px)}}"+
   ".fade{position:fixed;inset:0;background:#0c0b0a;display:grid;place-items:center;font:600 30px var(--display);z-index:20;opacity:0;pointer-events:none;transition:opacity .4s}.fade.on{opacity:1}"+
   "body[data-screen=map] .gbar,body[data-screen=plan] .gbar,body[data-screen=review] .gbar{display:none}"+
+  "body[data-screen=map] .hud .spd,body[data-screen=plan] .hud .spd,body[data-screen=review] .hud .spd{display:none}"+
   "@media (prefers-reduced-motion:reduce){.toast{animation:none}.fade{transition:none}}");
 var hud=gEl("div","hud"), bar=gEl("div","gbar"), toasts=gEl("div","toasts"), fade=gEl("div","fade");
 document.body.appendChild(hud); document.body.appendChild(bar); document.body.appendChild(toasts); document.body.appendChild(fade);

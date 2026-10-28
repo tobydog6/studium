@@ -195,7 +195,7 @@ function galBar(){ var key=gScreen+"|"+G.show.phase+"|"+G.show.openDay+"|"+G.hun
 // ---------- the loop: room.js calls gTick every frame ----------
 var _acc=0, _hudAcc=0;
 function gTick(dt){ if(!G) return;
-  if(gReviewDue&&gMin()>=MORNING&&GSCR.night&&GSCR.night.review){ gReviewDue=false; var r=G.pendingReview; G.pendingReview=null; GSCR.night.review(r||{}); }
+  if(gReviewDue&&gMin()>=MORNING-1&&GSCR.night&&GSCR.night.review){ gReviewDue=false; var r=G.pendingReview; G.pendingReview=null; GSCR.night.review(r||{}); }
   var sp=gHold>0||gScreen==="review"?0:G.speed; if(!G.site) sp=0;
   _acc+=dt*sp*GAME_MIN_PER_SEC; var n=0; while(_acc>=1&&n<240){ _acc--; n++; gMinute(); }
   _hudAcc+=dt; if(_hudAcc>0.25){ _hudAcc=0; galHud(); }

@@ -69,7 +69,7 @@ function rmPerson(){ var L=LOOKS[RM.look], g=new THREE.Group(), m=L.std?new THRE
   return {g:g, to:null, wait:0, sp:0.7+Math.random()*0.5, ph:Math.random()*6, leaving:false}; }
 function rmCrowd(){ if(!RM.site||RM.preview) return; var want=Math.min(LOOKS[RM.look].crowd, typeof gVisitorsNow==="function"?gVisitorsNow():0);
   var here=RM.people.filter(function(p){ return !p.leaving; });
-  if(here.length<want&&Math.random()<0.08) RM.people.push(rmPerson());
+  if(here.length<want&&Math.random()<0.08+(want-here.length)*0.03) RM.people.push(rmPerson());   /* a rush at the door when a crowd is due */
   else if(here.length>want&&Math.random()<0.08){ var p=here[(Math.random()*here.length)|0]; p.leaving=true; p.to=new THREE.Vector3(0,0,RM.site.rect[1]/2-0.4); p.wait=0; } }
 function rmStep(p, dt){ if(p.wait>0){ p.wait-=dt; return; }
   if(!p.to){ var a=RM.art[(Math.random()*RM.art.length)|0]; p.to=a.spot.clone().add(new THREE.Vector3((Math.random()-0.5)*1.2,0,(Math.random()-0.5)*1.2)); p.look=a.p; }

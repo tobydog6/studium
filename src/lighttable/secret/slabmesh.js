@@ -81,7 +81,9 @@ function labelCanvas(slab, w, h) {
 }
 
 /* ---------- the slab ---------- */
-export const SLAB = { long: 2.4, border: 0.11, margin: 0.17, label: 0.6, th: 0.19 };
+/* Sam's picks from the Slab Designs page: clear acrylic case (A), top strip label (L1), full bleed mount (M2: border 0).
+   The Full art variant then runs the photo under the label as well, with the label floating over it. */
+export const SLAB = { long: 2.4, border: 0, margin: 0.17, label: 0.6, th: 0.19 };
 export function makeSlab(slab, S) {
   const group = new THREE.Group(); group.userData.slab = slab; const inner = new THREE.Group(); group.add(inner);
   const obj = { group, inner, slab, w: 0, h: 0, th: SLAB.th, photoW: 0, photoH: 0, finish: null, tilt: new THREE.Vector2(), pointer: new THREE.Vector2(), time: Math.random() * 100, base: null, parts: {}, built: false, ready: null, top: false };
@@ -109,7 +111,9 @@ function build(obj, S, env) {
   /* the photograph */
   const cy = -(obj.h / 2) + SLAB.margin + ch / 2;
   const photoMat = new THREE.MeshBasicMaterial({ map: null, transparent: clear, opacity: clear ? 0.82 : 1 });
-  const photo = new THREE.Mesh(new THREE.PlaneGeometry(full ? cw : pw, full ? ch : ph), photoMat); photo.position.set(0, cy, z0 + 0.012); photo.userData.order = 2; inner.add(photo); obj.parts.photo = photo;
+  /* full art: the photo fills the whole case, cropped to the slab's shape, and the label floats over it */
+  const photo = new THREE.Mesh(new THREE.PlaneGeometry(full ? obj.w - 0.1 : pw, full ? obj.h - 0.1 : ph), photoMat); photo.position.set(0, full ? 0 : cy, z0 + 0.012); photo.userData.order = 2; inner.add(photo); obj.parts.photo = photo;
+  if (full) { const sw = (obj.w - 0.1) / pw, sh = (obj.h - 0.1) / ph, k = Math.max(sw, sh); const uv = photo.geometry.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, 0.5 + (uv.getX(i) - 0.5) * sw / k, 0.5 + (uv.getY(i) - 0.5) * sh / k); uv.needsUpdate = true; }
   if (slab.variant === 'misprint') { photo.position.x += 0.07; photo.position.y -= 0.04;
     const ghost = new THREE.Mesh(photo.geometry, new THREE.MeshBasicMaterial({ map: null, transparent: true, opacity: 0.32, depthWrite: false })); ghost.position.set(0.16, cy + 0.05, z0 + 0.016); ghost.userData.order = 3; inner.add(ghost); obj.parts.ghost = ghost;
     const band = new THREE.Mesh(new THREE.PlaneGeometry(cw * 1.1, 0.14), foilMaterial({ strength: 1.6 })); band.position.set(0, cy - ph * 0.28, z0 + 0.02); band.rotation.z = -0.06; band.userData.order = 4; inner.add(band); obj.parts.band = band; }
@@ -120,7 +124,7 @@ function build(obj, S, env) {
     const st = new THREE.Mesh(new THREE.CircleGeometry(0.17, 32), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true })); st.position.set(pw / 2 - 0.2, cy - ph / 2 + 0.2, z0 + 0.02); st.userData.order = 4; inner.add(st); }
   /* the label */
   const lw = obj.w - SLAB.margin * 2, ly = obj.h / 2 - SLAB.margin - SLAB.label / 2;
-  const label = new THREE.Mesh(new THREE.PlaneGeometry(lw, SLAB.label), new THREE.MeshBasicMaterial({ map: tex(labelCanvas(slab, lw, SLAB.label)) })); label.position.set(0, ly, z0 + 0.012); label.userData.order = 2; inner.add(label); obj.parts.label = label;
+  const label = new THREE.Mesh(new THREE.PlaneGeometry(lw, SLAB.label), new THREE.MeshBasicMaterial({ map: tex(labelCanvas(slab, lw, SLAB.label)), transparent: full, opacity: full ? 0.92 : 1 })); label.position.set(0, ly, z0 + (full ? 0.03 : 0.012)); label.userData.order = full ? 5 : 2; inner.add(label); obj.parts.label = label;
   /* the acrylic */
   const acr = new THREE.Mesh(new RoundedBoxGeometry(obj.w, obj.h, th, 3, 0.05), new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: clear ? 0.3 : 0.2, roughness: 0.05, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04, envMap: env, envMapIntensity: 1.1, depthWrite: false }));
   acr.userData.order = 6; acr.userData.noParticles = true; inner.add(acr); obj.parts.acrylic = acr;
@@ -134,9 +138,9 @@ function applyFinish(obj, S, env, id) {
   obj.parts.photo.material.map = t; obj.parts.photo.material.needsUpdate = true; if (obj.parts.ghost) { obj.parts.ghost.material.map = t; obj.parts.ghost.material.needsUpdate = true; }
   if (obj.finish) { if (obj.finish.mesh) { inner.remove(obj.finish.mesh); obj.finish.mesh.geometry.dispose(); [].concat(obj.finish.mesh.material).forEach(m => m.dispose()); } obj.finish = null; }
   const def = finishDef(id), full = slab.variant === 'full';
-  const ctx = { THREE, slab, obj, w: full ? obj.photoW + SLAB.border * 2 : obj.photoW, h: full ? obj.photoH + SLAB.border * 2 : obj.photoH, photoTex: t, photoCanvas: shown, tier: TIER[slab.tier], renderer: S.renderer, envMap: env, finish: id };
+  const ctx = { THREE, slab, obj, w: full ? obj.w - 0.1 : obj.photoW, h: full ? obj.h - 0.1 : obj.photoH, photoTex: t, photoCanvas: shown, tier: TIER[slab.tier], renderer: S.renderer, envMap: env, finish: id };
   let mesh = null; try { mesh = def.make ? def.make(ctx) : null; } catch (e) { console.error(e); mesh = null; }
-  if (mesh) { mesh.position.copy(obj.parts.photo.position); mesh.position.z += 0.01; mesh.userData.order = 4; inner.add(mesh); }
+  if (mesh) { mesh.position.copy(obj.parts.photo.position); mesh.position.z += 0.01; mesh.userData.order = 4; if (full) { mesh.geometry.setAttribute('uv', obj.parts.photo.geometry.attributes.uv); } inner.add(mesh); }
   obj.finish = { id, def, mesh };
   if (obj.top) obj.setTop(true);
 }

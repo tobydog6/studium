@@ -35,15 +35,15 @@
 </style>
 </head>
 <body>
-  <div id="viewport"></div>
+  <div data-nosnippet id="viewport"></div>
 
-  <div id="grid" class="hidden">
+  <div data-nosnippet id="grid" class="hidden">
     <div class="l v v1"></div><div class="l v v2"></div><div class="l h h1"></div><div class="l h h2"></div>
   </div>
-  <div id="crosshair" class="hidden"></div>
+  <div data-nosnippet id="crosshair" class="hidden"></div>
 
   <!-- Viewfinder -->
-  <div id="viewfinder">
+  <div data-nosnippet id="viewfinder">
     <div class="mask"></div>
     <div id="vfTop"><span id="vfLens">50mm</span><span id="vfBody" class="vfbody">Canon EOS R</span><span id="vfMode">◉ CAPTURE</span></div>
     <div id="vfBrief" class="hidden"></div>
@@ -63,18 +63,18 @@
       <span class="exp" id="vfExp">0 EV</span>
     </div>
   </div>
-  <div id="shutterBlade"></div>
-  <div id="flash"></div>
+  <div data-nosnippet id="shutterBlade"></div>
+  <div data-nosnippet id="flash"></div>
 
-  <div id="prompt" class="hidden"><div class="pill"><span class="dot"></span>Click to look around</div></div>
+  <div data-nosnippet id="prompt" class="hidden"><div class="pill"><span class="dot"></span>Click to look around</div></div>
 
-  <div id="dock" class="dock" aria-label="Places"></div>
-  <div id="chMarks" class="ch-marks" aria-hidden="true"></div>
-  <div id="chCard" class="ch-card" aria-live="polite"></div>
-  <div id="chFlash" class="ch-flash" aria-hidden="true"></div>
-  <div id="chGlow" class="ch-glow" aria-hidden="true"></div>
-  <div id="chDone" class="ch-done" aria-live="polite"></div>
-  <div id="hud" class="hidden">
+  <div data-nosnippet id="dock" class="dock" aria-label="Places"></div>
+  <div data-nosnippet id="chMarks" class="ch-marks" aria-hidden="true"></div>
+  <div data-nosnippet id="chCard" class="ch-card" aria-live="polite"></div>
+  <div data-nosnippet id="chFlash" class="ch-flash" aria-hidden="true"></div>
+  <div data-nosnippet id="chGlow" class="ch-glow" aria-hidden="true"></div>
+  <div data-nosnippet id="chDone" class="ch-done" aria-live="polite"></div>
+  <div data-nosnippet id="hud" class="hidden">
     <div id="navTop" class="nav-top"><button data-nav="home">‹ HOME <kbd>H</kbd></button><span class="pl"></span><span class="fr"></span><button id="navLoad" title="Open your own scan: a .ply, .splat or .ksplat (or drop one on the window)">OPEN A SCAN</button><button id="navFrames" class="hidden" title="Show or hide the gold challenge frames">HIDE FRAMES</button><button id="navFlip" class="hidden" title="Your scan came in upside down? Turn it over">FLIP SCAN</button></div>
     <div id="navTask" class="nav-task"></div>
     <div id="navCoach" class="nav-coach"><i></i><span>Click to look around. <em>Walk with</em> <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></div>
@@ -88,9 +88,9 @@
     <button id="btnHelp" title="The guide: show this step, or start it again">?</button>
   </div>
 
-  <div id="toast"></div>
-  <div id="shotTip" class="hidden" aria-live="polite"><span class="st-h"></span><span class="st-b"></span></div>
-  <div id="tutorial" class="overlay hidden tutwrap">
+  <div data-nosnippet id="toast"></div>
+  <div data-nosnippet id="shotTip" class="hidden" aria-live="polite"><span class="st-h"></span><span class="st-b"></span></div>
+  <div data-nosnippet id="tutorial" class="overlay hidden tutwrap">
     <div class="tut-card">
       <div class="tut-ico" id="tutIco"></div>
       <div class="tut-step" id="tutStep"></div>
@@ -101,12 +101,12 @@
     </div>
   </div>
 
-  <div id="loader"><div class="loadcard"><div class="spin"></div><div id="loadmsg">Loading scene…</div><div id="loadsub"></div></div></div>
+  <div data-nosnippet id="loader"><div class="loadcard"><div class="spin"></div><div id="loadmsg">Loading scene…</div><div id="loadsub"></div></div></div>
 
   <!-- Landing -->
   <!-- SUITE HUB -->
   <!-- HUB (home): the desk. Your camera, your prints and the loupe are the three ways in. Built by src/hub.js -->
-  <div id="hub" class="overlay hub7 hidden">
+  <div data-nosnippet id="hub" class="overlay hub7 hidden">
     <div class="d7-desk" aria-hidden="true"></div>
     <header class="h6-bar">
       <div class="h6-l"><span class="h6-word">Studium</span><span class="h6-cls"></span></div>
@@ -134,7 +134,7 @@
   </div>
 
   <!-- SIGN-IN: a shared school computer -->
-  <div id="signin" class="overlay si hidden">
+  <div data-nosnippet id="signin" class="overlay si hidden">
     <div class="si-top"><span>STUDIUM · THIS COMPUTER</span><span class="si-time"></span></div>
     <div class="si-mid">
       <h1>Studium</h1>
@@ -152,7 +152,7 @@
   </div>
 
   <!-- TEACHER: plan, live, board. Built by src/teacher.js -->
-  <div id="teacher" class="overlay tc hidden">
+  <div data-nosnippet id="teacher" class="overlay tc hidden">
     <header class="tc-bar">
       <div class="l"><span class="w">Studium</span><span class="r">TEACHER</span></div>
       <div class="m"><button class="tc-cls" data-tc="cls"></button><div class="tc-pop hidden"></div></div>
@@ -175,11 +175,11 @@
   </div>
 
   <!-- LESSON: heads-up pill and move-on card (src/lesson.js) -->
-  <div id="lsPill" class="ls-pill" role="status" aria-live="polite"></div>
-  <div id="lsMove" class="ls-move" role="dialog" aria-label="Time to move on"></div>
+  <div data-nosnippet id="lsPill" class="ls-pill" role="status" aria-live="polite"></div>
+  <div data-nosnippet id="lsMove" class="ls-move" role="dialog" aria-label="Time to move on"></div>
 
   <!-- PHOTO STUDIO home -->
-  <div id="studio" class="overlay hubwrap hidden">
+  <div data-nosnippet id="studio" class="overlay hubwrap hidden">
     <div class="hub-inner">
       <button class="hubback" data-hub>‹ Suite</button>
       <div class="hub-masthead" style="margin-top:14px"><span class="hub-mono">▤</span><span class="hub-word">Studio</span></div>
@@ -195,13 +195,13 @@
   </div>
 
   <!-- PUNCTUM (isolated module) -->
-  <div id="punctum" class="overlay punctumwrap hidden">
+  <div data-nosnippet id="punctum" class="overlay punctumwrap hidden">
     <button class="hubback punctum-back" data-hub>‹ Hub</button>
     <iframe id="punctumFrame" title="Punctum"></iframe>
   </div>
 
   <!-- LOCATIONS: the captured places you can step into -->
-  <div id="landing" class="overlay loc hidden">
+  <div data-nosnippet id="landing" class="overlay loc hidden">
     <header class="loc-bar"><button class="loc-back" data-hub><kbd>ESC</kbd>HUB</button><span class="loc-word">Locations</span><span class="loc-sub">PICK A PLACE TO SHOOT</span></header>
     <div class="loc-main">
       <div class="loc-places"><div class="scenehead" id="sceneHead">CAPTURED PLACES</div><div class="scenerow" id="sceneRow"></div></div>
@@ -223,11 +223,11 @@
       </aside>
     </div>
   </div>
-  <div id="fadeover"></div>
+  <div data-nosnippet id="fadeover"></div>
 
   <!-- Menu = the camera's back screen -->
   <!-- Studio (Tab): Select, Edit, Workbook, Folio, Book, Gallery. Built by src/studio.js -->
-  <div id="studioX" class="hidden" aria-label="Studio">
+  <div data-nosnippet id="studioX" class="hidden" aria-label="Studio">
     <div class="st-bar" id="stBar">
       <div class="st-l"><span class="st-word">STUDIO</span><span class="st-sub"></span></div>
       <div class="st-tabs"></div>
@@ -283,10 +283,10 @@
   </div>
 
   <!-- Camera bag (B): bodies and the lens swap. Built by src/bag.js -->
-  <div id="bag" class="hidden" aria-label="Camera bag"><div class="bg-room"></div><div id="bagStage"></div></div>
+  <div data-nosnippet id="bag" class="hidden" aria-label="Camera bag"><div class="bg-room"></div><div id="bagStage"></div></div>
 
   <!-- Camera back (Space): the rear render is the menu. Built by src/back.js -->
-  <div id="camback" class="hidden" aria-label="Camera back">
+  <div data-nosnippet id="camback" class="hidden" aria-label="Camera back">
     <div class="cb-room"></div>
     <button class="cb-home" data-nav="home"><svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 9.5 10 4l7 5.5V17H3z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>HOME <kbd>H</kbd></button>
     <div class="cb-stage" id="cbStage">
@@ -296,7 +296,7 @@
     <div class="cb-hints" id="cbHints"></div>
   </div>
 
-  <div id="menu" class="overlay hidden">
+  <div data-nosnippet id="menu" class="overlay hidden">
     <div class="card mmenu">
       <div class="mm-top">
         <div class="mm-id"><span class="camdot"></span><span class="mm-idlbl">Settings &middot; <b id="camTitle">menu</b></span></div>
@@ -377,7 +377,7 @@
   </div>
 
   <!-- Gallery -->
-  <div id="gallery" class="overlay hidden">
+  <div data-nosnippet id="gallery" class="overlay hidden">
     <div class="card">
       <div class="galhead"><h2>Your photos (<span id="galHeadCount">0</span>)</h2>
         <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="btnContact">Contact sheet</button><button class="btn" id="btnDownloadAll">Download all</button><button class="btn primary" id="btnCloseGallery">Back to exploring</button></div>
@@ -387,7 +387,7 @@
   </div>
 
   <!-- Editor: Lightroom-style Develop -->
-  <div id="editor" class="overlay hidden">
+  <div data-nosnippet id="editor" class="overlay hidden">
     <div class="lr-wrap">
       <div class="lr-stage-col">
         <div class="lr-topbar">
@@ -549,7 +549,7 @@
   </div>
 
   <!-- OUTPUT: Folio board (A0) -->
-  <div id="folio" class="overlay hidden" style="padding:0">
+  <div data-nosnippet id="folio" class="overlay hidden" style="padding:0">
     <div class="outwrap">
       <div class="outbar">
         <button class="btn" id="foBack">‹ Back</button>
@@ -569,7 +569,7 @@
   </div>
 
   <!-- OUTPUT: Photobook (page designer) -->
-  <div id="photobook" class="overlay hidden" style="padding:0">
+  <div data-nosnippet id="photobook" class="overlay hidden" style="padding:0">
     <div class="outwrap">
       <div class="outbar">
         <button class="btn" id="pbBack">‹ Back</button>
@@ -592,7 +592,7 @@
   </div>
 
   <!-- OUTPUT: Gallery show -->
-  <div id="galleryshow" class="overlay hidden" style="padding:0">
+  <div data-nosnippet id="galleryshow" class="overlay hidden" style="padding:0">
     <div class="outwrap">
       <div class="outbar">
         <button class="btn" id="gxBack">‹ Back</button>

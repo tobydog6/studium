@@ -3,11 +3,11 @@
 import * as THREE from 'three';
 import { makeRack } from './rack.js';
 
-export const CASE = { x: -14.5, z: -6.5, w: 7.4, d: 4.8, h: 2.9, lid: 1.7, well: 0.9 };   /* the vault's case (3.3 × 2.3 × 1.45) doubled: higher, not wider */
+export const CASE = { x: -13.5, z: -3.8, w: 8.4, d: 4.2, h: 2.7, lid: 1.5, well: 0.9, yaw: 0.42 };   /* on the table, wider than deep, turned to face the middle */   /* the vault's case (3.3 × 2.3 × 1.45) doubled: higher, not wider */
 export function install(S) {
   if (!S.under) return;
   const { T } = S, ENV = S.SM.envMap(S.renderer), parent = S.under.group;
-  const g = new THREE.Group(); g.position.set(CASE.x, 0, CASE.z); parent.add(g);
+  const g = new THREE.Group(); g.position.set(CASE.x, 0, CASE.z); g.rotation.y = CASE.yaw; parent.add(g);
   const canvas = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), c); return c; };
   /* the shell Sam liked from the vault: ribbed matte polymer, graphite hardware, rubber feet; the egg crate foam in the lid */
   const foamTex = (() => { const c = canvas(512, 512, (x) => { x.fillStyle = '#141416'; x.fillRect(0, 0, 512, 512); for (let j = 0; j < 8; j++) for (let i = 0; i < 8; i++) { const cx = 32 + i * 64 + (j % 2) * 32, cy = 32 + j * 64; const gr = x.createRadialGradient(cx - 6, cy - 8, 2, cx, cy, 30); gr.addColorStop(0, '#2a2a2e'); gr.addColorStop(0.6, '#161618'); gr.addColorStop(1, '#0c0c0e'); x.fillStyle = gr; x.beginPath(); x.arc(cx, cy, 30, 0, 7); x.fill(); } }); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2); return t; })();
@@ -39,7 +39,7 @@ export function install(S) {
   const stencil = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.62), new THREE.MeshBasicMaterial({ map: S.SM.tex(lab) })); stencil.rotation.x = -Math.PI / 2; stencil.position.set(1.7, lid + 0.14, 1.3); lidG.add(stencil);
   const perColInfo = () => perCol;
   /* open and shut: click the case (not a slab) to swing the lid; the rows show only while it is open */
-  const C = { open: true, busy: false, lidA: -1.95 }; lidG.rotation.x = C.lidA;
+  const C = { open: true, busy: false, lidA: -2.35 }; lidG.rotation.x = C.lidA;   /* the lid lies well back so the rows show from the table camera */
   async function setOpen(on) { if (C.busy || C.open === on) return; C.busy = true; C.open = on; S.sfx(on ? 'kitOpen' : 'kitClose'); if (on) rackGroup().visible = true;
     await T.tween({ dur: 0.7, ease: on ? T.E.outCubic : T.E.inCubic, update: e => { lidG.rotation.x = C.lidA * (on ? e : 1 - e); } }); if (!on) rackGroup().visible = false; C.busy = false; }
   const rackGroup = () => rack.group;
@@ -54,12 +54,12 @@ export function install(S) {
     const byCol = [[], [], [], []]; entries.forEach(en => { let pl = en.place; if (!pl || (en.land && pl.col !== 3) || (!en.land && pl.col === 3)) { pl = { col: autoCol(en.land), idx: 1e9 }; if (!en.ghost) { en.place = pl; } } byCol[pl.col].push({ en, idx: pl.idx }); });
     const slots = new Array(entries.length);
     byCol.forEach((list, c) => { list.sort((a, b) => a.idx - b.idx || (a.en.ghost ? 1 : 0) - (b.en.ghost ? 1 : 0)); const ghost = list.find(x => x.en.ghost); const others = list.filter(x => !x.en.ghost); const order = []; others.forEach(x => order.push(x)); if (ghost) order.splice(Math.min(ghost.idx, order.length), 0, ghost);
-      order.forEach((x, i) => { if (!x.en.ghost) x.en.place = { col: c, idx: i }; slots[entries.indexOf(x.en)] = { x: colX(c), y: h - well + FOAM - 0.26, z: zAt(Math.min(i, perCol - 1)), roll: !!x.en.land, rx: -0.1 }; }); });
+      order.forEach((x, i) => { if (!x.en.ghost) x.en.place = { col: c, idx: i }; slots[entries.indexOf(x.en)] = { x: colX(c), y: h - well + FOAM - 0.26, z: zAt(Math.min(i, perCol - 1)), roll: !!x.en.land, rx: -0.3 }; }); });
     /* a landscape slab stands on its side in the wide bay (rolled), its photo still facing the front */
     return slots; };
-  const target = (hit, obj) => { const lx = hit.x - CASE.x, lz = hit.z - CASE.z; const land = !!obj.land; let col = land ? 3 : Math.max(0, Math.min(2, Math.floor((lx + w / 2 - wall - 0.1) / PCOL))); const idx = Math.max(0, Math.round((d / 2 - wall - 0.35 - lz) / pitch)); return { col, idx }; };
+  const target = (hit, obj) => { const lp = g.worldToLocal(new THREE.Vector3(hit.x, 0, hit.z)), lx = lp.x, lz = lp.z; const land = !!obj.land; let col = land ? 3 : Math.max(0, Math.min(2, Math.floor((lx + w / 2 - wall - 0.1) / PCOL))); const idx = Math.max(0, Math.round((d / 2 - wall - 0.35 - lz) / pitch)); return { col, idx }; };
   const rack = makeRack(S, { parent: g, K, peek: 1.1, closed: () => !C.open, accept: slab => { if (!slab.graded) { S.toast('The case is for graded slabs. Send this one away for grading first.'); return false; } return true; }, ids: () => S.store.get().vault, add, placeOf, remove: id => { const cc = cols(); cc.forEach(c => { const i = c.indexOf(id); if (i >= 0) c.splice(i, 1); }); S.store.save(); },
-    bounds: [CASE.x - w / 2 - 0.8, CASE.z - d / 2 - 0.8, CASE.x + w / 2 + 0.8, CASE.z + d / 2 + 0.8], layout, target });
+    bounds: [CASE.x - w / 2 - 1.2, CASE.z - d / 2 - 1.6, CASE.x + w / 2 + 1.2, CASE.z + d / 2 + 1.6], layout, target });
   S.dropPreviews.caseBox = rack.preview;
   const shellHit = e => S.hitAny(e, [shellMesh, lidG]);
   S.caseBox = { group: g, rack, rebuild: () => rack.rebuild(), frame: rack.frame, setOpen, isOpen: () => C.open,

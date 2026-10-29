@@ -3,12 +3,12 @@
 import * as THREE from 'three';
 import { makeRack } from './rack.js';
 
-export const SHELF = { x: 14.5, z: -9.2, w: 8.4, h: 5.0, d: 2.4, max: 6 };
+export const SHELF = { x: 13.5, z: -7.6, w: 8.4, h: 5.0, d: 2.4, max: 6, yaw: -0.5 };   /* turned to face the middle */
 export function install(S) {
   if (!S.under) return;
   const ENV = S.SM.envMap(S.renderer), parent = S.under.group, store = S.store, T = S.T;
   const d0 = store.get(); if (!d0.display) d0.display = [];
-  const g = new THREE.Group(); g.position.set(SHELF.x, 0, SHELF.z); parent.add(g);
+  const g = new THREE.Group(); g.position.set(SHELF.x, 0, SHELF.z); g.rotation.y = SHELF.yaw; parent.add(g);
   const { w, h, d } = SHELF;
   const black = new THREE.MeshStandardMaterial({ color: 0x0a0a0c, roughness: 0.35, metalness: 0.1, envMap: ENV, envMapIntensity: 0.5 });
   const clear = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, roughness: 0.02, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, envMap: ENV, envMapIntensity: 1.1, depthWrite: false, side: THREE.DoubleSide });
@@ -31,9 +31,9 @@ export function install(S) {
   const slotAt = i => ({ x: -w / 2 + 0.3 + ((i % COLS) + 0.5) * cw, y: TIERS[Math.floor(i / COLS) % 2] + 0.03, z: 0.1, ry: 0, rx: -0.22 });
   const rack = makeRack(S, { parent: g, K, peek: 0.5, closed: () => !C.open, accept: (slab, quiet) => { if (!slab.graded) { if (!quiet) S.toast('The shelf is for graded slabs.'); return false; } if (store.get().display.length >= SHELF.max) { if (!quiet) S.toast('The shelf is full. Take one out first.'); return false; } return true; },
     ids: () => store.get().display, add: (id, place) => { store.detach(id); const list = store.get().display; list.splice(Math.min(place ? place.idx : list.length, list.length), 0, id); store.save(); }, placeOf: id => { const i = store.get().display.indexOf(id); return i >= 0 ? { idx: i } : null; },
-    bounds: [SHELF.x - w / 2 - 1.0, SHELF.z - d / 2 - 0.8, SHELF.x + w / 2 + 1.0, SHELF.z + d / 2 + 2.6],
+    bounds: [SHELF.x - w / 2 - 2.0, SHELF.z - d / 2 - 1.5, SHELF.x + w / 2 + 2.0, SHELF.z + d / 2 + 3.0],
     layout: entries => { const order = entries.filter(e => !e.ghost); const gh = entries.find(e => e.ghost); if (gh) order.splice(Math.min(gh.place.idx, order.length), 0, gh); const slots = new Array(entries.length); order.forEach((en, i) => { slots[entries.indexOf(en)] = slotAt(i); }); return slots; },
-    target: (hit, obj) => { const col = Math.max(0, Math.min(COLS - 1, Math.floor((hit.x - SHELF.x + w / 2 - 0.3) / cw))); return { idx: col + (hit.z - SHELF.z > 1.0 ? COLS : 0) }; } });
+    target: (hit, obj) => { const lp = g.worldToLocal(new THREE.Vector3(hit.x, 0, hit.z)); const col = Math.max(0, Math.min(COLS - 1, Math.floor((lp.x + w / 2 - 0.3) / cw))); return { idx: col + (lp.z > 1.0 ? COLS : 0) }; } });
   S.dropPreviews.shelf = rack.preview;
   const shellHit = e => S.hitAny(e, [back, doorG]);
   S.shelf = { group: g, rack, frame: rack.frame, setOpen, isOpen: () => C.open,

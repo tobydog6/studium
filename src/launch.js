@@ -20,7 +20,7 @@
   function laEl(){ var e=$("launch"); if(e) return e; e=document.createElement("div"); e.id="launch"; e.setAttribute("data-nosnippet","");
     e.innerHTML='<video class="la-film" muted playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-hidden="true"></video><div class="la-dark"><b>Studium</b></div>'
       +'<div class="la-vf" aria-hidden="true"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i><b></b></div>'
-      +'<div class="la-word"><span class="la-kick">WELCOME TO</span><b>'+"Studium".split("").map(function(c,i){ return '<i style="--n:'+i+'">'+c+'</i>'; }).join("")+'</b><em></em><span class="la-tag">A PHOTOGRAPHY STUDIO FOR YEARS 11 TO 13</span></div><div class="la-skip">CLICK TO SKIP</div>';
+      +'<div class="la-word"><span class="la-kick">WELCOME TO</span><b>'+"Studium".split("").map(function(c,i){ return '<i style="--n:'+i+'">'+c+'</i>'; }).join("")+'</b><em></em><span class="la-tag">A PHOTOGRAPHY STUDIO FOR YEARS 11 TO 13</span></div><div class="la-skip">CLICK TO SKIP</div><div class="la-credit">BIRDSONG: DEPARTMENT OF CONSERVATION (NZ)</div>';
     document.body.appendChild(e);
     try{ if(matchMedia("(pointer:coarse)").matches) e.querySelector(".la-skip").textContent="TAP TO SKIP"; }catch(x){}
     var v=e.querySelector("video"); v.muted=true; v.addEventListener("error",function(){ LA.filmBad=true; });
@@ -28,22 +28,22 @@
     window.addEventListener("keydown",function(ev){ if(!LA.on) return; ev.stopImmediatePropagation(); ev.preventDefault(); },true);   /* keys do nothing during the opening (they'd walk the camera behind it); only a click or tap on the screen skips */
     window.addEventListener("keyup",function(ev){ if(LA.on) ev.stopImmediatePropagation(); },true);
     return e; }
-  function laPhase(p){ if(LA.phase===p) return; LA.phase=p; LA.pt=performance.now(); LA.log=(LA.log||[]).concat([p]); LA.held=false; if(LA.el){ var keep=["skip","word","vf","af-hunt","af-ok"].filter(function(c){ return LA.el.classList.contains(c); }); LA.el.className="on p-"+p+(keep.length?" "+keep.join(" "):""); } }
+  function laPhase(p){ if(LA.phase===p) return; LA.phase=p; LA.pt=performance.now(); LA.log=(LA.log||[]).concat([p]); LA.held=false; if(LA.el){ var keep=["skip","word","vf","af-hunt","af-ok","bush"].filter(function(c){ return LA.el.classList.contains(c); }); LA.el.className="on p-"+p+(keep.length?" "+keep.join(" "):""); } }
   function laCls(c,on){ if(LA.el&&LA.el.classList.contains(c)!==!!on) LA.el.classList.toggle(c,!!on); }
   function laHeld(){ if(!LA.hold) return false; if(!LA.held){ LA.held=true; if(LA.pass){ LA.pass=false; return false; } LA.wait=true; } return LA.wait; }   /* tests: ?lahold parks a phase until __la.go() */
   /* the film streams: the MP4 is laid out to start playing while the rest downloads, so it begins as soon as enough is in */
   function laFilmLoad(){ var v=LA.el.querySelector("video"), src=v.canPlayType('video/mp4; codecs="avc1.64002A"')||!LA_FILM_WEBM?LA_FILM:LA_FILM_WEBM;
     if(v.getAttribute("src")!==src||v.error){ v.src=src; try{ v.load(); }catch(e){} } }   /* a failed load is tried again on the next opening */
   function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.first=!laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.placed=false; LA.looked=null; LA.warm=false; LA.warmT=null; LA.cued=false; LA.skipped=false; LA.filmBad=false; LA.asked=false; LA.playing=false; LA.prepped=false; LA.q0=null; LA.quality=null; LA.eye0=WK.eye; LAG.on=false; laWelClose(true); SD.seq=null;
-    var e=laEl(); LA.el=e; e.className=""; document.body.classList.add("launching"); laPhase("dark");
+    var e=laEl(); LA.el=e; e.className=""; if(sdVar("bed")===SDV[22].bed) e.classList.add("bush"); document.body.classList.add("launching"); laPhase("dark");
     ["hub","landing","studio","punctum","signin","teacher"].forEach(hubHide);
     if(!loaded){ var sc=(window.SPLAT_SCENES||[])[0]; if(sc){ App.go("landing"); loadBundled(sc); } }   /* the scan loads behind the film */
     try{ localStorage.setItem(LA_KEY,"1"); }catch(x){}
-    laFilmLoad(); sdAmbStart(); laSoundIn(); sdShutLoad(SD.ctx);
+    sdBushLoad(sdCtx()); laFilmLoad(); sdAmbStart(); laSoundIn(); sdShutLoad(SD.ctx);
     cancelAnimationFrame(LA.raf); LA.raf=requestAnimationFrame(laTick); }
   function laSkip(){ if(!LA.on||LA.phase==="live") return; var v=LA.el.querySelector("video");
     if(LA.phase==="hold"){ if(loaded&&LA.placed) laLive(); else laEnd(); return; }   /* a tap while it waits: go now, or if the scan never came, out to the hub rather than stuck here */
-    if(LA.skipped){ if(LA.phase==="dark") laEnd(); return; } LA.skipped=true; sdSeqCut(); sdBigCut(); if(SD.bedLP&&SD.ctx){ var nw=SD.ctx.currentTime; SD.bedLP.frequency.cancelScheduledValues(nw); SD.bedLP.frequency.setTargetAtTime(9000,nw,0.3); SD.bedPre.gain.cancelScheduledValues(nw); SD.bedPre.gain.setTargetAtTime(1.8,nw,0.3); } if(SD.shB&&SD.ctx){ SD.shB.gain.setTargetAtTime(0,SD.ctx.currentTime,0.03); SD.shB=null; }
+    if(LA.skipped){ if(LA.phase==="dark") laEnd(); return; } LA.skipped=true; sdSeqCut(); sdBigCut(); if(SD.bedLP&&SD.ctx){ var nw=SD.ctx.currentTime; SD.bedLP.frequency.cancelScheduledValues(nw); SD.bedLP.frequency.setTargetAtTime(9000,nw,0.3); SD.bedPre.gain.cancelScheduledValues(nw); SD.bedPre.gain.setTargetAtTime(SD.bedG||1.8,nw,0.3); } if(SD.shB&&SD.ctx){ SD.shB.gain.setTargetAtTime(0,SD.ctx.currentTime,0.03); SD.shB=null; }
     if(LA.phase==="film"){ sdSpin(null,true); try{ v.pause(); v.currentTime=Math.max(0,(v.duration||LA_F.len)-0.02); }catch(e){} laCls("vf",false); laCls("af-hunt",false); laCls("af-ok",false); laCls("word",true); laPhase("hold"); } }   /* straight to the film's last frame and the wordmark; in the dark, it waits there for the scan */
   // ---- behind the film: the scan comes in on the starting spot, gets its light, and is drawn steadily for the last stretch ----
   function laBack(now){ if(!loaded) return false; if(!LA.placed){ LA.placed=true; LA.placeT=now; laSpawn(); if(typeof updateCamera==="function") updateCamera(0); }
@@ -190,10 +190,10 @@
   function sdShutLoad(c){ if(SD.shBuf||!c||SD.shGet) return SD.shGet; SD.shGet=fetch(SHUTTER_SRC[0]).then(function(r){ return r.arrayBuffer(); }).then(function(ab){ return new Promise(function(ok,no){ c.decodeAudioData(ab,ok,no); }); }).then(function(bf){ SD.shBuf=bf; }).catch(function(){}); return SD.shGet; }
   function sdShutter(t){ var c=sdCtx(); if(!c) return; t=t==null?sdNow():t; var b=SD.shB&&SD.shB.context===c?SD.shB:(SD.shB=sdBus(0.22)); (SD_SHUT[SD_SH]||SD_SHUT[2])(b,t);   /* its own bus: a little room, not the music's big one */
     if(SD.drone){ sdDroneTo(1,t,0.05); } if(SD.vb){ SD.vb.gain.setTargetAtTime(0.0001,t+0.01,0.06); SD.vb=null; } if(sdVar("shot")) sdVar("shot")(sdSeq()||b,t); }
-  // ---- the soundtrack options (?snd=0..21, or localStorage studium_open_snd): each brings its bed, the film's start, the lens,
+  // ---- the soundtrack options (?snd=0..22, or localStorage studium_open_snd): each brings its bed, the film's start, the lens,
   //      the focus and the shot; 6 to 11 also their own title moment. tools/openingsound.mjs lays each under the film to compare ----
-  var SD_V=(function(){ var m=/[?&]snd=(\d+)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_snd"); if(v!=null) return +v; }catch(e){} return 21; })();   /* camera only is the default; ?snd=0..21 to compare */
-  var SD_VN=["As it is","Felt","Air","Strings","Pulse","Glass","Cinematic","Lo-fi","Deep drone","Electronic","Bush","Piano and cello","Drone","Drone carried through","Dark drone","Rising drone","Drone and choir","Drone in the bush","Attention: piano","Attention: guitar","Attention: no music","Camera only"];
+  var SD_V=(function(){ var m=/[?&]snd=(\d+)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_snd"); if(v!=null) return +v; }catch(e){} return 22; })();   /* the real bush is the default; ?snd=0..22 to compare */
+  var SD_VN=["As it is","Felt","Air","Strings","Pulse","Glass","Cinematic","Lo-fi","Deep drone","Electronic","Bush","Piano and cello","Drone","Drone carried through","Dark drone","Rising drone","Drone and choir","Drone in the bush","Attention: piano","Attention: guitar","Attention: no music","Camera only","Bush"];
   function sdVar(k){ var v=SDV[SD_V]; return v&&v[k]||null; }
   function sdVBus(c,t,send){ var b=c.createGain(); b.gain.value=1; b.connect(SD.out); if(send){ var s=c.createGain(); s.gain.value=send; b.connect(s); s.connect(SD.verb); } SD.vb=b; return b; }   /* the beginning's own music: the shutter cuts it */
   function sdAir(c,bus,t,g0,lpf){ var s=c.createBufferSource(); s.buffer=SD.nb; s.loop=true; var lp=c.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=lpf||500; var hp=c.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=120; var g=c.createGain(); g.gain.value=g0;
@@ -340,20 +340,31 @@
     20:{ bed:function(c,t){ sdWorld(c,t); }, scan:function(b,t){ sdBirds(t,true); }, lens:sdNarrow, rack:sdRing, spin:function(b,t){ sdRise(b,t); var w=t+0.7; sdBellbird(SD.bedPre||b,w+0.1,0.2); sdBellbird(SD.bedPre||b,w+1.3,-0.3); } },
     /* 21 · Camera only: nothing pretending to be an instrument or a bird. Quiet air, and the camera close: it comes up,
        the world dims, the focus ring, the shutter; the air opens out again and the name lands in near silence */
-    21:{ bed:function(c,t){ sdWorld(c,t); }, scan:function(){}, lens:sdNarrow, rack:sdRing, spin:function(b,t){ sdRise(b,t); } } };
+    21:{ bed:function(c,t){ sdWorld(c,t); }, scan:function(){}, lens:sdNarrow, rack:sdRing, spin:function(b,t){ sdRise(b,t); } },
+    /* 22 · Bush: a real dawn chorus (bellbird, silver beech, Abel Tasman; Department of Conservation, Crown Copyright,
+       credited on screen and in licenses/) as the world, under the camera: it dims as the camera comes up, the focus ring,
+       the shutter, and it opens out again as the name lands. No music */
+    22:{ bed:function(c,t){ sdWorldReal(c,t); }, scan:function(){}, lens:sdNarrow, rack:sdRing, spin:function(b,t){ sdRise(b,t); } } };
   // ---- Attention's parts ----
   /* the place: wind through the canopy and the leaves, fading in, through a filter the camera can close */
-  function sdWorld(c,t){ var bus=sdBedBus(c,t), lp=c.createBiquadFilter(), pre=c.createGain(); lp.type="lowpass"; lp.frequency.value=9000; lp.Q.value=0.5; pre.gain.value=1.8; pre.connect(lp); lp.connect(bus); SD.bedLP=lp; SD.bedPre=pre;
+  function sdWorld(c,t){ var bus=sdBedBus(c,t), lp=c.createBiquadFilter(), pre=c.createGain(); lp.type="lowpass"; lp.frequency.value=9000; lp.Q.value=0.5; pre.gain.value=SD.bedG=1.8; SD.bedNF=650; SD.bedNG=0.39; pre.connect(lp); lp.connect(bus); SD.bedLP=lp; SD.bedPre=pre;
     SD.ambSrc=sdAir(c,pre,t,0.05,800).concat(sdAir(c,pre,t,0.026,2800)); }
+  /* the real place: the recording, through the same filter the camera closes; if it isn't decoded yet it starts the moment it is */
+  var SD_BUSH="asset:assets/sound/opening-bush.mp3";
+  function sdBushLoad(c){ if(SD.bushBuf||!c||SD.bushGet) return SD.bushGet; SD.bushGet=fetch(SD_BUSH).then(function(r){ return r.arrayBuffer(); }).then(function(ab){ return new Promise(function(ok,no){ c.decodeAudioData(ab,ok,no); }); }).then(function(bf){ SD.bushBuf=bf; }).catch(function(e){ console.warn("opening birdsong",e); }); return SD.bushGet; }
+  function sdWorldReal(c,t){ var bus=c.createGain(), lp=c.createBiquadFilter(), pre=c.createGain(); bus.gain.setValueAtTime(0.0001,t); bus.gain.exponentialRampToValueAtTime(1,t+1.5); bus.connect(SD.out); SD.amb=bus; SD.drone=null;
+    lp.type="lowpass"; lp.frequency.value=9000; lp.Q.value=0.5; pre.gain.value=SD.bedG=0.85; SD.bedNF=1700; SD.bedNG=0.6; pre.connect(lp); lp.connect(bus); SD.bedLP=lp; SD.bedPre=pre; SD.ambSrc=[];
+    function go(at){ if(!SD.bushBuf||SD.amb!==bus) return; var s=c.createBufferSource(); s.buffer=SD.bushBuf; s.connect(pre); s.start(at); SD.ambSrc.push(s); }
+    if(SD.bushBuf) go(t); else { var p=sdBushLoad(c); if(p) p.then(function(){ go(Math.max(t,c.currentTime)); }); } }
   /* a few birds, far off and sparse: bellbird, tūī, a fantail close by; in the world, so they dim with it */
   function sdBirds(t,more){ var w=SD.bedPre; if(!w) return; sdBellbird(w,t+2.2,-0.5); sdTui(w,t+4.6,0.6); sdBellbird(w,t+6.9,0.3); sdFantail(w,t+7.7,-0.2); if(more){ sdTui(w,t+1.0,-0.7); sdBellbird(w,t+4.0,0.6); sdFantail(w,t+5.6,0.5); } }
   /* the camera comes up: the world dims and muffles; close by, the camera in the hands, and it seats */
-  function sdNarrow(b,t){ if(SD.bedLP){ SD.bedLP.frequency.setTargetAtTime(650,t,0.22); SD.bedPre.gain.setTargetAtTime(0.7,t,0.3); }
+  function sdNarrow(b,t){ if(SD.bedLP){ SD.bedLP.frequency.setTargetAtTime(SD.bedNF||650,t,0.22); SD.bedPre.gain.setTargetAtTime(SD.bedG*(SD.bedNG||0.39),t,0.3); }   /* how far it dims depends on the world: birdsong lives up high, so it's muffled less */
     sdNoise(b,t,"bandpass",500,0.8,0.1,0.06,0.12,0.35,1400,-0.3,0.2); sdNoise(b,t+0.3,"bandpass",1200,1.2,0.02,0.02,0.05,0.12,null,0.2); sdTick(b,t+0.52,1400,0.05); sdTick(b,t+0.56,2900,0.03); }
   /* the focus ring turning under a finger: soft detents, slowing as it lands. No beep */
   function sdRing(b,t,D){ for(var i=0;i<18;i++){ var u=i/18; sdTick(b,t+D*0.9*(1-Math.pow(1-u,1.8)),3300+u*500,0.012+0.006*Math.sin(u*Math.PI),(u-0.5)*0.2); } }
   /* the rise: the world opens out again, a soft movement of air, nothing louder */
-  function sdRise(b,t){ if(SD.bedLP){ SD.bedLP.frequency.cancelScheduledValues(t); SD.bedLP.frequency.setTargetAtTime(9000,t+0.15,0.5); SD.bedPre.gain.cancelScheduledValues(t); SD.bedPre.gain.setTargetAtTime(2,t+0.15,0.5); }
+  function sdRise(b,t){ if(SD.bedLP){ SD.bedLP.frequency.cancelScheduledValues(t); SD.bedLP.frequency.setTargetAtTime(9000,t+0.15,0.5); SD.bedPre.gain.cancelScheduledValues(t); SD.bedPre.gain.setTargetAtTime(SD.bedG*1.11,t+0.15,0.5); }
     sdNoise(b,t,"bandpass",320,0.8,1.3,0.045,0.3,1.8,2000,-0.4,0.4); }
   /* the tune, in A: three notes falling, then rising to look up into the shot; it goes quiet for the camera */
   var SD_SCORE=[[1.4,[45,52],0.05,1],[1.9,[73],0.07],[2.9,[71],0.06],[3.9,[69],0.065],[4.2,[57,64],0.03,1],[5.6,[42,49],0.05,1],[6.1,[73],0.065],[7.0,[74],0.06],[7.9,[76],0.07],[8.0,[54,61],0.028,1]];
@@ -432,8 +443,9 @@
     return {peak:+pk.toFixed(3), wav:btoa(str)}; }
   function sdRenderFilm(v,sh){ var wasV=SD_V, wasS=SD_SH, pc=SD.ctx, F=LA_F, sr=48000, oc=new OfflineAudioContext(2,Math.ceil(sr*(F.len+3)),sr); SD_V=v==null?SD_V:v; SD_SH=sh==null?SD_SH:sh;
     SD.off=true; SD.ctx=null; SD.vb=null; SD.shB=null; SD.big=null; SD.seq=null; SD.amb=null; sdWire(oc); var keep=SD.shBuf, kg=SD.shGet; SD.shBuf=null; SD.shGet=null;
-    return Promise.resolve(SD_SH===5?sdShutLoad(oc):0).then(function(){ sdAmbStart(0); sdScan(0); sdLensUp(F.vf); sdRack(F.rack,1.4); sdShutter(F.fire); sdSpin(F.spin,false); sdAmbStop(F.len+0.3,1.0); return oc.startRendering(); })
-      .then(function(buf){ SD_V=wasV; SD_SH=wasS; SD.off=false; SD.ctx=null; SD.seq=null; SD.amb=null; SD.vb=null; SD.shB=null; SD.big=null; SD.shBuf=keep; SD.shGet=kg; if(pc) sdWire(pc); return sdWav(buf); }); }
+    var kb=SD.bushBuf, kbg=SD.bushGet; SD.bushBuf=null; SD.bushGet=null;
+    return Promise.all([SD_SH===5?sdShutLoad(oc):0, sdVar("bed")===SDV[22].bed?sdBushLoad(oc):0]).then(function(){ sdAmbStart(0); sdScan(0); sdLensUp(F.vf); sdRack(F.rack,1.4); sdShutter(F.fire); sdSpin(F.spin,false); sdAmbStop(F.len+0.3,1.0); return oc.startRendering(); })
+      .then(function(buf){ SD_V=wasV; SD_SH=wasS; SD.off=false; SD.ctx=null; SD.seq=null; SD.amb=null; SD.vb=null; SD.shB=null; SD.big=null; SD.shBuf=keep; SD.shGet=kg; SD.bushBuf=kb; SD.bushGet=kbg; if(pc) sdWire(pc); return sdWav(buf); }); }
   function sdRender(){ return sdRenderFilm(); }
   if(/[?&]dev/.test(location.search)) window.__sd={ render:sdRender, film:sdRenderFilm, names:function(){ return {snd:SD_VN, shut:SD_SHN, now:[SD_V,SD_SH]}; } };
   // ---- the welcome: what Studium is, and that the camera comes first ----

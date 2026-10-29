@@ -1,0 +1,12 @@
+The opening's birdsong (assets/sound/opening-bush.mp3)
+
+Source: "Dawn chorus with bellbird/korimako in the foreground", birds singing from silver beech trees
+in Abel Tasman National Park. Department of Conservation (NZ), Bird songs and calls:
+https://www.doc.govt.nz/nature/native-animals/birds/bird-songs-and-calls/
+(file: 10-bellbird-morning-chorus.mp3)
+
+Terms (from that page): "These bird songs are Crown Copyright. They may be reused, even commercially,
+as long as you credit the Department of Conservation (NZ)."
+
+Use in Studium: a 26-second excerpt (from 0:05), with the lowest rumble filtered out and the ends faded.
+Credited on screen during the opening: "BIRDSONG: DEPARTMENT OF CONSERVATION (NZ)".

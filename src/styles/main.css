@@ -2920,6 +2920,9 @@ body.co-lens #bag .lensbtn{border-color:#e3ad57;box-shadow:0 0 22px rgba(227,173
 .la-skip{position:absolute;right:28px;bottom:24px;font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;color:rgba(244,241,234,.55);opacity:0;transition:opacity .4s;z-index:4;text-shadow:0 1px 6px rgba(0,0,0,.8)}
 #launch.skip .la-skip{opacity:1}
 #launch.out .la-skip,#launch.p-live .la-skip{opacity:0}
+.la-credit{position:absolute;left:28px;bottom:24px;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:rgba(244,241,234,.38);opacity:0;transition:opacity .6s;z-index:4;text-shadow:0 1px 6px rgba(0,0,0,.8);pointer-events:none}
+#launch.bush.p-film .la-credit,#launch.bush.p-hold .la-credit{opacity:1}
+#launch.out .la-credit{opacity:0}   /* the birdsong's credit (Crown Copyright, licenses/doc-birdsong-crown-copyright.txt), shown only when it plays */
 /* the viewfinder under the opening shows only its corners and the focus mark */
 body.launching #vfTop,body.launching #vfHints,body.launching #vfStrip,body.launching #vfBar,body.launching #vfGuideChip,body.launching #vfBriefChip,body.launching #vfCompLbl,body.launching #vfComp,body.launching #vfLevel,body.launching #vfBrief,body.launching #crosshair{visibility:hidden!important}
 body.launching #loader,body.launching #hud,body.launching #navTop,body.launching #navActs,body.launching #prompt,body.launching .q-hud,body.launching #chCard,body.launching #chGlow,body.launching #chFlash,body.launching #chMarks,body.launching #chTitle,body.launching #vfToast,body.launching #coCard,body.launching #coRing,body.launching #toast,body.launching .ach-card,body.launching #tutorial,body.launching #fadeover{visibility:hidden!important}

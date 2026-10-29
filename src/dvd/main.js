@@ -50,11 +50,11 @@ const T = { oakCol: img(oakCol, 1), oakRough: img(oakRough), oakNrm: img(oakNrm)
 const wear = rep(T.wear, 1, 1);
 
 /* ---------------- what's on the shelves: groups by photographer, packed into rows ---------------- */
-const W = 1.35, H = 1.9, D = .16, STEP = .52, GAP = .62, ROWH = 2.55;
+const W = 1.35, H = 1.9, D = .16, STEP = .42, GAP = .45, ROWH = 2.5;
 const groups = []; VIDS.forEach((v, i) => { let g = groups[groups.length - 1]; if (!g || g.a !== v.a) groups.push(g = { a: v.a, items: [] }); g.items.push(i); });
 const gw = (g) => (g.items.length - 1) * STEP + W * .6;
 /* three rows of about the same length, so the whole collection fits on screen at once */
-const totW = groups.reduce((t, g) => t + gw(g) + GAP, -GAP), NROWS = Math.max(1, Math.min(3, Math.round(totW / 6))), target = totW / NROWS;
+const totW = groups.reduce((t, g) => t + gw(g) + GAP, -GAP), NROWS = Math.max(1, Math.min(2, Math.round(totW / 6))), target = totW / NROWS;
 const rows = []; groups.forEach((g) => { let r = rows[rows.length - 1]; const w = gw(g); if (!r || (r.w + GAP + w > target * 1.12 && rows.length < NROWS)) rows.push(r = { gs: [], w: -GAP }); r.gs.push(g); r.w += GAP + w; });
 const SL = Math.max(...rows.map((r) => r.w)) + 1.3, ST = .16, SD = 1.3;
 const rowY = (k) => (rows.length - 1 - k) * ROWH;
@@ -64,7 +64,7 @@ const wallMid = rowY(0) / 2 + .9;
 /* Sam picks from these; with the switcher on (?dev, or the standalone page) they can be mixed live */
 const LIGHTS = {
   night: { name: 'Night gallery', bg: 0x070605, wall: 0x4a4038, wallN: 2, wood: 0x8a6a52, lacquer: false, exposure: 1.0, env: .12, spot: [0xffd29a, 55, .3, .55], wash: [0xffcf8f, 3], key: 85, fill: [0x6f86ff, .08], beams: .085, dust: .55, bloom: .15, fog: [0x070605, 26, 50] },
-  cinema: { name: 'Cinema', bg: 0x04060a, wall: 0x22303f, wallN: 1.6, wood: 0x111114, lacquer: true, exposure: .92, env: .25, spot: [0xffc27a, 34, .38, .7], wash: [0xff9a3c, 2.5], key: 55, fill: [0x5a82ff, .35], beams: .02, dust: .25, bloom: .1, fog: [0x04060a, 26, 50] },
+  cinema: { name: 'Cinema', bg: 0x04060a, wall: 0x22303f, wallN: 1.6, wood: 0x111114, lacquer: true, exposure: .88, env: .25, spot: [0xffd9a8, 26, .42, .8], wash: [0xff9a3c, 2.5], key: 55, fill: [0x5a82ff, .35], beams: .02, dust: .25, bloom: .1, fog: [0x04060a, 26, 50] },
   gallery: { name: 'White gallery', bg: 0xe7e3dc, wall: 0xf4f1eb, wallN: .7, wood: 0xffffff, lacquer: false, exposure: .82, env: .55, spot: [0xfff3e6, 30, .62, 1], wash: [0xfff2e0, 1.5], key: 150, fill: [0xdfe8ff, .35], beams: 0, dust: 0, bloom: .12, fog: [0xe7e3dc, 30, 60] } };
 const COVERS = { poster: 'Poster serif', film: 'Poster grotesk', collection: 'Collection', swiss: 'Swiss' };
 const CASES = { black: 'Black', clear: 'Clear', colour: 'Colour' };
@@ -141,7 +141,7 @@ const COVER = {
     g.beginPath(); g.arc(Wc - 96, Hc - 94, 26, 0, 7); g.fillStyle = '#c8933f'; g.fill(); g.fillStyle = '#141210'; g.font = '400 30px Fraunces'; g.textAlign = 'center'; g.fillText('S', Wc - 96, Hc - 84); g.textAlign = 'left'; },
   /* a film poster: the still full bleed in rich colour, a heavy serif name, small tracked caps, a credit block */
   poster(g, v, i, im) { const Wc = 900, Hc = 1266, hue = hueOf(v.a); g.fillStyle = shade(hue, .35); g.fillRect(0, 0, Wc, Hc);
-    if (im) { g.save(); g.filter = 'saturate(1.35) contrast(1.08)'; crop(g, im, 0, 0, Wc, Hc * .78); g.restore(); } else photoOrNone(g, null, v, 0, 0, Wc, Hc * .78, true);
+    if (im) { g.save(); g.filter = 'saturate(1.5) contrast(1.15)'; crop(g, im, 0, 0, Wc, Hc * .78); g.restore(); } else photoOrNone(g, null, v, 0, 0, Wc, Hc * .78, true);
     let gr = g.createLinearGradient(0, Hc * .4, 0, Hc * .8); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, shade(hue, .22)); g.fillStyle = gr; g.fillRect(0, Hc * .4, Wc, Hc * .4 + 1);
     g.fillStyle = shade(hue, .22); g.fillRect(0, Hc * .8, Wc, Hc * .2);
     gr = g.createLinearGradient(0, 0, 0, 200); gr.addColorStop(0, 'rgba(0,0,0,.6)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, Wc, 200);
@@ -161,7 +161,7 @@ const COVER = {
     g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 2; g.beginPath(); g.arc(Wc - 70, Hc - 70, 22, 0, 7); g.stroke(); g.font = '700 22px Geist'; g.fillStyle = 'rgba(255,255,255,.85)'; g.textBaseline = 'middle'; g.fillText('E', Wc - 70, Hc - 69); g.textAlign = 'left'; },
   /* a modern film label: the still, the name set clean and tight, left aligned */
   film(g, v, i, im) { const Wc = 900, Hc = 1266, hue = hueOf(v.a); g.fillStyle = '#0d0d0f'; g.fillRect(0, 0, Wc, Hc);
-    if (im) { g.save(); g.filter = 'saturate(1.25) contrast(1.06)'; crop(g, im, 0, 0, Wc, Hc); g.restore(); } else photoOrNone(g, null, v, 0, 0, Wc, Hc, true);
+    if (im) { g.save(); g.filter = 'saturate(1.45) contrast(1.12)'; crop(g, im, 0, 0, Wc, Hc); g.restore(); } else photoOrNone(g, null, v, 0, 0, Wc, Hc, true);
     let gr = g.createLinearGradient(0, Hc * .38, 0, Hc); gr.addColorStop(0, 'rgba(8,8,10,0)'); gr.addColorStop(.6, 'rgba(8,8,10,.78)'); gr.addColorStop(1, 'rgba(8,8,10,.95)'); g.fillStyle = gr; g.fillRect(0, 0, Wc, Hc);
     gr = g.createLinearGradient(0, 0, 0, 180); gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, Wc, 180);
     g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillStyle = '#fff'; g.font = '500 20px "Geist Mono"'; g.letterSpacing = '6px'; g.fillText('STUDIUM', 64, 84);
@@ -228,7 +228,7 @@ const blackInner = new THREE.MeshPhysicalMaterial({ map: trayTex(), roughness: .
 const blackEdge = new THREE.MeshStandardMaterial({ map: edgeTex(), roughness: .5 });
 /* the sleeve: thin clear film over the insert, smudged and scuffed */
 /* black and additive, so it adds only its reflections: gloss over the print without blurring it */
-const sleeveFilm = new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: .08, roughnessMap: wear, clearcoat: 1, clearcoatRoughness: .1, clearcoatRoughnessMap: wear, envMapIntensity: 2.2, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+const sleeveFilm = new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: .08, roughnessMap: wear, clearcoat: 1, clearcoatRoughness: .1, clearcoatRoughnessMap: wear, envMapIntensity: .9, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
 const halfGeo = new RoundedBoxGeometry(W, H, D / 2, 2, .016);
 const IW = W - .07, IH = H - .08, insertGeo = new THREE.PlaneGeometry(IW, IH), filmGeo = new RoundedBoxGeometry(W - .02, H - .02, .006, 1, .003);
 const discGeo = new THREE.CylinderGeometry(.6, .6, .012, 96); discGeo.rotateX(Math.PI / 2);
@@ -243,7 +243,7 @@ rows.forEach((r, k) => { let x = -r.w / 2; const y = rowY(k);
       const discC = document.createElement('canvas'); discC.width = discC.height = 512;
       const spC = document.createElement('canvas'); spC.width = 64; spC.height = 844;
       const coverT = ctex(coverC), discT = ctex(discC), spT = ctex(spC);
-      const insert = new THREE.MeshPhysicalMaterial({ map: coverT, roughness: .62, sheen: .3, sheenRoughness: .8, sheenColor: new THREE.Color(0xffffff) });
+      const insert = new THREE.MeshStandardMaterial({ map: coverT, roughness: .7, envMapIntensity: .4 });
       const spine = new THREE.MeshPhysicalMaterial({ map: spT, roughness: .35, clearcoat: 1, clearcoatRoughness: .2, clearcoatRoughnessMap: wear });
       const discTop = new THREE.MeshPhysicalMaterial({ map: discT, alphaTest: .5, roughness: .45, clearcoat: .6, clearcoatRoughness: .25, metalness: .15 });
       /* case frame: origin at the bottom of the spine, centre of the depth; +x across, +y up, +z the cover */
@@ -317,7 +317,8 @@ const TRAY_IN = PD / 2 - .8, TRAY_OUT = PD / 2 + .72;
 /* ---------------- camera: the whole wall, or close on one photographer ---------------- */
 const wallW = SL, wallH = rowY(0) + H + .8;
 const view = { x: 0, y: wallMid, z: 16, tx: 0, ty: wallMid, tz: 16 };
-function fitZ() { const vh = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); return Math.max((wallH + .35) / vh, (wallW - .2) / (vh * camera.aspect)); }
+/* fill the screen top to bottom; wider than the screen slides left and right */
+function fitZ() { const vh = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); return (wallH + .1) / vh; }
 let zOver = 16; const zNear = 8.2;
 function clampView() { const vh = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), hh = view.tz * vh / 2, hw = hh * camera.aspect;
   const mx = Math.max(0, wallW / 2 + .6 - hw), myLo = -.6 + hh - .4, myHi = rowY(0) + H + .6 - hh + .2;
@@ -346,11 +347,13 @@ const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(9, 9), pickables = 
 cases.forEach((cs) => pickables.push(cs.tray, cs.lid));
 let drag = null, hot = null, modal = null, busy = false;
 function pickAt(e) { const m = new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(m, camera); const h = ray.intersectObjects(pickables, false)[0]; return h ? h.object.userData.caseIdx : null; }
-canvas.addEventListener('pointerdown', (e) => { mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); drag = { x: e.clientX, y: e.clientY, moved: false }; });
+canvas.addEventListener('pointerdown', (e) => { mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); drag = { x: e.clientX, y: e.clientY, vx: view.tx, moved: false }; });
 addEventListener('pointermove', (e) => { mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
 canvas.addEventListener('pointermove', (e) => {
-  if (drag && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 8) drag.moved = true; });
-canvas.addEventListener('pointerup', (e) => { const was = drag; drag = null; if (!was || was.moved) return; const k = pickAt(e);   /* raycast on the tap itself: a touch has no hover */
+  if (!drag) return; if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 8) { drag.moved = true; canvas.classList.add('drag'); }
+  if (drag.moved && !modal) { const k = view.z * 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / innerHeight; view.tx = drag.vx - (e.clientX - drag.x) * k; clampView(); } });
+canvas.addEventListener('wheel', (e) => { if (modal) return; e.preventDefault(); view.tx += (e.deltaX + e.deltaY) * .006; clampView(); }, { passive: false });
+canvas.addEventListener('pointerup', (e) => { const was = drag; drag = null; canvas.classList.remove('drag'); if (!was || was.moved) return; const k = pickAt(e);   /* raycast on the tap itself: a touch has no hover */
   if (!modal) { if (k != null) pull(k); return; }
   /* holding one: click it to put it on, click anywhere else to put it back */
   if (modal.st === 'look' && !busy) { if (k === cases.indexOf(modal.cs)) putOn(); else putBack(); } });
@@ -358,6 +361,7 @@ canvas.addEventListener('pointerleave', () => { mouse.set(9, 9); });
 addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { e.preventDefault(); if (modal) esc(); else if (BR && BR.key) BR.key('Escape'); return; }
   if (modal) return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); view.tx += e.key === 'ArrowRight' ? 2.4 : -2.4; clampView(); return; }
   if (BR && BR.key && /^[qQeE]$/.test(e.key)) BR.key(e.key); });
 document.addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act;
   if (a === 'play') putOn(); else if (a === 'back') putBack(); else if (a === 'eject') eject(); else if (a === 'esc') esc(); });
@@ -467,7 +471,7 @@ function frame() { raf = 0; if (paused) return; const real = Math.min(.5, clock.
   if (!modal && !drag) { ray.setFromCamera(mouse, camera); const h = ray.intersectObjects(pickables, false)[0]; const idx = h ? h.object.userData.caseIdx : null;
     if (idx !== hot) { hot = idx; canvas.style.cursor = idx != null ? 'pointer' : ''; hint.style.opacity = idx != null ? 1 : 0; if (idx != null) { hint.querySelector('b').textContent = cases[idx].v.a; hint.querySelector('i').textContent = cases[idx].v.t; } } }
   cases.forEach((cs, k) => { if (modal && modal.cs === cs) return; const want = k === hot ? 1 : 0; cs.hov += (want - cs.hov) * (1 - Math.exp(-dt * 9));
-    const u = cs.hov; if (u < .0005 && want === 0) { cs.hov = 0; } cs.grp.position.set(cs.base.p.x - .45 * u, cs.base.p.y + .22 * u, cs.base.p.z + 1.6 * u);
+    const u = cs.hov; if (u < .0005 && want === 0) { cs.hov = 0; } cs.grp.position.set(cs.base.p.x - .45 * u, cs.base.p.y + (cs.row === 0 && rows.length > 1 ? -.2 : .22) * u, cs.base.p.z + 1.6 * u);   /* the top row pops down a little so it stays on screen */
     cs.grp.rotation.set(-.03 + .05 * u, .95 * (1 - .88 * u), 0); cs.grp.scale.setScalar(1 + .14 * u); });
   /* the case in your hands follows the mouse a little */
   /* the case in your hands turns towards the mouse, around its own centre */

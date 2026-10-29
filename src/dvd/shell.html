@@ -12,7 +12,7 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family:var(--f-ui)
 .mast p{ margin:0 0 10px; font:500 10px/1 var(--f-mono); letter-spacing:.24em; color:var(--accent); }
 .mast h1{ margin:0; font:300 40px/1 var(--f-display); letter-spacing:-.01em; }
 .mast span{ display:block; margin-top:10px; font:400 14px/1.5 var(--f-ui); color:var(--faint); }
-#hint{ position:fixed; left:50%; bottom:40px; transform:translateX(-50%); text-align:center; pointer-events:none; opacity:0; transition:opacity .25s; text-shadow:0 1px 10px rgba(0,0,0,.7); }
+#hint{ position:fixed; left:50%; top:22px; transform:translateX(-50%); text-align:center; pointer-events:none; opacity:0; transition:opacity .25s; text-shadow:0 1px 10px rgba(0,0,0,.7); }
 #hint b{ display:block; font:300 24px/1.1 var(--f-display); }
 #hint i{ display:block; margin-top:8px; font:500 10px/1 var(--f-mono); font-style:normal; letter-spacing:.2em; color:var(--faint); text-transform:uppercase; }
 #nav{ position:fixed; left:50%; bottom:28px; transform:translateX(-50%); display:flex; gap:6px; flex-wrap:wrap; justify-content:center; width:max-content; max-width:94vw; transition:opacity .4s; }
@@ -20,7 +20,7 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family:var(--f-ui)
 #nav button:hover{ color:var(--text); border-color:rgba(244,241,234,.35); }
 #nav button.on{ color:#16130f; background:var(--accent); border-color:var(--accent); }
 body.modal .mast, body.modal #nav{ opacity:0; pointer-events:none; }
-body.inapp .mast{ display:none; }
+.mast{ display:none; }   /* the room's own bar names the shelf */
 /* the case in your hands */
 #look{ position:fixed; left:58%; top:50%; width:min(360px,34vw); transform:translateY(-50%); opacity:0; pointer-events:none; transition:opacity .35s; }
 #look.on{ opacity:1; pointer-events:auto; }

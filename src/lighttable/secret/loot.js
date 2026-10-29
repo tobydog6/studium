@@ -15,7 +15,7 @@
 // Test hooks: S.loot.__pick(i), S.loot.rect, S.loot.state.
 import * as THREE from 'three';
 
-const X0 = 6, Z0 = -11.7, X1 = 17, Z1 = -7.0;            /* the pit: the strip behind the board, where the arm can reach (its shoulder is at x 21.5, z -2.2, reach 13.6) */
+const X0 = -9.5, Z0 = -3.6, X1 = 9.5, Z1 = 3.6;   /* the pit: the middle of the dark side (the light side's blind opening is no longer used) */            /* the pit: the strip behind the board, where the arm can reach (its shoulder is at x 21.5, z -2.2, reach 13.6) */
 const RECT = [X0, Z0, X1, Z1], CX = (X0 + X1) / 2, CZ = (Z0 + Z1) / 2, PW = X1 - X0, PD = Z1 - Z0;
 const PIT = 7;                                           /* how deep the dark liner goes */
 const R0 = 0.1, R1 = 0.42;                               /* the roll of table top: radius as it starts and once it is all rolled up */

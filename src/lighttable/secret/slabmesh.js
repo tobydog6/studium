@@ -50,10 +50,21 @@ export function photoCanvas(slab, S) {
 const FILTERS = { gold: 'sepia(1) saturate(1.6) contrast(1.05) brightness(1.04)', prism: 'grayscale(1) contrast(1.45) brightness(0.82)', cyanotype: 'grayscale(1) sepia(1) hue-rotate(165deg) saturate(2.4) brightness(0.9)', chrome: 'grayscale(0.6) contrast(1.25)', steel: 'grayscale(1) contrast(1.1) brightness(0.9)',
   silver: 'grayscale(1) sepia(0.22) contrast(1.14) brightness(1.02)', polychrome: 'saturate(2.3) contrast(1.25)', eclipse: 'invert(1) hue-rotate(180deg) contrast(1.1)', raku: 'sepia(0.8) contrast(1.45) brightness(0.88) saturate(0.6)', glass: 'contrast(0.85) brightness(1.18) saturate(0.75)' };
 /* two colour gradient maps: the photo's tones mapped from the first colour (shadows) to the second (highlights) */
-const MAPS = { keywarm: ['#1b0f08', '#f3dcb5'], keyblue: ['#071a33', '#dff1ff'], kintsugi: ['#0b0906', '#e8c26a'], porcelain: ['#1e2229', '#f7f7f3'] };
+const MAPS = { keywarm: ['#1b0f08', '#f3dcb5'], keyblue: ['#071a33', '#dff1ff'], kintsugi: ['#0b0906', '#e8c26a'], porcelain: ['#1e2229', '#f7f7f3'], duoRose: ['#2a0a1e', '#ffd9e4'], duoMoss: ['#0c1a0f', '#e9f2c9'], duoInk: ['#070b1a', '#e6ecff'], duoEmber: ['#1a0600', '#ffc66b'], tritone: ['#101424', '#c0392b', '#fff1c1'] };
+const FILTERS2 = { xpro: 'contrast(1.3) saturate(1.5) hue-rotate(-12deg) brightness(1.05)', infrared: 'grayscale(0.3) contrast(1.25) brightness(1.1) hue-rotate(150deg) saturate(1.3)' };
+/* per pixel looks: a selective colour keeps the photo's main hue and greys the rest, solarise folds the highlights, posterise steps the tones, a vignette darkens the corners */
+function pixels(c, fn) { const g = c.getContext('2d'), img = g.getImageData(0, 0, c.width, c.height); fn(img.data, c.width, c.height); g.putImageData(img, 0, 0); }
+function hueOf(r, g, b) { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return -1; let h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360; }
+function selective(d) { const hist = new Float32Array(36); for (let i = 0; i < d.length; i += 16) { const h = hueOf(d[i], d[i + 1], d[i + 2]); if (h < 0) continue; const s = (Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2])); hist[Math.floor(h / 10)] += s; } let best = 0; for (let k = 1; k < 36; k++) if (hist[k] > hist[best]) best = k; const H = best * 10 + 5;
+  for (let i = 0; i < d.length; i += 4) { const h = hueOf(d[i], d[i + 1], d[i + 2]); let dh = h < 0 ? 180 : Math.abs(h - H); dh = Math.min(dh, 360 - dh); const keep = dh < 22 ? 1 : dh < 40 ? 1 - (dh - 22) / 18 : 0; const l = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; d[i] = l + (d[i] - l) * keep; d[i + 1] = l + (d[i + 1] - l) * keep; d[i + 2] = l + (d[i + 2] - l) * keep; } }
+function solar(d) { for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) { const v = d[i + k]; d[i + k] = v > 128 ? 255 - (v - 128) * 2 * 0.9 : v * 1.2; } }
+function poster(d) { for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) d[i + k] = Math.round(d[i + k] / 51) * 51; }
+function vignette(d, W, H) { const cx = W / 2, cy = H / 2, R = Math.hypot(cx, cy); for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = (y * W + x) * 4, f = 1 - 0.55 * Math.pow(Math.hypot(x - cx, y - cy) / R, 2.2); d[i] *= f; d[i + 1] *= f; d[i + 2] *= f; } }
+function split(d) { for (let i = 0; i < d.length; i += 4) { const l = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255; const w = l < 0.5 ? l * 2 : 1, s = l < 0.5 ? 1 : (1 - l) * 2; d[i] = d[i] * 0.6 + (l < 0.5 ? 20 : 255) * 0.4 * (l < 0.5 ? (1 - w) : (1 - s)) + d[i] * 0.4 * (l < 0.5 ? w : s); d[i + 2] = d[i + 2] * 0.6 + (l < 0.5 ? 120 : 190) * 0.4 * (l < 0.5 ? (1 - w) : (1 - s)) + d[i + 2] * 0.4 * (l < 0.5 ? w : s); } }
+const PIXEL = { selective: d => selective(d), solar: d => solar(d), poster: d => poster(d), vignette: (d, W, H) => vignette(d, W, H), split: d => split(d) };
 const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
-function gradientMap(c, pair) { const g = c.getContext('2d'), img = g.getImageData(0, 0, c.width, c.height), d = img.data, a = hex(pair[0]), b = hex(pair[1]);
-  for (let i = 0; i < d.length; i += 4) { const l = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255; d[i] = a[0] + (b[0] - a[0]) * l; d[i + 1] = a[1] + (b[1] - a[1]) * l; d[i + 2] = a[2] + (b[2] - a[2]) * l; } g.putImageData(img, 0, 0); }
+function gradientMap(c, stops) { const g = c.getContext('2d'), img = g.getImageData(0, 0, c.width, c.height), d = img.data, cols = stops.map(hex), n = cols.length - 1;
+  for (let i = 0; i < d.length; i += 4) { const l = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255, p = l * n, k = Math.min(n - 1, Math.floor(p)), t = p - k, a = cols[k], b = cols[k + 1]; d[i] = a[0] + (b[0] - a[0]) * t; d[i + 1] = a[1] + (b[1] - a[1]) * t; d[i + 2] = a[2] + (b[2] - a[2]) * t; } g.putImageData(img, 0, 0); }
 /* wear by grade, so a raw print hints at what the lab will say: dust from 8 down, scratches from 6, a creased corner and a cast from 4, a stained edge at 2 */
 function wear(c, grade, seed) { if (grade == null || grade >= 9) return; const g = c.getContext('2d'), W = c.width, H = c.height; let a = (seed >>> 0) || 7; const r = () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; };
   g.save(); g.fillStyle = 'rgba(255,255,255,0.5)'; for (let i = 0, n = (9 - grade) * 40; i < n; i++) { const s = 0.6 + r() * 2; g.fillRect(r() * W, r() * H, s, s); }
@@ -63,12 +74,12 @@ function wear(c, grade, seed) { if (grade == null || grade >= 9) return; const g
   g.restore(); }
 /* the photo as the card shows it: finish, variant and wear baked into a copy */
 export function processPhoto(base, finish, variant, grade, seed) {
-  const f = [FILTERS[finish], variant === 'negative' ? 'invert(1) sepia(0.45) hue-rotate(-15deg) contrast(1.15)' : ''].filter(Boolean).join(' ');
-  const map = MAPS[finish], worn = grade != null && grade < 9;
-  if (!f && !map && !worn) return base;
+  const f = [FILTERS[finish] || FILTERS2[finish], variant === 'negative' ? 'invert(1) sepia(0.45) hue-rotate(-15deg) contrast(1.15)' : ''].filter(Boolean).join(' ');
+  const map = MAPS[finish], px = PIXEL[finish], worn = grade != null && grade < 9;
+  if (!f && !map && !px && !worn) return base;
   const c = document.createElement('canvas'); c.width = base.width; c.height = base.height; const g = c.getContext('2d');
   try { g.filter = f || 'none'; } catch (e) {} g.drawImage(base, 0, 0); g.filter = 'none';
-  if (map) gradientMap(c, map); if (worn) wear(c, grade, seed); return c;
+  if (map) gradientMap(c, map); if (px) pixels(c, px); if (worn) wear(c, grade, seed); return c;
 }
 /* text that shrinks to fit its column (long titles on the label) */
 function fitFill(g, maxW, minPx, text, x, y) { const font = g.font; let px = +(font.match(/(\d+(?:\.\d+)?)px/) || [0, 24])[1]; while (px > minPx && g.measureText(text).width > maxW) { px -= 1; g.font = font.replace(/\d+(?:\.\d+)?px/, px + 'px'); } g.fillText(text, x, y); g.font = font; }

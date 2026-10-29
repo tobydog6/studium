@@ -33,9 +33,11 @@ export const FINISHES = [
   { id: 'cyanotype', name: 'Cyanotype' }, { id: 'eclipse', name: 'Eclipse' }, { id: 'steel', name: 'Steel' }, { id: 'glass', name: 'Glass' },
   { id: 'porcelain', name: 'Porcelain' }, { id: 'kintsugi', name: 'Kintsugi' }, { id: 'raku', name: 'Raku' }, { id: 'stone', name: 'Carved stone' },
   { id: 'polychrome', name: 'Polychrome' }, { id: 'keywarm', name: 'Colour key · warm' }, { id: 'keyblue', name: 'Colour key · blue' }, { id: 'leaf', name: 'Highlight leaf' }, { id: 'silver', name: 'Silver gelatin' },
+  { id: 'selective', name: 'Selective colour' }, { id: 'split', name: 'Split tone' }, { id: 'solar', name: 'Solarised' }, { id: 'infrared', name: 'Infrared' }, { id: 'poster', name: 'Posterised' }, { id: 'xpro', name: 'Cross processed' },
+  { id: 'duoRose', name: 'Duotone · rose' }, { id: 'duoMoss', name: 'Duotone · moss' }, { id: 'duoInk', name: 'Duotone · ink' }, { id: 'duoEmber', name: 'Duotone · ember' }, { id: 'tritone', name: 'Tritone' }, { id: 'vignette', name: 'Vignette' },
 ];
 /* each tier draws its finish from a pool: the signature one most often, with looks of its own beside it (Sam: not all rainbow) */
-const POOL = { common: ['matte', 'matte', 'matte', 'steel', 'silver'], uncommon: ['foil', 'foil', 'keywarm', 'keyblue', 'polychrome'], rare: ['etch', 'etch', 'lenticular', 'latent', 'cyanotype'], epic: ['glitter', 'glitter', 'chrome', 'thermal', 'porcelain'], legendary: ['gold', 'gold', 'kintsugi', 'raku', 'glass'], mythic: ['prism', 'prism', 'eclipse', 'kintsugi'] };
+const POOL = { common: ['matte', 'matte', 'steel', 'silver', 'vignette', 'poster', 'duoInk'], uncommon: ['foil', 'foil', 'keywarm', 'keyblue', 'polychrome', 'split', 'xpro', 'duoMoss', 'duoRose'], rare: ['etch', 'etch', 'lenticular', 'latent', 'cyanotype', 'selective', 'infrared', 'duoEmber'], epic: ['glitter', 'glitter', 'chrome', 'thermal', 'porcelain', 'solar', 'tritone'], legendary: ['gold', 'gold', 'kintsugi', 'raku', 'glass', 'selective'], mythic: ['prism', 'prism', 'eclipse', 'kintsugi', 'solar'] };
 export function rollFinish(r, tier) { const p = POOL[tier] || ['matte']; return p[Math.floor(r() * p.length)]; }
 export const FINISH = Object.fromEntries(FINISHES.map(f => [f.id, f]));
 
@@ -46,7 +48,7 @@ export const pad = (n, w) => String(n).padStart(w, '0');
 
 /* ---------- the store ---------- */
 const KEY = 'studium_secret_v1';
-const fresh = () => ({ v: 1, unlocked: false, code: '1234', pulls: [], vault: [], binder: [], table: [], points: 0, certN: 0, finishes: {} });
+const fresh = () => ({ v: 1, unlocked: false, code: '1234', pulls: [], vault: [], binder: [], table: [], display: [], points: 0, certN: 0, finishes: {} });
 export const store = {
   d: null, t: 0,
   get() { if (store.d) return store.d; let d = null; try { d = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { d = null; }
@@ -57,9 +59,9 @@ export const store = {
   pull(id) { return store.get().pulls.find(p => p.id === id) || null; },
   addPull(slab) { const d = store.get(); d.pulls.push(slab); d.points += slab.points; store.save(); return slab; },
   /* where a slab is: 'vault' | 'binder' | 'table' | 'loose' (pulled, not placed anywhere yet) */
-  where(id) { const d = store.get(); if (d.vault.includes(id)) return 'vault'; if (d.binder.some(pg => pg && pg.includes(id))) return 'binder'; if (d.table.some(t => t.id === id)) return 'table'; return 'loose'; },
+  where(id) { const d = store.get(); if (d.vault.includes(id)) return 'vault'; if (d.display && d.display.includes(id)) return 'display'; if (d.binder.some(pg => pg && pg.includes(id))) return 'binder'; if (d.table.some(t => t.id === id)) return 'table'; return 'loose'; },
   /* take a slab out of wherever it is */
-  detach(id) { const d = store.get(); d.vault = d.vault.filter(x => x !== id); d.binder.forEach(pg => { if (pg) for (let i = 0; i < pg.length; i++) if (pg[i] === id) pg[i] = null; }); d.table = d.table.filter(t => t.id !== id); store.save(); },
+  detach(id) { const d = store.get(); d.vault = d.vault.filter(x => x !== id); if (d.display) d.display = d.display.filter(x => x !== id); d.binder.forEach(pg => { if (pg) for (let i = 0; i < pg.length; i++) if (pg[i] === id) pg[i] = null; }); d.table = d.table.filter(t => t.id !== id); store.save(); },
   /* a pull gone for good: out of the pulls and everywhere it was filed (the points it earned stay) */
   discard(id) { store.detach(id); const d = store.get(); d.pulls = d.pulls.filter(p => p.id !== id); delete d.finishes[id]; store.save(); },
   toVault(id) { store.detach(id); store.get().vault.push(id); store.save(); },

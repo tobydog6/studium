@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 /* the closed binder: w across the table, h tall, d deep; covers, two page stacks and a thin cloth spine */
-const B = { w: 4.4, h: 0.5, d: 4.2, cover: 0.08, stack: 0.17, spine: 0.06, pageW: 4.1, pageD: 3.9, x: 6.5, z: 7 };   /* its own spot on the dark side */
+const B = { w: 4.4, h: 0.5, d: 4.2, cover: 0.08, stack: 0.17, spine: 0.06, pageW: 4.1, pageD: 3.9, x: -13, z: 8.6 };   /* its own spot on the dark side */
 const PK = { w: 0.95, h: 1.12, px: 1.12, pz: 1.24 };                     /* a pocket and the grid pitch */
 const SPINE_X = -B.w / 2;                                                /* the spine stands at the left edge */
 const HINGE_X = SPINE_X - B.h;                                           /* where the cover pivots once the spine lies flat */

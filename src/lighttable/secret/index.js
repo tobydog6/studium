@@ -21,6 +21,8 @@ import * as rail from './rail.js';
 import * as parcel from './parcel.js';
 import * as sound from './sound.js';
 import * as under from './under.js';
+import * as casebox from './casebox.js';
+import * as vitrine from './vitrine.js';
 import * as blades from './blades.js';
 
 const stdM = (c, r, m, o) => new THREE.MeshStandardMaterial({ color: c, roughness: r ?? 0.5, metalness: m ?? 0, ...(o || {}) });
@@ -41,7 +43,7 @@ export function installSecret(ctx) {
     /* the nearest of several objects, or null */
     hitAny(e, list) { ctx.setNDC(e); ctx.ray.setFromCamera(ctx.ndc, ctx.camera); let best = null; list.forEach(o => { if (!o || o.visible === false) return; const h = ctx.ray.intersectObject(o, true)[0]; if (h && (!best || h.distance < best.distance)) best = { ...h, root: o }; }); return best; },
     tableHit(e, y) { ctx.setNDC(e); return ctx.planeHit(ctx.camera, ctx.ndc, y || 0); },
-    testFinish() { return dev.opt('finish'); },
+    testFinish() { return dev.opt('finishTest'); },
     packs() { try { if (ctx.HOST && ctx.HOST.packs) { const p = ctx.HOST.packs(); if (p && p.length) return p; } } catch (e) {} try { const c = JSON.parse(localStorage.getItem('studium_rs') || 'null'); if (c && c.length) return c; } catch (e) {} return []; },
     unlocked() { return !!store.get().unlocked; },
     points() { return store.get().points; },
@@ -133,7 +135,7 @@ export function installSecret(ctx) {
     [-1, 1].forEach(s => { const c = new THREE.Mesh(new RoundedBoxGeometry(0.06, 0.12, 0.08, 2, 0.01), BRASS()); c.position.set(s * 0.3, 0.3, 0.25); btnVault.add(c); });
     const dot = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 12), stdM(0x3fcf7a, 0.4, 0, { emissive: 0x3fcf7a, emissiveIntensity: 0.6 })); dot.rotation.x = Math.PI / 2; dot.position.set(0.22, 0.17, 0.27); btnVault.add(dot); btnVault.userData.cap = dot;
     btnVault.add(S.shadow(1.3, 1.1)); btnVault.userData.base = 0.5; }
-  btnVault.position.set(ctx.BINDER.x - ctx.BINDER.w / 2 - 0.95, 0, ctx.BINDER.z + 0.5); btnVault.rotation.y = -0.22;
+  btnVault.position.set(ctx.BINDER.x - ctx.BINDER.w / 2 - 0.95, 0, ctx.BINDER.z + 0.5); btnVault.rotation.y = -0.22; btnVault.userData.retired = true;   /* the case is a prop on the dark side now (casebox.js) */
   const btnKey = new THREE.Group(); btnKey.name = 'key';
   { const c = document.createElement('canvas'); c.width = 128; c.height = 176; const g = c.getContext('2d'); g.fillStyle = '#b8903e'; g.beginPath(); g.roundRect(6, 6, 116, 164, 22); g.fill();
     const gr = g.createLinearGradient(0, 0, 128, 176); gr.addColorStop(0, 'rgba(255,255,255,0.35)'); gr.addColorStop(0.5, 'rgba(255,255,255,0)'); gr.addColorStop(1, 'rgba(0,0,0,0.25)'); g.fillStyle = gr; g.fill();
@@ -148,7 +150,7 @@ export function installSecret(ctx) {
   let lootOnClamp = false;
   /* the loot button lives on the clamp only: with the stand folded, clicking the kit box opens the stand as it always did (Sam) */
   const underOn = () => !!(S.under && S.under.on);
-  function placeLoot() { const up = ctx.STAND.up && !ctx.STAND.dir; btnLoot.visible = false; btnVault.visible = underOn(); if (up === lootOnClamp && btnLoot.parent) return; lootOnClamp = up;
+  function placeLoot() { const up = ctx.STAND.up && !ctx.STAND.dir; btnLoot.visible = false; btnVault.visible = false; if (up === lootOnClamp && btnLoot.parent) return; lootOnClamp = up;
     ctx.clampG.add(btnLoot); btnLoot.position.set(-0.52, 0.16, 0.27); btnLoot.rotation.set(0, 0, 0); }
   placeLoot();
 
@@ -177,7 +179,7 @@ export function installSecret(ctx) {
       return obj; },
     remove(obj, keepStore) { const i = tableSlabs.indexOf(obj); if (i >= 0) tableSlabs.splice(i, 1); if (obj.tableShadow) ctx.scene.remove(obj.tableShadow); if (!keepStore) store.detach(obj.slab.id); S.slabs.drop(obj); },
     /* a free patch of table for a new slab, left of the board and clear of the other slabs */
-    freeSpot() { const cx = -4, cz = 1.5; for (let k = 0; k < 40; k++) { const x = cx + (Math.random() - 0.5) * 12, z = cz + (Math.random() - 0.5) * 9; if (!tableSlabs.some(o => Math.hypot(o.group.position.x - x, o.group.position.z - z) < 3.4)) return { x, z }; } return { x: cx, z: cz }; },
+    freeSpot() { const cx = 0, cz = 8.5; for (let k = 0; k < 40; k++) { const x = cx + (Math.random() - 0.5) * 18, z = cz + (Math.random() - 0.5) * 4; if (!tableSlabs.some(o => Math.hypot(o.group.position.x - x, o.group.position.z - z) < 3.4)) return { x, z }; } return { x: cx, z: cz }; },
     restore() { store.get().table.forEach(t => { const slab = store.pull(t.id); if (slab) S.table.place(slab, t.x, t.z, t.yaw, { quiet: true }); }); },
   };
   /* a pull straight onto the table (the dev panel's Roll; loot.js lays its slab down the long way) */
@@ -195,13 +197,13 @@ export function installSecret(ctx) {
   async function inspectTableSlab(obj) {
     const raw = !obj.slab.graded, g = obj.group, K = S.TABLE_K;
     T.to(g.scale, { x: 1, y: 1, z: 1 }, { dur: 0.5, ease: T.E.outCubic, tag: 'tslab' });
-    const r = await inspect.open(obj, { actions: raw ? [{ id: 'bin', label: 'Bin it' }, { id: 'back', label: 'Put back' }, { id: 'grade', label: 'Send for grading', primary: true }] : [{ id: 'bin', label: 'Bin it' }, { id: 'back', label: 'Put back' }, { id: 'binder', label: 'Into the binder' }, { id: 'vault', label: 'Into the vault', primary: true }], hint: S.specLine(obj.slab) + '\nDrag to turn it, scroll to zoom. Click the room to put it back.' });
+    const r = await inspect.open(obj, { actions: raw ? [{ id: 'bin', label: 'Bin it' }, { id: 'back', label: 'Put back' }, { id: 'grade', label: 'Send for grading', primary: true }] : [{ id: 'bin', label: 'Bin it' }, { id: 'back', label: 'Put back' }, { id: 'binder', label: 'Into the binder' }, { id: 'vault', label: 'Into the case', primary: true }], hint: S.specLine(obj.slab) + '\nDrag to turn it, scroll to zoom. Click the room to put it back.' });
     T.to(g.scale, { x: K, y: K, z: K }, { dur: 0.45, ease: T.E.inOutSine, tag: 'tslab' });
     if (r === 'bin') { await T.wait(0.45); binSlab(obj); return; }
     if (r === 'grade') { await T.wait(0.45); S.sendForGrading(obj); }
     if (r === 'binder') { await T.wait(0.3); S.sfx('binder'); const target = btnVault.getWorldPosition(new THREE.Vector3()); target.y += 0.3; P.dissolve(obj.group, { mode: dev.opt('dissolve'), centre: target, spread: 2.2, dur: 1.3 }); S.table.remove(obj, true); store.toBinder(obj.slab.id); hud(); S.toast('Filed in the Rare binder. Open the vault and press the button on the case front to see it.'); }
-    if (r === 'vault') { await T.wait(0.3); S.sfx('detent'); const target = btnVault.getWorldPosition(new THREE.Vector3()); target.y += 0.3;
-      P.dissolve(obj.group, { mode: dev.opt('dissolve'), centre: target, spread: 2.2, dur: 1.3 }); S.table.remove(obj, true); store.toVault(obj.slab.id); hud(); S.toast('Into the vault. Open the little case by the binder to see it.'); }
+    if (r === 'vault') { await T.wait(0.3); S.sfx('detent'); const target = S.caseBox ? S.caseBox.group.getWorldPosition(new THREE.Vector3()) : btnVault.getWorldPosition(new THREE.Vector3()); target.y += 1.2;
+      P.dissolve(obj.group, { mode: dev.opt('dissolve'), centre: target, spread: 2.2, dur: 1.0 }); const id = obj.slab.id; S.table.remove(obj, true); store.toVault(id); hud(); if (S.caseBox) setTimeout(() => S.caseBox.rack.rebuild(id), 700); S.toast('Into the case.'); }
   }
 
   /* ---------- the machine ---------- */
@@ -263,7 +265,7 @@ export function installSecret(ctx) {
   /* ---------- dev panel and shared inspect ---------- */
   const dev = createDev(S); S.dev = dev;
   const inspect = createInspect(S); S.inspect = inspect;
-  dev.on('finish', () => S.slabs.refreshFinish()); dev.on('speed', v => T.setTimeScale(+v || 1)); T.setTimeScale(+dev.opt('speed') || 1);
+  dev.on('finishTest', () => S.slabs.refreshFinish()); dev.on('speed', v => T.setTimeScale(+v || 1)); T.setTimeScale(+dev.opt('speed') || 1);
   dev.action('Roll a raw print', () => S.rollToTable({ graded: false }), 'Try'); dev.action('Roll a slab', () => S.rollToTable(), 'Try'); dev.action('Roll a Mythic', () => S.rollToTable({ tier: 'mythic' }), 'Try'); dev.action('Roll a variant', () => S.rollToTable({ variant: SL.VARIANTS[Math.floor(Math.random() * SL.VARIANTS.length)].id }), 'Try');
   dev.action('Open vault', () => M.is('idle') && M.send('VAULT'), 'Try'); dev.action('Open loot', () => M.is('idle') && M.send('LOOT'), 'Try');
   /* grading wait per the dev panel: a real day, a minute, or none */
@@ -275,7 +277,7 @@ export function installSecret(ctx) {
 
   /* ---------- the modules (each owns one file) ---------- */
   const secretTop = new Set();
-  [sound, print, holo, rail, arm, vault, binder, parcel, loot, under, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  [sound, print, holo, rail, arm, binder, parcel, loot, under, casebox, vitrine, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
   ctx.scene.children.forEach(c => { if (!lightSide.has(c)) secretTop.add(c); });   /* the rigs the modules just added */
 
   /* ---------- boot ---------- */

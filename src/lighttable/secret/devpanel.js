@@ -52,7 +52,7 @@ export function createDev(S) {
   dev.define('reel', 'Loot rail look', { neon: 'Neon rail', screen: 'Screen', lightbox: 'Lightbox' }, 'neon');
   dev.define('parcel', 'Delivery', { courier: 'Courier box', mailer: 'Padded mailer', crate: 'Mini crate' }, 'courier');
   const fin = { tier: 'By tier' }; FINISHES.forEach(f => { fin[f.id] = f.name + (f.tier ? ' (' + f.tier + ')' : ''); });
-  dev.define('finish', 'Test finish', fin, 'tier');
+  dev.define('finishTest', 'Test finish (override)', fin, 'tier');   /* a new key: Sam had the old one stuck on one finish */
   dev.define('speed', 'Speed', { 1: 'Normal', 0.5: 'Half', 0.25: 'Quarter' }, '1');
   /* the wait for grading: a real day for students, shorter for testing (plus Skip the wait under Try) */
   dev.define('grading', 'Grading wait', { day: 'A real day', minute: 'One minute', instant: 'Instant' }, 'day');

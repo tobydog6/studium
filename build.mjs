@@ -81,6 +81,16 @@ async function buildLightTable() {
   return Buffer.from(page, 'utf8').toString('base64');
 }
 const lightTable = await buildLightTable();
+// the DVD shelf (src/dvd/): Sam's photographer talks on 3D shelves, built and shipped the same way as the light table
+async function buildDvd() {
+  const r = await esbuild.build({ entryPoints: [join(ROOT, 'src', 'dvd', 'main.js')], bundle: true, minify: true, format: 'iife', write: false, logLevel: 'error', loader: { '.jpg': 'dataurl' } });
+  const js = r.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
+  const sh = readFileSync(join(ROOT, 'src', 'dvd', 'shell.html'), 'utf8'), cut = sh.indexOf('</style>') + 8;
+  const page = '<!doctype html><html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    + sh.slice(0, cut) + '</head><body>' + sh.slice(cut) + '<script>' + js + '</script></body></html>';
+  return Buffer.from(page, 'utf8').toString('base64');
+}
+const dvdShelf = await buildDvd();
 const shell = resolveAssets(readFileSync(join(ROOT, 'src', 'index.html'), 'utf8'));   // the page's own head (site icon) can use asset: too
 // Included files may themselves contain @@include lines (e.g. app.js pulls in back.js inside its closure).
 const readSrc = (p) => stripNl(readFileSync(join(ROOT, 'src', p), 'utf8'))
@@ -95,7 +105,7 @@ if (!process.argv.includes('--no-supabase')) {
 }
 const sbTag = SUPA ? `<script>window.STUDIUM_SUPABASE=${JSON.stringify(SUPA)};</script>\n` : '';
 const html0 = shell.replace(/^@@include (\S+)@@$/gm, (_, p) =>
-  p === 'engine' ? engine : resolveAssets(readSrc(p)).replace('@@lighttable-b64@@', () => lightTable) + (ONLY && p === 'scenes.js' ? `\nSPLAT_SCENES=SPLAT_SCENES.filter(function(s){ return ${JSON.stringify(ONLY)}.indexOf(s.id)>=0; });   /* dev build: --only */` : ''));
+  p === 'engine' ? engine : resolveAssets(readSrc(p)).replace('@@lighttable-b64@@', () => lightTable).replace('@@dvd-b64@@', () => dvdShelf) + (ONLY && p === 'scenes.js' ? `\nSPLAT_SCENES=SPLAT_SCENES.filter(function(s){ return ${JSON.stringify(ONLY)}.indexOf(s.id)>=0; });   /* dev build: --only */` : ''));
 const html = html0.replace('<script id="engine">', () => sbTag + '<script id="engine">');
 if (SUPA) console.log('Supabase on: ' + SUPA.url);
 // web build: the site files (link-preview image, robots.txt, sitemap.xml) from assets/web/ go at the site root

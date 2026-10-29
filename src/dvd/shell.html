@@ -1,0 +1,62 @@
+<title>DVD shelf · Studium</title>
+<style>
+/* The DVD shelf: one WebGL room (src/dvd/main.js) with quiet DOM on top. Studium's darkroom tokens; gold for small accents. */
+:root{ --bg:#0b0908; --text:#f4f1ea; --faint:rgba(244,241,234,.56); --dim:rgba(244,241,234,.38); --accent:#e3ad57;
+  --f-display:"Fraunces", Georgia, serif; --f-ui:"Geist", system-ui, sans-serif; --f-mono:"Geist Mono", ui-monospace, Menlo, monospace; color-scheme:dark; }
+html,body{ height:100%; }
+body{ margin:0; background:var(--bg); color:var(--text); font-family:var(--f-ui); overflow:hidden; -webkit-font-smoothing:antialiased; user-select:none; }
+#c{ position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab; }
+#c.drag{ cursor:grabbing; }
+.vig{ position:fixed; inset:0; pointer-events:none; background:radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(0,0,0,.5)); }
+.mast{ position:fixed; left:40px; top:32px; pointer-events:none; transition:opacity .4s; text-shadow:0 1px 8px rgba(0,0,0,.5); }
+.mast p{ margin:0 0 10px; font:500 10px/1 var(--f-mono); letter-spacing:.24em; color:var(--accent); }
+.mast h1{ margin:0; font:300 40px/1 var(--f-display); letter-spacing:-.01em; }
+.mast span{ display:block; margin-top:10px; font:400 14px/1.5 var(--f-ui); color:var(--faint); }
+#hint{ position:fixed; left:50%; bottom:122px; transform:translateX(-50%); text-align:center; pointer-events:none; opacity:0; transition:opacity .25s; text-shadow:0 1px 10px rgba(0,0,0,.7); }
+#hint b{ display:block; font:300 24px/1.1 var(--f-display); }
+#hint i{ display:block; margin-top:8px; font:500 10px/1 var(--f-mono); font-style:normal; letter-spacing:.2em; color:var(--faint); text-transform:uppercase; }
+#nav{ position:fixed; left:50%; bottom:28px; transform:translateX(-50%); display:flex; gap:6px; flex-wrap:wrap; justify-content:center; width:max-content; max-width:94vw; transition:opacity .4s; }
+#nav button{ height:34px; padding:0 14px; border:1px solid rgba(244,241,234,.14); border-radius:17px; background:rgba(18,16,14,.62); color:var(--faint); font:500 10px/1 var(--f-mono); letter-spacing:.16em; text-transform:uppercase; cursor:pointer; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); transition:color .2s,border-color .2s,background .2s; }
+#nav button:hover{ color:var(--text); border-color:rgba(244,241,234,.35); }
+#nav button.on{ color:#16130f; background:var(--accent); border-color:var(--accent); }
+body.modal .mast, body.modal #nav{ opacity:0; pointer-events:none; }
+body.inapp .mast{ display:none; }
+/* the case in your hands */
+#look{ position:fixed; left:58%; top:50%; width:min(360px,34vw); transform:translateY(-50%); opacity:0; pointer-events:none; transition:opacity .35s; }
+#look.on{ opacity:1; pointer-events:auto; }
+#look .eb{ font:500 10px/1 var(--f-mono); letter-spacing:.22em; color:var(--accent); text-transform:uppercase; }
+#look h2{ margin:10px 0 8px; font:300 34px/1.08 var(--f-display); }
+#look p{ margin:0 0 24px; font:400 14px/1.55 var(--f-ui); color:var(--faint); }
+.btns{ display:flex; gap:10px; flex-wrap:wrap; }
+.go,.go2{ height:44px; padding:0 20px; border-radius:8px; cursor:pointer; font:500 11.5px/1 var(--f-mono); letter-spacing:.14em; }
+.go{ border:0; background:var(--accent); color:#16130f; } .go:hover{ background:#efbd68; }
+.go2{ border:1px solid rgba(244,241,234,.22); background:none; color:var(--text); } .go2:hover{ border-color:var(--accent); color:var(--accent); }
+/* the screen: grows out of the player */
+#screen{ position:fixed; left:0; top:0; width:10px; height:10px; display:flex; flex-direction:column; border-radius:10px; overflow:hidden; background:#000; box-shadow:0 0 0 1px rgba(255,255,255,.08),0 40px 120px rgba(0,0,0,.8); opacity:0; pointer-events:none; }
+#screen.on{ pointer-events:auto; }
+#screen .scr{ position:relative; flex:1; min-height:0; background:#000; }
+#screen iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+#screen .bar{ flex:none; display:flex; align-items:center; gap:14px; height:52px; padding:0 16px; background:linear-gradient(#1c1b1d,#121214); color:#cfc6b5; font:500 10.5px/1 var(--f-mono); letter-spacing:.12em; }
+#screen .led{ flex:none; width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent); }
+#screen .tt{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#screen .bt{ flex:none; height:30px; padding:0 12px; border:1px solid rgba(255,255,255,.16); border-radius:6px; background:none; color:inherit; font:inherit; line-height:28px; text-decoration:none; cursor:pointer; }
+#screen .bt:hover{ border-color:var(--accent); color:var(--accent); }
+.ext{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--text); text-decoration:none; }
+.ext img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.35; }
+.ext span{ position:relative; display:flex; flex-direction:column; align-items:center; gap:14px; max-width:440px; padding:0 20px; text-align:center; }
+.ext b{ padding:16px 28px; border-radius:10px; background:var(--accent); color:#16130f; font:600 13px/1 var(--f-mono); letter-spacing:.12em; }
+.ext i{ font:400 14px/1.5 var(--f-ui); font-style:normal; color:#d8cfbe; }
+#esc{ position:fixed; right:28px; top:24px; height:34px; padding:0 14px; border:1px solid rgba(244,241,234,.18); border-radius:17px; background:rgba(18,16,14,.6); color:var(--faint); font:500 10px/1 var(--f-mono); letter-spacing:.16em; cursor:pointer; opacity:0; pointer-events:none; transition:opacity .3s; }
+body.modal #esc{ opacity:1; pointer-events:auto; }
+#esc:hover{ color:var(--text); }
+@media (max-width:760px){ #look{ left:50%; top:auto; bottom:24px; transform:translateX(-50%); width:88vw; text-align:center; } .btns{ justify-content:center; } .mast h1{ font-size:30px; } }
+</style>
+<canvas id="c"></canvas>
+<div class="vig"></div>
+<div class="mast"><p>WATCH</p><h1>The DVD shelf</h1><span>Photographers on photography, picked by your teacher.</span></div>
+<div id="hint"><b></b><i></i></div>
+<nav id="nav"></nav>
+<div id="look"><span class="eb"></span><h2></h2><p>Watch with a question in mind: what does this photographer care about, and how could you try that in your own shoot?</p>
+  <div class="btns"><button class="go" data-act="play">Put it on ›</button><button class="go2" data-act="back">Back on the shelf</button></div></div>
+<div id="screen"><div class="scr"></div><div class="bar"><span class="led"></span><span class="tt"></span><a class="bt yt" target="_blank" rel="noopener">YouTube ›</a><button class="bt" data-act="eject">⏏ Eject</button></div></div>
+<button id="esc" data-act="esc">ESC</button>

@@ -643,7 +643,7 @@
     if(RLB.play&&RLB.open&&dt>0){ RLB.mins+=dt*40; if(RLB.mins>RLB_T1){ RLB.mins=RLB_T0+60; } rbDirty(); if(((t/250)|0)!==RLB.pt){ RLB.pt=(t/250)|0; rbTimeline(); } }
     rbViewTick(); rbFrameStep(dt); rbSpotTick();
     if(RLB.fadeT&&RLB.gpu){ var fk=Math.min(1,(performance.now()-RLB.fadeT)/1100); RLB.onK=fk*fk*(3-2*fk); RLB.gpu.U.on.value=RLB.onK; try{ RLB.gpu.mesh.updateVersion(); if(viewer&&viewer.detail) viewer.detail.updateVersion(); }catch(e){} if(fk>=1){ RLB.fadeT=0; RLB.onK=null; } }   /* the default look fading in as the opening lands */
-    if(RLB.dirty&&RLB.built) rbApply();
+    if(RLB.dirty&&RLB.built&&!(typeof laHolds==="function"&&laHolds())) rbApply();   /* a light that lands late waits for the opening to finish rather than rebuilding the scan mid-glide */
     else if(RLB.gpu&&RLB.gpu.U.on.value>0&&!(typeof laHolds==="function"&&laHolds())){ var cm=RLB.camP; if(!cm||Math.hypot(camPos.x-cm.x,camPos.y-cm.y,camPos.z-cm.z)>1.5*RL.S)   /* each recolour rebuilds the whole scan: only every metre and a half you walk */{ RLB.camP={x:camPos.x,y:camPos.y,z:camPos.z}; if(cm) rbDirty(); } }
     if(RLB.open&&!viewfinderOn) rbDiagDraw(); })();
 

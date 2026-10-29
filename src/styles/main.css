@@ -2899,6 +2899,12 @@ body.co-lens #bag .lensbtn{border-color:#e3ad57;box-shadow:0 0 22px rgba(227,173
     linear-gradient(var(--afc),var(--afc)) 100% 100%/12px 2px no-repeat, linear-gradient(var(--afc),var(--afc)) 100% 100%/2px 12px no-repeat}
 #launch.af-hunt .la-vf b{--afc:var(--accent);animation:afHunt .18s ease-in-out infinite alternate}
 #launch.af-ok .la-vf b{--afc:#5fe08a;transform:translate(-50%,-50%) scale(.92)}
+/* the game's capture over the film: the blade, the flash, the photo flying to the corner (as #shutterBlade, #flash, #captureFly) */
+.la-blade{position:absolute;inset:0;z-index:3;background:#000;transform:scaleY(0);transform-origin:top;pointer-events:none}
+.la-blade.fire{animation:blade .22s ease-in-out}
+.la-flash{position:absolute;inset:0;z-index:3;background:#fff;opacity:0;pointer-events:none}
+.la-flash.fire{animation:flash .3s ease-out}
+.la-fly{position:absolute;inset:0;width:100%;height:100%;z-index:3;opacity:0;pointer-events:none;border-radius:4px;box-shadow:0 8px 30px rgba(0,0,0,.6);transform-origin:center}
 /* the wordmark: a mask reveal on the big circle, big, held through the handover, then it lets the scene through */
 .la-word{position:absolute;left:0;right:0;top:50%;transform:translateY(-54%);text-align:center;opacity:0;pointer-events:none;z-index:2}
 .la-kick,.la-tag{display:block;font-family:var(--mono);letter-spacing:.42em;color:var(--accent);text-shadow:0 1px 8px rgba(0,0,0,.8);opacity:0}

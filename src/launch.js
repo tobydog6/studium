@@ -20,6 +20,7 @@
   function laEl(){ var e=$("launch"); if(e) return e; e=document.createElement("div"); e.id="launch"; e.setAttribute("data-nosnippet","");
     e.innerHTML='<video class="la-film" muted playsinline preload="auto" disablepictureinpicture disableremoteplayback aria-hidden="true"></video><div class="la-dark"><b>Studium</b></div>'
       +'<div class="la-vf" aria-hidden="true"><i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i><b></b></div>'
+      +'<div class="la-blade"></div><div class="la-flash"></div><canvas class="la-fly"></canvas>'
       +'<div class="la-word"><span class="la-kick">WELCOME TO</span><b>'+"Studium".split("").map(function(c,i){ return '<i style="--n:'+i+'">'+c+'</i>'; }).join("")+'</b><em></em><span class="la-tag">A PHOTOGRAPHY STUDIO FOR YEARS 11 TO 13</span></div><div class="la-skip">CLICK TO SKIP</div><div class="la-credit">BIRDSONG: DEPARTMENT OF CONSERVATION (NZ)</div>';
     document.body.appendChild(e);
     try{ if(matchMedia("(pointer:coarse)").matches) e.querySelector(".la-skip").textContent="TAP TO SKIP"; }catch(x){}
@@ -34,7 +35,7 @@
   /* the film streams: the MP4 is laid out to start playing while the rest downloads, so it begins as soon as enough is in */
   function laFilmLoad(){ var v=LA.el.querySelector("video"), src=v.canPlayType('video/mp4; codecs="avc1.64002A"')||!LA_FILM_WEBM?LA_FILM:LA_FILM_WEBM;
     if(v.getAttribute("src")!==src||v.error){ v.src=src; try{ v.load(); }catch(e){} } }   /* a failed load is tried again on the next opening */
-  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.first=!laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.placed=false; LA.looked=null; LA.warm=false; LA.warmT=null; LA.cued=false; LA.skipped=false; LA.filmBad=false; LA.asked=false; LA.playing=false; LA.prepped=false; LA.q0=null; LA.quality=null; LA.eye0=WK.eye; LAG.on=false; laWelClose(true); SD.seq=null;
+  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.first=!laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.placed=false; LA.looked=null; LA.warm=false; LA.warmT=null; LA.cued=false; LA.skipped=false; LA.filmBad=false; LA.asked=false; LA.playing=false; LA.shot=false; LA.flew=false; LA.prepped=false; LA.q0=null; LA.quality=null; LA.eye0=WK.eye; LAG.on=false; laWelClose(true); SD.seq=null;
     var e=laEl(); LA.el=e; e.className=""; if(sdVar("bed")===SDV[22].bed||sdVar("bed")===SDV[23].bed) e.classList.add("bush"); document.body.classList.add("launching"); laPhase("dark");
     ["hub","landing","studio","punctum","signin","teacher"].forEach(hubHide);
     if(!loaded){ var sc=(window.SPLAT_SCENES||[])[0]; if(sc){ App.go("landing"); loadBundled(sc); } }   /* the scan loads behind the film */
@@ -110,9 +111,19 @@
       if(LA.skipped){ try{ v.pause(); v.currentTime=Math.max(0,(v.duration||F.len)-0.02); }catch(x){} laCls("word",true); laPhase("hold"); return; }
       var q=v.getVideoPlaybackQuality&&v.getVideoPlaybackQuality(); LA.q0=q?[q.droppedVideoFrames,q.totalVideoFrames]:null; laPhase("film"); return; }
     if(p==="film"){ var vt=v.currentTime; if(!LA.cued&&vt>0&&!v.paused) laCue(vt);
+      if(vt>=F.fire&&!LA.shot){ LA.shot=true; laShotFx(); } if(vt>=F.spin&&!LA.flew){ LA.flew=true; laFly(v); }   /* the game's own capture: the blade, the flash, then the photo flies off */
       laCls("vf",vt>=F.vf&&vt<F.fire+0.06); laCls("af-hunt",vt>=F.rack&&vt<F.rack+1.4); laCls("af-ok",vt>=F.rack+1.4&&vt<F.fire+0.06); laCls("word",vt>=F.spin);
       if(v.ended||vt>=F.len-0.04) laPhase("hold"); return; }
     if(p==="hold"){ LA.warm=true; laCls("word",true); if(back&&LA.warmT!=null&&now-LA.warmT>700&&!laHeld()) laLive(); } }   /* the last frame waits for the scan, if it isn't in yet */
+  /* the shot, as the game does it (fireFlash, captureFX in app.js): the shutter blade drops, a white flash */
+  function laShotFx(){ ["la-blade","la-flash"].forEach(function(k){ var x=LA.el.querySelector("."+k); x.classList.remove("fire"); void x.offsetWidth; x.classList.add("fire"); }); }
+  /* then the photo itself flies off to the corner where the game counts your shots, with the film winding on */
+  function laFly(v){ var c=LA.el.querySelector(".la-fly"); try{ var w=Math.min(960,innerWidth), h=Math.round(w*innerHeight/innerWidth), vw=v.videoWidth||1920, vh=v.videoHeight||1080, s=Math.max(w/vw,h/vh); c.width=w; c.height=h;
+      c.getContext("2d").drawImage(v,(w-vw*s)/2,(h-vh*s)/2,vw*s,vh*s); }catch(e){ return; }   /* the film's frame right now is the photo */
+    if(typeof sfx==="function") try{ sfx("roll"); }catch(e){}
+    c.style.transition="none"; c.style.opacity="1"; c.style.transform="none"; void c.offsetWidth;
+    c.style.transition="transform .58s cubic-bezier(.5,0,.15,1),opacity .58s ease"; c.style.transform="translate("+(innerWidth/2-46)+"px,"+(28-innerHeight/2)+"px) scale(0.05)"; c.style.opacity="0.15";
+    setTimeout(function(){ c.style.opacity="0"; },560); }
   /* the handover: the film's last frame is this exact view, so the video simply fades off the live scene */
   function laLive(){ laPhase("live"); laCls("vf",false); laCls("af-hunt",false); laCls("af-ok",false); laCls("word",true); laSpawn(); laFovMatch(); laEnd(); }
   /* the film fills the screen edge to edge: on a screen wider than it, the top and bottom are cut, so the live view starts
@@ -516,4 +527,4 @@
   if(FC.on){ var swm=/[?&]sw=([\d.]+),([\d.]+)/.exec(location.search); if(swm) LA_SW=[+swm[1],+swm[2]]; }   /* trying other swings: ?sw=out,up */
   if(FC.on) window.__fc={ prep:fcPrep, frame:fcFrame, frames:function(){ return Math.round(LA_F.len*FC.fps); }, why:function(){ var sp=viewer&&viewer.spark; return {sorting:sp&&sp.sorting, sortDirty:sp&&sp.sortDirty, lodDirty:sp&&sp.lodDirty, timer:sp&&sp.sortTimeoutId!==undefined, init:sp&&sp.lodInitQueue&&sp.lodInitQueue.length, pager:!!(sp&&sp.pager&&sp.pager.hasQueued&&sp.pager.hasQueued()), rb:typeof RLB!=="undefined"&&RLB.dirty, built:typeof RLB!=="undefined"&&RLB.built, we:typeof WE!=="undefined"&&WE.dirty, splats:sp&&sp.activeSplats, exp:fx.exposure, lag:[LAG.on,LAG.e], vf:viewfinderOn, expMult:expMult, eye:typeof rlbEye==="function"?rlbEye():-1, still:!!FC.still}; }, clear:function(o){ var P=viewer.P, A=viewer.A, N=P.length/3, out=[]; o.amps.forEach(function(sw){ LA_SW=sw; var worst=1e9, at=-1; for(var j=0;j<=120;j++){ laSpin(j/120); var x=camPos.x, y=camPos.y, z=camPos.z, d2=1e9; for(var i=0;i<N;i+=2){ if(A&&A[i]<0.3) continue; var dx=P[i*3]-x, dy=P[i*3+1]-y, dz=P[i*3+2]-z, d=dx*dx+dy*dy+dz*dz; if(d<d2) d2=d; } var d=Math.sqrt(d2); if(d<worst){ worst=d; at=j; } } out.push({sw:sw, nearest:+worst.toFixed(2), at:at}); }); return out; }, draw:function(){ var t=performance.now(), gl=renderer.getContext(), px=new Uint8Array(4); fcDraw(0); gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,px); return Math.round(performance.now()-t); }, pose:function(){ return {x:camPos.x, y:camPos.y, z:camPos.z, yaw:yaw, pitch:pitch, fov:camera.fov}; } };
   LA.hold=/[?&]lahold/.test(location.search);
-  if(/[?&]dev/.test(location.search)) window.__la={ start:launchStart, skip:laSkip, go:function(){ LA.wait=false; LA.pass=!LA.held; }, wel:function(){ return !!LA.wcard; }, welGo:laWelGo, state:function(){ var v=LA.el&&LA.el.querySelector("video"); return {on:LA.on, phase:LA.phase, loaded:loaded, log:LA.log||[], vt:v?+v.currentTime.toFixed(2):-1, playing:!!LA.playing, bad:!!LA.filmBad}; }, reset:function(){ try{ localStorage.removeItem(LA_KEY); }catch(e){} } };
+  if(/[?&]dev/.test(location.search)) window.__la={ start:launchStart, skip:laSkip, go:function(){ LA.wait=false; LA.pass=!LA.held; }, wel:function(){ return !!LA.wcard; }, fx:function(at,step){ var e=laEl(); LA.el=e; var v=e.querySelector("video"); laFilmLoad(); e.className="on p-film"; return new Promise(function(ok){ function go(){ v.currentTime=at; v.addEventListener("seeked",function(){ if(step==="shot") laShotFx(); else if(step==="fly") laFly(v); else laCls("word",true); ok(v.currentTime); },{once:true}); } if(v.readyState>=1) go(); else v.addEventListener("loadedmetadata",go,{once:true}); }); }, welGo:laWelGo, state:function(){ var v=LA.el&&LA.el.querySelector("video"); return {on:LA.on, phase:LA.phase, loaded:loaded, log:LA.log||[], vt:v?+v.currentTime.toFixed(2):-1, playing:!!LA.playing, bad:!!LA.filmBad}; }, reset:function(){ try{ localStorage.removeItem(LA_KEY); }catch(e){} } };

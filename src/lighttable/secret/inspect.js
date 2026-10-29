@@ -23,6 +23,8 @@ export function createInspect(S) {
       bar.classList.add('on'); hint.textContent = o.hint || 'Drag to turn it, scroll to zoom. Click the room to put it back.'; hint.classList.add('on');
       return new Promise(res => { I.res = res; });
     },
+    /* where it goes home to, changed while it is up (a pull that should land on the table, not back on the rail) */
+    retarget(o) { if (!I.obj || !I.from) return; const f = I.from; f.parent = o.parent || S.ctx.scene; if (o.pos) { f.pos.copy(o.pos); f.wp.copy(o.pos); } if (o.quat) { f.quat.copy(o.quat); f.wq.copy(o.quat); } if (o.scale) f.scale.copy(o.scale); },
     close(id) {
       if (!I.obj || I.closing) return; I.closing = true; I.target = 0; bar.classList.remove('on'); hint.classList.remove('on'); S.sfx('ltPutDown');
       const res = I.res, obj = I.obj; I.res = null; I.drag = null; if (res) res(id || 'back');

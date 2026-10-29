@@ -164,7 +164,7 @@ export function install(S) {
   });
 
   M.define('loot.rise', { busy: true,
-    async enter(d, run) { L.obj = null; hideBar(); await risePeds(run); if (!run.alive()) return; M.go('loot.pick'); },
+    async enter(d, run) { L.obj = null; hideBar(); S.cam.set(FRAME()); await risePeds(run); if (!run.alive()) return; M.go('loot.pick'); },
   });
 
   M.define('loot.pick', {
@@ -229,8 +229,12 @@ export function install(S) {
       if (!(d && d.fresh)) { showBar('print'); return; }
       const obj = L.obj; if (!obj) { showBar('print'); return; }
       S.slabs.adopt(obj); const r = await S.inspect.open(obj, { actions: [{ id: 'grade', label: 'Send for grading' }, { id: 'another', label: 'Open another' }, { id: 'ok', label: 'OK', primary: true }], hint: S.specLine(obj.slab) + '\nDrag to turn it, scroll to zoom. OK puts it on the table.' });
+      /* it settles straight onto the table from the close view, no detour back to the rail */
+      const to = landingSpot(), yaw = (Math.random() - 0.5) * 0.3, K = S.TABLE_K, y = (obj.th || S.SM.SLAB.th) * K / 2 + 0.004;
+      const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2).premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw));
+      S.inspect.retarget({ pos: new THREE.Vector3(to.x, y, to.z), quat: q, scale: new THREE.Vector3(K, K, K) });
       while (S.inspect.active()) await T.wait(0.05); if (!run.alive()) return;
-      const to = landingSpot(), yaw = (Math.random() - 0.5) * 0.3; S.table.adopt(obj, to.x, to.z, yaw, { drop: true });
+      S.table.adopt(obj, to.x, to.z, yaw); S.sfx('ltPutDown');
       if (r === 'grade') { await T.wait(0.6); if (!run.alive()) return; L.obj = null; S.sendForGrading(obj); await T.wait(0.6); if (!run.alive()) return; M.send('CLOSE'); return; }
       if (r === 'another') { await T.wait(0.5); if (!run.alive()) return; M.go('loot.rise'); return; }
       await T.wait(0.5); if (!run.alive()) return; M.send('CLOSE'); },

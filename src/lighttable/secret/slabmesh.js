@@ -29,11 +29,13 @@ export function foilMaterial(o = {}) { return new THREE.ShaderMaterial({ uniform
   vertexShader: FOIL_VERT, fragmentShader: FOIL_FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }); }
 const basicFoil = { make: c => new THREE.Mesh(new THREE.PlaneGeometry(c.w, c.h), foilMaterial({ strength: c.finish === 'gold' ? 0.5 : 0.38, tint: c.finish === 'gold' ? 0xffd27a : 0xffffff })),
   update: (m, c) => { m.material.uniforms.uTilt.value.copy(c.tilt); m.material.uniforms.uTime.value = c.time; } };
-function finishDef(id) { return REG[id] || (id === 'matte' ? REG.matte : basicFoil); }
+export function finishDef(id) { return REG[id] || (id === 'matte' ? REG.matte : basicFoil); }
 
 /* ---------- photographs ---------- */
 const PHOTOS = new Map();
 /* the base canvas for a slab's photo, loaded once (artist pack image, or the painted stand-in) */
+/* borrowed and rival slabs are thrown away after a match: let their photos go too */
+export function forgetPhoto(id) { PHOTOS.delete(id); }
 export function photoCanvas(slab, S) {
   if (PHOTOS.has(slab.id)) return PHOTOS.get(slab.id);
   const painted = () => { const kinds = S.KINDS, k = kinds[slab.seed % kinds.length]; return S.paintPhoto(k, slab.seed, 960, 640); };

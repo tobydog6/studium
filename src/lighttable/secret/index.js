@@ -21,6 +21,7 @@ import * as rail from './rail.js';
 import * as parcel from './parcel.js';
 import * as sound from './sound.js';
 import * as under from './under.js';
+import * as blades from './blades.js';
 
 const stdM = (c, r, m, o) => new THREE.MeshStandardMaterial({ color: c, roughness: r ?? 0.5, metalness: m ?? 0, ...(o || {}) });
 const BRASS = () => stdM(0xb8903e, 0.32, 0.75);
@@ -222,7 +223,7 @@ export function installSecret(ctx) {
     if (sd) return slabDrag(kind, e);
     if (kind === 'move') { const h = S.hitAny(e, list); setHot(h ? h.root : null); if (h) { ctx.canvas.style.cursor = 'pointer'; ctx.hideActs(); return true; } ctx.canvas.style.cursor = 'default'; return false; }
     if (kind === 'down') { if (e.button !== 0) return false; const h = S.hitAny(e, list); if (!h) return false;
-      if (h.root.name === 'loot') { S.sfx('detent'); M.send('LOOT'); } else if (h.root.name === 'rareBinder') { S.sfx('detent'); M.send('BINDER'); } else if (h.root === btnVault) { S.sfx('detent'); M.send('VAULT'); } else if (h.root === btnKey) { S.sfx('detent'); M.send('ROOM'); }
+      if (h.root.name === 'loot') { S.sfx('detent'); M.send('LOOT'); } else if (h.root.name === 'blades') { S.sfx('detent'); M.send('BLADES'); } else if (h.root.name === 'rareBinder') { S.sfx('detent'); M.send('BINDER'); } else if (h.root === btnVault) { S.sfx('detent'); M.send('VAULT'); } else if (h.root === btnKey) { S.sfx('detent'); M.send('ROOM'); }
       else { const o = tableSlabs.find(o => o.group === h.root); if (o) { const t = S.tableHit(e, 0) || h.point; sd = { o, x0: e.clientX, y0: e.clientY, moved: 0, dx: o.group.position.x - t.x, dz: o.group.position.z - t.z, lifted: false }; } } return true; }
     return false;
   };
@@ -271,7 +272,7 @@ export function installSecret(ctx) {
   S.css(BASE_CSS + DEV_CSS + INSPECT_CSS);
 
   /* ---------- the modules (each owns one file) ---------- */
-  [sound, print, holo, rail, arm, vault, binder, parcel, loot, under].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  [sound, print, holo, rail, arm, vault, binder, parcel, loot, under, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
 
   /* ---------- boot ---------- */
   if (S.unlocked()) { buttons.forEach(b => { b.visible = true; }); M.go('idle'); S.table.restore(); } else M.go('locked');
@@ -302,7 +303,7 @@ export function installSecret(ctx) {
       M.frame(dt); inspect.frame(dt); if (S.parcel) S.parcel.frame(dt); if (S.under) S.under.frame(dt);
       slabObjs.forEach(o => { if (o.built) o.update(dt); });
     },
-    pause(on) { if (on && inspect.active()) inspect.close('back'); },
+    pause(on) { if (on && inspect.active()) inspect.close('back'); if (S.blades && S.blades.pause) S.blades.pause(on); },
   };
   return api;
 }

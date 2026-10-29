@@ -79,11 +79,11 @@ export function install(S) {
     },
   });
   M.define('under', {
-    on: { VAULT: (p, M) => M.defined('vault.open') ? 'vault.open' : undefined, LOOT: (p, M) => M.defined('loot.open') ? 'loot.open' : undefined, BINDER: (p, M) => M.defined('binder.open') ? 'binder.open' : undefined, CLOSE: () => undefined },
+    on: { VAULT: (p, M) => M.defined('vault.open') ? 'vault.open' : undefined, LOOT: (p, M) => M.defined('loot.open') ? 'loot.open' : undefined, BLADES: (p, M) => M.defined('blades.open') ? 'blades.open' : undefined, BINDER: (p, M) => M.defined('binder.open') ? 'binder.open' : undefined, CLOSE: () => undefined },
     enter() { ctx.hideActs(); },
     pointer(kind, e) {
       if (U.pan) { if (kind === 'move') { const h = S.tableHit(e, 0); if (h) { ctx.cam.tx += U.pan.x - h.x; ctx.cam.tz += U.pan.z - h.z; if (ctx.clampCam) ctx.clampCam(); } return true; } if (kind === 'up') { U.pan = null; ctx.canvas.style.cursor = 'default'; } return true; }
-      if (S.tablePointer(kind, e, [big, S.buttons.vault, binderRoot, ...S.table.list.map(o => o.group)])) return true;
+      if (S.tablePointer(kind, e, [big, S.buttons.vault, S.buttons.blades, binderRoot, ...S.table.list.map(o => o.group)])) return true;
       if (kind === 'down' && e.button === 0) { const h = S.tableHit(e, 0); if (h) { U.pan = { x: h.x, z: h.z }; ctx.canvas.style.cursor = 'grabbing'; } return true; }
       if (kind === 'wheel') { ctx.cam.dT = T.clamp(ctx.cam.dT * Math.exp(e.deltaY * 0.0012), 8, 70); return true; }
       return true;

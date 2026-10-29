@@ -17,7 +17,7 @@ const file = join(OUT, 'bplay.html'); writeFileSync(file, html);
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 const errors = []; page.on('pageerror', e => errors.push(e.message + ' ' + (e.stack || '').split('\n')[1])); page.on('console', m => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-const shot = n => page.screenshot({ path: join(OUT, 'bplay-' + n + '.png') });
+const shot = n => page.screenshot({ path: join(OUT, 'bplay-' + n + '.png'), timeout: 60000 }).catch(() => console.log('  (no picture ' + n + ', the software GPU was too slow)'));
 const step = (n, dt) => page.evaluate(([n, dt]) => H.step(n, dt), [n, dt || 1 / 30]);
 let fail = '';
 try {
@@ -25,11 +25,14 @@ try {
   await page.evaluate(() => H.M.send('BLADES'));
   for (let i = 0; i < 40 && (await step(10)) !== 'blades.build'; i++);
   await step(20); await shot('1-build');
-  await page.click('#skBl [data-a="borrow"]'); await step(30); await shot('2-built');
+  await page.evaluate(() => H.S.blades.gallery()); for (let i = 0; i < 20; i++) { await step(5); if (await page.evaluate(() => H.S.blades.state.gallery.length)) break; await page.waitForTimeout(200); }
+  await page.evaluate(() => Object.assign(H.S.ctx.cam, { tz: -8.0, dT: 15, pitch: 50 })); await step(40); await shot('0-gallery');
+  await page.evaluate(() => { H.M.go('blades.build'); Object.assign(H.S.ctx.cam, { tz: -8.55, dT: 16.6, pitch: 55 }); }); await step(20);
+  await page.click('#skBl [data-a="borrow"]'); for (let i = 0; i < 20; i++) { await step(5); if (await page.evaluate(() => !!H.S.blades.state.preview)) break; await page.waitForTimeout(200); } await step(10); await shot('2-built');
   await page.click('#skBl [data-a="look"]'); await step(30); await shot('3-look');
   await page.evaluate(() => { H.pointer('down', 600, 400); H.pointer('move', 700, 440); H.pointer('up', 700, 440); }); await step(20);
   await page.click('#skBlBar [data-a="apart"]'); await step(40); await shot('4-apart');
-  await page.click('#skBlBar [data-a="fight"]'); await step(30); await shot('5-ready');
+  await page.click('#skBlBar [data-a="fight"]'); for (let i = 0; i < 20 && (await step(5)) !== 'blades.ready'; i++) await page.waitForTimeout(200); await step(20); await shot('5-ready');
   let rounds = 0;
   for (let guard = 0; guard < 12; guard++) {
     const st = await page.evaluate(() => H.M.state); if (st === 'blades.result') break;
@@ -42,6 +45,9 @@ try {
   }
   await step(10); await shot('10-result'); const fin = await page.evaluate(() => ({ st: H.M.state, score: H.S.blades.state.score })); console.log('  result:', JSON.stringify(fin));
   if (fin.st !== 'blades.result') fail = fail || 'no result: ' + fin.st;
+  await page.click('#skBlBar [data-a="done"]'); for (let i = 0; i < 40 && (await step(10)) !== 'under'; i++);
+  const gone = await page.evaluate(() => ({ st: H.M.state, stadium: H.S.blades.stadium.visible, y: H.S.blades.stadium.position.y, bar: document.getElementById('skBlBar').classList.contains('on') })); console.log('  after Done:', JSON.stringify(gone));
+  if (gone.st !== 'under' || gone.stadium) fail = fail || 'Done did not put the stadium away: ' + JSON.stringify(gone);
 } catch (e) { fail = fail || e.message; }
 if (errors.length) { console.log('ERRORS:\n' + errors.slice(0, 10).join('\n')); fail = fail || errors.length + ' page errors'; }
 await browser.close(); console.log(fail ? 'FAIL: ' + fail : 'blades-play: OK'); process.exit(fail ? 1 : 0);

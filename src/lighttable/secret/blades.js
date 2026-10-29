@@ -9,6 +9,7 @@
 // blades.result; blades.closing (busy) on CLOSE (= or Esc). Test hooks on S.blades: sim(), pick(ids), launch(p, aim).
 import * as THREE from 'three';
 import * as BS from './bladesim.js';
+import * as BSH from './bladeshape.js';
 
 const LIFT = 0.7;        /* the bowl floor's height above the table once it is up */
 const DOWN = -9;         /* the stadium's height while it waits in the pit */
@@ -22,7 +23,7 @@ export function install(S) {
   const { T, M, SL, SM, ctx, store } = S, E = T.E;
   const [X0, Z0, X1, Z1] = S.under.rect, CX = (X0 + X1) / 2, CZ = (Z0 + Z1) / 2, R = BS.BOWL.R, DEP = BS.BOWL.depth;
   const ENV = SM.envMap(S.renderer);
-  const B = { slots: [null, null, null], active: 0, loaners: [], score: [0, 0], W: null, me: null, rival: null, acc: 0, drag: null, pushed: false, debris: [], thumbs: new Map(), preview: null, rivalParts: null, specialT: 0 };
+  const B = { gallery: [], slots: [null, null, null], active: 0, loaners: [], score: [0, 0], W: null, me: null, rival: null, acc: 0, drag: null, pushed: false, debris: [], thumbs: new Map(), preview: null, rivalParts: null, specialT: 0 };
   const hB = r => DEP * Math.min(1, (r / R) * (r / R));
 
   /* ---------- the launcher on the dark side: a ripcord launcher with a little blade on it ---------- */
@@ -78,15 +79,19 @@ export function install(S) {
   const photoTex = slab => { const t = new THREE.Texture(); if (texs) texs.push(t); t.colorSpace = THREE.SRGBColorSpace; SM.photoCanvas(slab, S).then(c => { t.image = c; t.needsUpdate = true; t.anisotropy = 8; }); return t; };
   const rank = s => BS.RANKS[s.tier] || 1;
   const tierCol = s => SL.tierOf(s).color;
-  function ringShape(slab, dir) { const n = 2 + rank(slab), sharp = rank(slab), pts = [], N = n * 24;
-    for (let i = 0; i < N; i++) { const a = i / N * Math.PI * 2, u0 = (a * n / (Math.PI * 2)) % 1, u = dir < 0 ? 1 - u0 : u0;
-      const f = sharp <= 1 ? 0.5 + 0.5 * Math.cos(u * Math.PI * 2) : Math.pow(1 - u, 0.5 + sharp * 0.35);
-      const r = 0.8 + 0.2 * f; pts.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r)); }
-    const sh = new THREE.Shape(pts); const hole = new THREE.Path(); hole.absarc(0, 0, 0.4, 0, Math.PI * 2, true); sh.holes.push(hole); return sh; }
+  /* the attack ring's outline, hole and windows, all read from its photo (bladeshape.js) */
+  function ringShape(slab, dir, dna) { const sh = new THREE.Shape(BSH.ringOutline(dna, rank(slab), dir).map(p => new THREE.Vector2(p[0], p[1])));
+    const hole = new THREE.Path(); hole.absarc(0, 0, BSH.ringHole(dna), 0, Math.PI * 2, true); sh.holes.push(hole);
+    BSH.ringWindows(dna).forEach(w => { const p = new THREE.Path(); p.absarc(Math.cos(w.a) * w.r, Math.sin(w.a) * w.r, w.s, 0, Math.PI * 2, true); sh.holes.push(p); });
+    return sh; }
+  /* each photo's DNA, read once from a small copy of it */
+  const DNA = new Map(), dnaOf = s => DNA.get(s.id) || BSH.DEFAULT_DNA;
+  function loadDNA(s) { if (DNA.has(s.id)) return Promise.resolve(DNA.get(s.id));
+    return SM.photoCanvas(s, S).then(c => { let d = BSH.DEFAULT_DNA; try { const k = Math.min(1, 160 / Math.max(c.width, c.height)), w = Math.max(8, Math.round(c.width * k)), h = Math.max(8, Math.round(c.height * k)), cv = document.createElement('canvas'); cv.width = w; cv.height = h; const g = cv.getContext('2d'); g.drawImage(c, 0, 0, w, h); d = BSH.dnaFromPixels(g.getImageData(0, 0, w, h).data, w, h); } catch (e) {} DNA.set(s.id, d); return d; }).catch(() => BSH.DEFAULT_DNA); }
   /* the photo laid flat across the part: u, v from x and the shape's y (−z once it lies down) */
   function planarUV(geo) { const p = geo.attributes.position, uv = geo.attributes.uv; for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) * 0.5 + 0.5, -p.getZ(i) * 0.5 + 0.5); uv.needsUpdate = true; return geo; }
   function makeBlade(parts, st, who) {
-    const [a, b, c] = parts, root = new THREE.Group(), tilt = new THREE.Group(), spin = new THREE.Group(), gRing = new THREE.Group(), gDisc = new THREE.Group(), gTip = new THREE.Group();
+    const [a, b, c] = parts, [da, db, dc] = parts.map(dnaOf), sp = BSH.tipSpec(dc), lift = sp.len - 0.36, root = new THREE.Group(), tilt = new THREE.Group(), spin = new THREE.Group(), gRing = new THREE.Group(), gDisc = new THREE.Group(), gTip = new THREE.Group();
     root.add(tilt); tilt.add(spin); spin.add(gTip, gDisc, gRing); root.scale.setScalar(st.radius); const mats = [], geos = [], fins = [], myTex = texs = [];
     const keep = m => { if (m.geometry) geos.push(m.geometry); if (m.material) [].concat(m.material).forEach(x => mats.push(x)); return m; };
     /* a slab's finish shader laid over one part (the ring's top, the disc's edge, the cap), so every part wears its finish */
@@ -95,23 +100,24 @@ export function install(S) {
         if (!fm) { geo.dispose(); return null; } fm.geometry.dispose(); fm.geometry = geo; fm.position.y = y; if (sy) fm.scale.y = sy; fm.renderOrder = 2; parent.add(fm); keep(fm); fins.push({ m: fm, def }); return fm; } catch (e) { console.error('blade finish', e); geo.dispose(); return null; } };
     /* tip: the shape is the tip type, the plastic is the tip slab's tier colour; its photo sits on the cap up top */
     const plastic = new THREE.MeshStandardMaterial({ color: tierCol(c), roughness: 0.35, metalness: 0.1, envMap: ENV, envMapIntensity: 0.4 });
-    const tg = st.tip === 'sharp' ? new THREE.ConeGeometry(0.2, 0.36, 24) : st.tip === 'flat' ? new THREE.CylinderGeometry(0.26, 0.2, 0.36, 24) : new THREE.SphereGeometry(0.22, 24, 16);
-    const tipM = keep(new THREE.Mesh(tg, plastic)); if (st.tip === 'sharp') { tipM.rotation.x = Math.PI; tipM.position.y = 0.18; } else tipM.position.y = st.tip === 'ball' ? 0.22 : 0.18; gTip.add(tipM);
-    const neck = keep(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.26, 0.12, 24), plastic)); neck.position.y = 0.36; gTip.add(neck);
-    const ctex = photoTex(c), cap = keep(new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ map: ctex, roughness: 0.25, metalness: 0.1, envMap: ENV, envMapIntensity: 0.5 }))); cap.position.y = 0.76; cap.scale.y = 0.6; gTip.add(cap); finishOver(c, ctex, new THREE.SphereGeometry(0.345, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), gTip, 0.76, 0.6);
-    const capRing = keep(new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.035, 8, 40), new THREE.MeshBasicMaterial({ color: tierCol(c), toneMapped: false }))); capRing.rotation.x = Math.PI / 2; capRing.position.y = 0.77; gTip.add(capRing);
+    const tg = st.tip === 'sharp' ? new THREE.ConeGeometry(0.2, sp.len, sp.ribs) : st.tip === 'flat' ? new THREE.CylinderGeometry(sp.flare, 0.2, sp.len, sp.ribs) : new THREE.SphereGeometry(0.22, 24, 16);
+    const tipM = keep(new THREE.Mesh(tg, plastic)); if (st.tip === 'sharp') { tipM.rotation.x = Math.PI; tipM.position.y = sp.len / 2; } else tipM.position.y = st.tip === 'ball' ? 0.22 : sp.len / 2; gTip.add(tipM);
+    const neck = keep(new THREE.Mesh(new THREE.CylinderGeometry(0.3, sp.flare, 0.12, sp.ribs), plastic)); neck.position.y = sp.len; gTip.add(neck);
+    const ctex = photoTex(c), cap = keep(new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ map: ctex, roughness: 0.25, metalness: 0.1, envMap: ENV, envMapIntensity: 0.5 }))); cap.position.y = 0.76 + lift; cap.scale.y = sp.dome; gTip.add(cap); finishOver(c, ctex, new THREE.SphereGeometry(0.345, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), gTip, 0.76 + lift, sp.dome);
+    const capRing = keep(new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.035, 8, 40), new THREE.MeshBasicMaterial({ color: tierCol(c), toneMapped: false }))); capRing.rotation.x = Math.PI / 2; capRing.position.y = 0.77 + lift; gTip.add(capRing);
     /* weight disc: metal by its finish, its photo wrapped round the edge */
     const [mc, mm, mr] = METAL[SL.finishOf(b)] || METAL.matte;
-    const dtex = photoTex(b), discM = keep(new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.92, 0.2, 64), [new THREE.MeshStandardMaterial({ map: dtex, roughness: 0.3, metalness: 0.3, envMap: ENV, envMapIntensity: 0.5 }), new THREE.MeshStandardMaterial({ color: mc, roughness: mr, metalness: mm, envMap: ENV }), new THREE.MeshStandardMaterial({ color: mc, roughness: mr, metalness: mm, envMap: ENV })]));
-    discM.position.y = 0.52; gDisc.add(discM); finishOver(b, dtex, new THREE.CylinderGeometry(0.925, 0.925, 0.2, 64, 1, true), gDisc, 0.52);
+    const prof = BSH.discProfile(db).map(p => new THREE.Vector2(p[0], p[1])), facets = BSH.discFacets(db);
+    const dtex = photoTex(b), discM = keep(new THREE.Mesh(new THREE.LatheGeometry(prof, facets), new THREE.MeshStandardMaterial({ map: dtex, color: new THREE.Color(mc).lerp(new THREE.Color(0xffffff), 0.55), roughness: mr, metalness: mm * 0.6, envMap: ENV, envMapIntensity: 0.7, flatShading: facets < 20 })));
+    discM.position.y = 0.42 + lift; gDisc.add(discM); finishOver(b, dtex, new THREE.LatheGeometry(prof.map(p => new THREE.Vector2(p.x * 1.008, p.y)), facets), gDisc, 0.42 + lift);
     /* attack ring: the photo cut to the ring's shape, its finish over the top, an edge of tier light */
-    const shape = ringShape(a, st.dir), clear = a.variant === 'clear';
-    const rg = planarUV(new THREE.ExtrudeGeometry(shape, { depth: 0.14, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.02, bevelSegments: 2, curveSegments: 6 }).rotateX(-Math.PI / 2));
-    const ptex = photoTex(a), ring = keep(new THREE.Mesh(rg, new THREE.MeshStandardMaterial({ map: ptex, roughness: 0.3, metalness: 0.2, envMap: ENV, envMapIntensity: 0.6, transparent: clear, opacity: clear ? 0.55 : 1 }))); ring.position.y = 0.62; gRing.add(ring);
-    finishOver(a, ptex, planarUV(new THREE.ShapeGeometry(shape, 6).rotateX(-Math.PI / 2)), gRing, 0.62 + 0.14 + 0.03);
-    const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(shape.getPoints(6).map(p => new THREE.Vector3(p.x, 0, -p.y))), new THREE.LineBasicMaterial({ color: tierCol(a), toneMapped: false, transparent: true, opacity: 0.9 })); edge.position.y = 0.62 + 0.14 + 0.035; gRing.add(edge); keep(edge);
+    const shape = ringShape(a, st.dir, da), dep = BSH.ringDepth(da), ry = 0.62 + lift, clear = a.variant === 'clear';
+    const rg = planarUV(new THREE.ExtrudeGeometry(shape, { depth: dep, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.02, bevelSegments: 2, curveSegments: 6 }).rotateX(-Math.PI / 2));
+    const ptex = photoTex(a), ring = keep(new THREE.Mesh(rg, new THREE.MeshStandardMaterial({ map: ptex, roughness: 0.3, metalness: 0.2, envMap: ENV, envMapIntensity: 0.6, transparent: clear, opacity: clear ? 0.55 : 1 }))); ring.position.y = ry; gRing.add(ring);
+    finishOver(a, ptex, planarUV(new THREE.ShapeGeometry(shape, 6).rotateX(-Math.PI / 2)), gRing, ry + dep + 0.03);
+    const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(shape.getPoints(6).map(p => new THREE.Vector3(p.x, 0, -p.y))), new THREE.LineBasicMaterial({ color: tierCol(a), toneMapped: false, transparent: true, opacity: 0.9 })); edge.position.y = ry + dep + 0.035; gRing.add(edge); keep(edge);
     /* the blur of a fast spin, and a soft shadow under it */
-    const halo = keep(new THREE.Mesh(new THREE.CircleGeometry(1.04, 48), new THREE.MeshBasicMaterial({ map: dot, color: tierCol(a), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }))); halo.rotation.x = -Math.PI / 2; halo.position.y = 0.82; tilt.add(halo);
+    const halo = keep(new THREE.Mesh(new THREE.CircleGeometry(1.04, 48), new THREE.MeshBasicMaterial({ map: dot, color: tierCol(a), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }))); halo.rotation.x = -Math.PI / 2; halo.position.y = 0.82 + lift; tilt.add(halo);
     const shadow = S.shadow(2.4, 2.4); shadow.position.y = 0.02; tilt.add(shadow); keep(shadow); const bl0 = {};
     /* whose it is: a ring of light on the bowl under it, gold for you and red for your rival */
     if (who) { const mk = keep(new THREE.Mesh(new THREE.RingGeometry(1.14, 1.3, 64), new THREE.MeshBasicMaterial({ color: who === 'me' ? 0xe3ad57 : 0xe4552e, transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }))); mk.rotation.x = -Math.PI / 2; mk.position.y = 0.05; root.add(mk); bl0.marker = mk; }
@@ -192,7 +198,9 @@ export function install(S) {
     act(t.dataset.a); });
   function borrow() { const d = store.get(), n = d.certN; for (let i = 0; i < 3; i++) { const s = SL.roll({ graded: true, tier: ['common', 'uncommon', 'rare'][i], variant: null }); s.loaner = true; B.loaners.push(s); } d.certN = n; }
   function randomPick() { const list = mine(); if (list.length < 3) return; const pool = list.slice().sort(() => Math.random() - 0.5); B.slots = pool.slice(0, 3); B.active = 0; S.sfx('ltPutDown'); renderCard(); buildPreview(); }
-  function buildPreview() { if (B.preview) { B.preview.dispose(); B.preview = null; } if (!B.slots.every(Boolean)) return; const st = BS.statsOf(B.slots); B.preview = makeBlade(B.slots, st); B.preview.ang = 0; B.preview.root.position.set(0, 0.6, 0); rimTo(tierCol(B.slots[0])); }
+  function buildPreview() { dropPreview(); if (!B.slots.every(Boolean)) return; const want = B.slots.slice();
+    Promise.all(want.map(loadDNA)).then(() => { if (!M.is('blades.build') || want.some((x, i) => x !== B.slots[i])) return; dropPreview();
+      B.preview = makeBlade(want, BS.statsOf(want)); B.preview.ang = 0; B.preview.root.position.set(0, 0.6, 0); rimTo(tierCol(want[0])); }); }
   function rimTo(hex) { rimLight.material.color.set(hex); floorLight.material.color.set(hex); }
 
   /* the rival: three rolled slabs near your blade's strength, borrowed for the match */
@@ -266,6 +274,7 @@ export function install(S) {
     key(e, M) { if (e.key === 'Escape') M.send('CLOSE'); return true; },
     pointer(kind, e) { if (kind === 'wheel') { ctx.cam.dT = T.clamp(ctx.cam.dT * Math.exp(e.deltaY * 0.0012), 8, 40); } return true; },
     frame(dt) { dt = Math.min(dt, 0.05); sparkFrame(dt); debrisFrame(dt); if (!M.is('blades.build.inspect')) battleTags();
+      B.gallery.forEach(g => { g.ang += dt * 2; g.spin.rotation.y = -g.ang; });
       if (B.preview && M.is('blades.build') && !M.is('blades.build.inspect')) { B.preview.ang += dt * 9; B.preview.spin.rotation.y = -B.preview.ang; B.preview.fins.forEach(f => { try { f.def.update(f.m, { tilt: new THREE.Vector2(Math.cos(B.preview.ang * 0.1) * 0.7, Math.sin(B.preview.ang * 0.1) * 0.7), pointer: new THREE.Vector2(0.5, 0.5), dt, time: T.time() }); } catch (e) {} }); } },
   });
   M.define('blades.open', { busy: true, on: { CLOSE: () => undefined },
@@ -283,7 +292,13 @@ export function install(S) {
     enter(d) { if (M.prev === 'blades.build.inspect') { renderCard(); card.classList.add('on'); return; } hud.classList.remove('on'); hideBar(); hideBanner(); tip.classList.remove('on'); clearBlades(); camTo(CX, CZ + 0.8, 11); B.slots = B.slots.map(s => s && byId(s.id) ? s : null); if (!B.slots.every(Boolean)) { const n = B.slots.findIndex(x => !x); B.active = n >= 0 ? n : 0; } renderCard(); card.classList.add('on'); buildPreview(); },
     exit(next) { card.classList.remove('on'); if (!/^blades\.build/.test(next || '')) dropPreview(); },
   });
-  function dropPreview() { if (B.preview) { B.preview.dispose(); B.preview = null; } }
+  function dropPreview() { if (B.preview) { B.preview.dispose(); B.preview = null; } B.gallery.forEach(g => { g.dispose(); g.slabs.forEach(x => { SM.forgetPhoto(x.id); DNA.delete(x.id); }); }); B.gallery = []; }
+  /* nine random blades laid out in the bowl, to see how different photos make different shapes (dev panel) */
+  function gallery() { if (!M.is('blades.build')) { S.toast('Open Blades first, then try again.'); return; } dropPreview(); card.classList.remove('on');
+    const d = store.get(), n0 = d.certN, ids = Object.keys(BS.RANKS), sets = [];
+    for (let i = 0; i < 9; i++) sets.push([0, 1, 2].map(k => SL.roll({ graded: true, tier: ids[Math.min(5, Math.floor(i * 0.7) + (k === 0 ? 0 : Math.floor(Math.random() * 2)))] })));
+    d.certN = n0; Promise.all(sets.flat().map(loadDNA)).then(() => { if (!M.is('blades.build')) return;
+      B.gallery = sets.map((p, i) => { const bl = makeBlade(p, BS.statsOf(p)); bl.root.position.set(((i % 3) - 1) * 2.3, 0.35, (Math.floor(i / 3) - 1) * 2.3); bl.ang = i; return bl; }); }); }
   /* ---------- look closer: your blade lifted up to the camera, drag to turn it, take it apart to see each slab ---------- */
   const tags = S.el('div', 'bl-tags', ''); tags.id = 'skBlTags'; document.body.appendChild(tags);
   const tip = S.el('div', 'bl-tip', ''); tip.id = 'skBlTip'; document.body.appendChild(tip);
@@ -351,15 +366,21 @@ export function install(S) {
     exit() { hideBar(); },
   });
   M.define('blades.closing', { busy: true, on: { CLOSE: () => undefined },
-    async enter(d, run) { card.classList.remove('on'); hud.classList.remove('on'); tags.classList.remove('on'); tip.classList.remove('on'); hideBar(); hideBanner(); B.drag = null; clearBlades(); if (B.preview) { B.preview.dispose(); B.preview = null; }
-      snd('sink', { dur: 1.4 }); T.to(spot, { intensity: 0 }, { dur: 1.2, tag: 'blades' });
-      await T.tween({ dur: 0.5, ease: E.inBack, tag: 'blades', update: e => stadium.scale.setScalar(1 - 0.5 * e) });
-      await T.to(stadium.position, { y: DOWN }, { dur: 1.2, ease: E.inCubic, tag: 'blades' });
-      stadium.visible = false; spot.visible = false; await S.under.doors(false);
-      if (B.pushed) { S.cam.pop(); B.pushed = false; } forgetRival(); S.sfx('detent'); B.score = [0, 0]; B.roundN = 1; M.go(S.under.on ? 'under' : 'idle'); },
+    /* whatever goes wrong on the way down, the stadium goes, the pit closes and the camera comes back */
+    async enter(d, run) { let doorsShut = false;
+      try { card.classList.remove('on'); hud.classList.remove('on'); tags.classList.remove('on'); tip.classList.remove('on'); hideBar(); hideBanner(); B.drag = null; clearBlades(); dropPreview();
+        snd('sink', { dur: 1.4 }); T.to(spot, { intensity: 0 }, { dur: 1.2, tag: 'blades' });
+        await T.tween({ dur: 0.5, ease: E.inBack, tag: 'blades', update: e => stadium.scale.setScalar(1 - 0.5 * e) });
+        await T.to(stadium.position, { y: DOWN }, { dur: 1.2, ease: E.inCubic, tag: 'blades' });
+        stadium.visible = false; spot.visible = false; await S.under.doors(false); doorsShut = true; }
+      catch (e) { console.error('blades closing', e); }
+      finally { stadium.visible = false; spot.visible = false; stadium.position.y = DOWN; if (!doorsShut) { try { S.hole.close(); } catch (e) {} }
+        if (B.pushed) { S.cam.pop(); B.pushed = false; } forgetRival(); S.sfx('detent'); B.score = [0, 0]; B.roundN = 1; B.starting = false;
+        if (M.is('blades.closing')) M.go(S.under.on ? 'under' : 'idle'); } },
   });
-  function forgetRival() { if (B.rivalParts) B.rivalParts.forEach(s => SM.forgetPhoto(s.id)); B.rivalParts = null; }
-  function startMatch() { B.score = [0, 0]; B.roundN = 1; forgetRival(); B.rivalParts = rollRival(); M.go('blades.ready'); }
+  function forgetRival() { if (B.rivalParts) B.rivalParts.forEach(s => { SM.forgetPhoto(s.id); DNA.delete(s.id); }); B.rivalParts = null; }
+  function startMatch() { if (B.starting) return; B.starting = true; B.score = [0, 0]; B.roundN = 1; forgetRival(); const parts = B.rivalParts = rollRival();
+    Promise.all(B.slots.concat(parts).map(loadDNA)).then(() => { B.starting = false; if (B.rivalParts === parts && (M.is('blades.build') || M.is('blades.result'))) M.go('blades.ready'); }); }
   function act(a) {
     if (a === 'close' || a === 'done') M.send('CLOSE');
     else if (a === 'borrow') { borrow(); randomPick(); }
@@ -377,9 +398,10 @@ export function install(S) {
     /* the room is put away mid-battle: hush the whirrs (the next frame turns them back up) */
     pause(on) { if (on) [B.me, B.rival].forEach(bl => { if (bl && bl.whirr) bl.whirr.set(0, 0); }); },
     pick(ids) { B.slots = ids.map(id => byId(id)); renderCard(); buildPreview(); },
-    borrow() { borrow(); randomPick(); },
+    borrow() { borrow(); randomPick(); }, gallery,
     launch(power, ang) { if (M.is('blades.ready')) doLaunch(power ?? 0.8, ang ?? 0); } };
   S.dev.info(() => { const W = B.W; return /^blades/.test(M.state) ? 'Blades: ' + M.state.replace('blades.', '') + (W ? ' · ' + W.t.toFixed(1) + ' s · ' + W.tops.map(t => (t.alive ? 'spinning ' + Math.abs(t.w).toFixed(0) : t.done)).join(' / ') : '') : ''; });
+  S.dev.action('Show me 9 blades', () => gallery(), 'Try');
   S.dev.action('Open blades', () => { if (M.is('under')) M.send('BLADES'); else S.toast('Turn the table over first (Space), then try again.'); }, 'Try');
 }
 

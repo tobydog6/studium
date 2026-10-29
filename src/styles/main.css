@@ -2930,7 +2930,13 @@ body.co-lens #bag .lensbtn{border-color:#e3ad57;box-shadow:0 0 22px rgba(227,173
 #launch.bush.p-film .la-credit,#launch.bush.p-hold .la-credit{opacity:1}
 #launch.out .la-credit{opacity:0}   /* the birdsong's credit (Crown Copyright, licenses/doc-birdsong-crown-copyright.txt), shown only when it plays */
 /* the viewfinder under the opening shows only its corners and the focus mark */
-body.launching #vfTop,body.launching #vfHints,body.launching #vfStrip,body.launching #vfBar,body.launching #vfGuideChip,body.launching #vfBriefChip,body.launching #vfCompLbl,body.launching #vfComp,body.launching #vfLevel,body.launching #vfBrief,body.launching #crosshair{visibility:hidden!important}
+/* the game's own viewfinder comes up over the opening film for the shot (launch.js laCam): lifted above it, with its blade, flash and
+   flying photo; the parts that talk about controls stay hidden, since a click here only skips */
+body.la-cam #viewfinder{z-index:1210}
+body.la-cam #flash{z-index:1212}
+body.la-cam #shutterBlade{z-index:1213}
+body.la-cam #captureFly{z-index:1214}
+body.launching #vfHints,body.launching #vfBrief,body.launching #vfBriefChip,body.launching #vfToast,body.launching #vfTop,body.launching #crosshair{visibility:hidden!important}
 body.launching #loader,body.launching #hud,body.launching #navTop,body.launching #navActs,body.launching #prompt,body.launching .q-hud,body.launching #chCard,body.launching #chGlow,body.launching #chFlash,body.launching #chMarks,body.launching #chTitle,body.launching #vfToast,body.launching #coCard,body.launching #coRing,body.launching #toast,body.launching .ach-card,body.launching #tutorial,body.launching #fadeover{visibility:hidden!important}
 
 /* ---- Lighting B: the lighting panel wears the editing window's own styles (mirrored from #editor; edit both together) ---- */

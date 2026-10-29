@@ -35,7 +35,7 @@
   /* the film streams: the MP4 is laid out to start playing while the rest downloads, so it begins as soon as enough is in */
   function laFilmLoad(){ var v=LA.el.querySelector("video"), src=v.canPlayType('video/mp4; codecs="avc1.64002A"')||!LA_FILM_WEBM?LA_FILM:LA_FILM_WEBM;
     if(v.getAttribute("src")!==src||v.error){ v.src=src; try{ v.load(); }catch(e){} } }   /* a failed load is tried again on the next opening */
-  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.first=!laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.placed=false; LA.looked=null; LA.warm=false; LA.warmT=null; LA.cued=false; LA.skipped=false; LA.filmBad=false; LA.asked=false; LA.playing=false; LA.shot=false; LA.flew=false; LA.prepped=false; LA.q0=null; LA.quality=null; LA.eye0=WK.eye; LAG.on=false; laWelClose(true); SD.seq=null;
+  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.first=!laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.placed=false; LA.looked=null; LA.warm=false; LA.warmT=null; LA.cued=false; LA.skipped=false; LA.filmBad=false; LA.asked=false; LA.playing=false; LA.shot=false; LA.flew=false; LA.vfUp=false; LA.real=false; LA.shotUrl=null; LA.prepped=false; LA.q0=null; LA.quality=null; LA.eye0=WK.eye; LAG.on=false; laWelClose(true); SD.seq=null;
     var e=laEl(); LA.el=e; e.className=""; if(sdVar("bed")===SDV[22].bed||sdVar("bed")===SDV[23].bed) e.classList.add("bush"); document.body.classList.add("launching"); laPhase("dark");
     ["hub","landing","studio","punctum","signin","teacher"].forEach(hubHide);
     if(!loaded){ var sc=(window.SPLAT_SCENES||[])[0]; if(sc){ App.go("landing"); loadBundled(sc); } }   /* the scan loads behind the film */
@@ -45,6 +45,7 @@
   function laSkip(){ if(!LA.on||LA.phase==="live") return; var v=LA.el.querySelector("video");
     if(LA.phase==="hold"){ if(loaded&&LA.placed) laLive(); else laEnd(); return; }   /* a tap while it waits: go now, or if the scan never came, out to the hub rather than stuck here */
     if(LA.skipped){ if(LA.phase==="dark") laEnd(); return; } LA.skipped=true; sdSeqCut(); sdBigCut(); if(SD.bedLP&&SD.ctx){ var nw=SD.ctx.currentTime; SD.bedLP.frequency.cancelScheduledValues(nw); SD.bedLP.frequency.setTargetAtTime(9000,nw,0.3); SD.bedPre.gain.cancelScheduledValues(nw); SD.bedPre.gain.setTargetAtTime(SD.bedG||1.8,nw,0.3); } if(SD.shB&&SD.ctx){ SD.shB.gain.setTargetAtTime(0,SD.ctx.currentTime,0.03); SD.shB=null; }
+    if(LA.vfUp&&!LA.flew){ LA.flew=true; if(LA.real) laCam(false); }
     if(LA.phase==="film"){ sdSpin(null,true); try{ v.pause(); v.currentTime=Math.max(0,(v.duration||LA_F.len)-0.02); }catch(e){} laCls("vf",false); laCls("af-hunt",false); laCls("af-ok",false); laCls("word",true); laPhase("hold"); } }   /* straight to the film's last frame and the wordmark; in the dark, it waits there for the scan */
   // ---- behind the film: the scan comes in on the starting spot, gets its light, and is drawn steadily for the last stretch ----
   function laBack(now){ if(!loaded) return false; if(!LA.placed){ LA.placed=true; LA.placeT=now; laSpawn(); if(typeof updateCamera==="function") updateCamera(0); }
@@ -111,10 +112,24 @@
       if(LA.skipped){ try{ v.pause(); v.currentTime=Math.max(0,(v.duration||F.len)-0.02); }catch(x){} laCls("word",true); laPhase("hold"); return; }
       var q=v.getVideoPlaybackQuality&&v.getVideoPlaybackQuality(); LA.q0=q?[q.droppedVideoFrames,q.totalVideoFrames]:null; laPhase("film"); return; }
     if(p==="film"){ var vt=v.currentTime; if(!LA.cued&&vt>0&&!v.paused) laCue(vt);
-      if(vt>=F.fire&&!LA.shot){ LA.shot=true; laShotFx(); } if(vt>=F.spin&&!LA.flew){ LA.flew=true; laFly(v); }   /* the game's own capture: the blade, the flash, then the photo flies off */
-      laCls("vf",vt>=F.vf&&vt<F.fire+0.06); laCls("af-hunt",vt>=F.rack&&vt<F.rack+1.4); laCls("af-ok",vt>=F.rack+1.4&&vt<F.fire+0.06); laCls("word",vt>=F.spin);
+      if(vt>=F.vf&&!LA.vfUp){ LA.vfUp=true; laCam(true); }   /* the game's own viewfinder comes up over the film, on the 85 wide open */
+      if(LA.real&&vt>=F.rack) laRack(Math.min(1,(vt-F.rack)/1.4));   /* its focus square hunts and locks as the film racks onto the bark */
+      if(LA.real&&vt>=F.fire-0.04&&!LA.shotUrl) LA.shotUrl=laFrame(v,0.88);   /* the frame being taken, kept for the photo that flies off */
+      if(vt>=F.fire&&!LA.shot){ LA.shot=true; if(LA.real){ try{ fireFlash(); }catch(x){} laCapFx(LA.shotUrl); } else laShotFx(); }   /* the game's own capture: the blade, the flash, the photo to the counter */
+      if(vt>=F.spin&&!LA.flew){ LA.flew=true; if(LA.real) laCam(false); else laFly(v); }
+      laCls("vf",!LA.real&&vt>=F.vf&&vt<F.fire+0.06); laCls("af-hunt",vt>=F.rack&&vt<F.rack+1.4); laCls("af-ok",vt>=F.rack+1.4&&vt<F.fire+0.06); laCls("word",vt>=F.spin);
       if(v.ended||vt>=F.len-0.04) laPhase("hold"); return; }
     if(p==="hold"){ LA.warm=true; laCls("word",true); if(back&&LA.warmT!=null&&now-LA.warmT>700&&!laHeld()) laLive(); } }   /* the last frame waits for the scan, if it isn't in yet */
+  /* the game's viewfinder over the film: raised on the 85 wide open (laVfOn), lifted above the opening while it's up; if the
+     scan isn't in yet the game can't raise it, and the opening's own marks stand in */
+  function laCam(on){ var so=soundOn; if(on){ soundOn=false; try{ laVfOn(); }catch(e){} soundOn=so; LA.real=!!viewfinderOn; if(LA.real) document.body.classList.add("la-cam"); return; }
+    soundOn=false; try{ laVfOff(); }catch(e){} soundOn=so; setTimeout(function(){ document.body.classList.remove("la-cam"); },700); }
+  function laFrame(v,q){ try{ var c=document.createElement("canvas"), w=Math.min(1280,innerWidth), h=Math.round(w*innerHeight/innerWidth), vw=v.videoWidth||1920, vh=v.videoHeight||1080, s=Math.max(w/vw,h/vh); c.width=w; c.height=h;
+      c.getContext("2d").drawImage(v,(w-vw*s)/2,(h-vh*s)/2,vw*s,vh*s); return c.toDataURL("image/jpeg",q); }catch(e){ return null; } }
+  /* captureFX as the game does it, from the viewfinder's frame to the corner where it counts your shots (hidden here, so its usual place) */
+  function laCapFx(url){ if(!url) return; try{ if(typeof sfx==="function") sfx("roll",{delay:0.3}); var fr=$("vfFrame").getBoundingClientRect(), img=$("captureFly"); if(!img){ img=document.createElement("img"); img.id="captureFly"; document.body.appendChild(img); }
+    var tx=(innerWidth-46)-(fr.left+fr.width/2), ty=28-(fr.top+fr.height/2); img.src=url; img.style.transition="none"; img.style.left=fr.left+"px"; img.style.top=fr.top+"px"; img.style.width=fr.width+"px"; img.style.height=fr.height+"px"; img.style.opacity="1"; img.style.transform="none"; img.style.transformOrigin="center"; void img.offsetWidth;
+    img.style.transition="transform .58s cubic-bezier(.5,0,.15,1),opacity .58s ease"; img.style.transform="translate("+tx+"px,"+ty+"px) scale(0.05)"; img.style.opacity="0.15"; clearTimeout(img._t); img._t=setTimeout(function(){ img.style.opacity="0"; },560); }catch(e){} }
   /* the shot, as the game does it (fireFlash, captureFX in app.js): the shutter blade drops, a white flash */
   function laShotFx(){ ["la-blade","la-flash"].forEach(function(k){ var x=LA.el.querySelector("."+k); x.classList.remove("fire"); void x.offsetWidth; x.classList.add("fire"); }); }
   /* then the photo itself flies off to the corner where the game counts your shots, with the film winding on */
@@ -131,7 +146,7 @@
   function laFovMatch(){ var v=LA.el&&LA.el.querySelector("video"), Av=v&&v.videoWidth?v.videoWidth/v.videoHeight:16/9, As=innerWidth/innerHeight; if(!camera||As<=Av+0.01) return;
     var f0=2*Math.atan(Math.tan(55*Math.PI/360)*Av/As)*180/Math.PI, t0=performance.now(); camera.fov=f0; camera.updateProjectionMatrix();
     (function ease(){ if(viewfinderOn) return; var k=laE((performance.now()-t0)/1600); camera.fov=f0+(55-f0)*k; camera.updateProjectionMatrix(); if(k<1) requestAnimationFrame(ease); })(); }   /* holds its course even if the meter resets the lens mid-way */
-  function laEnd(){ if(!LA.on) return; LA.on=false; LAG.on=false; LA.warm=false; LA.starting=false; cancelAnimationFrame(LA.raf); var e=LA.el;
+  function laEnd(){ if(!LA.on) return; if(LA.real&&LA.vfUp&&!LA.flew){ LA.flew=true; laCam(false); } LA.on=false; LAG.on=false; LA.warm=false; LA.starting=false; cancelAnimationFrame(LA.raf); var e=LA.el;
     try{ var fv=e.querySelector("video"), q=fv.getVideoPlaybackQuality(); if(LA.q0){ LA.quality={dropped:q.droppedVideoFrames-LA.q0[0], total:q.totalVideoFrames-LA.q0[1]}; console.info("opening film: "+LA.quality.dropped+" of "+LA.quality.total+" frames dropped"); } }catch(x){}   /* how smoothly it played here: F9 shows it too */ LA.welcome=Date.now(); (CH.pads||[]).forEach(function(P){ P.vis=0; });   /* the gold frames fade in once the wordmark has gone */
     if(typeof RLB!=="undefined"&&RLB) RLB.camP={x:camPos.x,y:camPos.y,z:camPos.z};   /* the light counts its next metre and a half from the starting spot */
     if(loaded){ hubShow("hud"); App.go("scene"); if(typeof updatePrompt==="function") updatePrompt(); } else showHub();

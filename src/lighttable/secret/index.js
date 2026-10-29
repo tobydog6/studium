@@ -119,7 +119,7 @@ export function installSecret(ctx) {
   /* a small bar while the vault or binder is open: the way back to the case, and out */
   const nav = S.el('div', 'sk-nav', ''); nav.id = 'skNav'; document.body.appendChild(nav); nav.addEventListener('pointerdown', e => e.stopPropagation());
   nav.addEventListener('click', e => { const b = e.target.closest('[data-ev]'); if (b) M.send(b.dataset.ev); });
-  const NAV = { 'vault.case': [['CLOSE', 'Close the vault']], 'vault.keypad': [['CLOSE', 'Close the vault']], 'vault.lid': [['CLOSE', 'Close the vault']], 'vault.binder': [['CASE', 'Back to the case'], ['CLOSE', 'Close']], 'binder.open': [['CLOSE', 'Close the binder']] };
+  const NAV = { 'vault.case': [['CLOSE', 'Close the vault']], 'vault.keypad': [['CLOSE', 'Close the vault']], 'vault.lid': [['CLOSE', 'Close the vault']], 'vault.binder': [['CASE', 'Back to the case'], ['CLOSE', 'Close']], 'binder.open': [['CLOSE', 'Close the binder']], 'shelf.view': [['CLOSE', 'Back to the table']] };
   M.onChange(st => { const b = NAV[st]; nav.innerHTML = b ? b.map(x => '<button type="button" data-ev="' + x[0] + '">' + x[1] + '</button>').join('') : ''; nav.classList.toggle('on', !!b); });
 
   /* ---------- the three diegetic buttons ---------- */

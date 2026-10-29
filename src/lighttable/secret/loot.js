@@ -148,7 +148,7 @@ export function install(S) {
       L.pushed = true; S.lockStand(true); S.cam.push(FRAME()); ctx.hideActs(); S.sfx('ltInspect'); hideBar();
       /* on the dark side the hangar doors slide apart instead: no prints, tray, arm or blind */
       L.under = !!(S.under && S.under.on);
-      if (L.under) { await S.under.doors(true); if (!run.alive()) return; await T.wait(0.2, 'loot'); if (!run.alive()) return; M.go('loot.rise'); return; }
+      if (L.under) { rig.visible = true; L.lampT = 0.35; await S.under.doors(true); if (!run.alive()) return; await T.wait(0.2, 'loot'); if (!run.alive()) return; M.go('loot.rise'); return; }
       await S.clearPrints([X0 - 0.6, Z0 - 0.6, ctx.W_T / 2, Z1 + 0.6], S.dev.opt('clearing')); if (!run.alive()) return;
       /* the photo tray sits over the pit: it slides forward out of the way and comes back at the end */
       if (ctx.tray && !L.trayAway) { L.trayAway = true; S.sfx('lift'); T.to(ctx.tray.position, { x: ctx.TR.x + 2.4, z: ctx.TR.z + 5.6 }, { dur: 0.8, ease: E.inOutCubic, tag: 'loot' }); }
@@ -261,7 +261,7 @@ export function install(S) {
       L.cans.forEach(c => { if (c.open > 0) c.group.visible = false; });
       if (pedsUp()) await sinkPeds(run);
       L.lampT = 0;
-      if (L.under) { await S.under.doors(false); S.hole.close(); resetCans(); }
+      if (L.under) { await S.under.doors(false); S.hole.close(); rig.visible = false; L.lampT = 0; resetCans(); }
       else { await blind(run, false); setBlind(0); S.hole.close(); roller.visible = rollShadow.visible = false; rig.visible = false; resetCans();
       /* the camera reforms on the arm before it rests; if the arm folds the stand away the camera goes with it */
       if (L.aimGone) { L.aimGone = false; await P.reform(ctx.aim, { mode: S.dev.opt('dissolve'), dur: 0.9, spread: 2 }); }

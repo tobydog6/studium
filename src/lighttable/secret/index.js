@@ -27,9 +27,11 @@ const BRASS = () => stdM(0xb8903e, 0.32, 0.75);
 
 export function installSecret(ctx) {
   const M = createMachine(), store = SL.store;
+  /* what the table owns before the secret layer adds anything: the flip hides exactly this set (the pivot takes the body and surface) */
+  const lightSide = new Set(ctx.scene.children);
   P.initParticles(ctx.scene);
   const S = {
-    THREE, ctx, M, T, P, SL, SM, store, RoundedBoxGeometry, scene: ctx.scene, camera: ctx.camera, renderer: ctx.renderer, paintPhoto: ctx.paintPhoto, KINDS: ctx.KINDS,
+    THREE, ctx, M, T, P, SL, SM, store, RoundedBoxGeometry, isLightSide: o => lightSide.has(o), scene: ctx.scene, camera: ctx.camera, renderer: ctx.renderer, paintPhoto: ctx.paintPhoto, KINDS: ctx.KINDS,
     el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; },
     css(text) { const s = document.createElement('style'); s.textContent = text; document.head.appendChild(s); return s; },
     sfx(id, o) { try { return ctx.SFX(id, o); } catch (e) { return null; } },

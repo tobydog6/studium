@@ -50,21 +50,23 @@ const T = { oakCol: img(oakCol, 1), oakRough: img(oakRough), oakNrm: img(oakNrm)
 const wear = rep(T.wear, 1, 1);
 
 /* ---------------- what's on the shelves: groups by photographer, packed into rows ---------------- */
-const W = 1.35, H = 1.9, D = .16, STEP = .56, GAP = .85, ROWH = 2.7, ROWMAX = 9.4;
+const W = 1.35, H = 1.9, D = .16, STEP = .52, GAP = .62, ROWH = 2.55;
 const groups = []; VIDS.forEach((v, i) => { let g = groups[groups.length - 1]; if (!g || g.a !== v.a) groups.push(g = { a: v.a, items: [] }); g.items.push(i); });
 const gw = (g) => (g.items.length - 1) * STEP + W * .6;
-const rows = []; groups.forEach((g) => { let r = rows[rows.length - 1]; const w = gw(g); if (!r || r.w + GAP + w > ROWMAX) rows.push(r = { gs: [], w: -GAP }); r.gs.push(g); r.w += GAP + w; });
-const SL = Math.max(...rows.map((r) => r.w)) + 2.2, ST = .16, SD = 1.3;
+/* three rows of about the same length, so the whole collection fits on screen at once */
+const totW = groups.reduce((t, g) => t + gw(g) + GAP, -GAP), NROWS = Math.max(1, Math.min(3, Math.round(totW / 6))), target = totW / NROWS;
+const rows = []; groups.forEach((g) => { let r = rows[rows.length - 1]; const w = gw(g); if (!r || (r.w + GAP + w > target * 1.12 && rows.length < NROWS)) rows.push(r = { gs: [], w: -GAP }); r.gs.push(g); r.w += GAP + w; });
+const SL = Math.max(...rows.map((r) => r.w)) + 1.3, ST = .16, SD = 1.3;
 const rowY = (k) => (rows.length - 1 - k) * ROWH;
 const wallMid = rowY(0) / 2 + .9;
 
 /* ---------------- the looks: lighting, cover design and case plastic, each switchable ---------------- */
 /* Sam picks from these; with the switcher on (?dev, or the standalone page) they can be mixed live */
 const LIGHTS = {
-  night: { name: 'Night gallery', bg: 0x070605, wall: 0x4a4038, wallN: 2, wood: 0x8a6a52, lacquer: false, exposure: 1.0, env: .12, spot: [0xffd29a, 55, .3, .55], wash: [0xffcf8f, 3], key: 85, fill: [0x6f86ff, .08], beams: .085, dust: .55, bloom: .32, fog: [0x070605, 26, 50] },
-  cinema: { name: 'Cinema', bg: 0x04060a, wall: 0x22303f, wallN: 1.6, wood: 0x111114, lacquer: true, exposure: .92, env: .25, spot: [0xffc27a, 34, .38, .7], wash: [0xff9a3c, 2.5], key: 55, fill: [0x5a82ff, .35], beams: .035, dust: .3, bloom: .32, fog: [0x04060a, 26, 50] },
+  night: { name: 'Night gallery', bg: 0x070605, wall: 0x4a4038, wallN: 2, wood: 0x8a6a52, lacquer: false, exposure: 1.0, env: .12, spot: [0xffd29a, 55, .3, .55], wash: [0xffcf8f, 3], key: 85, fill: [0x6f86ff, .08], beams: .085, dust: .55, bloom: .15, fog: [0x070605, 26, 50] },
+  cinema: { name: 'Cinema', bg: 0x04060a, wall: 0x22303f, wallN: 1.6, wood: 0x111114, lacquer: true, exposure: .92, env: .25, spot: [0xffc27a, 34, .38, .7], wash: [0xff9a3c, 2.5], key: 55, fill: [0x5a82ff, .35], beams: .02, dust: .25, bloom: .1, fog: [0x04060a, 26, 50] },
   gallery: { name: 'White gallery', bg: 0xe7e3dc, wall: 0xf4f1eb, wallN: .7, wood: 0xffffff, lacquer: false, exposure: .82, env: .55, spot: [0xfff3e6, 30, .62, 1], wash: [0xfff2e0, 1.5], key: 150, fill: [0xdfe8ff, .35], beams: 0, dust: 0, bloom: .12, fog: [0xe7e3dc, 30, 60] } };
-const COVERS = { collection: 'Collection', poster: 'Poster', swiss: 'Swiss' };
+const COVERS = { poster: 'Poster serif', film: 'Poster grotesk', collection: 'Collection', swiss: 'Swiss' };
 const CASES = { black: 'Black', clear: 'Clear', colour: 'Colour' };
 const saved = (() => { try { return JSON.parse(localStorage.getItem('dvd_look') || 'null'); } catch (e) { return null; } })();
 const look = Object.assign({ light: 'cinema', cover: 'poster', body: 'clear' }, DATA.look || {}, DATA.styles ? saved || {} : {});
@@ -137,29 +139,39 @@ const COVER = {
     g.fillStyle = '#141210'; g.fillRect(64, Hc - 132, Wc - 128, 2);
     g.letterSpacing = '5px'; g.font = '500 17px "Geist Mono"'; g.fillStyle = '#4a443b'; g.fillText('PHOTOGRAPHERS ON PHOTOGRAPHY', 64, Hc - 86); g.letterSpacing = '0px';
     g.beginPath(); g.arc(Wc - 96, Hc - 94, 26, 0, 7); g.fillStyle = '#c8933f'; g.fill(); g.fillStyle = '#141210'; g.font = '400 30px Fraunces'; g.textAlign = 'center'; g.fillText('S', Wc - 96, Hc - 84); g.textAlign = 'left'; },
-  /* the still full bleed in rich colour, a bold header band, a huge outlined name and a credit block */
-  poster(g, v, i, im) { const Wc = 900, Hc = 1266, hue = hueOf(v.a); g.fillStyle = hue; g.fillRect(0, 0, Wc, Hc);
-    if (im) { g.save(); g.filter = 'saturate(1.45) contrast(1.12) brightness(1.06)'; crop(g, im, 0, 110, Wc, Hc - 110); g.restore(); } else photoOrNone(g, null, v, 0, 110, Wc, Hc - 110, true);
-    let gr = g.createLinearGradient(0, Hc * .5, 0, Hc); gr.addColorStop(0, 'rgba(6,6,10,0)'); gr.addColorStop(.6, 'rgba(6,6,10,.7)'); gr.addColorStop(1, 'rgba(6,6,10,.94)'); g.fillStyle = gr; g.fillRect(0, 0, Wc, Hc);
-    /* the header band */
-    gr = g.createLinearGradient(0, 0, Wc, 0); gr.addColorStop(0, hue); gr.addColorStop(1, shade(hue, 1.35)); g.fillStyle = gr; g.fillRect(0, 0, Wc, 110);
-    g.fillStyle = 'rgba(255,255,255,.9)'; g.fillRect(0, 108, Wc, 5);
-    g.textBaseline = 'middle'; g.textAlign = 'left'; g.letterSpacing = '6px'; g.font = '800 30px Geist'; g.fillStyle = '#fff'; g.fillText('STUDIUM', 46, 57);
-    g.letterSpacing = '4px'; g.font = '500 19px "Geist Mono"'; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillText('PHOTOGRAPHERS ON PHOTOGRAPHY', 250, 58);
-    g.textAlign = 'right'; g.font = '800 30px Geist'; g.fillStyle = '#fff'; g.letterSpacing = '1px'; g.fillText('No.' + num(i), Wc - 44, 57); g.letterSpacing = '0px';
-    /* the name: big, white, outlined in the photographer's colour */
-    g.textAlign = 'center'; g.textBaseline = 'alphabetic'; const parts = v.a.toUpperCase().split(' '), lines = parts.length > 1 ? [parts.slice(0, -1).join(' '), parts[parts.length - 1]] : parts;
-    let y = Hc - 470 + (lines.length === 1 ? 110 : 0); g.lineJoin = 'round';
-    lines.forEach((l) => { const fs = fit(g, l, Wc - 90, '900', 168, 'Geist'); g.letterSpacing = '-3px';
-      g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 24; g.shadowOffsetY = 8; g.lineWidth = fs * .16; g.strokeStyle = shade(hue, .55); g.strokeText(l, Wc / 2, y + fs * .82); g.shadowColor = 'transparent';
-      g.lineWidth = fs * .07; g.strokeStyle = hue; g.strokeText(l, Wc / 2, y + fs * .82); g.fillStyle = '#fff'; g.fillText(l, Wc / 2, y + fs * .82); y += fs * .92; }); g.letterSpacing = '0px';
-    /* the title in a coloured pill */
-    g.font = '600 32px Geist'; const tt = v.t.length > 44 ? v.t.slice(0, 42) + '…' : v.t, tw2 = Math.min(Wc - 80, g.measureText(tt).width + 56);
-    g.fillStyle = hue; g.beginPath(); g.roundRect((Wc - tw2) / 2, y + 22, tw2, 58, 29); g.fill(); g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.fillText(tt, Wc / 2, y + 52, Wc - 120);
-    /* credits and the rating */
-    g.textBaseline = 'alphabetic'; g.letterSpacing = '2px'; g.font = '500 15px Geist'; g.fillStyle = 'rgba(255,255,255,.6)';
-    g.fillText('STUDIUM PRESENTS  ' + v.a.toUpperCase() + '  IN CONVERSATION  ·  A RESEARCH ROOM SCREENING', Wc / 2, Hc - 64); g.letterSpacing = '0px'; g.textAlign = 'left';
-    g.beginPath(); g.arc(70, Hc - 150, 32, 0, 7); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 5; g.strokeStyle = hue; g.stroke(); g.fillStyle = shade(hue, .6); g.font = '900 34px Geist'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('E', 70, Hc - 148); g.textAlign = 'left'; },
+  /* a film poster: the still full bleed in rich colour, a heavy serif name, small tracked caps, a credit block */
+  poster(g, v, i, im) { const Wc = 900, Hc = 1266, hue = hueOf(v.a); g.fillStyle = shade(hue, .35); g.fillRect(0, 0, Wc, Hc);
+    if (im) { g.save(); g.filter = 'saturate(1.35) contrast(1.08)'; crop(g, im, 0, 0, Wc, Hc * .78); g.restore(); } else photoOrNone(g, null, v, 0, 0, Wc, Hc * .78, true);
+    let gr = g.createLinearGradient(0, Hc * .4, 0, Hc * .8); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, shade(hue, .22)); g.fillStyle = gr; g.fillRect(0, Hc * .4, Wc, Hc * .4 + 1);
+    g.fillStyle = shade(hue, .22); g.fillRect(0, Hc * .8, Wc, Hc * .2);
+    gr = g.createLinearGradient(0, 0, 0, 200); gr.addColorStop(0, 'rgba(0,0,0,.6)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, Wc, 200);
+    g.fillStyle = hue; g.fillRect(0, 0, Wc, 14);
+    g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillStyle = 'rgba(255,255,255,.88)'; g.letterSpacing = '9px'; g.font = '500 19px "Geist Mono"'; g.fillText('STUDIUM PRESENTS', Wc / 2, 82); g.letterSpacing = '0px';
+    const words = v.a.split(' '), two = g.measureText && words.length > 1 && fit(g, v.a, Wc - 100, '800', 150, 'Fraunces') < 96;
+    const lines = two ? [words.slice(0, -1).join(' '), words[words.length - 1]] : [v.a];
+    let y = Hc * .66; g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 30; g.shadowOffsetY = 6; g.fillStyle = '#fff';
+    const sizes = lines.map((l) => fit(g, l, Wc - 100, '800', 150, 'Fraunces')), fs = Math.min(...sizes); y -= (lines.length - 1) * fs * .92;
+    g.letterSpacing = '-2px'; lines.forEach((l) => { g.font = '800 ' + fs + 'px Fraunces'; g.fillText(l, Wc / 2, y); y += fs * .92; }); g.letterSpacing = '0px'; g.shadowColor = 'transparent';
+    g.fillStyle = shade(hue, 1.6); g.fillRect(Wc / 2 - 40, y - fs * .45, 80, 4);
+    g.font = '600 25px Geist'; g.letterSpacing = '5px'; g.fillStyle = 'rgba(255,255,255,.92)'; wrap(g, v.t.toUpperCase(), Wc / 2, y + 12, Wc - 140, 36, 2); g.letterSpacing = '0px';
+    g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(80, Hc - 118); g.lineTo(Wc - 80, Hc - 118); g.stroke();
+    g.font = '500 14px Geist'; g.letterSpacing = '2.5px'; g.fillStyle = 'rgba(255,255,255,.55)';
+    g.fillText(v.a.toUpperCase() + '  IN CONVERSATION  ·  PHOTOGRAPHERS ON PHOTOGRAPHY  ·  NO. ' + num(i), Wc / 2, Hc - 82);
+    g.fillText('A STUDIUM RESEARCH ROOM SCREENING', Wc / 2, Hc - 58); g.letterSpacing = '0px';
+    g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 2; g.beginPath(); g.arc(Wc - 70, Hc - 70, 22, 0, 7); g.stroke(); g.font = '700 22px Geist'; g.fillStyle = 'rgba(255,255,255,.85)'; g.textBaseline = 'middle'; g.fillText('E', Wc - 70, Hc - 69); g.textAlign = 'left'; },
+  /* a modern film label: the still, the name set clean and tight, left aligned */
+  film(g, v, i, im) { const Wc = 900, Hc = 1266, hue = hueOf(v.a); g.fillStyle = '#0d0d0f'; g.fillRect(0, 0, Wc, Hc);
+    if (im) { g.save(); g.filter = 'saturate(1.25) contrast(1.06)'; crop(g, im, 0, 0, Wc, Hc); g.restore(); } else photoOrNone(g, null, v, 0, 0, Wc, Hc, true);
+    let gr = g.createLinearGradient(0, Hc * .38, 0, Hc); gr.addColorStop(0, 'rgba(8,8,10,0)'); gr.addColorStop(.6, 'rgba(8,8,10,.78)'); gr.addColorStop(1, 'rgba(8,8,10,.95)'); g.fillStyle = gr; g.fillRect(0, 0, Wc, Hc);
+    gr = g.createLinearGradient(0, 0, 0, 180); gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, Wc, 180);
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillStyle = '#fff'; g.font = '500 20px "Geist Mono"'; g.letterSpacing = '6px'; g.fillText('STUDIUM', 64, 84);
+    g.textAlign = 'right'; g.fillText(num(i), Wc - 64, 84); g.textAlign = 'left'; g.letterSpacing = '0px'; g.fillStyle = hue; g.fillRect(64, 104, 46, 6);
+    const words = v.a.split(' '), lines = words.length > 1 ? [words.slice(0, -1).join(' '), words[words.length - 1]] : [v.a];
+    const fs = Math.min(...lines.map((l) => fit(g, l, Wc - 128, '700', 132, 'Geist'))); let y = Hc - 300 - (lines.length - 1) * fs * .9;
+    g.fillStyle = '#fff'; g.letterSpacing = '-4px'; lines.forEach((l) => { g.font = '700 ' + fs + 'px Geist'; g.fillText(l, 58, y); y += fs * .9; }); g.letterSpacing = '0px';
+    g.font = '400 34px Geist'; g.fillStyle = 'rgba(255,255,255,.82)'; wrap(g, v.t, 64, y + 6, Wc - 200, 42, 2);
+    g.fillStyle = 'rgba(255,255,255,.5)'; g.font = '500 15px "Geist Mono"'; g.letterSpacing = '4px'; g.fillText('PHOTOGRAPHERS ON PHOTOGRAPHY', 64, Hc - 64); g.letterSpacing = '0px';
+    g.beginPath(); g.arc(Wc - 78, Hc - 70, 14, 0, 7); g.fillStyle = hue; g.fill(); },
   /* white, a strict grid, a big number */
   swiss(g, v, i, im) { const Wc = 900, Hc = 1266; paper(g, Wc, Hc, '#f4f3ef');
     g.fillStyle = '#141414'; g.textBaseline = 'alphabetic'; g.letterSpacing = '-8px'; g.font = '800 300px Geist'; g.fillText(num(i), 48, 300); g.letterSpacing = '0px';
@@ -175,21 +187,25 @@ const SPINE = {
     g.save(); g.translate(50, 0); g.rotate(Math.PI / 2); g.textAlign = 'left'; g.fillStyle = '#141210'; g.font = '300 40px Fraunces'; g.fillText(v.a, 130, 3); const aw = g.measureText(v.a).width;
     g.fillStyle = '#6a6358'; g.font = '400 23px Geist'; g.fillText(v.t, 158 + aw, 3); g.restore();
     g.beginPath(); g.arc(50, 1210, 20, 0, 7); g.fillStyle = '#c8933f'; g.fill(); },
-  poster(g, v, i) { const hue = hueOf(v.a), gr = g.createLinearGradient(0, 0, 100, 0); gr.addColorStop(0, shade(hue, .8)); gr.addColorStop(.5, hue); gr.addColorStop(1, shade(hue, .8)); g.fillStyle = gr; g.fillRect(0, 0, 100, 1266); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, 100, 120);
-    g.fillStyle = '#fff'; g.font = '700 30px Geist'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(num(i), 50, 62);
-    g.save(); g.translate(50, 0); g.rotate(Math.PI / 2); g.textAlign = 'left'; g.font = '800 40px Geist'; g.fillStyle = '#fff'; g.letterSpacing = '1px'; g.fillText(v.a.toUpperCase(), 150, 2); const aw = g.measureText(v.a.toUpperCase()).width;
-    g.letterSpacing = '0px'; g.font = '300 26px Fraunces'; g.fillStyle = 'rgba(255,255,255,.7)'; g.fillText(v.t, 180 + aw, 3); g.restore(); },
+  poster(g, v, i) { const hue = hueOf(v.a); g.fillStyle = shade(hue, .3); g.fillRect(0, 0, 100, 1266); g.fillStyle = hue; g.fillRect(0, 0, 100, 14); g.fillRect(0, 1252, 100, 14);
+    g.fillStyle = 'rgba(255,255,255,.85)'; g.font = '500 22px "Geist Mono"'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(num(i), 50, 62);
+    g.save(); g.translate(50, 0); g.rotate(Math.PI / 2); g.textAlign = 'left'; g.font = '800 42px Fraunces'; g.fillStyle = '#fff'; g.fillText(v.a, 120, 3); const aw = g.measureText(v.a).width;
+    g.font = '600 19px Geist'; g.letterSpacing = '4px'; g.fillStyle = 'rgba(255,255,255,.75)'; g.fillText(v.t.toUpperCase(), 150 + aw, 3); g.letterSpacing = '0px'; g.restore(); },
+  film(g, v, i) { g.fillStyle = '#0f0f11'; g.fillRect(0, 0, 100, 1266); g.fillStyle = hueOf(v.a); g.fillRect(0, 0, 100, 10);
+    g.save(); g.translate(50, 0); g.rotate(Math.PI / 2); g.textBaseline = 'middle'; g.font = '500 20px "Geist Mono"'; g.fillStyle = 'rgba(255,255,255,.7)'; g.fillText(num(i), 40, 2);
+    g.fillStyle = '#fff'; g.font = '700 40px Geist'; g.letterSpacing = '-1px'; g.fillText(v.a, 110, 2); const aw = g.measureText(v.a).width; g.letterSpacing = '0px';
+    g.font = '400 24px Geist'; g.fillStyle = 'rgba(255,255,255,.65)'; g.fillText(v.t, 140 + aw, 3); g.restore(); },
   swiss(g, v, i) { paper(g, 100, 1266, '#f4f3ef'); g.beginPath(); g.arc(50, 60, 22, 0, 7); g.fillStyle = '#e4552e'; g.fill();
     g.save(); g.translate(50, 0); g.rotate(Math.PI / 2); g.textBaseline = 'middle'; g.fillStyle = '#141414'; g.font = '700 40px Geist'; g.fillText(v.a, 120, 2); const aw = g.measureText(v.a).width;
     g.font = '400 24px Geist'; g.fillStyle = '#555'; g.fillText(v.t, 148 + aw, 3); g.font = '800 44px Geist'; g.textAlign = 'right'; g.fillStyle = '#141414'; g.fillText(num(i), 1236, 2); g.restore(); } };
 function drawCover(c, v, i, im) { const g = c.getContext('2d'); g.setTransform(c.width / 900, 0, 0, c.height / 1266, 0, 0); g.textAlign = 'left'; g.letterSpacing = '0px'; g.filter = 'none'; g.globalCompositeOperation = 'source-over'; COVER[look.cover](g, v, i, im); }
 function drawSpine(c, v, i) { const g = c.getContext('2d'); g.setTransform(c.width / 100, 0, 0, c.height / 1266, 0, 0); g.textAlign = 'left'; g.letterSpacing = '0px'; g.textBaseline = 'middle'; SPINE[look.cover](g, v, i); }
-function drawDisc(c, v, im) { const g = c.getContext('2d'), R = 512, light = look.cover !== 'poster'; g.setTransform(c.width / 1024, 0, 0, c.height / 1024, 0, 0); g.clearRect(0, 0, 1024, 1024);
+function drawDisc(c, v, im) { const g = c.getContext('2d'), R = 512, light = look.cover === 'collection' || look.cover === 'swiss'; g.setTransform(c.width / 1024, 0, 0, c.height / 1024, 0, 0); g.clearRect(0, 0, 1024, 1024);
   g.save(); g.beginPath(); g.arc(R, R, 470, 0, 7); g.clip();
   if (light) { paper(g, 1024, 1024, look.cover === 'swiss' ? '#f4f3ef' : '#ece6da'); }
   else { if (im) { g.filter = 'grayscale(1) contrast(1.2)'; crop(g, im, R - 470, R - 470, 940, 940); g.filter = 'none'; g.globalCompositeOperation = 'multiply'; g.fillStyle = hueOf(v.a); g.fillRect(0, 0, 1024, 1024); g.globalCompositeOperation = 'source-over'; } else { g.fillStyle = '#1d1a17'; g.fillRect(0, 0, 1024, 1024); } }
   g.restore(); g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillStyle = light ? '#141210' : '#fff';
-  g.font = (look.cover === 'swiss' ? '700 54px Geist' : look.cover === 'poster' ? '800 50px Geist' : '300 58px Fraunces'); g.fillText(look.cover === 'poster' ? v.a.toUpperCase() : v.a, R, 790);
+  g.font = (look.cover === 'swiss' || look.cover === 'film' ? '700 54px Geist' : look.cover === 'poster' ? '800 56px Fraunces' : '300 58px Fraunces'); g.fillText(v.a, R, 790);
   g.font = '500 20px "Geist Mono"'; g.letterSpacing = '6px'; g.fillStyle = look.cover === 'swiss' ? '#e4552e' : light ? '#9a6a24' : '#fff'; g.fillText('STUDIUM  No. ' + num(v.i), R, 290); g.letterSpacing = '0px';
   /* the clear hub and the hole */
   g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.arc(R, R, 160, 0, 7); g.fill(); g.globalCompositeOperation = 'source-over';
@@ -301,7 +317,7 @@ const TRAY_IN = PD / 2 - .8, TRAY_OUT = PD / 2 + .72;
 /* ---------------- camera: the whole wall, or close on one photographer ---------------- */
 const wallW = SL, wallH = rowY(0) + H + .8;
 const view = { x: 0, y: wallMid, z: 16, tx: 0, ty: wallMid, tz: 16 };
-function fitZ() { const vh = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); return Math.max((wallH + 1.6) / vh, (wallW + .8) / (vh * camera.aspect)); }
+function fitZ() { const vh = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); return Math.max((wallH + .35) / vh, (wallW - .2) / (vh * camera.aspect)); }
 let zOver = 16; const zNear = 8.2;
 function clampView() { const vh = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), hh = view.tz * vh / 2, hw = hh * camera.aspect;
   const mx = Math.max(0, wallW / 2 + .6 - hw), myLo = -.6 + hh - .4, myHi = rowY(0) + H + .6 - hh + .2;
@@ -330,20 +346,18 @@ const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(9, 9), pickables = 
 cases.forEach((cs) => pickables.push(cs.tray, cs.lid));
 let drag = null, hot = null, modal = null, busy = false;
 function pickAt(e) { const m = new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(m, camera); const h = ray.intersectObjects(pickables, false)[0]; return h ? h.object.userData.caseIdx : null; }
-canvas.addEventListener('pointerdown', (e) => { if (modal) return; mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); drag = { x: e.clientX, y: e.clientY, vx: view.tx, vy: view.ty, moved: false }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerdown', (e) => { mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); drag = { x: e.clientX, y: e.clientY, moved: false }; });
 addEventListener('pointermove', (e) => { mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
 canvas.addEventListener('pointermove', (e) => {
-  if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.hypot(dx, dy) > 5) { drag.moved = true; canvas.classList.add('drag'); }
-  if (drag.moved) { const k = view.z * 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / innerHeight; view.tx = drag.vx - dx * k; view.ty = drag.vy + dy * k; clampView(); } });
-canvas.addEventListener('pointerup', (e) => { const was = drag; drag = null; canvas.classList.remove('drag'); if (was && !was.moved && !modal) { const k = pickAt(e); if (k != null) pull(k); } });   /* raycast on the tap itself: a touch has no hover */
+  if (drag && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 8) drag.moved = true; });
+canvas.addEventListener('pointerup', (e) => { const was = drag; drag = null; if (!was || was.moved) return; const k = pickAt(e);   /* raycast on the tap itself: a touch has no hover */
+  if (!modal) { if (k != null) pull(k); return; }
+  /* holding one: click it to put it on, click anywhere else to put it back */
+  if (modal.st === 'look' && !busy) { if (k === cases.indexOf(modal.cs)) putOn(); else putBack(); } });
 canvas.addEventListener('pointerleave', () => { mouse.set(9, 9); });
-canvas.addEventListener('wheel', (e) => { if (modal) return; e.preventDefault(); const z0 = view.tz; view.tz *= Math.exp(e.deltaY * .0012);
-  view.tz = Math.max(zNear, Math.min(zOver, view.tz)); const s = 1 - view.tz / z0, vh = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-  view.tx += mouse.x * z0 * vh * camera.aspect / 2 * s; view.ty += mouse.y * z0 * vh / 2 * s; clampView(); }, { passive: false });
 addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') { e.preventDefault(); if (modal) esc(); else if (view.tz < zOver - .1) focusGroup(-1); else if (BR && BR.key) BR.key('Escape'); return; }
+  if (e.key === 'Escape') { e.preventDefault(); if (modal) esc(); else if (BR && BR.key) BR.key('Escape'); return; }
   if (modal) return;
-  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); const d = e.key === 'ArrowRight' ? 1 : -1; focusGroup(Math.max(0, Math.min(labels.length - 1, navOn + d))); return; }
   if (BR && BR.key && /^[qQeE]$/.test(e.key)) BR.key(e.key); });
 document.addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act;
   if (a === 'play') putOn(); else if (a === 'back') putBack(); else if (a === 'eject') eject(); else if (a === 'esc') esc(); });
@@ -453,8 +467,8 @@ function frame() { raf = 0; if (paused) return; const real = Math.min(.5, clock.
   if (!modal && !drag) { ray.setFromCamera(mouse, camera); const h = ray.intersectObjects(pickables, false)[0]; const idx = h ? h.object.userData.caseIdx : null;
     if (idx !== hot) { hot = idx; canvas.style.cursor = idx != null ? 'pointer' : ''; hint.style.opacity = idx != null ? 1 : 0; if (idx != null) { hint.querySelector('b').textContent = cases[idx].v.a; hint.querySelector('i').textContent = cases[idx].v.t; } } }
   cases.forEach((cs, k) => { if (modal && modal.cs === cs) return; const want = k === hot ? 1 : 0; cs.hov += (want - cs.hov) * (1 - Math.exp(-dt * 9));
-    const u = cs.hov; if (u < .0005 && want === 0) { cs.hov = 0; } cs.grp.position.set(cs.base.p.x - .2 * u, cs.base.p.y + .08 * u, cs.base.p.z + .75 * u);
-    cs.grp.rotation.set(-.03 + .03 * u, .95 * (1 - .7 * u), 0); });
+    const u = cs.hov; if (u < .0005 && want === 0) { cs.hov = 0; } cs.grp.position.set(cs.base.p.x - .45 * u, cs.base.p.y + .22 * u, cs.base.p.z + 1.6 * u);
+    cs.grp.rotation.set(-.03 + .05 * u, .95 * (1 - .88 * u), 0); cs.grp.scale.setScalar(1 + .14 * u); });
   /* the case in your hands follows the mouse a little */
   /* the case in your hands turns towards the mouse, around its own centre */
   if (modal && modal.st === 'look' && !busy) { const h = holdPose(), mx0 = mouse.x > 5 ? 0 : mouse.x, my0 = mouse.y > 5 ? 0 : mouse.y, tq = h.q.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(my0 * .22, -mx0 * .4, 0)));

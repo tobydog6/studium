@@ -194,9 +194,12 @@ function build(obj, S, env) {
   label.userData.order = full ? 5 : 2; inner.add(label); obj.parts.label = label;
   const stk = sticker(slab, lab * 0.52); if (land) stk.position.set(label.position.x, ph / 2 - 0.112 * ph, lz + 0.002); else stk.position.set(-pw / 2 + 0.112 * pw, label.position.y, lz + 0.002); inner.add(stk); obj.parts.sticker = stk;
   /* the acrylic */
-  const acr = new THREE.Mesh(new RoundedBoxGeometry(obj.w, obj.h, th, 3, 0.05), new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: clear ? 0.3 : 0.2, roughness: 0.05, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04, envMap: env, envMapIntensity: 1.1, depthWrite: false }));
+  /* clear acrylic (Sam, Slab Lab: "the case is wayyy better"): a black dielectric drawn additively, so the case adds only its
+     reflections (sharp highlights, bright bevels at grazing angles) and never a white haze over the photo */
+  const caseGeo = new RoundedBoxGeometry(obj.w, obj.h, th, 8, 0.05);
+  const acr = new THREE.Mesh(caseGeo, new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.02, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, ior: 1.49, envMap: env, envMapIntensity: clear ? 1.6 : 1.25, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   acr.userData.order = 6; acr.userData.noParticles = true; inner.add(acr); obj.parts.acrylic = acr;
-  const edge = new THREE.Mesh(new RoundedBoxGeometry(obj.w, obj.h, th, 3, 0.05), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.08, side: THREE.BackSide, depthWrite: false })); edge.userData.order = 5; edge.userData.noParticles = true; inner.add(edge);
+  const edge = new THREE.Mesh(caseGeo, new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.03, metalness: 0, ior: 1.49, envMap: env, envMapIntensity: 0.6, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide })); edge.userData.order = 5; edge.userData.noParticles = true; inner.add(edge);
   obj.built = true; applyFinish(obj, S, env, finishOf(slab, S.testFinish ? S.testFinish() : null));
 }
 function applyFinish(obj, S, env, id) {

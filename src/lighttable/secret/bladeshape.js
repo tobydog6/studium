@@ -115,9 +115,12 @@ export function flameOutline(dna, rank, dir) {
 /* the metal as separate chunks (no plate between them, so the plastic shows through): one closed polygon per wing */
 export function metalWings(dna, rank, dir) {
   const W = wingCount(dna, rank), rin = 0.66, span = (Math.PI * 2 / W) * clamp(0.42 + dna.contrast * 0.9, 0.42, 0.7), hook = 0.18 + 0.25 * (1 - dna.sym), out = [];
-  const prof = [[0, 0.74], [0.1, 0.86], [0.4, 0.94], [0.68, 1.0], [0.78 + hook * 0.3, 0.97], [0.8 + hook * 0.3, 0.86], [0.9, 0.9], [1, 0.74]], notch = dna.edge > 0.4;
+  /* a sweeping wing: a long smooth rise to the contact point, a hooked tip, a sharp drop (and a notch on detailed photos) */
+  const peak = 0.66 + hook * 0.2, prof = [];
+  for (let k = 0; k <= 10; k++) { const u = k / 10 * peak, e = Math.pow(u / peak, 0.55); prof.push([u, 0.72 + 0.28 * e]); }
+  prof.push([peak + 0.06, 0.985], [peak + 0.1, 0.9], [0.9, 0.88], [1, 0.72]); const notch = dna.edge > 0.4;
   for (let w = 0; w < W; w++) { const a0 = w / W * Math.PI * 2 + dna.lean * 0.3, poly = [];
-    prof.forEach(([u, r], i) => { if (!notch && (i === 5 || i === 6)) return; const uu = dir < 0 ? 1 - u : u, a = a0 + uu * span; poly.push([a, clamp(r + 0.03 * polarAt(dna, a), 0.7, 1.04)]); });
+    prof.forEach(([u, r], i) => { if (!notch && i === prof.length - 2) return; const uu = dir < 0 ? 1 - u : u, a = a0 + uu * span; poly.push([a, clamp(r + 0.025 * polarAt(dna, a), 0.7, 1.04)]); });
     poly.sort((p, q) => p[0] - q[0]);
     const back = []; for (let k = 4; k >= 0; k--) back.push([a0 + span * k / 4, rin]);
     out.push(poly.concat(back).map(([a, r]) => [Math.cos(a) * r, Math.sin(a) * r])); }

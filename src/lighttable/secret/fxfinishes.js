@@ -292,12 +292,12 @@ const FX = {
       const ft = new THREE.CanvasTexture(c); ft.colorSpace = THREE.SRGBColorSpace;
       const m = shaderMat(P, FR.polaroid, { uFrame: { value: ft }, uT0: { value: 0 } }), mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); g.add(mesh); let t0 = null;
       document.fonts.load('48px Caveat').then(() => { cx.fillStyle = '#f2efe8'; cx.fillRect(0, 0.82 * H, W, 0.18 * H); cx.fillStyle = '#1d2b5a'; cx.fillText(api.caption, 0.1 * W, 0.91 * H); ft.needsUpdate = true; }).catch(() => {});
-      const d = driver([m], mesh, t => { if (t0 === null) t0 = t; m.uniforms.uT0.value = t0; const p = clamp((t - t0) / 22, 0, 1); api.hud(p < 1 ? 'DEVELOPING · <b>' + Math.round(p * 100) + '%</b>' : 'DEVELOPED · <b>INSTANT FILM</b>'); });
+      const d = driver([m], mesh, t => { if (t0 === null) t0 = api.seen() ? t - 60 : t; m.uniforms.uT0.value = t0; const p = clamp((t - t0) / 22, 0, 1); if (p >= 1) api.markSeen(); api.hud(p < 1 ? 'DEVELOPING · <b>' + Math.round(p * 100) + '%</b>' : 'DEVELOPED · <b>INSTANT FILM</b>'); });
       return { pickMesh: mesh, click: () => { t0 = null; }, update: d.update, relief: () => {} };
     } },
   tray: { name: 'Developing tray', amt: null,
     build(P, g, w, h, api) { const driver = api.driver, renderer = api.renderer, camera = api.camera, ENV2 = api.env2, RK = RELIEF.k; const m = shaderMat(P, FR.tray, { uT0: { value: 0 } }), mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); g.add(mesh); let t0 = null;
-      const d = driver([m], mesh, t => { if (t0 === null) t0 = t; m.uniforms.uT0.value = t0; const p = clamp((t - t0) / 16, 0, 1); api.hud('DEVELOPER · <b>' + Math.round((t - t0)) + ' S</b>' + (p >= 1 ? ' · INTO THE STOP BATH' : '')); });
+      const d = driver([m], mesh, t => { if (t0 === null) t0 = api.seen() ? t - 60 : t; m.uniforms.uT0.value = t0; const p = clamp((t - t0) / 16, 0, 1); if (p >= 1) api.markSeen(); api.hud('DEVELOPER · <b>' + Math.round((t - t0)) + ' S</b>' + (p >= 1 ? ' · INTO THE STOP BATH' : '')); });
       return { pickMesh: mesh, click: () => { t0 = null; }, update: d.update, relief: () => {} }; } },
   burn: { name: 'Film burn', amt: null,
     build(P, g, w, h, api) { const driver = api.driver, renderer = api.renderer, camera = api.camera, ENV2 = api.env2, RK = RELIEF.k; const m = shaderMat(P, FR.burn, { uT0: { value: 0 }, uImp: { value: new THREE.Vector2(0.7, 0.6) } }), mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); g.add(mesh); let t0 = null;
@@ -438,6 +438,7 @@ function makeFx(S, id, d, ctx) {
     const api = { S, amt, lamp: 1, renderer: S.renderer, camera: S.camera || S.ctx.camera, env2: envs.bright, tilt: new THREE.Vector2(), caption: captionOf(slab),
       rng: () => rngOf(seed ^ 0x5bd1e995), label: parts => { label = [].concat(parts).join(' · '); }, hud() {},
       active: () => !!obj.top, pick: () => (obj.top && obj.pointerOn ? obj.pointer : null),
+      seen: () => !!(slab.fxSeen && slab.fxSeen[id]), markSeen: () => { if (slab.fxSeen && slab.fxSeen[id]) return; slab.fxSeen = Object.assign({}, slab.fxSeen, { [id]: 1 }); try { S.store.save(); } catch (e) {} },
       driver(mats, mesh, extra) { return { relief: k => mats.forEach(m => { m.uniforms.uK.value = k; }), update: (tt, dt) => { const hit = api.pick();
         mats.forEach(m => { const u = m.uniforms; u.uT.value = tt; u.uTilt.value.set(api.tilt.y, api.tilt.x); if (hit) u.uPtr.value.lerp(hit, Math.min(1, dt * 10)); u.uHov.value += ((hit ? 1 : 0) - u.uHov.value) * Math.min(1, dt * 3); });
         if (extra) extra(tt, dt, hit); } }; } };

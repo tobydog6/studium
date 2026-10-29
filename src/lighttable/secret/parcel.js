@@ -67,7 +67,7 @@ export function install(S) {
   function spot() { let sp = S.table.freeSpot(); for (let k = 0; k < 8 && boxes.some(b => Math.hypot(b.group.position.x - sp.x, b.group.position.z - sp.z) < 3); k++) sp = S.table.freeSpot(); return sp; }
   /* the courier drops it at the near edge and it slides onto the table with a little bounce */
   async function arrive(bx, sp, i) {
-    const g = bx.group, yaw = (Math.random() - 0.5) * 0.5; bx.yaw = yaw; g.rotation.y = yaw + 0.3; g.position.set(sp.x, 0, ctx.H_T / 2 + 2.6); ctx.scene.add(g);
+    const g = bx.group, yaw = (Math.random() - 0.5) * 0.5; bx.yaw = yaw; g.userData.secret = true; g.rotation.y = yaw + 0.3; g.position.set(sp.x, 0, ctx.H_T / 2 + 2.6); ctx.scene.add(g);
     if (i) await T.wait(0.4 * i, 'parcel'); if (!boxes.includes(bx)) return;
     snd('cardboard'); const from = g.position.clone(), to = new THREE.Vector3(sp.x, 0, sp.z);
     await T.tween({ dur: 1.3, ease: E.outCubic, tag: 'parcel', update: (e, r) => { g.position.lerpVectors(from, to, e); g.rotation.y = yaw + 0.3 * (1 - e); bx.body.position.y = 0.05 * Math.sin(r * Math.PI); } });

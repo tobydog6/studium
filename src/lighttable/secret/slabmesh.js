@@ -29,7 +29,7 @@ export function foilMaterial(o = {}) { return new THREE.ShaderMaterial({ uniform
   vertexShader: FOIL_VERT, fragmentShader: FOIL_FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }); }
 const basicFoil = { make: c => new THREE.Mesh(new THREE.PlaneGeometry(c.w, c.h), foilMaterial({ strength: c.finish === 'gold' ? 0.5 : 0.38, tint: c.finish === 'gold' ? 0xffd27a : 0xffffff })),
   update: (m, c) => { m.material.uniforms.uTilt.value.copy(c.tilt); m.material.uniforms.uTime.value = c.time; } };
-export function finishDef(id) { return REG[id] || (id === 'matte' ? REG.matte : basicFoil); }
+export function finishDef(id) { return REG[id] || REG.matte; }   /* a finish with no shader shows through its photo treatment alone (foil for everything unknown read as rainbow on every card) */
 
 /* ---------- photographs ---------- */
 const PHOTOS = new Map();

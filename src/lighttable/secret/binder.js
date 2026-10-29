@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 /* the closed binder: w across the table, h tall, d deep; covers, two page stacks and a thin cloth spine */
-const B = { w: 4.4, h: 0.5, d: 4.2, cover: 0.08, stack: 0.17, spine: 0.06, pageW: 4.1, pageD: 3.9, x: -8.5, z: 5 };   /* its own spot on the dark side */
+const B = { w: 4.4, h: 0.5, d: 4.2, cover: 0.08, stack: 0.17, spine: 0.06, pageW: 4.1, pageD: 3.9, x: 6.5, z: 7 };   /* its own spot on the dark side */
 const PK = { w: 0.95, h: 1.12, px: 1.12, pz: 1.24 };                     /* a pocket and the grid pitch */
 const SPINE_X = -B.w / 2;                                                /* the spine stands at the left edge */
 const HINGE_X = SPINE_X - B.h;                                           /* where the cover pivots once the spine lies flat */
@@ -43,7 +43,7 @@ export function install(S) {
   };
   S.dev.action('Open binder', () => M.is('idle') && M.go('binder.open'), 'Try');
 
-  const pointer = (kind, e, M) => b.pointer(kind, e) || S.tablePointer(kind, e, S.table.list.map(o => o.group));
+  const pointer = (kind, e, M) => S.dragging() ? S.tablePointer(kind, e, S.table.list.map(o => o.group)) : (b.pointer(kind, e) || S.tablePointer(kind, e, S.table.list.map(o => o.group)));
   /* a slab or print dragged onto the open binder files into the pocket under it, or the first free one */
   function dropInto(obj, e) { if (!b.active() || b.busy) return false; const h = S.hitAny(e, b.allPockets().map(pk => pk.group)); const pk = h ? h.root.userData.pocket : null;
     if (!h) { const t = S.tableHit(e, 0); if (!t || Math.abs(t.x - B.x - AX) > B.w + 0.8 || Math.abs(t.z - B.z) > B.d / 2 + 0.8) return false; }
@@ -113,21 +113,21 @@ function coverCanvas(S, count) {
   g.fillStyle = '#e3ad57'; g.font = '500 20px "Geist Mono", ui-monospace, monospace'; g.fillText('C O L L E C T O R', px, H - 96);
   return c;
 }
-function edgeCanvas() { const c = document.createElement('canvas'); c.width = 512; c.height = 64; const g = c.getContext('2d'); g.fillStyle = '#e9e2d2'; g.fillRect(0, 0, 512, 64); for (let y = 2; y < 64; y += 3) { g.fillStyle = 'rgba(0,0,0,' + (0.05 + Math.random() * 0.08) + ')'; g.fillRect(0, y, 512, 1); } return c; }
+function edgeCanvas() { const c = document.createElement('canvas'); c.width = 512; c.height = 64; const g = c.getContext('2d'); g.fillStyle = '#2a2b31'; g.fillRect(0, 0, 512, 64); for (let y = 2; y < 64; y += 3) { g.fillStyle = 'rgba(0,0,0,' + (0.05 + Math.random() * 0.08) + ')'; g.fillRect(0, y, 512, 1); } return c; }
 /* the page: cream paper with nine pocket outlines, no text so it reads the same way up on either side */
 function pageCanvas(S) {
   const W = 1024, H = Math.round(1024 * B.pageD / B.pageW), k = W / B.pageW, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'), r = S.ctx.mulberry(23);
-  g.fillStyle = '#efe9dc'; g.fillRect(0, 0, W, H); for (let i = 0; i < 9000; i++) { g.fillStyle = r() < 0.5 ? 'rgba(0,0,0,0.035)' : 'rgba(255,255,255,0.2)'; g.fillRect(r() * W, r() * H, 1.5, 1.5); }
+  g.fillStyle = '#1c1d23'; g.fillRect(0, 0, W, H); for (let i = 0; i < 9000; i++) { g.fillStyle = r() < 0.5 ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.05)'; g.fillRect(r() * W, r() * H, 1.5, 1.5); }
   for (let i = 0; i < 9; i++) { const x = W / 2 + ((i % 3) - 1) * PK.px * k, y = H / 2 + (Math.floor(i / 3) - 1) * PK.pz * k, w = (PK.w + 0.06) * k, h = (PK.h + 0.06) * k;
-    g.fillStyle = 'rgba(0,0,0,0.045)'; g.beginPath(); g.roundRect(x - w / 2, y - h / 2, w, h, 10); g.fill(); g.strokeStyle = 'rgba(0,0,0,0.16)'; g.lineWidth = 2; g.stroke(); }
+    g.fillStyle = 'rgba(255,255,255,0.04)'; g.beginPath(); g.roundRect(x - w / 2, y - h / 2, w, h, 10); g.fill(); g.strokeStyle = 'rgba(255,255,255,0.14)'; g.lineWidth = 2; g.stroke(); }
   return c;
 }
 function textCanvas(lines, W, H, big) { const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'); g.textAlign = 'center'; g.textBaseline = 'middle';
-  if (big) { g.fillStyle = '#2a241c'; g.font = '400 64px "Fraunces", Georgia, serif'; g.fillText(lines[0], W / 2, H / 2 - 36); g.fillStyle = '#7a6a52'; g.font = '500 26px "Geist Mono", ui-monospace, monospace'; g.fillText(lines[1] || '', W / 2, H / 2 + 44); }
-  else { g.fillStyle = 'rgba(122,106,82,0.9)'; g.font = '500 30px "Geist Mono", ui-monospace, monospace'; g.fillText(lines[0], W / 2, H / 2); }
+  if (big) { g.fillStyle = '#e9e4d8'; g.font = '400 64px "Fraunces", Georgia, serif'; g.fillText(lines[0], W / 2, H / 2 - 36); g.fillStyle = '#9a9aa6'; g.font = '500 26px "Geist Mono", ui-monospace, monospace'; g.fillText(lines[1] || '', W / 2, H / 2 + 44); }
+  else { g.fillStyle = 'rgba(190,190,205,0.8)'; g.font = '500 30px "Geist Mono", ui-monospace, monospace'; g.fillText(lines[0], W / 2, H / 2); }
   return c; }
-function arrowCanvas(dir) { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = 'rgba(42,36,28,0.08)'; g.beginPath(); g.arc(64, 64, 56, 0, 7); g.fill();
-  g.strokeStyle = 'rgba(42,36,28,0.75)'; g.lineWidth = 9; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(64 - dir * 14, 34); g.lineTo(64 + dir * 16, 64); g.lineTo(64 - dir * 14, 94); g.stroke(); return c; }
+function arrowCanvas(dir) { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = 'rgba(255,255,255,0.08)'; g.beginPath(); g.arc(64, 64, 56, 0, 7); g.fill();
+  g.strokeStyle = 'rgba(235,235,245,0.8)'; g.lineWidth = 9; g.lineCap = 'round'; g.lineJoin = 'round'; g.beginPath(); g.moveTo(64 - dir * 14, 34); g.lineTo(64 + dir * 16, 64); g.lineTo(64 - dir * 14, 94); g.stroke(); return c; }
 
 /* ================= the binder ================= */
 function build(S) {
@@ -200,7 +200,7 @@ function build(S) {
       });
       const num = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.16), new THREE.MeshBasicMaterial({ map: S.SM.tex(textCanvas(['RARE  ·  PAGE ' + (idx + 1)], 512, 52)), transparent: true, depthWrite: false }));
       num.rotation.x = -Math.PI / 2; num.position.set(0, 0.003, B.pageD / 2 - 0.1); pc.items.push(num);
-      if (empty && side === 'L') { const lbl = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.85), new THREE.MeshBasicMaterial({ map: S.SM.tex(textCanvas(['Nothing in here yet.', 'Pull something from the vault.'], 1024, 256, true)), transparent: true, depthWrite: false }));
+      if (empty && side === 'L') { const lbl = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.85), new THREE.MeshBasicMaterial({ map: S.SM.tex(textCanvas(['Nothing in here yet.', 'Drag a card onto a pocket to file it.'], 1024, 256, true)), transparent: true, depthWrite: false }));
         lbl.rotation.x = -Math.PI / 2; lbl.position.set(0, 0.004, 0); lbl.renderOrder = 3; pc.items.push(lbl); }
       if (b.spreads() > 1) { const dir = side === 'L' ? -1 : 1;
         const ar = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), new THREE.MeshBasicMaterial({ map: S.SM.tex(arrowCanvas(dir)), transparent: true, depthWrite: false }));

@@ -32,7 +32,7 @@ export function installSecret(ctx) {
   const lightSide = new Set(ctx.scene.children);
   P.initParticles(ctx.scene);
   const S = {
-    THREE, ctx, M, T, P, SL, SM, store, RoundedBoxGeometry, isLightSide: o => lightSide.has(o), scene: ctx.scene, camera: ctx.camera, renderer: ctx.renderer, paintPhoto: ctx.paintPhoto, KINDS: ctx.KINDS,
+    THREE, ctx, M, T, P, SL, SM, store, RoundedBoxGeometry, isLightSide: o => !o.userData.secret && !secretTop.has(o), scene: ctx.scene, camera: ctx.camera, renderer: ctx.renderer, paintPhoto: ctx.paintPhoto, KINDS: ctx.KINDS,
     el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; },
     css(text) { const s = document.createElement('style'); s.textContent = text; document.head.appendChild(s); return s; },
     sfx(id, o) { try { return ctx.SFX(id, o); } catch (e) { return null; } },
@@ -230,6 +230,8 @@ export function installSecret(ctx) {
   M.define('room.knock', { busy: true, async enter(d, run) { S.sfx('ltMenu'); const r0 = btnKey.rotation.z; await T.tween({ dur: 0.7, ease: T.E.linear, update: (e, r) => { btnKey.rotation.z = r0 + Math.sin(r * Math.PI * 6) * 0.22 * (1 - r); } }); btnKey.rotation.z = r0; S.toast('The secret room is still being dug out. Coming soon.'); if (run.alive()) M.go('idle'); } });
   /* a slab on the table drags like a print; a click without movement inspects it */
   let sd = null;
+  S.dragging = () => !!sd;
+  S.beginSlabDrag = (o, e) => { const t = S.tableHit(e, 0) || o.group.position; sd = { o, x0: e.clientX, y0: e.clientY, moved: 10, dx: o.group.position.x - t.x, dz: o.group.position.z - t.z, lifted: true }; o.group.position.y = 0.5; if (o.tableShadow) o.tableShadow.material.opacity = 0.3; ctx.canvas.style.cursor = 'grabbing'; };
   function slabDrag(kind, e) {
     const o = sd.o, g = o.group;
     if (kind === 'move') { sd.moved += Math.abs(e.clientX - sd.x0) + Math.abs(e.clientY - sd.y0); sd.x0 = e.clientX; sd.y0 = e.clientY;
@@ -272,7 +274,9 @@ export function installSecret(ctx) {
   S.css(BASE_CSS + DEV_CSS + INSPECT_CSS);
 
   /* ---------- the modules (each owns one file) ---------- */
+  const secretTop = new Set();
   [sound, print, holo, rail, arm, vault, binder, parcel, loot, under, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  ctx.scene.children.forEach(c => { if (!lightSide.has(c)) secretTop.add(c); });   /* the rigs the modules just added */
 
   /* ---------- boot ---------- */
   if (S.unlocked()) { buttons.forEach(b => { b.visible = true; }); M.go('idle'); S.table.restore(); } else M.go('locked');

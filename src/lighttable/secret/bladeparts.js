@@ -18,15 +18,15 @@ const smooth = t => t * t * (3 - 2 * t);
 /* crisp: every edge of the section gets its own strip of vertices, so normals stay smooth along the sweep but break sharply
    across the section's corners (the chamfers of die-cast metal), instead of the whole thing shading like a pillow */
 function sweep(n, sec, angle) {
-  const s0 = sec(0), m = s0.length, pos = [], idx = [], rows = [];
+  const s0 = sec(0), m = s0.length, pos = [], idx = [], rows = [], uv = [];
   for (let i = 0; i <= n; i++) { const t = i / n, a = angle(t), c = Math.cos(a), s = Math.sin(a); rows.push(sec(t).map(([r, y]) => [c * r, y, -s * r])); }
-  for (let j = 0; j < m; j++) { const base = pos.length / 3; for (let i = 0; i <= n; i++) { const p = rows[i][j], q = rows[i][(j + 1) % m]; pos.push(p[0], p[1], p[2], q[0], q[1], q[2]); }
+  for (let j = 0; j < m; j++) { const base = pos.length / 3; for (let i = 0; i <= n; i++) { const p = rows[i][j], q = rows[i][(j + 1) % m]; pos.push(p[0], p[1], p[2], q[0], q[1], q[2]); uv.push(i / n * 4, j / m, i / n * 4, (j + 1) / m); }
     for (let i = 0; i < n; i++) { const a = base + i * 2, b = a + 1, c = a + 2, d = a + 3; idx.push(a, c, b, b, c, d); } }
-  const capBase = pos.length / 3; rows.forEach(r => r.forEach(p => pos.push(p[0], p[1], p[2])));
+  const capBase = pos.length / 3; rows.forEach((r, i) => r.forEach((p, j) => { pos.push(p[0], p[1], p[2]); uv.push(i / n * 4, j / m); }));
   /* end caps: a fan from the section's centre */
   [0, n].forEach((i, k) => { const base = pos.length / 3, sec0 = sec(i / n), a = angle(i / n); let cr = 0, cy = 0; sec0.forEach(([r, y]) => { cr += r / m; cy += y / m; });
-    pos.push(Math.cos(a) * cr, cy, -Math.sin(a) * cr); for (let j = 0; j < m; j++) { const p = capBase + i * m + j, q = capBase + i * m + (j + 1) % m; if (k) idx.push(base, p, q); else idx.push(base, q, p); } });
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+    pos.push(Math.cos(a) * cr, cy, -Math.sin(a) * cr); uv.push(0, 0); for (let j = 0; j < m; j++) { const p = capBase + i * m + j, q = capBase + i * m + (j + 1) % m; if (k) idx.push(base, p, q); else idx.push(base, q, p); } });
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); return g;
 }
 
 /* a rounded wedge in r-y: inner wall, a top sloping down outwards, a rounded outer lip */
@@ -218,3 +218,9 @@ let AO = null;
 export function aoTex() { if (AO) return AO; const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), gr = g.createRadialGradient(128, 128, 0, 128, 128, 128);
   gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.5, 'rgba(0,0,0,0)'); gr.addColorStop(0.62, 'rgba(0,0,0,0.75)'); gr.addColorStop(0.8, 'rgba(0,0,0,0.25)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
   AO = new THREE.CanvasTexture(c); return AO; }
+
+/* brushed metal: fine streaks along the sweep (u), for a bump and roughness map */
+let BR = null;
+export function brushed() { if (BR) return BR; const c = document.createElement('canvas'); c.width = 1024; c.height = 64; const g = c.getContext('2d'); g.fillStyle = '#808080'; g.fillRect(0, 0, 1024, 64);
+  for (let k = 0; k < 900; k++) { const y = Math.random() * 64, l = 40 + Math.random() * 300, x = Math.random() * 1024, v = 100 + Math.random() * 80; g.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')'; g.fillRect(x, y, l, 0.6 + Math.random()); }
+  BR = new THREE.CanvasTexture(c); BR.wrapS = BR.wrapT = THREE.RepeatWrapping; return BR; }

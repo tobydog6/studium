@@ -25,6 +25,10 @@ const TIP_OF = { matte: 'sharp', etch: 'sharp', steel: 'sharp', cyanotype: 'shar
 const HEAVY = { gold: 0.25, kintsugi: 0.2, steel: 0.15, eclipse: 0.15, raku: 0.1, foil: -0.1, glass: -0.08, porcelain: -0.05 };
 /* the X rail: two toothed arcs of the rim (either side of the bowl) that catch a tip and fling it along */
 export const RAIL = { arcs: [[-0.95, 0.95], [Math.PI - 0.95, Math.PI + 0.95]], band: 1.0, push: 45 };
+/* the pockets cut into the wall (Beyblade X): knocked in there is an Over finish, the Xtreme pocket (just past a rail) an Xtreme finish.
+   Everywhere else the wall throws you back in: you only leave the bowl through a pocket. */
+export const POCKETS = [{ a: 1.25, half: 0.24, kind: 'out' }, { a: 4.45, half: 0.24, kind: 'out' }, { a: 5.0, half: 0.24, kind: 'xtreme' }];
+const pocketAt = a => POCKETS.find(p => { const m = ((a - p.a) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI; return Math.abs(m) <= p.half; }) || null;
 const onArc = a => RAIL.arcs.some(([a0, a1]) => { const m = ((a - (a0 + a1) / 2) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI; return Math.abs(m) <= (a1 - a0) / 2; });
 export const SPECIALS = {
   guard:     { name: 'Etch guard', tier: 'rare',      desc: 'Shrugs off hits for a few seconds and mends some of the cracks' },
@@ -32,8 +36,8 @@ export const SPECIALS = {
   slam:      { name: 'Gold slam',  tier: 'legendary', desc: 'Doubles its weight and charges at your rival' },
   eclipse:   { name: 'Eclipse',    tier: 'mythic',    desc: 'Blacks out the bowl and drains your rival’s spin' },
 };
-export const POINTS = { burst: 2, out: 2, spin: 1, time: 1 };
-export const WIN_AT = 3;
+export const POINTS = { burst: 2, out: 2, xtreme: 3, spin: 1, time: 1 };
+export const WIN_AT = 4;
 export const ROUND_S = 40;   /* battle-clock seconds: 16 real */
 const W_REF = 70;     /* a full-power launch spins at about this */
 const OUT_V = 3.2;    /* hitting the rim faster than this, soon after a hit, goes over it */
@@ -119,7 +123,7 @@ export function step(W, dt, ev) {
     /* the rim: a soft hit bounces back, a hard one goes over */
     r = Math.hypot(t.p.x, t.p.y) || 1e-6; const rad = t.st.radius;
     if (r + rad > R) { const nx = t.p.x / r, ny = t.p.y / r, vn = t.v.x * nx + t.v.y * ny;
-      if (vn > OUT_V * SC && t.hitT > 0 && W.t > 6) { t.alive = false; t.done = 'out'; ev.push({ type: 'out', top: t, k: vn, why: 'rim' }); continue; }
+      const pk = pocketAt(Math.atan2(ny, nx)); if (pk && W.t > 5 && (vn > 2.2 * SC && t.hitT > 0 || vn > 4.0 * SC)) { t.alive = false; t.done = pk.kind; ev.push({ type: 'out', top: t, k: vn, why: 'pocket', zone: pk.kind, a: pk.a }); continue; }
       if (vn > 0) { t.v.x -= 1.5 * vn * nx; t.v.y -= 1.5 * vn * ny; t.v.x *= 0.96; t.v.y *= 0.96;   /* the wall drags too */ if (vn > 0.6 * SC) { if (vn > 1.6 * SC) t.w *= 1 - 0.004 * Math.min(vn / SC, 3); ev.push({ type: 'wall', top: t, k: vn, x: nx * R, y: ny * R }); } }
       t.p.x = nx * (R - rad); t.p.y = ny * (R - rad); }
     /* the X rail: on a toothed arc of the rim the tip's gear bites and the blade is flung along it (X Dash) */
@@ -127,7 +131,9 @@ export function step(W, dt, ev) {
     if (r + rad > R - RAIL.band && onArc(Math.atan2(t.p.y, t.p.x)) && T.grip > 0 && Math.hypot(t.v.x, t.v.y) < 8 * SC) { const kick = RAIL.push * SC * T.grip * (0.35 + 0.65 * s);
       t.v.x += -t.p.y / r * sg * kick * dt; t.v.y += t.p.x / r * sg * kick * dt; t.w -= sg * 1.2 * dt;
       if (!t.dash && t.dashT <= 0) ev.push({ type: 'dash', top: t, x: t.p.x, y: t.p.y }); t.dash = true; t.dashT = 0.5; }
-    else t.dash = false;
+    else { if (t.dash && Math.hypot(t.v.x, t.v.y) > 1) { /* off the end of the rail: it swings back in towards the middle (Xtreme Dash) */
+        const sp = Math.hypot(t.v.x, t.v.y), ix = -t.p.x / r, iy = -t.p.y / r; let dx = t.v.x / sp * 0.45 + ix * 0.9, dy = t.v.y / sp * 0.45 + iy * 0.9; const dl = Math.hypot(dx, dy) || 1; t.v.x = dx / dl * sp * 1.12; t.v.y = dy / dl * sp * 1.12; ev.push({ type: 'xdash', top: t, x: t.p.x, y: t.p.y }); }
+      t.dash = false; }
   }
   const [a, b] = W.tops; if (a.alive && b.alive) collide(a, b, W, ev);
 }
@@ -146,7 +152,7 @@ function collide(a, b, W, ev) {
   const Jc = Math.min(J, 5.5 * SC / Math.max(ia, ib));   /* one hit throws a blade at most this fast */
   a.v.x -= nx * Jc * ia; a.v.y -= ny * Jc * ia; b.v.x += nx * Jc * ib; b.v.y += ny * Jc * ib;
   /* thrown outward hard enough near the rim, it goes straight over */
-  const thrown = (t, sx, sy, dv) => { const r = Math.hypot(t.p.x, t.p.y) || 1e-6, out = (sx * t.p.x + sy * t.p.y) / r * dv; if (W.t > 6 && out / SC * r / BOWL.R > OUT_K) { t.alive = false; t.done = 'out'; ev.push({ type: 'out', top: t, k: out, why: 'hit' }); } };
+  const thrown = (t, sx, sy, dv) => { const r = Math.hypot(t.p.x, t.p.y) || 1e-6, out = (sx * t.p.x + sy * t.p.y) / r * dv; const pk = pocketAt(Math.atan2(t.p.y, t.p.x)); if (pk && W.t > 5 && out / SC * r / BOWL.R > OUT_K * 1.1) { t.alive = false; t.done = pk.kind; ev.push({ type: 'out', top: t, k: out, why: 'hit', zone: pk.kind, a: pk.a }); } };
   const side = SC * slip * 0.012 * (same ? 1 : 0.4);
   a.v.x -= tx * side * ia; a.v.y -= ty * side * ia; b.v.x += tx * side * ib; b.v.y += ty * side * ib;
   const k = -vrel / SC + Math.abs(slip) * 0.02 * (same ? 1 : 0.3);
@@ -155,7 +161,7 @@ function collide(a, b, W, ev) {
   if (!same) { /* opposite spins: the stronger one steals some of what the other loses */
     if (Math.abs(a.w) * A >= Math.abs(b.w) * B) { a.w += Math.sign(a.w) * lb * 0.4; } else { b.w += Math.sign(b.w) * la * 0.4; } }
   keep(a, la); keep(b, lb);
-  const crack = (t, atk, s) => { if (t.guardT > 0) return; t.burst += Math.min(1, W.t / 10) * k * atk * 0.014 / (t.st.guard * TIPS[t.st.tip].hold) * (2 - s);
+  const crack = (t, atk, s) => { if (t.guardT > 0) return; t.burst += Math.min(1, W.t / 10) * k * atk * 0.009 / (t.st.guard * TIPS[t.st.tip].hold) * (2 - s);
     if (t.burst >= 1) { if (t.shield) { t.shield = false; t.burst = 0.45; ev.push({ type: 'shield', top: t }); } else { t.alive = false; t.done = 'burst'; ev.push({ type: 'burst', top: t }); } } };
   crack(a, B, sa); crack(b, A, sb);
   if (a.alive) thrown(a, -nx, -ny, Jc * ia); if (b.alive) thrown(b, nx, ny, Jc * ib);

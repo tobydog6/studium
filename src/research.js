@@ -161,7 +161,8 @@
       dvdFrame.srcdoc=html; dvdHost.appendChild(dvdFrame); dvdFrame.addEventListener("load", function(){ try{ dvdFrame.contentWindow.focus(); }catch(e){} }); }
     else if(on&&dvdFrame){ try{ dvdFrame.contentWindow.DVDapp.pause(false); dvdFrame.contentWindow.focus(); }catch(e){} } }
   /* leaving the shelf, the room or the studio: stop the video and rest the 3D */
-  function rsVidStop(){ if(dvdHost) dvdHost.classList.add("hidden"); try{ if(dvdFrame&&dvdFrame.contentWindow.DVDapp){ dvdFrame.contentWindow.DVDapp.stop(); dvdFrame.contentWindow.DVDapp.pause(true); } }catch(e){} }
+  function rsVidStop(){ if(dvdFrame&&document.activeElement===dvdFrame){ try{ dvdFrame.blur(); window.focus(); }catch(e){} }   /* keys come back to Studium */
+    if(dvdHost) dvdHost.classList.add("hidden"); try{ if(dvdFrame&&dvdFrame.contentWindow.DVDapp){ dvdFrame.contentWindow.DVDapp.stop(); dvdFrame.contentWindow.DVDapp.pause(true); } }catch(e){} }
   // ---- drawing ----
   function rsEsc(s){ return cbEsc(String(s==null?"":s)); }
   function rsDot(t){ return t?'<i class="rs-dot" style="left:'+(t.x*100).toFixed(2)+'%;top:'+(t.y*100).toFixed(2)+'%"></i>':''; }

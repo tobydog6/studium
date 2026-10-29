@@ -191,8 +191,10 @@ let zOver = 16; const zNear = 8.2;
 function clampView() { const vh = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), hh = view.tz * vh / 2, hw = hh * camera.aspect;
   const mx = Math.max(0, wallW / 2 + .6 - hw), myLo = -.6 + hh - .4, myHi = rowY(0) + H + .6 - hh + .2;
   view.tx = Math.max(-mx, Math.min(mx, view.tx)); view.ty = myHi < myLo ? wallMid : Math.max(myLo, Math.min(myHi, view.ty)); view.tz = Math.max(zNear, Math.min(zOver, view.tz)); }
-function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
-  const was = zOver; zOver = fitZ(); if (view.tz >= was - .01) view.tz = zOver; clampView(); }
+function size() { const w = innerWidth, h = innerHeight; if (!w || !h) return;   /* hidden (0x0) when the room is left: keep the last good view */
+  renderer.setSize(w, h, false); composer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix();
+  const was = zOver; zOver = fitZ(); if (view.tz >= was - .01) view.tz = zOver; clampView();
+  if (modal && modal.st === 'play' && !busy) setRect(fullRect(), 1); }
 const composer = new EffectComposer(renderer); composer.addPass(new RenderPass(scene, camera));
 composer.addPass(new UnrealBloomPass(new THREE.Vector2(1, 1), .25, .5, .92)); composer.addPass(new OutputPass());
 addEventListener('resize', size); size(); view.x = view.tx; view.y = view.ty; view.z = view.tz;
@@ -208,11 +210,12 @@ nav.addEventListener('click', (e) => { const b = e.target.closest('button'); if 
 const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(9, 9), pickables = [];
 cases.forEach((cs) => pickables.push(cs.tray, cs.lid));
 let drag = null, hot = null, modal = null, busy = false;
-canvas.addEventListener('pointerdown', (e) => { if (modal) return; drag = { x: e.clientX, y: e.clientY, vx: view.tx, vy: view.ty, moved: false }; canvas.setPointerCapture(e.pointerId); });
+function pickAt(e) { const m = new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(m, camera); const h = ray.intersectObjects(pickables, false)[0]; return h ? h.object.userData.caseIdx : null; }
+canvas.addEventListener('pointerdown', (e) => { if (modal) return; mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); drag = { x: e.clientX, y: e.clientY, vx: view.tx, vy: view.ty, moved: false }; canvas.setPointerCapture(e.pointerId); });
 canvas.addEventListener('pointermove', (e) => { mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.hypot(dx, dy) > 5) { drag.moved = true; canvas.classList.add('drag'); }
   if (drag.moved) { const k = view.z * 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / innerHeight; view.tx = drag.vx - dx * k; view.ty = drag.vy + dy * k; clampView(); } });
-canvas.addEventListener('pointerup', () => { const was = drag; drag = null; canvas.classList.remove('drag'); if (was && !was.moved && hot != null && !modal) pull(hot); });
+canvas.addEventListener('pointerup', (e) => { const was = drag; drag = null; canvas.classList.remove('drag'); if (was && !was.moved && !modal) { const k = pickAt(e); if (k != null) pull(k); } });   /* raycast on the tap itself: a touch has no hover */
 canvas.addEventListener('pointerleave', () => { mouse.set(9, 9); });
 canvas.addEventListener('wheel', (e) => { if (modal) return; e.preventDefault(); const z0 = view.tz; view.tz *= Math.exp(e.deltaY * .0012);
   view.tz = Math.max(zNear, Math.min(zOver, view.tz)); const s = 1 - view.tz / z0, vh = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
@@ -245,7 +248,7 @@ function setModal(m) { modal = m; document.body.classList.toggle('modal', !!m); 
 function lift(cs, on) { cs.grp.traverse((o) => { if (o.isMesh) o.renderOrder = on ? 2 : 0; }); }
 
 /* pull it off the shelf: it floats in front of you */
-async function pull(idx) { if (busy || modal) return; busy = true; const cs = cases[idx]; setModal({ cs, st: 'look' }); sfx('cullPick'); lift(cs, true);
+async function pull(idx) { if (busy || modal) return; busy = true; const cs = cases[idx]; cs.hov = 0; setModal({ cs, st: 'look' }); sfx('cullPick'); lift(cs, true);
   look.querySelector('.eb').textContent = cs.v.a; look.querySelector('h2').textContent = cs.v.t;
   veilTo(.9, .6); await arcTo(cs.grp, holdPose(), .85, .25); look.classList.add('on'); busy = false; }
 function openPose() { const narrow = innerWidth < 760; return camPose(narrow ? -W / 2 : -2.35, narrow ? -.25 : -.55, 6.9, .1, .04); }

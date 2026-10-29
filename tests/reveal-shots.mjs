@@ -46,7 +46,8 @@ try {
   await ev(() => { if (__lt.TOUR.on) __lt.tourEnd(false); });
   await hideHub();
   await ev(() => __lt.secret.S.ctx.canvas.focus());
-  await page.keyboard.press('='); await W(500); await page.keyboard.type('secret'); await page.keyboard.press('Enter'); await W(1500);
+  for (let k = 0; k < 3 && !(await ev(() => __lt.secret.S.unlocked())); k++) {   /* the = box sometimes misses the first try on a slow start */
+    await W(3000); await ev(() => __lt.secret.S.ctx.canvas.focus()); await page.keyboard.press('='); await W(800); await page.keyboard.type('secret'); await page.keyboard.press('Enter'); await W(2000); }
   if (!(await ev(() => __lt.secret.S.unlocked()))) throw new Error('did not unlock');
   await ev(() => { const S = __lt.secret.S; S.dev.set('reelLen', 'short'); S.hole.open(-17.5, -4, -3.5, 2); S.cam.push({ tx: -10.5, ty: -0.4, tz: -0.8, pitch: 30, dT: 16 }); S.rail.__drive(true); });
   for (const st of STYLES) {

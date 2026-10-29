@@ -22,7 +22,7 @@ import * as THREE from 'three';
 
 const K = 0.4;                 /* prints on the rail at the table's card scale */
 const BAR_Y = 0.55, HANG = 0.2;   /* the rail bar above the table top; clip and string down to the top of a print */
-const DEEP = -5.0, BENCH_Y = -1.95, SUNK = -4.6;   /* the darkroom floor, the bench, where the rail waits in the dark */
+const DEEP = -5.0, BENCH_Y = -1.95, SUNK = -4.6, UP = 1.55;   /* risen, the whole rail hangs above the table top so nothing is cut off */   /* the darkroom floor, the bench, where the rail waits in the dark */
 const ROLLBACK = 0.3;          /* how often the reel passes the winner and rolls back */
 const BACK_MAX = 3;
 
@@ -120,7 +120,7 @@ export function install(S) {
   function mk(slab) { const o = S.print && S.print.make ? S.print.make(slab) : null; return o ? S.slabs.adopt(o) : S.slabs.make(slab); }
 
   /* ---------- the camera ---------- */
-  const FRAME = rm => ({ tx: rm.cx, ty: -0.4, tz: rm.cz + 0.2, pitch: 30, dT: Math.max(9, ctx.fitDist(rm.W + 1.2, 4.5, 30)) });
+  const FRAME = rm => ({ tx: rm.cx, ty: UP - 0.35, tz: rm.cz + 0.2, pitch: 24, dT: Math.max(9, ctx.fitDist(rm.W + 1.2, 4.5, 24)) });
 
   /* ---------- the reel plan: slots over time, with the long deceleration, the near miss or the roll-back ---------- */
   function plan(n, win) {
@@ -160,7 +160,7 @@ export function install(S) {
     T.tween({ dur: 0.9, ease: E.linear, tag: 'rail', update: (e, k) => { r.redK = k < 0.7 ? (Math.random() < 0.55 ? 1 : 0.15) * k : 1; } });
     await T.wait(0.5, 'rail'); if (!alive()) return;
     S.snd && S.snd.play('rise'); r.phase = 'rise';
-    const up = T.to(rg.rig.position, { y: 0 }, { dur: 2.4, ease: E.inOutCubic, tag: 'rail' });
+    const up = T.to(rg.rig.position, { y: UP }, { dur: 2.4, ease: E.inOutCubic, tag: 'rail' });
     /* the prints' photos arrive while it rises; the pitch of the slots fits the widest */
     await Promise.race([Promise.all(slots.map(s => s.obj.ready.catch(() => null))), T.wait(5, 'rail')]); if (!alive()) return;
     r.pitch = Math.max(2.0, ...slots.filter(s => s.obj.built).map(s => s.obj.w * K)) + 0.4;
@@ -179,7 +179,7 @@ export function install(S) {
     r.ring = new THREE.Mesh(new THREE.RingGeometry(0.94, 1.0, 72), new THREE.MeshBasicMaterial({ color: 0xffe0a8, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); r.ring.position.copy(r.burst.position); r.ring.position.z = 0.3; winner.h.add(r.ring);
     T.to(winner.h.position, { z: 1.25, y: BAR_Y + 0.32 }, { dur: 0.8, ease: E.outBack, tag: 'rail' });
     T.tween({ dur: 0.8, ease: E.outBack, tag: 'rail', update: e => winner.spin.scale.setScalar(1 + 0.32 * e) });
-    T.to(ctx.cam, { dT: ctx.cam.dT * 0.72, ty: -0.55, pitch: 27 }, { dur: 1.6, ease: E.inOutCubic, tag: 'rail' });
+    T.to(ctx.cam, { dT: ctx.cam.dT * 0.72, ty: UP - 0.5, pitch: 24 }, { dur: 1.6, ease: E.inOutCubic, tag: 'rail' });
     T.tween({ dur: 1.2, ease: E.inOutSine, tag: 'rail', update: e => { r.keyK = e; } });
     await T.wait(0.9, 'rail'); if (!alive()) return;
     r.prompt = true; r.phase = 'prompt'; S.toast('Face down. Hover it, then click to turn it over.');
@@ -224,7 +224,7 @@ export function install(S) {
   function frame(dt0) {
     const r = R; if (!r) return; const rm = r.rm, dt = Math.min(0.1, dt0) * T.timeScale(), t = T.time();
     /* lights: the safelight, the key on the winner after it lands, the flash of the burst */
-    const sink = r.sinking ? Math.max(0, 1 - r.rg.rig.position.y / SUNK) : 1;
+    const sink = r.sinking ? T.clamp((r.rg.rig.position.y - SUNK) / (UP - SUNK), 0, 1) : 1;
     const redK = r.redK * (r.landed ? 1 - 0.6 * T.clamp((t - r.landed) / 0.7, 0, 1) : 1);
     rm.red.intensity = 26 * redK * (0.96 + 0.04 * Math.sin(t * 23)) * sink; rm.redBack.intensity = 14 * redK * sink; rm.halo.material.opacity = (0.4 + 0.06 * Math.sin(t * 7)) * r.redK * sink;
     if (r.keyFlash) r.keyFlash *= Math.exp(-dt * 6); rm.key.intensity = (16 * r.keyK + 40 * (r.keyFlash || 0)) * sink;
@@ -248,7 +248,11 @@ export function install(S) {
       if (s === r.winner && r.phase !== 'reel' && r.phase !== 'rise') return;
       let x = (s.i - r.pos) * r.pitch; x = ((x + half) % total + total) % total - half; const vis = Math.abs(x) < rm.span; s.h.visible = vis; s.h.position.x = x;
       s.swing += (lag - s.swing) * (1 - Math.exp(-dt * 9)); s.h.rotation.z = s.swing;
-      s.streak.material.opacity = 0.55 * r.blur; s.streak.scale.x = 0.3 + r.blur * 1.7; s.streak.position.x = -Math.sign(r.vel || 1) * r.blur * 0.9;
+      /* the pass: prints bank into the motion, bob on their strings, and the one under the marker pops and flashes on each tick */
+      if (r.phase === 'reel') { const near = Math.exp(-x * x / Math.max(0.6, r.pitch * 0.5)); s.h.rotation.y = -T.clamp(r.vel * r.pitch / 40, -1, 1) * 0.42; s.h.position.y = BAR_Y + 0.07 * r.blur * Math.sin(x * 1.1 + t * 11);
+        s.spin.scale.setScalar(1 + 0.14 * r.tick * near); if (s.back) s.back.material.color.setScalar(1 + 0.9 * r.tick * near); }
+      else if (r.phase === 'rise') { s.h.rotation.y = 0; s.h.position.y = BAR_Y; }
+      s.streak.material.opacity = 0.7 * r.blur; s.streak.scale.x = 0.3 + r.blur * 2.2; s.streak.position.x = -Math.sign(r.vel || 1) * r.blur * 1.1;
       if (r.landed && s !== r.winner) { s.dim += (0.3 - s.dim) * (1 - Math.exp(-dt * 4)); if (s.back) s.back.material.color.setScalar(s.dim); }
     });
     /* the landed print: the breath of the prompt, the rim in the finish colour, the burst and ring of the flip, the wobble after */

@@ -19,7 +19,7 @@ const W = 3.3, D = 2.3, HB = 1.45, HL = 0.85, WD = 0.45;   /* the case: width, d
 const DOWN = -2.75, SHAFT = 3.7, CASE_Y = 0.1;       /* how far the lift sinks, the shaft depth, the case's seat on the disc */
 const KX = 0.5, KY = HB * 0.5, KS = 0.3;             /* the keypad on the front: position and scale */
 const BX_BTN = -0.6;                                 /* the "To binder" button on the front */
-const SLAB_K = 0.28, ROW_Z = [0.6, 0.05, -0.5], ROW_H = [0, 0.36, 0.72], LEAN = 0.38;
+const SLAB_K = 0.25, ROW_Z = [0.6, 0.05, -0.5], ROW_H = [0, 0.36, 0.72], LEAN = 0.38;
 const TABLE_COL = () => new THREE.Color(0.95, 0.95, 0.94);   /* the surface shader's uCol, linear */
 
 export function install(S) {
@@ -150,14 +150,15 @@ export function install(S) {
       if (Math.abs(x) > WT || Math.abs(z) > HT || x > ctx.BX - ctx.BW / 2 - 2.8) continue; if (S.table.list.some(o => Math.hypot(o.group.position.x - x, o.group.position.z - z) < 3.6)) continue; return { x, z }; } return S.table.freeSpot(); }
   async function inspectCaseSlab(s) {
     if (V.inspecting) return; V.inspecting = true; setHover(null); const g = s.obj.group, k0 = g.scale.x;
-    const p = S.inspect.open(s.obj, { actions: [{ id: 'back', label: 'Put back' }, { id: 'table', label: 'Onto the table', primary: true }], hint: 'Drag to turn it, scroll to zoom. Click the room to put it back in the case.' });
+    const p = S.inspect.open(s.obj, { actions: [{ id: 'back', label: 'Put back' }, { id: 'binder', label: 'Into the binder' }, { id: 'table', label: 'Onto the table', primary: true }], hint: 'Drag to turn it, scroll to zoom. Click the room to put it back in the case.' });
     T.tween({ dur: 0.55, ease: E.outCubic, update: e => g.scale.setScalar(k0 + (1 - k0) * e) });
     const r = await p;
     T.tween({ dur: 0.45, ease: E.inOutSine, update: e => g.scale.setScalar(1 + (k0 - 1) * e) });
     while (S.inspect.active()) await T.wait(0.05);
     V.inspecting = false;
-    if (r !== 'table' || !M.is('vault.lid')) return;
+    if ((r !== 'table' && r !== 'binder') || !M.is('vault.lid')) return;
     s.out = true; s.pivot.visible = false; const slab = s.slab; S.slabs.drop(s.obj); if (s.pivot.parent) s.pivot.parent.remove(s.pivot); V.slabs = V.slabs.filter(x => x !== s);
+    if (r === 'binder') { store.toBinder(slab.id); S.hud(); S.sfx('binder'); S.toast('Filed in the Rare binder. The button on the case front opens it.'); return; }
     const sp = spotNear(); S.table.place(slab, sp.x, sp.z, (Math.random() - 0.5) * 0.5, { drop: true }); S.hud(); S.toast('Out on the table. Click it there any time to look again, or send it back to the vault.');
   }
 

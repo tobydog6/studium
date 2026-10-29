@@ -145,8 +145,9 @@ export function install(S) {
       L.pushed = true; S.lockStand(true); S.cam.push(FRAME()); ctx.hideActs(); S.sfx('ltInspect'); hideBar();
       await S.clearPrints([X0 - 0.6, Z0 - 0.6, ctx.W_T / 2, Z1 + 0.6], S.dev.opt('clearing')); if (!run.alive()) return;
       /* the stand camera dissolves (if the stand is up) while the arm swings aside */
-      if (ctx.aim.visible) { L.aimGone = true; P.dissolve(ctx.aim, { mode: S.dev.opt('dissolve'), dur: 1.0, spread: 2 }); }
       await S.arm.aside(); if (!run.alive()) return;
+      /* after aside: the arm raises a folded stand itself, so only now is the camera on it for sure */
+      if (ctx.aim.visible) { L.aimGone = true; await P.dissolve(ctx.aim, { mode: S.dev.opt('dissolve'), dur: 0.9, spread: 2 }); if (!run.alive()) return; }
       rig.visible = true; L.lampT = 0.35; S.sfx('detent');
       await blind(run, true); if (!run.alive()) return;
       await T.wait(0.2, 'loot'); if (!run.alive()) return;
@@ -244,8 +245,9 @@ export function install(S) {
       if (pedsUp()) await sinkPeds(run);
       L.lampT = 0;
       await blind(run, false); setBlind(0); S.hole.close(); roller.visible = rollShadow.visible = false; rig.visible = false; resetCans();
+      /* the camera reforms on the arm before it rests; if the arm folds the stand away the camera goes with it */
+      if (L.aimGone) { L.aimGone = false; await P.reform(ctx.aim, { mode: S.dev.opt('dissolve'), dur: 0.9, spread: 2 }); }
       await S.arm.rest();
-      if (L.aimGone) { L.aimGone = false; await P.reform(ctx.aim, { mode: S.dev.opt('dissolve'), dur: 1.0, spread: 2 }); }
       S.lockStand(false); if (L.pushed) { S.cam.pop(); L.pushed = false; } S.sfx('detent');
       M.go('idle');
     },

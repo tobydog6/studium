@@ -133,9 +133,9 @@ export function installSecret(ctx) {
   ctx.kit.add(btnLoot); ctx.scene.add(btnVault); ctx.scene.add(btnKey);
   S.buttons = { loot: btnLoot, vault: btnVault, key: btnKey };
   let lootOnClamp = false;
-  function placeLoot() { const up = ctx.STAND.up && !ctx.STAND.dir; if (up === lootOnClamp && btnLoot.parent) return; lootOnClamp = up;
-    if (up) { ctx.clampG.add(btnLoot); btnLoot.position.set(-0.52, 0.16, 0.27); btnLoot.rotation.set(0, 0, 0); }
-    else { ctx.kit.add(btnLoot); btnLoot.position.set(ctx.KIT.w / 2 - 0.45, 0.3, ctx.KIT.d / 2 + 0.02); btnLoot.rotation.set(Math.PI / 2, 0, 0); } }
+  /* the loot button lives on the clamp only: with the stand folded, clicking the kit box opens the stand as it always did (Sam) */
+  function placeLoot() { const up = ctx.STAND.up && !ctx.STAND.dir; btnLoot.visible = up && S.unlocked() && !M.is('locked'); if (up === lootOnClamp && btnLoot.parent) return; lootOnClamp = up;
+    ctx.clampG.add(btnLoot); btnLoot.position.set(-0.52, 0.16, 0.27); btnLoot.rotation.set(0, 0, 0); }
   placeLoot();
 
   /* ---------- slabs on the table ---------- */
@@ -181,10 +181,11 @@ export function installSecret(ctx) {
   async function inspectTableSlab(obj) {
     const raw = !obj.slab.graded, g = obj.group, K = S.TABLE_K;
     T.to(g.scale, { x: 1, y: 1, z: 1 }, { dur: 0.5, ease: T.E.outCubic, tag: 'tslab' });
-    const r = await inspect.open(obj, { actions: raw ? [{ id: 'bin', label: 'Bin it' }, { id: 'back', label: 'Put back' }, { id: 'grade', label: 'Send for grading', primary: true }] : [{ id: 'bin', label: 'Bin it' }, { id: 'back', label: 'Put back' }, { id: 'vault', label: 'Into the vault', primary: true }], hint: 'Drag to turn it, scroll to zoom. Click the room to put it back. Back on the table, drag it anywhere.' });
+    const r = await inspect.open(obj, { actions: raw ? [{ id: 'bin', label: 'Bin it' }, { id: 'back', label: 'Put back' }, { id: 'grade', label: 'Send for grading', primary: true }] : [{ id: 'bin', label: 'Bin it' }, { id: 'back', label: 'Put back' }, { id: 'binder', label: 'Into the binder' }, { id: 'vault', label: 'Into the vault', primary: true }], hint: 'Drag to turn it, scroll to zoom. Click the room to put it back. Back on the table, drag it anywhere.' });
     T.to(g.scale, { x: K, y: K, z: K }, { dur: 0.45, ease: T.E.inOutSine, tag: 'tslab' });
     if (r === 'bin') { await T.wait(0.45); binSlab(obj); return; }
     if (r === 'grade') { await T.wait(0.45); S.sendForGrading(obj); }
+    if (r === 'binder') { await T.wait(0.3); S.sfx('binder'); const target = btnVault.getWorldPosition(new THREE.Vector3()); target.y += 0.3; P.dissolve(obj.group, { mode: dev.opt('dissolve'), centre: target, spread: 2.2, dur: 1.3 }); S.table.remove(obj, true); store.toBinder(obj.slab.id); hud(); S.toast('Filed in the Rare binder. Open the vault and press the button on the case front to see it.'); }
     if (r === 'vault') { await T.wait(0.3); S.sfx('detent'); const target = btnVault.getWorldPosition(new THREE.Vector3()); target.y += 0.3;
       P.dissolve(obj.group, { mode: dev.opt('dissolve'), centre: target, spread: 2.2, dur: 1.3 }); S.table.remove(obj, true); store.toVault(obj.slab.id); hud(); S.toast('Into the vault. Open the little case by the binder to see it.'); }
   }

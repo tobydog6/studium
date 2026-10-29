@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import * as BS from './bladesim.js';
 import * as BSH from './bladeshape.js';
 import * as BP from './bladeparts.js';
+import * as BL from './bladelauncher.js';
 
 const LIFT = 0.7;        /* the bowl floor's height above the table once it is up */
 const DOWN = -9;         /* the stadium's height while it waits in the pit */
@@ -371,28 +372,10 @@ export function install(S) {
   function clearBlades() { [B.myL, B.rvL].forEach(L => { if (L) L.dispose(); }); B.myL = B.rvL = null; [B.me, B.rival].forEach(b => { if (b) b.dispose(); }); B.me = B.rival = null; B.debris.forEach(d => { d.g.removeFromParent(); }); B.debris = []; if (aim) aim.visible = false; }
   /* the aim: a thin arrow on the bowl from your blade, as long as the pull */
   /* ---------- the launcher (Sam's photo): a pistol grip, a housing the blade hangs under, a toothed ripcord with a winged handle ---------- */
-  const cordTex = (() => { const c = document.createElement('canvas'); c.width = 64; c.height = 16; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 64, 16); g.fillStyle = 'rgba(0,0,0,0.35)'; for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 3, 16); const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t; })();
-  const decal = (() => { const c = document.createElement('canvas'); c.width = 256; c.height = 96; const g = c.getContext('2d'); g.fillStyle = '#16161c'; g.fillRect(0, 0, 256, 96); g.fillStyle = '#f2d22e'; g.font = 'italic 900 52px sans-serif'; g.fillText('RIP', 14, 62); g.fillStyle = '#fff'; g.font = '700 20px sans-serif'; g.fillText('STUDIUM', 122, 42); g.font = '500 13px sans-serif'; g.fillText('X GRIP SYSTEM', 122, 64); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
-  function makeLauncher(col) { const g = new THREE.Group(), base = new THREE.Color(col), plast = new THREE.MeshPhysicalMaterial({ color: base, roughness: 0.38, clearcoat: 0.6, clearcoatRoughness: 0.3, envMap: ENV, envMapIntensity: 0.7 }), dark = new THREE.MeshPhysicalMaterial({ color: 0x1c1c22, roughness: 0.45, clearcoat: 0.3, envMap: ENV });
-    const housing = new THREE.Mesh(new S.RoundedBoxGeometry(1.7, 0.42, 1.5, 4, 0.14), plast); housing.position.y = 0.21; g.add(housing);
-    const top = new THREE.Mesh(new S.RoundedBoxGeometry(1.15, 0.12, 1.1, 3, 0.05), dark); top.position.set(0.05, 0.46, -0.05); g.add(top);
-    const sticker = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.36), new THREE.MeshBasicMaterial({ map: decal })); sticker.rotation.x = -Math.PI / 2; sticker.position.set(0.05, 0.53, 0.2); g.add(sticker);
-    const lip = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.12, 40), dark); lip.position.y = -0.04; g.add(lip);
-    [-0.62, 0.62].forEach(x => { const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.2, 20), plast); knob.rotation.z = Math.PI / 2; knob.position.set(x * 1.45, 0.25, -0.35); g.add(knob); });
-    /* the grip: an S-curved pistol handle reaching back towards you, with finger holes */
-    const gs = new THREE.Shape(); gs.moveTo(-0.38, 0); gs.bezierCurveTo(-0.55, 0.7, -0.15, 1.1, -0.42, 1.8); gs.bezierCurveTo(-0.6, 2.3, -0.2, 2.75, 0.15, 2.7); gs.bezierCurveTo(0.5, 2.6, 0.55, 2.2, 0.38, 1.7); gs.bezierCurveTo(0.2, 1.2, 0.55, 0.7, 0.38, 0);
-    [[0, 0.75], [0.05, 1.35], [0, 1.95]].forEach(([x, y]) => { const h = new THREE.Path(); h.absarc(x, y, 0.07, 0, Math.PI * 2, true); gs.holes.push(h); });
-    const grip = new THREE.Mesh(new THREE.ExtrudeGeometry(gs, { depth: 0.34, bevelEnabled: true, bevelThickness: 0.07, bevelSize: 0.06, bevelSegments: 3, curveSegments: 16 }).rotateX(-Math.PI / 2), plast); grip.position.set(-0.1, 0.04, 0.55); grip.rotation.y = Math.PI; g.add(grip);
-    const button = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.08, 20), new THREE.MeshStandardMaterial({ color: 0xe0402e, roughness: 0.4 })); button.position.set(-0.05, 0.47, 2.6); g.add(button);
-    /* the ripcord: a toothed strip out of the side, its winged handle on the end */
-    const cordM = new THREE.MeshStandardMaterial({ map: cordTex, color: base.clone().lerp(new THREE.Color(0xffffff), 0.15), roughness: 0.5 }), cord = new THREE.Mesh(new THREE.BoxGeometry(1, 0.05, 0.16), cordM); cord.geometry.translate(0.5, 0, 0); cord.position.set(0.85, 0.24, -0.1); g.add(cord);
-    const hs = new THREE.Shape(); hs.moveTo(0, -0.08); hs.lineTo(0.35, -0.1); hs.lineTo(0.55, -0.45); hs.lineTo(0.68, -0.4); hs.lineTo(0.55, -0.1); hs.lineTo(0.8, -0.06); hs.lineTo(0.95, -0.22); hs.lineTo(1.0, 0); hs.lineTo(0.95, 0.22); hs.lineTo(0.8, 0.06); hs.lineTo(0.55, 0.1); hs.lineTo(0.68, 0.4); hs.lineTo(0.55, 0.45); hs.lineTo(0.35, 0.1); hs.lineTo(0, 0.08);
-    const handle = new THREE.Mesh(new THREE.ExtrudeGeometry(hs, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 2 }).rotateX(-Math.PI / 2), plast); g.add(handle);
-    const L = { g, setCord(len) { const l = Math.max(0.18, len); cord.scale.x = l; cordM.map.repeat.set(l * 3, 1); handle.position.set(0.85 + l, 0.2, -0.1); }, dispose() { g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material !== cordM) o.material.dispose(); }); cordM.map.dispose(); cordM.dispose(); g.removeFromParent(); } };
-    cordM.map = cordTex.clone(); cordM.map.needsUpdate = true; L.setCord(0.18); return L; }
+  function makeLauncher(col) { return BL.makeLauncher(col, ENV); }   /* the ripper, modelled in bladelauncher.js */
   /* the table's Blades button is the ripper you launch with in the game (Sam): the old toy launcher is swapped out for it */
   { btn.children.slice().forEach(c => { btn.remove(c); c.traverse(o => { if (o.geometry) o.geometry.dispose(); }); });
-    const L = makeLauncher(0x2a4fc0); L.g.scale.setScalar(0.42); L.g.position.set(-0.15, 0.06, -0.55); btn.add(L.g);
+    const L = makeLauncher(0x23409a); L.g.scale.setScalar(0.4); L.g.position.set(-0.15, 0.02, -0.75); btn.add(L.g);
     const sh = S.shadow(1.0, 1.7); sh.position.set(-0.12, 0.004, 0.05); btn.add(sh);
     btn.userData.L = L; btn.userData.top = null; btn.userData.cap = null; btn.rotation.y = 0.35; }
   const aim = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false, toneMapped: false })); aim.geometry.translate(0, 0.5, 0); aim.rotation.x = -Math.PI / 2; aim.visible = false; stadium.add(aim);

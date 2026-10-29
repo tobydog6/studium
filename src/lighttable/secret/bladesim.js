@@ -8,9 +8,9 @@
 
 export const BOWL = { R: 3.8, depth: 0.75 };
 export const TIPS = {
-  sharp: { name: 'Sharp', drive: 0.15, damp: 1.5, decay: 1.8, hit: 0.85, desc: 'Holds the centre and spins for ages' },
-  ball:  { name: 'Ball',  drive: 0.7,  damp: 0.8, decay: 2.7,  hit: 1.0,  desc: 'A bit of both' },
-  flat:  { name: 'Flat',  drive: 1.5,  damp: 0.7, decay: 2.1,  hit: 1.7, desc: 'Races round the bowl and hits hard' },
+  sharp: { name: 'Sharp', drive: 0.15, damp: 1.5, decay: 2.25, hit: 0.85, hold: 1.35, desc: 'Holds the centre and spins for ages' },
+  ball:  { name: 'Ball',  drive: 0.7,  damp: 0.8, decay: 3.35, hit: 1.0,  hold: 1.0, desc: 'A bit of both' },
+  flat:  { name: 'Flat',  drive: 1.5,  damp: 0.7, decay: 2.6,  hit: 1.7,  hold: 0.85, desc: 'Races round the bowl and hits hard' },
 };
 export const RANKS = { common: 1, uncommon: 2, rare: 3, epic: 4, legendary: 5, mythic: 6 };
 const TIP_OF = { matte: 'sharp', etch: 'sharp', foil: 'flat', glitter: 'flat', gold: 'ball', prism: 'ball' };
@@ -22,10 +22,10 @@ export const SPECIALS = {
 };
 export const POINTS = { burst: 2, out: 2, spin: 1, time: 1 };
 export const WIN_AT = 3;
-export const ROUND_S = 50;
+export const ROUND_S = 35;
 const W_REF = 70;     /* a full-power launch spins at about this */
-const OUT_V = 1.8;    /* hitting the rim faster than this, soon after a hit, goes over it */
-const OUT_K = 0.8;   /* a hit that throws a blade outward this hard, scaled by how near the rim it is, knocks it clean out */
+const OUT_V = 2.8;    /* hitting the rim faster than this, soon after a hit, goes over it */
+const OUT_K = 1.4;   /* a hit that throws a blade outward this hard, scaled by how near the rim it is, knocks it clean out */
 
 export function statsOf(parts) {
   const [a, b, c] = parts, rk = s => RANKS[s.tier] || 1, gr = s => s.graded ? s.grade : 6, sub = (s, i) => s.graded && s.subs ? s.subs[i] : 6;
@@ -44,7 +44,7 @@ export function statsOf(parts) {
     guard: (0.7 + (gr(a) + gr(b) + gr(c)) / 30 * 0.6 + (rk(a) + rk(b) + rk(c)) * 0.03) * k,
     special: rk(best) >= 3 ? Object.keys(SPECIALS).find(id => SPECIALS[id].tier === best.tier) || null : null,
     dir: vars.includes('negative') ? -1 : 1, erratic: vars.includes('misprint'), clear: vars.includes('clear'), stamped: vars.includes('stamped'),
-    set, radius: 0.5 + rk(a) * 0.025,
+    set, radius: 0.68 + rk(a) * 0.03,
   };
 }
 
@@ -94,6 +94,7 @@ export function step(W, dt, ev) {
     t.w -= sg * (T.decay + 0.06 * sp) / t.st.stamina * dt; t.ang += t.w * dt;
     t.slamT = Math.max(0, t.slamT - dt); t.guardT = Math.max(0, t.guardT - dt); t.hitT = Math.max(0, t.hitT - dt);
     t.charge = Math.min(1, t.charge + dt * 0.05);
+    if (!Number.isFinite(t.p.x + t.p.y + t.v.x + t.v.y + t.w)) { t.p = { x: 0, y: 0 }; t.v = { x: 0, y: 0 }; t.w = 0; }   /* never let a bad number leave a blade lost and the round unending */
     if (Math.abs(t.w) < W.wRef * 0.07 || Math.sign(t.w) !== sg) { t.alive = false; t.done = 'spin'; ev.push({ type: 'down', top: t }); continue; }
     /* the rim: a soft hit bounces back, a hard one goes over */
     r = Math.hypot(t.p.x, t.p.y) || 1e-6; const rad = t.st.radius;
@@ -127,7 +128,7 @@ function collide(a, b, W, ev) {
   if (!same) { /* opposite spins: the stronger one steals some of what the other loses */
     if (Math.abs(a.w) * A >= Math.abs(b.w) * B) { a.w += Math.sign(a.w) * lb * 0.4; } else { b.w += Math.sign(b.w) * la * 0.4; } }
   keep(a, la); keep(b, lb);
-  const crack = (t, atk, s) => { if (t.guardT > 0) return; t.burst += k * atk * 0.05 / t.st.guard * (2 - s);
+  const crack = (t, atk, s) => { if (t.guardT > 0) return; t.burst += k * atk * 0.05 / (t.st.guard * TIPS[t.st.tip].hold) * (2 - s);
     if (t.burst >= 1) { if (t.shield) { t.shield = false; t.burst = 0.45; ev.push({ type: 'shield', top: t }); } else { t.alive = false; t.done = 'burst'; ev.push({ type: 'burst', top: t }); } } };
   crack(a, B, sa); crack(b, A, sb);
   if (a.alive) thrown(a, -nx, -ny, J * ia); if (b.alive) thrown(b, nx, ny, J * ib);

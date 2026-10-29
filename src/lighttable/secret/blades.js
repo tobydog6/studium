@@ -85,10 +85,10 @@ export function install(S) {
     const sh = new THREE.Shape(pts); const hole = new THREE.Path(); hole.absarc(0, 0, 0.4, 0, Math.PI * 2, true); sh.holes.push(hole); return sh; }
   /* the photo laid flat across the part: u, v from x and the shape's y (−z once it lies down) */
   function planarUV(geo) { const p = geo.attributes.position, uv = geo.attributes.uv; for (let i = 0; i < p.count; i++) uv.setXY(i, p.getX(i) * 0.5 + 0.5, -p.getZ(i) * 0.5 + 0.5); uv.needsUpdate = true; return geo; }
-  function makeBlade(parts, st) {
+  function makeBlade(parts, st, who) {
     const [a, b, c] = parts, root = new THREE.Group(), tilt = new THREE.Group(), spin = new THREE.Group(), gRing = new THREE.Group(), gDisc = new THREE.Group(), gTip = new THREE.Group();
     root.add(tilt); tilt.add(spin); spin.add(gTip, gDisc, gRing); root.scale.setScalar(st.radius); const mats = [], geos = [], fins = [], myTex = texs = [];
-    const keep = m => { if (m.geometry) geos.push(m.geometry); if (m.material) mats.push(m.material); return m; };
+    const keep = m => { if (m.geometry) geos.push(m.geometry); if (m.material) [].concat(m.material).forEach(x => mats.push(x)); return m; };
     /* a slab's finish shader laid over one part (the ring's top, the disc's edge, the cap), so every part wears its finish */
     const finishOver = (slab, tex, geo, parent, y, sy) => { const fid = SL.finishOf(slab, S.testFinish ? S.testFinish() : null), def = SM.finishDef(fid);
       try { const fm = def && def.make ? def.make({ THREE, slab, obj: null, w: 2, h: 2, photoTex: tex, tier: SL.tierOf(slab), renderer: S.renderer, envMap: ENV, finish: fid }) : null;
@@ -103,7 +103,7 @@ export function install(S) {
     /* weight disc: metal by its finish, its photo wrapped round the edge */
     const [mc, mm, mr] = METAL[SL.finishOf(b)] || METAL.matte;
     const dtex = photoTex(b), discM = keep(new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.92, 0.2, 64), [new THREE.MeshStandardMaterial({ map: dtex, roughness: 0.3, metalness: 0.3, envMap: ENV, envMapIntensity: 0.5 }), new THREE.MeshStandardMaterial({ color: mc, roughness: mr, metalness: mm, envMap: ENV }), new THREE.MeshStandardMaterial({ color: mc, roughness: mr, metalness: mm, envMap: ENV })]));
-    discM.material.forEach(m => mats.push(m)); discM.position.y = 0.52; gDisc.add(discM); finishOver(b, dtex, new THREE.CylinderGeometry(0.925, 0.925, 0.2, 64, 1, true), gDisc, 0.52);
+    discM.position.y = 0.52; gDisc.add(discM); finishOver(b, dtex, new THREE.CylinderGeometry(0.925, 0.925, 0.2, 64, 1, true), gDisc, 0.52);
     /* attack ring: the photo cut to the ring's shape, its finish over the top, an edge of tier light */
     const shape = ringShape(a, st.dir), clear = a.variant === 'clear';
     const rg = planarUV(new THREE.ExtrudeGeometry(shape, { depth: 0.14, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.02, bevelSegments: 2, curveSegments: 6 }).rotateX(-Math.PI / 2));
@@ -112,9 +112,11 @@ export function install(S) {
     const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(shape.getPoints(6).map(p => new THREE.Vector3(p.x, 0, -p.y))), new THREE.LineBasicMaterial({ color: tierCol(a), toneMapped: false, transparent: true, opacity: 0.9 })); edge.position.y = 0.62 + 0.14 + 0.035; gRing.add(edge); keep(edge);
     /* the blur of a fast spin, and a soft shadow under it */
     const halo = keep(new THREE.Mesh(new THREE.CircleGeometry(1.04, 48), new THREE.MeshBasicMaterial({ map: dot, color: tierCol(a), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }))); halo.rotation.x = -Math.PI / 2; halo.position.y = 0.82; tilt.add(halo);
-    const shadow = S.shadow(2.4, 2.4); shadow.position.y = 0.02; tilt.add(shadow); keep(shadow);
-    const bl = { root, tilt, spin, parts: [gRing, gDisc, gTip], halo, fins, st, slabs: parts, drop: 0, dead: null, deadT: 0, vy: 0, fly: null, tiltN: new THREE.Quaternion(), whirr: null,
-      dispose() { if (bl.whirr) bl.whirr.stop(); root.removeFromParent(); bl.parts.forEach(p => p.removeFromParent()); geos.forEach(g => g.dispose()); mats.forEach(m => m.dispose()); myTex.forEach(t => t.dispose()); } };
+    const shadow = S.shadow(2.4, 2.4); shadow.position.y = 0.02; tilt.add(shadow); keep(shadow); const bl0 = {};
+    /* whose it is: a ring of light on the bowl under it, gold for you and red for your rival */
+    if (who) { const mk = keep(new THREE.Mesh(new THREE.RingGeometry(1.14, 1.3, 64), new THREE.MeshBasicMaterial({ color: who === 'me' ? 0xe3ad57 : 0xe4552e, transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }))); mk.rotation.x = -Math.PI / 2; mk.position.y = 0.05; root.add(mk); bl0.marker = mk; }
+    const bl = { root, tilt, spin, parts: [gRing, gDisc, gTip], halo, fins, st, slabs: parts, who, marker: bl0.marker || null, vang: 0, drop: 0, dead: null, deadT: 0, vy: 0, fly: null, tiltN: new THREE.Quaternion(), whirr: null,
+      dispose() { if (bl.whirr) bl.whirr.stop(); root.removeFromParent(); bl.parts.forEach(p => p.removeFromParent()); new Set([...geos, ...mats, ...myTex]).forEach(x => { try { x.dispose(); } catch (e) {} }); } };
     texs = null;
     stadium.add(root); return bl;
   }
@@ -135,7 +137,8 @@ export function install(S) {
     nrm.set(-2 * DEP * t.p.x / (R * R), 1, -2 * DEP * t.p.y / (R * R)).normalize(); bl.tiltN.setFromUnitVectors(up, nrm);
     if (t.wob) { const ph = T.time() * 9; wAxis.set(Math.cos(ph), 0, Math.sin(ph)); wq.setFromAxisAngle(wAxis, t.wob * 0.4); bl.tiltN.multiply(wq); }
     bl.tilt.quaternion.slerp(bl.tiltN, 1 - Math.exp(-dt * 20));
-    bl.spin.rotation.y = -t.ang; bl.halo.material.opacity = 0.35 * s * s;
+    /* drawn turning at a readable rate (the real 10 turns a second strobes), with a faint blur on top */
+    bl.vang += Math.sign(t.w) * Math.min(Math.abs(t.w), 9) * dt; bl.spin.rotation.y = -bl.vang; bl.halo.material.opacity = 0.12 * s * s;
     const a = t.ang * 0.08 + T.time() * 0.6; bl.fins.forEach(f => { try { f.def.update(f.m, { tilt: new THREE.Vector2(Math.cos(a) * 0.7, Math.sin(a) * 0.7), pointer: new THREE.Vector2(0.5, 0.5), dt, time: T.time() }); } catch (e) {} });
     if (bl.whirr) bl.whirr.set(t.alive ? s : 0, t.p.x / R);
   }
@@ -178,7 +181,7 @@ export function install(S) {
     h += '<div class="bl-pick"><span class="bl-sh">YOUR SLABS · ' + list.length + '</span>';
     if (list.length < 3) h += '<p class="bl-few">You need three slabs to build a blade. Open a pack with the big red button, or borrow a practice set for now.</p><button type="button" class="btn" data-a="borrow">Borrow a practice set</button>';
     h += '<div class="bl-grid">' + list.map(s => { const at = B.slots.indexOf(s); return '<button type="button" class="bl-s' + (at >= 0 ? ' used' : '') + '" data-id="' + s.id + '" style="--tc:' + tierCol(s) + '" title="' + esc(s.title) + '"><img data-th="' + s.id + '" alt=""><span>' + SL.tierOf(s).name + '<br>' + gradeTag(s) + '</span>' + (at >= 0 ? '<em>' + (at + 1) + '</em>' : '') + '</button>'; }).join('') + '</div></div>';
-    h += '<div class="bl-acts"><button type="button" class="btn" data-a="close">Close</button><button type="button" class="btn" data-a="random"' + (list.length < 3 ? ' disabled' : '') + '>Random</button><button type="button" class="btn primary" data-a="fight"' + (full ? '' : ' disabled') + '>Fight</button></div>';
+    h += '<div class="bl-acts"><button type="button" class="btn" data-a="close">Close</button><button type="button" class="btn" data-a="random"' + (list.length < 3 ? ' disabled' : '') + '>Random</button><button type="button" class="btn" data-a="look"' + (full ? '' : ' disabled') + '>Look closer</button><button type="button" class="btn primary" data-a="fight"' + (full ? '' : ' disabled') + '>Fight</button></div>';
     card.innerHTML = h;
     card.querySelectorAll('img[data-th]').forEach(img => { const s = byId(img.dataset.th) || B.slots.find(x => x && x.id === img.dataset.th); if (s) thumb(s).then(u => { if (u) img.src = u; }); });
   }
@@ -194,19 +197,19 @@ export function install(S) {
 
   /* the rival: three rolled slabs near your blade's strength, borrowed for the match */
   function rollRival() { const d = store.get(), n = d.certN, avg = B.slots.reduce((a, s) => a + rank(s), 0) / 3, top = Math.max(...B.slots.map(rank)), ids = Object.keys(BS.RANKS);
-    const parts = [0, 1, 2].map(() => { const rk = Math.max(1, Math.min(6, Math.min(top + 1, Math.round(avg + (Math.random() * 2 - 1))))); return SL.roll({ graded: true, tier: ids[rk - 1], variant: Math.random() < 0.1 ? undefined : null }); });
+    const parts = [0, 1, 2].map(() => { const rk = Math.max(1, Math.min(6, Math.min(top + 1, Math.round(avg - 0.4 + (Math.random() * 2 - 1))))); return SL.roll({ graded: true, tier: ids[rk - 1], variant: Math.random() < 0.1 ? undefined : null }); });
     d.certN = n; return parts; }
   function hudHtml() { const me = B.W.tops[0], rv = B.W.tops[1], row = (t, who, cls) => { const s = Math.min(1, Math.abs(t.w) / B.W.wRef), sp = t.st.special;
       return '<div class="bl-side ' + cls + '"><div class="bl-who">' + who + '<span class="bl-pips">' + [0, 1, 2].map(i => '<i' + (i < B.score[cls === 'me' ? 0 : 1] ? ' class="on"' : '') + '></i>').join('') + '</span></div>'
         + '<div class="bl-meter"><span>Spin</span><i><em style="width:' + Math.round(s * 100) + '%"></em></i></div><div class="bl-meter burst"><span>Cracks</span><i><em style="width:' + Math.round(Math.min(1, t.burst) * 100) + '%"></em></i></div>'
         + (sp ? '<div class="bl-meter sp' + (t.charge >= 1 ? ' full' : '') + '"><span>' + BS.SPECIALS[sp].name + (cls === 'me' && t.charge >= 1 ? ' · Space' : '') + '</span><i><em style="width:' + Math.round(t.charge * 100) + '%"></em></i></div>' : '') + '</div>'; };
-    return row(me, 'You', 'me') + row(rv, 'Rival', 'rv'); }
+    return row(me, 'You', 'me') + '<div class="bl-clock">' + Math.max(0, Math.ceil(BS.ROUND_S - B.W.t)) + '</div>' + row(rv, 'Rival', 'rv'); }
   let hudT = 0;
   function hudFrame(dt, force) { hudT -= dt; if (!force && hudT > 0) return; hudT = 0.1; if (B.W) hud.innerHTML = hudHtml(); }
 
   /* ---------- the round ---------- */
   function newRound() { clearBlades(); const st = BS.statsOf(B.slots), rs = BS.statsOf(B.rivalParts);
-    B.me = makeBlade(B.slots, st); B.rival = makeBlade(B.rivalParts, rs);
+    B.me = makeBlade(B.slots, st, 'me'); B.rival = makeBlade(B.rivalParts, rs, 'rival');
     const a = BS.makeTop(st, 1), b = BS.makeTop(rs, -1); B.W = BS.world(a, b); B.acc = 0;
     a.p = { x: 0, y: R * 0.62 }; b.p = { x: 0, y: -R * 0.62 }; a.w = st.dir * 6; b.w = rs.dir * 6;
     B.me.drop = B.rival.drop = 1.1; B.rivalPlan = BS.aiLaunch(); }
@@ -244,7 +247,7 @@ export function install(S) {
       if (r < R && r > R - 0.2 && g.position.y < DEP + 0.4) { d.vx *= -0.5; d.vz *= -0.5; }
       if (g.position.y < floor) { g.position.y = floor; d.vy = Math.abs(d.vy) * 0.35; d.vx *= 0.6; d.vz *= 0.6; d.wx *= 0.5; d.wz *= 0.5; d.wy *= 0.7; }
       if (d.t > 2.6) g.scale.multiplyScalar(Math.max(0, 1 - dt * 3)); }); }
-  function deadFrame(bl, t, dt) { if (!bl.dead) return; bl.deadT += dt;
+  function deadFrame(bl, t, dt) { if (!bl.dead) return; bl.deadT += dt; if (bl.marker) bl.marker.material.opacity = Math.max(0, 0.9 - bl.deadT * 1.5);
     if (bl.dead === 'spin') { t.w *= Math.exp(-dt * 2.5); t.ang += t.w * dt; t.v.x *= Math.exp(-dt * 3); t.v.y *= Math.exp(-dt * 3); t.p.x += t.v.x * dt; t.p.y += t.v.y * dt; t.wob = 0;
       const k = Math.min(1, bl.deadT / 0.7); pose(bl, t, dt); wAxis.set(t.p.y, 0, -t.p.x).normalize(); if (!wAxis.lengthSq()) wAxis.set(1, 0, 0); wq.setFromAxisAngle(wAxis.lengthSq() ? wAxis : up, 1.15 * E.outBounce(k)); bl.tilt.quaternion.copy(bl.tiltN).multiply(wq); }
     else if (bl.dead === 'out' && bl.fly) { const f = bl.fly; f.vy -= 14 * dt; f.x += f.vx * dt; f.z += f.vz * dt; f.y += f.vy * dt; const r = Math.hypot(f.x, f.z), floor = r > R + 0.45 ? -LIFT : r > R ? DEP + 0.47 : hB(r);
@@ -252,12 +255,18 @@ export function install(S) {
 
   /* ---------- the machine ---------- */
   const FRAME = () => ({ tx: CX, ty: LIFT, tz: CZ + 0.8, pitch: 55, dT: ctx.fitDist(11, 11.5, 55) });
+  /* ease the camera towards a framing (dt) or set it for the room's own smoothing to take there (no dt) */
+  function camTo(tx, tz, size, dt) { const c = ctx.cam, d = ctx.fitDist(size, size, 55); if (dt) { c.tx = T.damp(c.tx, tx, 2.5, dt); c.tz = T.damp(c.tz, tz, 2.5, dt); c.dT = T.damp(c.dT, d, 2.5, dt); } else { c.tx = tx; c.tz = tz; c.dT = d; } }
+  /* You and Rival tags over the blades while they're in the bowl */
+  function battleTags() { const on = (M.is('blades.ready') || M.is('blades.battle') || M.is('blades.round')) && B.me && B.rival;
+    tags.classList.toggle('on', !!on); if (!on) return; if (!tags.querySelector('.who')) tags.innerHTML = '<div class="bl-tag who me">You</div><div class="bl-tag who rv">Rival</div>';
+    [B.me, B.rival].forEach((bl, i) => { const el = tags.children[i]; if (!el) return; const gone = bl.dead === 'burst' || (bl.dead === 'out' && bl.deadT > 1); const p = toScreen(bl.root, 1.25); el.style.opacity = gone || !p.on ? 0 : 1; el.style.transform = 'translate(' + Math.round(p.x - el.offsetWidth / 2) + 'px,' + Math.round(p.y - el.offsetHeight) + 'px)'; }); }
   M.define('blades', {
     on: { CLOSE: () => 'blades.closing' },
     key(e, M) { if (e.key === 'Escape') M.send('CLOSE'); return true; },
     pointer(kind, e) { if (kind === 'wheel') { ctx.cam.dT = T.clamp(ctx.cam.dT * Math.exp(e.deltaY * 0.0012), 8, 40); } return true; },
-    frame(dt) { dt = Math.min(dt, 0.05); sparkFrame(dt); debrisFrame(dt);
-      if (B.preview && M.is('blades.build')) { B.preview.ang += dt * 9; B.preview.spin.rotation.y = -B.preview.ang; B.preview.fins.forEach(f => { try { f.def.update(f.m, { tilt: new THREE.Vector2(Math.cos(B.preview.ang * 0.1) * 0.7, Math.sin(B.preview.ang * 0.1) * 0.7), pointer: new THREE.Vector2(0.5, 0.5), dt, time: T.time() }); } catch (e) {} }); } },
+    frame(dt) { dt = Math.min(dt, 0.05); sparkFrame(dt); debrisFrame(dt); if (!M.is('blades.build.inspect')) battleTags();
+      if (B.preview && M.is('blades.build') && !M.is('blades.build.inspect')) { B.preview.ang += dt * 9; B.preview.spin.rotation.y = -B.preview.ang; B.preview.fins.forEach(f => { try { f.def.update(f.m, { tilt: new THREE.Vector2(Math.cos(B.preview.ang * 0.1) * 0.7, Math.sin(B.preview.ang * 0.1) * 0.7), pointer: new THREE.Vector2(0.5, 0.5), dt, time: T.time() }); } catch (e) {} }); } },
   });
   M.define('blades.open', { busy: true, on: { CLOSE: () => undefined },
     async enter(d, run) {
@@ -271,15 +280,43 @@ export function install(S) {
     },
   });
   M.define('blades.build', {
-    enter() { hud.classList.remove('on'); hideBar(); hideBanner(); clearBlades(); B.slots = B.slots.map(s => s && byId(s.id) ? s : null); if (!B.slots.every(Boolean)) { const n = B.slots.findIndex(x => !x); B.active = n >= 0 ? n : 0; } renderCard(); card.classList.add('on'); buildPreview(); },
-    exit() { card.classList.remove('on'); if (B.preview) { B.preview.dispose(); B.preview = null; } },
+    enter(d) { if (M.prev === 'blades.build.inspect') { renderCard(); card.classList.add('on'); return; } hud.classList.remove('on'); hideBar(); hideBanner(); tip.classList.remove('on'); clearBlades(); camTo(CX, CZ + 0.8, 11); B.slots = B.slots.map(s => s && byId(s.id) ? s : null); if (!B.slots.every(Boolean)) { const n = B.slots.findIndex(x => !x); B.active = n >= 0 ? n : 0; } renderCard(); card.classList.add('on'); buildPreview(); },
+    exit(next) { card.classList.remove('on'); if (!/^blades\.build/.test(next || '')) dropPreview(); },
   });
+  function dropPreview() { if (B.preview) { B.preview.dispose(); B.preview = null; } }
+  /* ---------- look closer: your blade lifted up to the camera, drag to turn it, take it apart to see each slab ---------- */
+  const tags = S.el('div', 'bl-tags', ''); tags.id = 'skBlTags'; document.body.appendChild(tags);
+  const tip = S.el('div', 'bl-tip', ''); tip.id = 'skBlTip'; document.body.appendChild(tip);
+  const PART_GIVES = [null, st => 'Weight ' + st.mass.toFixed(2) + ' · stamina ' + st.stamina.toFixed(2), st => BS.TIPS[st.tip].name + ' tip · ' + BS.TIPS[st.tip].desc.toLowerCase()];
+  const v3 = new THREE.Vector3();
+  function toScreen(obj, dy) { obj.updateMatrixWorld(true); obj.getWorldPosition(v3); v3.y += dy || 0; v3.project(S.camera); const r = ctx.canvas.getBoundingClientRect(); return { x: r.left + (v3.x + 1) / 2 * r.width, y: r.top + (1 - v3.y) / 2 * r.height, on: v3.z < 1 }; }
+  function inspectTags() { const P = B.preview; if (!P) return; const st = BS.statsOf(B.slots);
+    tags.innerHTML = P.parts.map((g, i) => { const s2 = B.slots[i], t = SL.tierOf(s2); return '<div class="bl-tag part" data-i="' + i + '" style="--tc:' + t.color + '"><b>' + PART[i] + '</b><span>' + esc(s2.title || '') + '</span><span>' + t.name + ' · ' + gradeTag(s2) + (s2.variant ? ' · ' + SL.VARIANT[s2.variant].name : '') + '</span><em>' + esc(i === 0 ? PART_SAYS[0] : PART_GIVES[i](st)) + '</em></div>'; }).join(''); }
+  M.define('blades.build.inspect', {
+    enter() { const P = B.preview; if (!P) { M.go('blades.build'); return; } B.look = { yaw: 0, pitch: 0.35, apart: false, k: 0, drag: null, r: P.st.radius };
+      S.cam.push({ tx: CX, ty: LIFT + 2.0 + 1.1, tz: CZ, pitch: 14, dT: ctx.fitDist(6, 6, 14) }); ctx.canvas.style.cursor = 'grab';
+      T.to(P.root.position, { y: 2.0 }, { dur: 0.6, ease: E.outCubic, tag: 'blades' }); T.tween({ dur: 0.6, ease: E.outCubic, tag: 'blades', update: e => P.root.scale.setScalar(B.look.r * (1 + 1.3 * e)) });
+      inspectTags(); tags.classList.add('on'); lookBar(); S.sfx('ltInspect'); },
+    exit(next) { const P = B.preview; tags.classList.remove('on'); hideBar(); S.cam.pop(); ctx.canvas.style.cursor = 'default';
+      if (P) { P.root.position.y = 0.6; P.root.scale.setScalar(B.look.r); P.tilt.rotation.set(0, 0, 0); P.parts.forEach(g => { g.position.y = 0; }); }
+      if (!/^blades\.build/.test(next || '')) dropPreview(); },
+    pointer(kind, e) { const L = B.look;
+      if (kind === 'down' && e.button === 0) { L.drag = { x: e.clientX, y: e.clientY }; ctx.canvas.style.cursor = 'grabbing'; return true; }
+      if (kind === 'move' && L.drag) { L.yaw += (e.clientX - L.drag.x) * 0.012; L.pitch = T.clamp(L.pitch + (e.clientY - L.drag.y) * 0.008, -0.5, 1.3); L.drag = { x: e.clientX, y: e.clientY }; return true; }
+      if (kind === 'up') { L.drag = null; ctx.canvas.style.cursor = 'grab'; return true; }
+      return kind !== 'wheel'; },
+    frame(dt) { const P = B.preview, L = B.look; if (!P) return; if (!L.drag) L.yaw += dt * 0.5; P.spin.rotation.y = -L.yaw; P.tilt.rotation.x = T.damp(P.tilt.rotation.x, L.pitch, 10, dt);
+      L.k = T.damp(L.k, L.apart ? 1 : 0, 6, dt); P.parts[0].position.y = 1.0 * L.k; P.parts[1].position.y = 0.45 * L.k; P.parts[2].position.y = -0.35 * L.k;
+      const el = tags.children; for (let i = 0; i < el.length; i++) { const p = toScreen(P.parts[i], 0.62 * P.root.scale.x * [0.75, 0.55, 0.3][i]), side = [1, -1, 1][i];
+        el[i].style.transform = 'translate(' + Math.round(p.x + side * (60 + 30 * L.k) - (side < 0 ? el[i].offsetWidth : 0)) + 'px,' + Math.round(p.y - el[i].offsetHeight / 2 + (i - 1) * 46 * (1 - L.k)) + 'px)'; el[i].style.opacity = L.k > 0.5 || i === 0 ? 1 : 0.35 + 0.65 * L.k; } },
+  });
+  function lookBar() { showBar([['back', 'Back'], ['apart', B.look && B.look.apart ? 'Put it together' : 'Take it apart'], ['fight', 'Fight', true]]); }
   M.define('blades.ready', {
-    enter() { hideBar(); newRound(); ctx.canvas.style.cursor = 'grab'; hud.classList.add('on'); hudFrame(0, true); const rs = B.rivalParts[0]; banner(B.score[0] + B.score[1] ? 'Round ' + (B.roundN = (B.roundN || 1) + 1) : 'Pull back and let go', 'Your rival: ' + esc((rs.photo && rs.photo.pack || 'Sample pack').replace(/\s*·.*$/, '')) + ' ring, ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip', 0); rimTo(tierCol(B.slots[0])); },
+    enter() { hideBar(); newRound(); ctx.canvas.style.cursor = 'grab'; camTo(CX, CZ + 1.3, 8.5); tip.innerHTML = 'Drag down to pull back, left or right to aim. Let go to rip.'; tip.classList.add('on'); hud.classList.add('on'); hudFrame(0, true); const rs = B.rivalParts[0]; banner(B.score[0] + B.score[1] ? 'Round ' + (B.roundN = (B.roundN || 1) + 1) : 'Pull back and let go', 'Your rival: ' + esc((rs.photo && rs.photo.pack || 'Sample pack').replace(/\s*·.*$/, '')) + ' ring, ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip', 0); rimTo(tierCol(B.slots[0])); },
     pointer(kind, e) {
       if (kind === 'down' && e.button === 0) { B.drag = { x: e.clientX, y: e.clientY, power: 0, aim: 0 }; ctx.canvas.style.cursor = 'grabbing'; snd('servo'); return true; }
       if (kind === 'move' && B.drag) { const D = B.drag; D.power = T.clamp((e.clientY - D.y) / 220, 0, 1); D.aim = T.clamp(-(e.clientX - D.x) / 260, -0.7, 0.7); return true; }
-      if (kind === 'up' && B.drag) { const D = B.drag; B.drag = null; ctx.canvas.style.cursor = 'grab'; if (D.power < 0.12) { banner('Pull back further', 'Drag down, then let go', 1400); return true; } hideBanner(); doLaunch(D.power, D.aim); return true; }
+      if (kind === 'up' && B.drag) { const D = B.drag; B.drag = null; ctx.canvas.style.cursor = 'grab'; if (D.power < 0.12) { banner('Pull back further', 'Drag down, then let go', 1400); return true; } hideBanner(); tip.classList.remove('on'); doLaunch(D.power, D.aim); return true; }
       return kind !== 'wheel' ? true : false; },
     frame(dt) { if (!B.W) return; const [a, b] = B.W.tops, D = B.drag;
       a.ang += a.w * dt; b.ang += b.w * dt; pose(B.me, a, dt); pose(B.rival, b, dt);
@@ -295,24 +332,26 @@ export function install(S) {
       B.acc += dt; const ev = []; while (B.acc >= 1 / 120) { B.acc -= 1 / 120; BS.step(W, 1 / 120, ev); if (BS.aiThink(W, b, 1 / 120)) BS.special(W, b, ev); }
       fx(ev);
       if (a.alive) pose(B.me, a, dt); else deadFrame(B.me, a, dt); if (b.alive) pose(B.rival, b, dt); else deadFrame(B.rival, b, dt);
+      /* the camera leans towards the action, never far from the middle of the bowl */
+      const mx = (a.p.x + b.p.x) / 2, mz = (a.p.y + b.p.y) / 2; camTo(CX + mx * 0.35, CZ + 0.9 + mz * 0.35, 9.5, dt);
       hudFrame(dt); const o = BS.outcome(W); if (o) M.go('blades.round', o); },
   });
   M.define('blades.round', { busy: true,
     /* the winner keeps spinning and the loser finishes falling, for a beat */
     frame(dt) { dt = Math.min(dt, 0.05); const [a, b] = B.W.tops; [[a, B.me], [b, B.rival]].forEach(([t, bl]) => { if (!bl) return; if (t.alive) { t.ang += t.w * dt; t.w *= Math.exp(-dt * 0.3); pose(bl, t, dt); } else deadFrame(bl, t, dt); }); },
-    async enter(o, run) { const W = B.W, [a, b] = W.tops, won = o.winner === a; B.score[won ? 0 : 1] += o.pts; hudFrame(0, true);
+    async enter(o, run) { const W = B.W, [a, b] = W.tops, won = o.winner === a; tip.classList.remove('on'); B.score[won ? 0 : 1] += o.pts; hudFrame(0, true);
       if (o.how === 'time') { [a, b].forEach(t => { if (t !== o.winner) { t.alive = false; (t === a ? B.me : B.rival).dead = 'spin'; } }); }
       banner(HOW[o.how] + '!', (won ? 'You' : 'Your rival') + ' +' + o.pts + (o.pts === 1 ? ' point' : ' points'), 0); snd(won ? 'chime' : 'sink', won ? { tier: o.pts > 1 ? 'epic' : 'rare' } : { dur: 0.8 });
       await T.wait(2.4, 'blades'); if (!run.alive()) return; [B.me, B.rival].forEach(bl => { if (bl && bl.whirr) { bl.whirr.stop(); bl.whirr = null; } });
       if (B.score[0] >= BS.WIN_AT || B.score[1] >= BS.WIN_AT) M.go('blades.result'); else M.go('blades.ready'); },
   });
   M.define('blades.result', {
-    enter() { const win = B.score[0] >= BS.WIN_AT; hudFrame(0, true); banner(win ? 'You win the match' : 'Your rival takes it', B.score[0] + ' to ' + B.score[1], 0); snd(win ? 'countFinal' : 'sink'); if (win) snd('chime', { tier: 'legendary' });
+    enter() { const win = B.score[0] >= BS.WIN_AT; hudFrame(0, true); camTo(CX, CZ + 0.8, 11); banner(win ? 'You win the match' : 'Your rival takes it', B.score[0] + ' to ' + B.score[1], 0); snd(win ? 'countFinal' : 'sink'); if (win) snd('chime', { tier: 'legendary' });
       showBar([['done', 'Done'], ['rebuild', 'Change parts'], ['rematch', 'Rematch', true]]); },
     exit() { hideBar(); },
   });
   M.define('blades.closing', { busy: true, on: { CLOSE: () => undefined },
-    async enter(d, run) { card.classList.remove('on'); hud.classList.remove('on'); hideBar(); hideBanner(); B.drag = null; clearBlades(); if (B.preview) { B.preview.dispose(); B.preview = null; }
+    async enter(d, run) { card.classList.remove('on'); hud.classList.remove('on'); tags.classList.remove('on'); tip.classList.remove('on'); hideBar(); hideBanner(); B.drag = null; clearBlades(); if (B.preview) { B.preview.dispose(); B.preview = null; }
       snd('sink', { dur: 1.4 }); T.to(spot, { intensity: 0 }, { dur: 1.2, tag: 'blades' });
       await T.tween({ dur: 0.5, ease: E.inBack, tag: 'blades', update: e => stadium.scale.setScalar(1 - 0.5 * e) });
       await T.to(stadium.position, { y: DOWN }, { dur: 1.2, ease: E.inCubic, tag: 'blades' });
@@ -328,6 +367,9 @@ export function install(S) {
     else if (a === 'fight' && B.slots.every(Boolean)) { S.sfx('detent'); startMatch(); }
     else if (a === 'rematch') startMatch();
     else if (a === 'rebuild') M.go('blades.build');
+    else if (a === 'look' && B.preview) M.go('blades.build.inspect');
+    else if (a === 'back') M.go('blades.build');
+    else if (a === 'apart' && B.look) { B.look.apart = !B.look.apart; S.sfx(B.look.apart ? 'lift' : 'ltPutDown'); lookBar(); }
   }
 
   /* ---------- test hooks and the dev panel ---------- */
@@ -337,6 +379,7 @@ export function install(S) {
     pick(ids) { B.slots = ids.map(id => byId(id)); renderCard(); buildPreview(); },
     borrow() { borrow(); randomPick(); },
     launch(power, ang) { if (M.is('blades.ready')) doLaunch(power ?? 0.8, ang ?? 0); } };
+  S.dev.info(() => { const W = B.W; return /^blades/.test(M.state) ? 'Blades: ' + M.state.replace('blades.', '') + (W ? ' · ' + W.t.toFixed(1) + ' s · ' + W.tops.map(t => (t.alive ? 'spinning ' + Math.abs(t.w).toFixed(0) : t.done)).join(' / ') : '') : ''; });
   S.dev.action('Open blades', () => { if (M.is('under')) M.send('BLADES'); else S.toast('Turn the table over first (Space), then try again.'); }, 'Try');
 }
 
@@ -374,7 +417,7 @@ const BLADES_CSS = `
 .bl-meter{ display:grid; grid-template-columns:64px 1fr; align-items:center; gap:6px; color:var(--faint); margin-top:4px; font-size:10px; }
 .bl-meter.burst em{ background:#e4552e; } .bl-meter.sp em{ background:#8fb3e8; } .bl-meter.sp.full em{ background:#fff; box-shadow:0 0 8px #fff; } .bl-meter.sp.full span{ color:var(--text); }
 .bl-side.rv .bl-meter em{ opacity:.85; }
-#skBlBan{ position:fixed; left:50%; top:38%; transform:translate(-50%,-50%) scale(.9); text-align:center; color:var(--text); opacity:0; pointer-events:none; transition:opacity .25s, transform .35s cubic-bezier(.2,.8,.2,1); z-index:9; text-shadow:0 4px 24px rgba(0,0,0,.8); }
+#skBlBan{ position:fixed; left:50%; top:24%; transform:translate(-50%,-50%) scale(.9); text-align:center; color:var(--text); opacity:0; pointer-events:none; transition:opacity .25s, transform .35s cubic-bezier(.2,.8,.2,1); z-index:9; text-shadow:0 4px 24px rgba(0,0,0,.8); }
 #skBlBan.on{ opacity:1; transform:translate(-50%,-50%) scale(1); }
 #skBlBan b{ display:block; font:700 clamp(28px, 5vw, 54px)/1.05 var(--f-display, var(--f-ui)); letter-spacing:.01em; }
 #skBlBan span{ display:block; margin-top:8px; font:500 12px/1.3 var(--f-mono); letter-spacing:.14em; text-transform:uppercase; color:var(--faint); }
@@ -383,4 +426,13 @@ const BLADES_CSS = `
 #skBlVeil{ position:fixed; inset:0; background:radial-gradient(circle at 50% 55%, rgba(60,0,60,.35), #000 70%); opacity:0; pointer-events:none; z-index:6; }
 #skBlVeil.on{ animation:blVeil 1.6s ease-out; } @keyframes blVeil{ 0%{ opacity:0; } 15%{ opacity:.92; } 55%{ opacity:.8; } 100%{ opacity:0; } }
 @media (prefers-reduced-motion:reduce){ #skBlVeil.on{ animation:none; } }
+#skBlTags{ position:fixed; inset:0; pointer-events:none; z-index:7; opacity:0; transition:opacity .25s; } #skBlTags.on{ opacity:1; }
+.bl-tag{ position:absolute; left:0; top:0; transition:opacity .2s; will-change:transform; }
+.bl-tag.who{ padding:3px 9px; border-radius:999px; font:600 11px/1.2 var(--f-mono); letter-spacing:.12em; text-transform:uppercase; color:#1a1714; background:#e3ad57; box-shadow:0 2px 10px rgba(0,0,0,.5); }
+.bl-tag.who.rv{ background:#e4552e; color:#fff; }
+.bl-tag.part{ width:210px; padding:8px 10px; border-left:3px solid var(--tc); background:var(--panel); border-radius:0 6px 6px 0; color:var(--text); font:400 11px/1.35 var(--f-ui); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+.bl-tag.part b{ display:block; font:600 12px/1.2 var(--f-ui); margin-bottom:2px; } .bl-tag.part span{ display:block; color:var(--faint); } .bl-tag.part em{ display:block; margin-top:3px; font-style:normal; color:var(--text); }
+#skBlTip{ position:fixed; left:50%; bottom:calc(84px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); padding:8px 14px; border-radius:999px; background:var(--panel); border:1px solid var(--line); color:var(--text); font:500 12px/1.2 var(--f-ui); opacity:0; pointer-events:none; transition:opacity .3s; z-index:7; }
+#skBlTip.on{ opacity:1; animation:blTip 2.4s ease-in-out infinite; } @keyframes blTip{ 50%{ border-color:var(--accent); } }
+.bl-clock{ align-self:center; min-width:44px; text-align:center; font:600 20px/1 var(--f-mono); color:var(--text); text-shadow:0 2px 12px rgba(0,0,0,.7); }
 `;

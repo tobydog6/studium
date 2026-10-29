@@ -34,6 +34,8 @@ export function finishDef(id) { return REG[id] || (id === 'matte' ? REG.matte : 
 /* ---------- photographs ---------- */
 const PHOTOS = new Map();
 /* the base canvas for a slab's photo, loaded once (artist pack image, or the painted stand-in) */
+/* borrowed and rival slabs are thrown away after a match: let their photos go too */
+export function forgetPhoto(id) { PHOTOS.delete(id); }
 export function photoCanvas(slab, S) {
   if (PHOTOS.has(slab.id)) return PHOTOS.get(slab.id);
   const painted = () => { const kinds = S.KINDS, k = kinds[slab.seed % kinds.length]; return S.paintPhoto(k, slab.seed, 960, 640); };

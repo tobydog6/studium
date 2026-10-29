@@ -297,7 +297,7 @@ export function installSecret(ctx) {
       M.frame(dt); inspect.frame(dt); if (S.parcel) S.parcel.frame(dt); if (S.under) S.under.frame(dt);
       slabObjs.forEach(o => { if (o.built) o.update(dt); });
     },
-    pause(on) { if (on && inspect.active()) inspect.close('back'); },
+    pause(on) { if (on && inspect.active()) inspect.close('back'); if (S.blades && S.blades.pause) S.blades.pause(on); },
   };
   return api;
 }

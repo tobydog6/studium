@@ -27,6 +27,15 @@ Sam's full brief is the "Studium secret collector layer" spec (unlock with `=` +
 - Sam, after those picks: "i want a playable test build as soon as you can".
 - Sam's loop: a pull comes out raw (no grade), goes away for grading (a real day; dev panel: a minute / instant / Skip the wait), and comes back as a parcel on the table; opening it is the grade reveal (slabs.js: sendForGrading / gradingState / receiveGraded).
 
+## Sam on the round 1 build (vault + binder), in his words
+- "i cant move slabs around at all and i cant get rid of them i also cant turn the binder back into the case"
+- "iwant to be able to open loot boxes now for the next test and i cant get rid of the case also the slabs are massive they
+  need to fit in the case and i need a way to ship them out for grading and have a button to skip the wait"
+- "avoid unnecessary tests where possible"
+Done for it: table slabs drag (a still click inspects), Bin it, S.TABLE_K card size on the table, Send for grading on raw
+prints, the Skip the wait button by the points, the camera fix so closing the binder lowers the case. Round 2 (the pull)
+is split across one agent per file; the contract is docs/secret-round2.md.
+
 ## What the repo looks like
 - Light table = iframe app, `src/lighttable/main.js` (one ES module, esbuild bundles it, so new files under `secret/` can be imported).
 - Table surface: `surfMat` shader plane (W_T 42 × H_T 24). Table body `tableBody` box under it, top at y≈-0.025.

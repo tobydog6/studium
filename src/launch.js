@@ -20,7 +20,7 @@
     window.addEventListener("keydown",function(ev){ if(!LA.on) return; ev.stopImmediatePropagation(); ev.preventDefault(); if(!ev.repeat) laSkip(); },true);
     window.addEventListener("keyup",function(ev){ if(LA.on) ev.stopImmediatePropagation(); },true);
     return e; }
-  function laPhase(p){ if(LA.phase===p) return; LA.phase=p; LA.pt=performance.now(); LA.log=(LA.log||[]).concat([p]); LA.held=false; if(LA.el){ LA.el.className="on p-"+p+(LA.skipAsked?" skip":"")+(LA.el.classList.contains("held")?" held":""); } }
+  function laPhase(p){ if(LA.phase===p) return; if(p!=="dark"&&typeof rfVeilOff==="function") rfVeilOff();   /* the launch page lifts off as the scan arrives */ LA.phase=p; LA.pt=performance.now(); LA.log=(LA.log||[]).concat([p]); LA.held=false; if(LA.el){ LA.el.className="on p-"+p+(LA.skipAsked?" skip":"")+(LA.el.classList.contains("held")?" held":""); } }
   function laHeld(){ if(!LA.hold) return false; if(!LA.held){ LA.held=true; if(LA.pass){ LA.pass=false; return false; } LA.wait=true; } return LA.wait; }   /* tests: ?lahold parks a phase until __la.go() */
   function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.fast=laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.vf=false; LA.af=false; LA.fired=false; LA.racked=false; LA.focused=-1; LA.firedT=0; LA.quick=false; LA.detM=null; LA.scanTried=false; LA.scanHold=false; LA.first=!LA.fast; LA.eye0=WK.eye; LA.warm=false; LA.loadT=null; LA.prepTried=false; LA.stillFov=null; LA.fovA=null; LA.lookT=null; LA.lookE0=0; LA.lookL=0; LA.warmEnd=null; document.body.classList.remove("la-warm"); laWelClose(true); SD.seq=null;
     var e=laEl(); LA.el=e; document.body.classList.add("launching"); laPhase("dark");

@@ -438,6 +438,68 @@
   function coSteps(){ return (CO_TOURS[CO.tour]||{steps:[]}).steps; }
   function coLen(id){ return (CO_TOURS[id]||{steps:[]}).steps.length; }
   var CO_STEPS=CO_TOURS.basics.steps;   // the guide's basics step counts these
+  // ---- the new warm-up (FEEL: tour): look, move, raise, and one guided shot from down low. Then you're free, and the
+  //      bag and the camera back are taught inside the gold frames, the first time a frame needs them ----
+  var CO_OLD=CO_TOURS.basics.steps;
+  function coDragging(){ return FL.drag&&!looking; }
+  var CO_WARM=[
+    {ch:"LOOK", line:function(){ return coDragging()?'<kbd>DRAG</kbd> to look around':'Click, then move the mouse to look around'; },
+      sub:function(){ return "Up, down and all the way round. The sharp thing in front of you is your subject. If you lose it, a gold ring points the way back"+(FL.home?", and "+coK("R")+" takes you straight there.":"."); },
+      start:function(){ CO.s.l0=FLX.look; }, done:function(){ return FLX.look-CO.s.l0>1.4; }, bar:function(){ return (FLX.look-CO.s.l0)/1.4; }},
+    {ch:"MOVE", line:function(){ var d=chSubjectDist(); if(isFinite(d)&&d>4.5) return 'Head for the gold ring: that\'s '+chSubjectName()+', your subject';
+        return FL.drag&&FLX.used!=="keys"?'<kbd>CLICK</kbd> the ground to walk there':coK("W")+coK("A")+coK("S")+coK("D")+' to walk'; },
+      sub:function(){ return FL.drag&&FLX.used!=="keys"?"Click somewhere near the stump. A scan is only sharp near the thing it was made of; the edges always go soft.":"Hold Shift to go faster. A scan is only sharp near the thing it was made of, so stay close."; },
+      start:function(){ CO.s.d0=chSubjectDist(); },
+      done:function(){ var d=chSubjectDist(); return CO.walked>1.0&&(!isFinite(d)||d<4.5||d<CO.s.d0-1); }, bar:function(){ return Math.min(1,CO.walked/1.0); }},
+    {ch:"RAISE", line:function(){ return '<kbd>RIGHT CLICK</kbd> raises the camera to your eye'; },
+      sub:function(){ return FL.drag?"Now the mouse aims the camera. Right click again lowers it, and Esc lets go of the mouse.":"Right click again to lower it. "+coK("P")+" does the same."; },
+      done:function(){ return viewfinderOn; }},
+    {ch:"SHOOT", ghost:true, dwell:600,
+      line:function(){ var f=flGhostFit(); if(!FLX.ghost) return '<kbd>CLICK</kbd> to take a photo';
+        if(!f.near) return 'Walk to the <b>low gold frame</b> <span class="co-rng">'+f.hz.toFixed(1)+' m</span>';
+        if(!f.low) return coK("Q")+' to <b>crouch</b> down to the frame';
+        if(f.ang>=14) return 'Look <b>through</b> the frame at '+chSubjectName().replace(/^The /,"the ");
+        if(!viewfinderOn) return '<kbd>RIGHT CLICK</kbd> to raise the camera';
+        return '<kbd>CLICK</kbd> to take the photo'; },
+      sub:function(){ var f=flGhostFit(); return f.near&&!f.low?"Hold "+coK("Q")+" to go lower, "+coK("E")+" to stand back up.":"From down low the stump stands up tall against what's behind it. Getting low or high changes a photo more than you'd think."; },
+      start:function(){ CO.s.n=photos.length; FLX.ghostHit=false; flGhostOn(); },
+      done:function(){ return photos.length>CO.s.n&&(FLX.ghostHit||!FLX.ghost); },
+      bar:function(){ var f=flGhostFit(); if(!FLX.ghost) return null; return (f.near?0.4:0.4*Math.max(0,1-f.hz/4))+(f.near&&f.low?0.3:0)+(f.ok?0.3:0); }}];
+  function coBasicsPick(){ if(typeof CO_TOURS==="undefined"||!CO_OLD) return; var want=FL.tour?CO_WARM:CO_OLD; if(CO_TOURS.basics.steps===want) return; CO_TOURS.basics.steps=want;
+    var v=FL.tour?"new":"old", was=Q.flags.warmV; Q.flags.warmV=v; if(!was||was===v) return;   /* progress only resets when the warm-up actually changes */
+    if(CO.on&&CO.tour==="basics"){ coStop(); Q.tourStep.basics=0; coStart("basics"); } else if(!Q.tours.basics) Q.tourStep.basics=0; }
+  coBasicsPick();
+  // ---- the lessons inside the gold frames: built for the frame that needs them, from the old warm-up's own steps ----
+  var CO_BODY_SUB={dslr:"Full frame: every lens sees exactly its own focal length.", ml:"Its smaller sensor crops every lens 1.6× tighter.", "67":"Medium format film: a big negative, and only ten frames a roll."};
+  function coBodyName(id){ var b=BODIES.filter(function(x){ return x.id===id; })[0]; return b?b.name:id; }
+  function coOldAt(test){ for(var i=0;i<CO_OLD.length;i++) if(test(CO_OLD[i])) return i; return -1; }
+  function coBagSteps(P){ var W=chWants(P), S=[], body=W.body&&W.body!==curBody().id?W.body:null, lens=W.lensMM!=null&&Math.round(focalMM)!==W.lensMM;
+    S.push({ch:"BAG", line:function(){ return 'This frame needs different gear. '+coK("SPACE")+' opens the menu: choose <b>Bag</b>'; }, sub:"Or press "+coK("B")+". The frame's card says what it wants, and the bag shows it glowing gold.", kit:"bag", done:function(){ return bg.open; }});
+    if(body) S.push({ch:"BAG", line:function(){ return 'Click the <b>'+coBodyName(body)+'</b>'; }, sub:CO_BODY_SUB[body]||"", target:'#bag [data-bg-body="'+body+'"]', done:function(){ return bg.body===body; }, need:"bag"});
+    if(lens){ var i=coOldAt(function(x){ return x.lens; }); if(i>=0) S.push(CO_OLD[i]);
+      S.push({ch:"BAG", line:function(){ return 'Choose the <b>'+W.lensMM+' mm</b>'; }, sub:"The one glowing gold. Watch the old one twist off and the new one click on.",
+        target:'#bag .bg-tray', targets:function(){ var w=Array.prototype.slice.call(document.querySelectorAll('#bag .bg-cell.want')); return w.length?w:Array.prototype.slice.call(document.querySelectorAll('#bag [data-bg-lens]')); },
+        start:function(){ CO.s.l0=lensId; }, done:function(){ return bg.lens!==CO.s.l0&&!bg.busy; }, need:"lens", nodim:true});
+      var j=coOldAt(function(x){ return x.target==='#bag [data-bg="done"]'; }); if(j>=0) S.push(CO_OLD[j]); }
+    S.push({ch:"BAG", line:function(){ return coK("SPACE")+' closes the bag'; }, sub:"Back to the frame. Its card ticks off what's done.", done:function(){ return !bg.open; }});
+    return S; }
+  function coBackSteps(P){ var S=[], a=coOldAt(function(x){ return x.media==="shutter"; }), b=coOldAt(function(x){ return x.media==="meter"; });
+    S.push({ch:"SETTINGS", line:function(){ return 'Now the settings. '+coK("SPACE")+' opens the menu: choose <b>Settings</b>'; }, sub:"The back of the camera: shutter, aperture and ISO. This frame needs them.", kit:"back", done:function(){ return cbOpen; }});
+    if(a>=0&&b>=a) S=S.concat(CO_OLD.slice(a,b+1));
+    S.push({ch:"SETTINGS", need:"back", target:'#camback .cb-meter', place:"side", nodim:true, dwell:1200,
+      line:function(){ return 'Now set it up for <b>'+cbEsc(P.c.title)+'</b>'; },
+      sub:"Use what you've just learnt: match what the frame's card asks for, then bring the needle to the middle.",
+      targets:function(){ return Array.prototype.slice.call(document.querySelectorAll('#camback .cb-scale')); },
+      done:function(){ return chChecks(P).every(function(x){ return x.ok||!x.where||x.where.at!=="back"; }); },
+      bar:function(){ var c=chChecks(P).filter(function(x){ return x.where&&x.where.at==="back"; }); return c.length?c.filter(function(x){ return x.ok; }).length/c.length:1; }});
+    S.push({ch:"SETTINGS", line:function(){ return coK("SPACE")+' takes you back to the frame'; }, sub:"", done:function(){ return !cbOpen; }});
+    return S; }
+  CO_TOURS.kbag={where:CO_TOURS.basics.where, steps:[]}; CO_TOURS.kback={where:CO_TOURS.basics.where, steps:[]};
+  /* challenge.js asks each frame: the first time one needs the bag or the camera back, teach it there and then */
+  function coFrameLesson(P){ if(!FL.tour||CO.on||!P||viewfinderOn||CH.intro||(CH.pull>=0&&!CH.locked)||CH.done[P.c.id]||bg.open||cbOpen) return;
+    var nx=null; chChecks(P).forEach(function(x){ if(!nx&&!x.ok&&x.where&&(x.where.at==="bag"||x.where.at==="back")) nx=x.where.at; });
+    var t=nx==="bag"?"kbag":nx==="back"?"kback":null; if(!t||Q.tours[t]) return;
+    CO_TOURS[t].steps=t==="kbag"?coBagSteps(P):coBackSteps(P); Q.tourStep[t]=0; coStart(t); }
   function coTourDone(id){ return !!Q.tours[id]; }
   function coProg(id){ return Q.tourStep[id]||0; }
   function coActive(){ return CO.on&&!CO.done; }
@@ -452,9 +514,9 @@
   function coStart(tour, replay){ tour=tour||"basics"; if(CO.on&&CO.tour===tour&&!replay) return; if(CO.on) coStop(); CO.ticking=false; CO.replay=!!replay; if(replay) Q.tourStep[tour]=0;
     CO.tour=tour; CO.on=true; CO.done=false; CO.skipped=0; if(Q.tours[tour]&&(Q.tourStep[tour]||0)>=coLen(tour)) Q.tourStep[tour]=0; CO.i=Q.tourStep[tour]||0; CO.look=0; CO.walked=0; CO.lx=null; CO.seen=-1; coEnter(); coLoop(); }
   function coMultiOff(){ Array.prototype.forEach.call(document.querySelectorAll('.co-multi,.co-float'),function(e){ e.classList.remove('co-multi','co-float'); }); }
-  function coEnter(){ coUnmark(); coMultiOff(); if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); if(typeof cbRender==="function") cbRender(); } var s=coSteps()[CO.i]; CO.s={}; CO.keys={}; CO.t0=performance.now(); CO.seen=-1; CO.lockTo=s&&s.info?CO.t0+READ_MS:0; if(s&&s.start) s.start(); CO.html="";
+  function coEnter(){ coUnmark(); coMultiOff(); if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); if(typeof cbRender==="function") cbRender(); } var s=coSteps()[CO.i]; if(s&&s.ghost) flGhostOn(); else flGhostOff(); CO.s={}; CO.keys={}; CO.t0=performance.now(); CO.seen=-1; CO.lockTo=s&&s.info?CO.t0+READ_MS:0; if(s&&s.start) s.start(); CO.html="";
     if(CO.replay&&s&&!s.info&&!s.click&&s.done){ var met=false; try{ met=!!s.done(); }catch(e){} if(met){ CO.s.pre=true; CO.lockTo=CO.t0+Math.min(READ_MS,1500); } } }
-  function coStop(){ coMultiOff(); document.body.classList.remove("co-golden"); if(typeof RL!=="undefined"&&(RL.spots||RL.want)){ RL.spots=null; RL.want=null; if(typeof rlPlanUI==="function"){ rlPlanUI(); rlPanel(); } } if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); } setTimeout(function(){ if(typeof chMarkers==="function") chMarkers(); },0); coUnmark(); if(CO.tgt){ CO.tgt.classList.remove("co-target"); CO.tgt=null; } CO.on=false; document.body.removeAttribute("data-co-kit"); document.body.classList.remove("co-lens"); cancelAnimationFrame(CO.raf); var e=$("coCard"), r=$("coRing"); if(e) e.classList.remove("show","media"); if(r) r.classList.remove("show"); document.body.classList.remove("co-on","co-dial"); }
+  function coStop(){ coMultiOff(); flGhostOff(); document.body.classList.remove("co-golden"); if(typeof RL!=="undefined"&&(RL.spots||RL.want)){ RL.spots=null; RL.want=null; if(typeof rlPlanUI==="function"){ rlPlanUI(); rlPanel(); } } if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); } setTimeout(function(){ if(typeof chMarkers==="function") chMarkers(); },0); coUnmark(); if(CO.tgt){ CO.tgt.classList.remove("co-target"); CO.tgt=null; } CO.on=false; document.body.removeAttribute("data-co-kit"); document.body.classList.remove("co-lens"); cancelAnimationFrame(CO.raf); var e=$("coCard"), r=$("coRing"); if(e) e.classList.remove("show","media"); if(r) r.classList.remove("show"); document.body.classList.remove("co-on","co-dial"); }
   /* SKIP moves past one prompt, not the whole tour: one click on the first step used to throw the warm-up away. Skip all is offered once you've skipped a step */
   function coSkipStep(){ if(!CO.on||CO.ticking) return; CO.skipped=(CO.skipped||0)+1; coUnmark(); CO.i++; Q.tourStep[CO.tour]=CO.i; qSave(); if(CO.i>=coSteps().length) coFinish(false); else coEnter(); }
   function coFinish(skipped){ CO.done=true; Q.tourStep[CO.tour]=coSteps().length; Q.tours[CO.tour]=true; qSave(); coStop();
@@ -474,6 +536,7 @@
     coRender(s); }
   function coTicked(){ CO.ticking=true; var e=coEl(); e.classList.add("ok"); setTimeout(function(){ CO.ticking=false; e.classList.remove("ok"); CO.i++; Q.tourStep[CO.tour]=CO.i; qSave();
       if(CO.i>=coSteps().length){ coFinish(false); return; } coEnter(); }, 600); }
+  function coSub(s){ return typeof s.sub==="function"?s.sub():s.sub; }
   function coRender(s){ var e=coEl(), ring=$("coRing"), steps=coSteps(); if(CO.sndStep!==s){ CO.sndStep=s; sfx("tour"); }
     var chs=[], prev=null; steps.forEach(function(x,i){ if(x.ch!==prev){ chs.push({ch:x.ch, first:i}); prev=x.ch; } });
     var inCh=steps.filter(function(x){ return x.ch===s.ch; }), k=inCh.indexOf(s);
@@ -483,11 +546,11 @@
     else if((s.need==="bag"||s.need==="lens")&&!bg.open) pre='Open the bag again: '+coK("SPACE")+', then <b>Bag</b>';
     else if(s.need==="back"&&!cbOpen) pre='Open the settings again: '+coK("SPACE")+', then <b>Settings</b>';
     else if(s.need==="crop"&&!cropActive()) pre='Open the crop again: click <b>Crop</b> or press '+coK("C");
-    var b=s.bar?Math.max(0,Math.min(1,s.bar())):null;
+    var b=s.bar?s.bar():null; if(b!=null) b=Math.max(0,Math.min(1,b));
     var html='<div class="co-top">'+chs.map(function(c){ var on=c.ch===s.ch, past=CO.i>c.first&&!on; return '<span class="co-ch'+(on?' on':'')+(past?' past':'')+'">'+c.ch+'</span>'; }).join('<i></i>')
       +(CO.skipped?'<button class="co-skip all" data-co-skipall title="Skip the rest of this tour">SKIP ALL</button>':'')+'<button class="co-skip" data-co-skip title="Skip this step">SKIP STEP</button></div>'
       +(s.media&&!pre?'<canvas class="co-media" data-co-media="'+s.media+'"></canvas>':'')
-      +'<div class="co-line">'+(pre||s.line())+'</div>'+((pre?'':s.sub)?'<div class="co-sub">'+s.sub+'</div>':'')+(!pre&&CO.s.pre?'<div class="co-sub co-again">You\'ve already done this one. Have another go, or press GOT IT.</div>':'')
+      +'<div class="co-line">'+(pre||s.line())+'</div>'+((pre?'':coSub(s))?'<div class="co-sub">'+coSub(s)+'</div>':'')+(!pre&&CO.s.pre?'<div class="co-sub co-again">You\'ve already done this one. Have another go, or press GOT IT.</div>':'')
       +'<div class="co-foot"><div class="co-dots">'+inCh.map(function(_,j){ return '<i class="'+(j<k?'d':j===k?'c':'')+'"></i>'; }).join("")+'</div>'
       +(s.finish&&!pre?'<button class="co-next" data-co-next>FINISHED ✓</button>':(s.info||CO.s.pre)?(performance.now()<CO.lockTo?'<button class="co-next rl" data-co-next disabled style="--rl:'+Math.round(CO.lockTo-performance.now())+'ms">GOT IT ›</button>':'<button class="co-next" data-co-next>GOT IT ›</button>'):'')+'</div>'
       +(b!=null?'<div class="co-bar"><b style="width:'+(b*100).toFixed(0)+'%"></b></div>':'');

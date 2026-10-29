@@ -3338,3 +3338,39 @@ body.la-warm #viewfinder,body.la-warm #crosshair{visibility:hidden!important}   
 #stAdvance .adv-frame{flex:1;display:flex;align-items:center;justify-content:space-between;padding:0 6vw;background:linear-gradient(90deg,#120f0c,#1a150f 50%,#120f0c)}
 #stAdvance .adv-frame span{font:500 12px var(--mono);letter-spacing:.2em;color:rgba(227,173,87,.55)}
 #stAdvance .adv-to{color:var(--accent)!important}
+/* ---- FEEL: the first minute (feel.js) ---- */
+body.fl-drag[data-state="scene"] #viewport canvas{cursor:grab}
+body.fl-dragging #viewport canvas{cursor:grabbing!important}
+#navHomeV.hidden{display:none}
+/* the first raise: the finder comes up slowly from further off, the edges close in, the picture clears */
+body.fl-raise1 #viewfinder:not(.on){transform:scale(1.16);transition:none}
+body.fl-raise1 #viewfinder.on{transition:opacity .6s ease,transform 1.2s cubic-bezier(.16,.84,.2,1)}
+body.fl-raise1 #viewfinder .mask{animation:flMask 1.4s ease both}
+body.fl-raise1 #viewport canvas{animation:flRaiseCv 1.3s cubic-bezier(.2,.7,.2,1) both}
+@keyframes flMask{0%{box-shadow:inset 0 0 600px 320px rgba(0,0,0,.96)}100%{box-shadow:inset 0 0 220px 40px rgba(0,0,0,.55)}}
+@keyframes flRaiseCv{0%{filter:brightness(.55) blur(5px)}100%{filter:none}}
+/* the first photo: a print that develops in the middle, then goes into the studio */
+#flPrint{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;pointer-events:none;transition:transform .85s cubic-bezier(.5,0,.75,0),opacity .85s ease}
+#flPrint.show{display:flex}
+#flPrint .fp-card{background:#f4f1ea;padding:14px 14px 18px;border-radius:3px;box-shadow:0 30px 80px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:6px;width:min(46vw,620px);transform:rotate(-1.5deg);animation:fpIn .7s cubic-bezier(.2,.8,.2,1) both}
+#flPrint img{width:100%;display:block;animation:fpDev 2.4s ease both}
+#flPrint .fp-k{font:500 11px var(--mono);letter-spacing:.18em;color:#9a7435;margin-top:8px}
+#flPrint b{font:400 24px var(--serif);color:#1a1712;font-weight:400}
+#flPrint em{font:400 13px var(--sans);color:#5a544a;font-style:normal}
+@keyframes fpDev{0%{filter:brightness(2.4) contrast(.4) saturate(0) sepia(.4)}100%{filter:none}}
+@keyframes fpIn{0%{opacity:0;transform:translateY(40px) rotate(2deg) scale(.9)}100%{opacity:1;transform:rotate(-1.5deg)}}
+/* the launch page held over the opening while it gets ready, then lifted off it */
+#rackin.veil{display:block;z-index:1300;pointer-events:none}
+#rackin.veil .rf-go,#rackin.veil .rf-hint,#rackin.veil .rf-wait{display:none}
+#rackin.veil.lift{opacity:0;transition:opacity 1.5s ease}
+/* the FEEL switches, for Sam (?dev) */
+#flBtn{position:fixed;left:12px;bottom:12px;z-index:2100;font:500 11px var(--mono);letter-spacing:.14em;padding:7px 10px;border-radius:6px;border:1px solid rgba(227,173,87,.5);background:rgba(23,20,15,.9);color:var(--accent);cursor:pointer}
+#flPanel{position:fixed;left:12px;bottom:48px;z-index:2100;width:330px;display:none;flex-direction:column;gap:8px;padding:14px;border-radius:10px;background:rgba(18,16,12,.96);border:1px solid rgba(227,173,87,.3);color:var(--text);font:400 13px var(--sans);box-shadow:0 20px 50px rgba(0,0,0,.5)}
+#flPanel.show{display:flex}
+#flPanel>b{font:400 18px var(--serif);font-weight:400}
+#flPanel label{display:flex;gap:9px;align-items:flex-start;cursor:pointer;line-height:1.3}
+#flPanel input{accent-color:var(--accent);margin-top:2px}
+#flPanel .fl-row{display:flex;gap:6px}
+#flPanel .fl-row button{flex:1;font:500 10.5px var(--mono);letter-spacing:.1em;padding:7px 6px;border-radius:6px;border:1px solid rgba(244,241,234,.18);background:transparent;color:var(--text);cursor:pointer}
+#flPanel .fl-row button:hover{border-color:var(--accent);color:var(--accent)}
+#flPanel em{font-style:normal;font-size:11.5px;color:rgba(244,241,234,.55);line-height:1.35}

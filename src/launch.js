@@ -25,7 +25,7 @@
     try{ if(matchMedia("(pointer:coarse)").matches) e.querySelector(".la-skip").textContent="TAP TO SKIP"; }catch(x){}
     var v=e.querySelector("video"); v.muted=true; v.addEventListener("error",function(){ LA.filmBad=true; });
     e.addEventListener("pointerdown",function(ev){ ev.stopPropagation(); laSkip(); });
-    window.addEventListener("keydown",function(ev){ if(!LA.on) return; ev.stopImmediatePropagation(); ev.preventDefault(); if(!ev.repeat) laSkip(); },true);
+    window.addEventListener("keydown",function(ev){ if(!LA.on) return; ev.stopImmediatePropagation(); ev.preventDefault(); },true);   /* keys do nothing during the opening (they'd walk the camera behind it); only a click or tap on the screen skips */
     window.addEventListener("keyup",function(ev){ if(LA.on) ev.stopImmediatePropagation(); },true);
     return e; }
   function laPhase(p){ if(LA.phase===p) return; LA.phase=p; LA.pt=performance.now(); LA.log=(LA.log||[]).concat([p]); LA.held=false; if(LA.el){ var keep=["skip","word","vf","af-hunt","af-ok"].filter(function(c){ return LA.el.classList.contains(c); }); LA.el.className="on p-"+p+(keep.length?" "+keep.join(" "):""); } }
@@ -34,20 +34,21 @@
   /* the film streams: the MP4 is laid out to start playing while the rest downloads, so it begins as soon as enough is in */
   function laFilmLoad(){ var v=LA.el.querySelector("video"), src=v.canPlayType('video/mp4; codecs="avc1.64002A"')||!LA_FILM_WEBM?LA_FILM:LA_FILM_WEBM;
     if(v.getAttribute("src")!==src||v.error){ v.src=src; try{ v.load(); }catch(e){} } }   /* a failed load is tried again on the next opening */
-  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.first=!laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.placed=false; LA.looked=null; LA.warm=false; LA.warmT=null; LA.cued=false; LA.skipped=false; LA.filmBad=false; LA.asked=false; LA.playing=false; LA.eye0=WK.eye; LAG.on=false; laWelClose(true); SD.seq=null;
+  function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.first=!laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.placed=false; LA.looked=null; LA.warm=false; LA.warmT=null; LA.cued=false; LA.skipped=false; LA.filmBad=false; LA.asked=false; LA.playing=false; LA.prepped=false; LA.q0=null; LA.quality=null; LA.eye0=WK.eye; LAG.on=false; laWelClose(true); SD.seq=null;
     var e=laEl(); LA.el=e; e.className=""; document.body.classList.add("launching"); laPhase("dark");
     ["hub","landing","studio","punctum","signin","teacher"].forEach(hubHide);
     if(!loaded){ var sc=(window.SPLAT_SCENES||[])[0]; if(sc){ App.go("landing"); loadBundled(sc); } }   /* the scan loads behind the film */
     try{ localStorage.setItem(LA_KEY,"1"); }catch(x){}
-    laFilmLoad(); sdAmbStart(); laSoundIn();
+    laFilmLoad(); sdAmbStart(); laSoundIn(); sdShutLoad(SD.ctx);
     cancelAnimationFrame(LA.raf); LA.raf=requestAnimationFrame(laTick); }
   function laSkip(){ if(!LA.on||LA.phase==="live") return; var v=LA.el.querySelector("video");
     if(LA.phase==="hold"){ if(loaded&&LA.placed) laLive(); else laEnd(); return; }   /* a tap while it waits: go now, or if the scan never came, out to the hub rather than stuck here */
-    if(LA.skipped){ if(LA.phase==="dark") laEnd(); return; } LA.skipped=true; sdSeqCut(); sdBigCut();
+    if(LA.skipped){ if(LA.phase==="dark") laEnd(); return; } LA.skipped=true; sdSeqCut(); sdBigCut(); if(SD.shB&&SD.ctx){ SD.shB.gain.setTargetAtTime(0,SD.ctx.currentTime,0.03); SD.shB=null; }
     if(LA.phase==="film"){ sdSpin(null,true); try{ v.pause(); v.currentTime=Math.max(0,(v.duration||LA_F.len)-0.02); }catch(e){} laCls("vf",false); laCls("af-hunt",false); laCls("af-ok",false); laCls("word",true); laPhase("hold"); } }   /* straight to the film's last frame and the wordmark; in the dark, it waits there for the scan */
   // ---- behind the film: the scan comes in on the starting spot, gets its light, and is drawn steadily for the last stretch ----
   function laBack(now){ if(!loaded) return false; if(!LA.placed){ LA.placed=true; LA.placeT=now; laSpawn(); if(typeof updateCamera==="function") updateCamera(0); }
     var det=!(CH.spec&&CH.spec.detail)||!!(viewer&&viewer.detail)||now-LA.placeT>9000; if(!det) return false;
+    if(LA.phase==="film"){ if(!LA.prepped){ LA.prepped=true; if(typeof rbDefaultPrep==="function"&&CH.spec&&CH.spec.id==="stump") rbDefaultPrep(); } return false; }   /* while the film plays only the light's sums run, off the page's thread; the relight itself waits for the last frame */
     if(LA.looked==null){ LA.looked=!!(typeof rbDefaultOk==="function"&&CH.spec&&CH.spec.id==="stump"&&rbDefaultOk()); if(LA.looked) rbDefaultLook(); LA.lookT=now; }   /* the default look, once and for good */
     if(LA.looked&&!(RLB.built&&!RLB.dirty)&&now-LA.lookT<12000) return false;
     return true; }
@@ -56,7 +57,7 @@
   /* the sound, laid on the audio clock against the film's own: the day, the lens, the focus, the shutter, the circle */
   function laCue(vt){ if(LA.cued) return; LA.cued=true; var F=LA_F, a0=sdNow()-vt; if(!SD.ctx) return;
     if(vt<0.5) sdScan(a0); if(vt<F.vf) sdLensUp(a0+F.vf); if(vt<F.rack) sdRack(a0+F.rack,1.4);
-    if(vt<F.fire) LA.shotT=setTimeout(function(){ if(LA.on&&LA.phase==="film") sdShutter(null,true); },(F.fire-vt)*1000);   /* the real shutter, on a timer: a few milliseconds either way can't be heard */
+    if(vt<F.fire) sdShutter(a0+F.fire);
     if(vt<F.spin) sdSpin(a0+F.spin,false); }
   // ---- the camera (the recording's moves) ----
   function laSubject(){ return (CH.spec&&CH.spec.subject)||[0,0]; }
@@ -107,10 +108,9 @@
       if(!LA.asked){ LA.asked=true; try{ v.currentTime=0; }catch(x){} var pr=v.play(); if(pr&&pr.catch) pr.catch(function(){ if(LA.on&&LA.phase==="dark"&&!LA.skipped) LA.filmBad=true; }); }   /* asked straight away: phones only fetch a film once it is asked to play */
       if(v.paused||v.currentTime<=0||v.readyState<3) return; LA.playing=true;
       if(LA.skipped){ try{ v.pause(); v.currentTime=Math.max(0,(v.duration||F.len)-0.02); }catch(x){} laCls("word",true); laPhase("hold"); return; }
-      laPhase("film"); return; }
+      var q=v.getVideoPlaybackQuality&&v.getVideoPlaybackQuality(); LA.q0=q?[q.droppedVideoFrames,q.totalVideoFrames]:null; laPhase("film"); return; }
     if(p==="film"){ var vt=v.currentTime; if(!LA.cued&&vt>0&&!v.paused) laCue(vt);
       laCls("vf",vt>=F.vf&&vt<F.fire+0.06); laCls("af-hunt",vt>=F.rack&&vt<F.rack+1.4); laCls("af-ok",vt>=F.rack+1.4&&vt<F.fire+0.06); laCls("word",vt>=F.spin);
-      if(vt>=F.len-1.6) LA.warm=true;   /* the last stretch: the scan behind is drawn every frame, so it's ready the moment the film ends */
       if(v.ended||vt>=F.len-0.04) laPhase("hold"); return; }
     if(p==="hold"){ LA.warm=true; laCls("word",true); if(back&&LA.warmT!=null&&now-LA.warmT>700&&!laHeld()) laLive(); } }   /* the last frame waits for the scan, if it isn't in yet */
   /* the handover: the film's last frame is this exact view, so the video simply fades off the live scene */
@@ -120,7 +120,8 @@
   function laFovMatch(){ var v=LA.el&&LA.el.querySelector("video"), Av=v&&v.videoWidth?v.videoWidth/v.videoHeight:16/9, As=innerWidth/innerHeight; if(!camera||As<=Av+0.01) return;
     var f0=2*Math.atan(Math.tan(55*Math.PI/360)*Av/As)*180/Math.PI, t0=performance.now(); camera.fov=f0; camera.updateProjectionMatrix();
     (function ease(){ if(viewfinderOn) return; var k=laE((performance.now()-t0)/1600); camera.fov=f0+(55-f0)*k; camera.updateProjectionMatrix(); if(k<1) requestAnimationFrame(ease); })(); }   /* holds its course even if the meter resets the lens mid-way */
-  function laEnd(){ if(!LA.on) return; LA.on=false; LAG.on=false; LA.warm=false; LA.starting=false; clearTimeout(LA.shotT); cancelAnimationFrame(LA.raf); var e=LA.el; LA.welcome=Date.now(); (CH.pads||[]).forEach(function(P){ P.vis=0; });   /* the gold frames fade in once the wordmark has gone */
+  function laEnd(){ if(!LA.on) return; LA.on=false; LAG.on=false; LA.warm=false; LA.starting=false; cancelAnimationFrame(LA.raf); var e=LA.el;
+    try{ var fv=e.querySelector("video"), q=fv.getVideoPlaybackQuality(); if(LA.q0){ LA.quality={dropped:q.droppedVideoFrames-LA.q0[0], total:q.totalVideoFrames-LA.q0[1]}; console.info("opening film: "+LA.quality.dropped+" of "+LA.quality.total+" frames dropped"); } }catch(x){}   /* how smoothly it played here: F9 shows it too */ LA.welcome=Date.now(); (CH.pads||[]).forEach(function(P){ P.vis=0; });   /* the gold frames fade in once the wordmark has gone */
     if(typeof RLB!=="undefined"&&RLB) RLB.camP={x:camPos.x,y:camPos.y,z:camPos.z};   /* the light counts its next metre and a half from the starting spot */
     if(loaded){ hubShow("hud"); App.go("scene"); if(typeof updatePrompt==="function") updatePrompt(); } else showHub();
     sdAmbStop(sdNow()+1.6,1.2); if(LA.first&&loaded) LA.wcard=true;   /* first time: hold the tour and the gold frames for the welcome */
@@ -169,10 +170,26 @@
   function sdRack(t,D){ var b=sdSeq(); if(!b) return; t=t==null?sdNow():t; if(sdVar("rack")) return sdVar("rack")(b,t,D);
     for(var i=0;i<16;i++){ var u=i/16, at=t+D*0.85*(1-Math.pow(1-u,1.7)); sdTick(b,at,3800+u*900,0.014+0.008*Math.sin(u*Math.PI),(u-0.5)*0.3); }
     sdTone(b,t+D,2730,"sine",0.003,0.04,0.045,0.03); sdTone(b,t+D+0.1,2730,"sine",0.003,0.04,0.045,0.05); }
-  function sdShutter(t,live){ var b=sdSeq(); if(!b) return; t=t==null?sdNow():t;
-    if(live&&typeof shutterSound==="function"){ try{ shutterSound(); }catch(e){} } else { sdTick(b,t,2400,0.25); sdTick(b,t+0.055,1900,0.18); }
-    sdTone(b,t,96,"sine",0.003,0.2,0.01,0.2,38); sdNoise(b,t,"lowpass",900,0.7,0.002,0.05,0.02,0.2,200);
-    if(SD.drone){ sdDroneTo(1,t,0.05); } if(SD.vb){ SD.vb.gain.setTargetAtTime(0.0001,t+0.01,0.06); SD.vb=null; } if(sdVar("shot")) sdVar("shot")(b,t); }
+  // ---- the shutter: five to choose from (?shut=1..5, or localStorage studium_open_shut); all on the audio clock ----
+  var SD_SHN=["","Mirrorless","DSLR","Film SLR and wind-on","Rangefinder","Recorded"];
+  var SD_SH=(function(){ var m=/[?&]shut=(\d)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_shut"); if(v!=null) return +v; }catch(e){} return 2; })();
+  function sdClk(b,t,f,q,peak,dec,pan){ var c=SD.ctx, s=c.createBufferSource(), fl=c.createBiquadFilter(), g=c.createGain(); s.buffer=SD.nb; fl.type="bandpass"; fl.frequency.value=f; fl.Q.value=q;   /* a mechanical click: a short burst of noise, shaped by the body it rings in */
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+0.0012); g.gain.exponentialRampToValueAtTime(0.0001,t+0.0012+dec); s.connect(fl); fl.connect(g); sdOut(g,b,pan,null,t,dec); s.start(t,Math.random()*1.5); s.stop(t+dec+0.02); }
+  function sdBody(b,t,f,peak,dec){ sdTone(b,t,f,"sine",0.0015,peak,0.002,dec,f*0.92); }   /* the camera body's short ring */
+  var SD_SHUT={
+    1:function(b,t){ sdClk(b,t,3200,1.6,0.26,0.014,-0.05); sdClk(b,t,7200,2.2,0.09,0.008); sdBody(b,t,1150,0.035,0.03);   /* first curtain */
+        sdClk(b,t+0.027,2900,1.6,0.2,0.016,0.05); sdClk(b,t+0.027,6600,2.2,0.07,0.008); sdBody(b,t+0.027,980,0.03,0.035); },   /* second curtain: crisp, modern, no mirror */
+    2:function(b,t){ sdClk(b,t,1700,1.1,0.32,0.028); sdClk(b,t+0.002,3600,1.8,0.14,0.016); sdBody(b,t,190,0.11,0.06); sdBody(b,t,620,0.04,0.04);   /* the mirror flips up and the shutter fires */
+        sdClk(b,t+0.072,2100,1.2,0.24,0.024,0.05); sdClk(b,t+0.073,4300,1.8,0.1,0.014); sdBody(b,t+0.072,150,0.08,0.07); },   /* and drops back: the clack-clack of a DSLR */
+    3:function(b,t){ SD_SHUT[2](b,t); var c=SD.ctx, w=t+0.2, D=0.34, o=c.createOscillator(), fl=c.createBiquadFilter(), g=c.createGain(), am=c.createOscillator(), ag=c.createGain();   /* then the motor winds on */
+        o.type="sawtooth"; o.frequency.setValueAtTime(88,w); o.frequency.linearRampToValueAtTime(104,w+D*0.7); o.frequency.linearRampToValueAtTime(70,w+D); fl.type="bandpass"; fl.frequency.value=1100; fl.Q.value=2.4;
+        am.frequency.value=34; ag.gain.value=0.45; am.connect(ag); ag.connect(g.gain); g.gain.setValueAtTime(0.0001,w); g.gain.exponentialRampToValueAtTime(0.05,w+0.03); g.gain.setValueAtTime(0.05,w+D-0.06); g.gain.exponentialRampToValueAtTime(0.0001,w+D);
+        o.connect(fl); fl.connect(g); g.connect(b); o.start(w); am.start(w); o.stop(w+D+0.02); am.stop(w+D+0.02); sdClk(b,w+D-0.01,2600,1.6,0.12,0.012); },
+    4:function(b,t){ sdClk(b,t,4800,1.4,0.12,0.009); sdClk(b,t+0.011,4200,1.4,0.07,0.009); sdBody(b,t,1800,0.012,0.02); },   /* a rangefinder's quiet tsk */
+    5:function(b,t){ var buf=SD.shBuf; if(!buf){ SD_SHUT[2](b,t); return; } var s=SD.ctx.createBufferSource(), g=SD.ctx.createGain(); s.buffer=buf; g.gain.value=0.75; s.connect(g); g.connect(b); s.start(t); } };   /* the recording the camera itself uses */
+  function sdShutLoad(c){ if(SD.shBuf||!c||SD.shGet) return SD.shGet; SD.shGet=fetch(SHUTTER_SRC[0]).then(function(r){ return r.arrayBuffer(); }).then(function(ab){ return new Promise(function(ok,no){ c.decodeAudioData(ab,ok,no); }); }).then(function(bf){ SD.shBuf=bf; }).catch(function(){}); return SD.shGet; }
+  function sdShutter(t){ var c=sdCtx(); if(!c) return; t=t==null?sdNow():t; var b=SD.shB&&SD.shB.context===c?SD.shB:(SD.shB=sdBus(0.22)); (SD_SHUT[SD_SH]||SD_SHUT[2])(b,t);   /* its own bus: a little room, not the music's big one */
+    if(SD.drone){ sdDroneTo(1,t,0.05); } if(SD.vb){ SD.vb.gain.setTargetAtTime(0.0001,t+0.01,0.06); SD.vb=null; } if(sdVar("shot")) sdVar("shot")(sdSeq()||b,t); }
   // ---- five sound options for the beginning (?snd=1..5): the bed, the point cloud, the lens, the focus, the shot.
   //      The spin and the title are the same in all of them. ----
   var SD_V=(function(){ var m=/[?&]snd=(\d)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_snd"); if(v!=null) return +v; }catch(e){} return 2; })();   /* Air is the default; ?snd=0..5 to compare */
@@ -243,18 +260,19 @@
   // the welcome card: a soft two-note chime; its buttons: a tick
   function sdChime(t){ var b=sdCtx()&&sdBus(0.7); if(!b) return; t=t==null?sdNow():t; sdTone(b,t,659.25,"sine",0.01,0.04,0.05,1.4); sdTone(b,t+0.12,880,"sine",0.01,0.035,0.05,1.6); sdTone(b,t+0.12,1318.5,"sine",0.01,0.008,0.05,1.2); }
   function sdTap(){ var b=sdCtx()&&sdBus(0.3); if(!b) return; var t=sdNow(); sdTick(b,t,2200,0.06); sdTone(b,t,520,"sine",0.003,0.03,0.01,0.12); }
-  /* dev: lay the whole opening into an offline buffer and hand back a wav, to check levels without a GPU */
-  function sdRender(){ return sdRenderBegin(SD_V); }
-  function sdRenderBegin(v){ var was=SD_V; SD_V=v; var sr=44100, dur=20, oc=new OfflineAudioContext(2,sr*dur,sr), pc=SD.ctx; SD.off=true; SD.ctx=null; SD.vb=null; sdWire(oc);
-    var D0=1.4, S0=D0+LA_T.glide, F=S0+2.3, P0=F+0.42, E0=P0+LA_T.spin;
-    sdAmbStart(0); sdScan(D0); sdLensUp(S0+0.05); sdRack(S0+0.75,1.4); sdShutter(F,false); sdSpin(P0,false); sdAmbStop(E0+1.6,1.2); sdChime(E0+LA_T.word);
-    return oc.startRendering().then(function(buf){ SD_V=was; SD.off=false; SD.ctx=null; SD.seq=null; SD.amb=null; SD.vb=null; if(pc) sdWire(pc);
-      var n=buf.length, L=buf.getChannelData(0), R=buf.getChannelData(1), pk=0, i, dv=new DataView(new ArrayBuffer(44+n*4)); for(i=0;i<n;i++) pk=Math.max(pk,Math.abs(L[i]),Math.abs(R[i]));
-      function ws(o,x){ for(var k=0;k<x.length;k++) dv.setUint8(o+k,x.charCodeAt(k)); } ws(0,"RIFF"); dv.setUint32(4,36+n*4,true); ws(8,"WAVEfmt "); dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,2,true); dv.setUint32(24,sr,true); dv.setUint32(28,sr*4,true); dv.setUint16(32,4,true); dv.setUint16(34,16,true); ws(36,"data"); dv.setUint32(40,n*4,true);
-      for(i=0;i<n;i++){ dv.setInt16(44+i*4,Math.max(-1,Math.min(1,L[i]))*32767,true); dv.setInt16(46+i*4,Math.max(-1,Math.min(1,R[i]))*32767,true); }
-      var bytes=new Uint8Array(dv.buffer), str=""; for(i=0;i<bytes.length;i+=32768) str+=String.fromCharCode.apply(null,bytes.subarray(i,i+32768));
-      return {peak:+pk.toFixed(3), wav:btoa(str)}; }); }
-  if(/[?&]dev/.test(location.search)) window.__sd={ render:sdRender, begin:sdRenderBegin };
+  /* dev: lay the opening's whole soundtrack, for any sound option and shutter, into an offline buffer on the film's own
+     clock and hand back a wav, to check levels without a GPU and to put each option under the film (tools/openingsound.mjs) */
+  function sdWav(buf){ var n=buf.length, L=buf.getChannelData(0), R=buf.getChannelData(1), pk=0, i, sr=buf.sampleRate, dv=new DataView(new ArrayBuffer(44+n*4)); for(i=0;i<n;i++) pk=Math.max(pk,Math.abs(L[i]),Math.abs(R[i]));
+    function ws(o,x){ for(var k=0;k<x.length;k++) dv.setUint8(o+k,x.charCodeAt(k)); } ws(0,"RIFF"); dv.setUint32(4,36+n*4,true); ws(8,"WAVEfmt "); dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,2,true); dv.setUint32(24,sr,true); dv.setUint32(28,sr*4,true); dv.setUint16(32,4,true); dv.setUint16(34,16,true); ws(36,"data"); dv.setUint32(40,n*4,true);
+    for(i=0;i<n;i++){ dv.setInt16(44+i*4,Math.max(-1,Math.min(1,L[i]))*32767,true); dv.setInt16(46+i*4,Math.max(-1,Math.min(1,R[i]))*32767,true); }
+    var bytes=new Uint8Array(dv.buffer), str=""; for(i=0;i<bytes.length;i+=32768) str+=String.fromCharCode.apply(null,bytes.subarray(i,i+32768));
+    return {peak:+pk.toFixed(3), wav:btoa(str)}; }
+  function sdRenderFilm(v,sh){ var wasV=SD_V, wasS=SD_SH, pc=SD.ctx, F=LA_F, sr=48000, oc=new OfflineAudioContext(2,Math.ceil(sr*(F.len+3)),sr); SD_V=v==null?SD_V:v; SD_SH=sh==null?SD_SH:sh;
+    SD.off=true; SD.ctx=null; SD.vb=null; SD.shB=null; SD.big=null; SD.seq=null; SD.amb=null; sdWire(oc); var keep=SD.shBuf, kg=SD.shGet; SD.shBuf=null; SD.shGet=null;
+    return Promise.resolve(SD_SH===5?sdShutLoad(oc):0).then(function(){ sdAmbStart(0); sdScan(0); sdLensUp(F.vf); sdRack(F.rack,1.4); sdShutter(F.fire); sdSpin(F.spin,false); sdAmbStop(F.len+0.3,1.0); return oc.startRendering(); })
+      .then(function(buf){ SD_V=wasV; SD_SH=wasS; SD.off=false; SD.ctx=null; SD.seq=null; SD.amb=null; SD.vb=null; SD.shB=null; SD.big=null; SD.shBuf=keep; SD.shGet=kg; if(pc) sdWire(pc); return sdWav(buf); }); }
+  function sdRender(){ return sdRenderFilm(); }
+  if(/[?&]dev/.test(location.search)) window.__sd={ render:sdRender, film:sdRenderFilm, names:function(){ return {snd:SD_VN, shut:SD_SHN, now:[SD_V,SD_SH]}; } };
   // ---- the welcome: what Studium is, and that the camera comes first ----
   var LA_WEL=[["asset:assets/launch/shoot.jpg","Shoot"],["asset:assets/launch/select.jpg","Pick"],["asset:assets/launch/edit.jpg","Edit"],["asset:assets/launch/workbook.jpg","Make"],["asset:assets/launch/folio.jpg","Folio"],["asset:assets/launch/gallery.jpg","Show"]];
   function laWelOpen(){ var w=$("laWel"); if(!w){ w=document.createElement("div"); w.id="laWel";

@@ -595,14 +595,14 @@
     var sp=viewer&&viewer.spark, cv=renderer.domElement, rt=sceneRT;
     PF.el.textContent=Math.round(PF.n*1000/PF.t)+" fps   worst "+Math.round(PF.worst)+" ms   stalls "+PF.stalls+"\nscene "+rt.width+"×"+rt.height+" of "+cv.width+"×"+cv.height+"   detail "+sceneDetail+
       (sp?"\nsplats "+((sp.activeSplats||0)/1e6).toFixed(2)+"M   budget ×"+(sp.lodSplatScale||1).toFixed(2)+(sp.lodSplatCount?" of "+(sp.lodSplatCount/1e6).toFixed(2)+"M":""):"")+
-      (typeof WE!=="undefined"?"\nwind "+(WE.wind||0)+"  fog "+(WE.fog||0)+"  rain "+(WE.rain||0):"")+(PF.noShad?"\nshadows OFF (F10)":"\nF10: shadows on/off");
+      (typeof WE!=="undefined"?"\nwind "+(WE.wind||0)+"  fog "+(WE.fog||0)+"  rain "+(WE.rain||0):"")+(PF.noShad?"\nshadows OFF (F10)":"\nF10: shadows on/off")+(typeof LA!=="undefined"&&LA.quality?"\nopening film: "+LA.quality.dropped+" of "+LA.quality.total+" frames dropped":"");
     PF.n=0; PF.t=0; PF.worst=0; }
   (function pfCount(){ var n=0, t0=performance.now(); (function f(){ requestAnimationFrame(f); n++; var t=performance.now(); if(t-t0>=1000){ PF.fps=n*1000/(t-t0); n=0; t0=t; } })(); })();
   if(/[?&]dev/.test(location.search)) window.__pf={ spin:function(v){ PF.spin=v; }, fps:function(){ return PF.fps||0; }, sorting:function(){ var sp=viewer&&viewer.spark; return sp?{active:sp.activeSplats, sorting:sp.sorting}:null; } };
   function animate(){ requestAnimationFrame(animate); if(typeof FC!=="undefined"&&FC.on) return;   /* the opening film's recorder draws every frame itself */ pfTick(); if(PF.spin&&loaded) yaw+=PF.spin; var dt=Math.min(clock.getDelta(),0.1);
     if((typeof cbOpen!=="undefined" && cbOpen) || (typeof bg!=="undefined" && bg.open) || (typeof st!=="undefined" && st.open)) return;   // the camera back covers the scene: stop drawing it (big win on school PCs)
     if(typeof RF!=="undefined"&&RF.on){ if(!loaded&&(RF.bg=(RF.bg||0)+1)%3===0) renderFrame(dt); return; }   /* the launch page is a still with its own lens; Spark only finishes building the scan while it's being drawn, so it's drawn now and then, small, under the still, until it's in */
-    if(typeof laBehind==="function"&&laBehind()){ if((animate.la=(animate.la||0)+1)%4===0){ if(loaded) updateCamera(dt); renderFrame(dt); } return; }   /* the opening film covers the scene: draw it now and then, so the scan finishes building without taking from the film */
+    if(typeof laBehind==="function"&&laBehind()){ var lt=performance.now(); if(lt-(animate.lt||0)>=200){ animate.lt=lt; if(loaded) updateCamera(dt); renderFrame(dt); } return; }   /* the opening film covers the scene: drawn five times a second, just enough for the scan to finish building, so the graphics card is left to the film */
     if(!(typeof LA!=="undefined"&&LA.on)&&(App.is("hub")||App.is("signin")||document.body.classList.contains("la-wel-on"))){ if(!loaded&&viewer&&(animate.bg=(animate.bg||0)+1)%3===0) renderFrame(dt); return; }   /* the hub, sign-in and the welcome card cover the scene: don't draw it (a scan still loading is drawn now and then so Spark finishes building it) */
     if(loaded) updateCamera(dt); renderFrame(dt); dynTick(dt); if(viewfinderOn) vfLevelTick(); }
   animate();

@@ -690,7 +690,7 @@
          to save budget, and the merged copy of it in the big scan is hidden (the lighting modifier keeps hiding it) */
       var DT=keepCol&&CH.spec&&CH.spec.detail;
       if(DT){ viewer.cut=DT.cut; mesh.worldModifier=dtCutModifier(DT.cut); mesh.updateGenerator();
-        assetBytes(DT.data).then(function(b2){ if(DT.ext!=="stm") return b2; return new Response(new Blob([b2]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer().then(function(raw){ return pwCall({op:"stm", buf:raw, level:"full", tr:[raw]}).catch(function(){ return stmUnpack(raw,"full"); }); }); }).then(function(b2){ if(!viewer||viewer.mesh!==mesh) return; var dm=new SPARK.SplatMesh({fileBytes:new Uint8Array(b2), fileType:DT.ext==="stm"?FMT.splat:FMT[DT.ext||"sog"], lod:false});   /* stm pieces: every splat, never thinned by the detail setting */
+        assetBytes(DT.data).then(function(b2){ if(DT.ext!=="stm") return b2; return new Response(new Blob([b2]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer().then(function(raw){ return pwCall({op:"stm", buf:raw, level:"full"}).catch(function(){ return stmUnpack(raw,"full"); }); }); }).then(function(b2){ if(!viewer||viewer.mesh!==mesh) return; var dm=new SPARK.SplatMesh({fileBytes:new Uint8Array(b2), fileType:DT.ext==="stm"?FMT.splat:FMT[DT.ext||"sog"], lod:false});   /* stm pieces: every splat, never thinned by the detail setting */
           dm.quaternion.copy(q); dm.scale.setScalar(SC); scene.add(dm); viewer.detail=dm; if(typeof RL!=="undefined"&&RL.gpu&&RL.gpu.U.on.value>0&&typeof rlDetail==="function") rlDetail(); }).catch(function(e){ console.warn("detail piece", e); if(viewer&&viewer.mesh===mesh){ viewer.cut=null; if(typeof RL!=="undefined"&&RL.gpu&&RL.gpu.U.dcut){ RL.gpu.U.dcut.value.set(0,0,-1,0); mesh.updateVersion(); } else { mesh.worldModifier=null; mesh.updateGenerator(); } } }); }   /* no piece: show the subject from the main scan */
       // Spark says "initialized" before its level-of-detail build has the splats ready: wait for them. Then, because
       // the LoD splats live in a streaming pager that can't be read back, parse the same bytes once more without LoD to
@@ -705,10 +705,9 @@
     }).then(function(){ live();
       frameScene(); if(typeof wxArrival==="function"&&wxArrival()){} else if(keepCol&&CH.spec&&CH.spec.spawn){ var sp=CH.spec.spawn; if(sp[4]&&WK.mode==="walk") WK.eye=sp[4]; camPos.set(sp[0], WK.col?wkGround(sp[0],sp[1])+WK.eye:camPos.y, sp[1]); yaw=sp[2]||0; pitch=sp[3]||-0.1; }   // a scene can say where to stand first
       /* Spark's splat budget defaults to 2.5 million, far more than this scan has, so trimming it when the frame rate dips
-         did nothing until it fell below half. Set it to the scan's own size: at 1 everything still draws (same look),
+         did nothing until it fell below half. Set it so the base scale draws what it did before (same look),
          and every step down really draws fewer splats */
-      try{ var nSp=viewer.P?viewer.P.length/3:0; if(nSp>0&&viewer.spark){ viewer.spark.lodSplatCount=Math.min(2.5e6, Math.max(2e5, nSp)); } }catch(e){}
-      if(viewer.P&&!ownLoaded) setTimeout(function(){ gridsAsync(null); }, 0);
+      try{ var nSp=viewer.P?viewer.P.length/3:0; if(nSp>0&&viewer.spark){ var dflt=viewer.spark.defaultSplatTarget?viewer.spark.defaultSplatTarget():2.5e6; viewer.spark.lodSplatCount=Math.max(2e5, Math.min(dflt, nSp/Math.max(0.1,dynLodBase())));   /* at the base scale: the scan's own size or the device cap, whichever is less, exactly as before */ } }catch(e){}
       chAttach(); loaded=true; if(!(typeof RF!=="undefined"&&RF.on)&&!(typeof LA!=="undefined"&&LA.on)) sfx("arrive"); updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       /* no toast on arrival: the coach's first prompt and the look-around pill already say it (ux-scene) */
@@ -780,19 +779,19 @@
     var id=++PW.id; PW.cb[id]=[res,rej]; msg.id=id; var tr=msg.tr||[]; delete msg.tr; PW.w.postMessage(msg, tr); }); }
   /* the light grids, built in the background as soon as a scan's points are in: Lighting and the default look find them ready.
      cb(true) when they're in (or were already), cb(false) if this scan went away meanwhile */
-  var GA={P:null, wait:[]};
-  function gridsAsync(cb){ if(!(viewer&&viewer.P)){ cb&&cb(false); return; } var P=viewer.P;
-    if(typeof RL==="undefined"||typeof RLB==="undefined"){ cb&&cb(false); return; }
-    if(RL.ready&&RL.P===P&&RL.grid&&RLB.gridS){ RLB.built=true; cb&&cb(true); return; }
-    if(cb) GA.wait.push(cb); if(GA.P===P) return; GA.P=P;
-    var done=function(ok){ var w=GA.wait; GA.wait=[]; GA.P=null; w.forEach(function(f){ try{ f(ok); }catch(e){ console.warn(e); } }); };
-    try{ if(!RL.ready){ RL.P=viewer.P; RL.A=viewer.A; RL.N=RL.P.length/3; RL.S=rlScale(); RL.ready=true; } if(!RL.target) RL.target=rlTarget(); }catch(e){ console.warn("grids prep",e); done(false); return; }
+  var GA={jobs:[]};   /* one job per scan's points; waiters only hear about their own scan */
+  function gridsAsync(cb){ var P=viewer&&viewer.P;
+    if(!P||typeof RL==="undefined"||typeof RLB==="undefined"||!RL.ready||RL.P!==P||!RL.target){ cb&&cb(false); return; }   /* the caller sets up RL and picks the target, as before */
+    if(RL.grid&&RLB.gridS){ RLB.built=true; cb&&cb(true); return; }
+    var job=GA.jobs.filter(function(j){ return j.P===P; })[0]; if(job){ if(cb) job.cbs.push(cb); return; }
+    job={P:P, cbs:cb?[cb]:[]}; GA.jobs.push(job);
+    var done=function(ok){ GA.jobs=GA.jobs.filter(function(j){ return j!==job; }); job.cbs.forEach(function(f){ try{ f(ok); }catch(e){ console.warn(e); } }); };
     var T=RL.target;
     pwCall({op:"grids", P:P, A:viewer.A, N:P.length/3, mn:[boxMin.x,boxMin.y,boxMin.z], mx:[boxMax.x,boxMax.y,boxMax.z], pad:0.05*(sceneMaxDim||8), S:RL.S, shK:RL.shK||0.35,
       sharp:true, tx:T.x, tz:T.z, gy:rlGround(T.x,T.z), prm:{keep:RLB.keep, qLo:RLB.qLo, qHi:RLB.qHi, kS:RLB.kS}}).then(function(r){
       if(!(viewer&&viewer.P===P&&RL.P===P)){ done(false); return; }
       if(!RL.grid) rlGridSet(r.g); if(!RLB.gridS&&r.s) rbGridSet(r.s); RLB.built=true; done(true);
-    }).catch(function(e){ console.warn("grids in the background failed, building here", e); if(!(viewer&&viewer.P===P)){ done(false); return; } try{ rlGrid(); rbGridSharp(); RLB.built=true; done(true); }catch(e2){ console.warn(e2); done(false); } }); }
+    }).catch(function(e){ console.warn("grids in the background failed, building here", e); if(!(viewer&&viewer.P===P&&RL.P===P)){ done(false); return; } try{ rlGrid(); rbGridSharp(); RLB.built=true; done(true); }catch(e2){ console.warn(e2); done(false); } }); }
   function stmUnpack(buf, level){ var keepFrac=(DETAIL[level]||DETAIL.full).keep; var dv=new DataView(buf), n=dv.getUint32(4,true), f=new Float32Array(buf.slice(8,40)), b=new Uint8Array(buf,40), N=n;
     var keep=null; if(keepFrac<1){ var A=12*n+3*n, ss0=(f[7]-f[6])/65535, sc=new Float32Array(n), lo=Infinity, hi=-Infinity, j, ch;
       for(j=0;j<n;j++){ var al=b[A+j]; if(al<5){ sc[j]=-Infinity; continue; }
@@ -817,7 +816,7 @@
     assetBytes(sc.data, function(d,n){ if(d<n) showLoader("Downloading "+(sc.name||"the scan")+" · "+Math.round(d/n*100)+"%"); else showLoader("Opening "+(sc.name||"the scan")+"…"); }).then(function(ab){
       if(sc.ext!=="stm") return {buf:ab, ext:sc.ext||"splat"};
       var ds=new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate")));
-      return ds.arrayBuffer().then(function(raw){ detailDpr(); return pwCall({op:"stm", buf:raw, level:sceneDetail, tr:[raw]}).catch(function(){ return stmUnpack(raw, sceneDetail); }).then(function(b){ return {buf:b, ext:"splat"}; }); }); })
+      return ds.arrayBuffer().then(function(raw){ detailDpr(); return pwCall({op:"stm", buf:raw, level:sceneDetail}).catch(function(){ return stmUnpack(raw, sceneDetail); }).then(function(b){ return {buf:b, ext:"splat"}; }); }); })
     .then(function(r){ if(bt!==bundTok) return null; skySet(sc.sky||null); CH.spec=sc; return wkLoad(sc.collide).then(function(){ return r; }); })
     .then(function(r){ if(!r||bt!==bundTok) return; var f=new File([r.buf],(sc.id||"scene")+"."+r.ext,{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown", true); })
     .catch(function(e){ if(bt!==bundTok) return; console.warn(e); hideLoader(); if(typeof rfClose==="function"&&RF.on){ rfClose(); RF.failed=true; siShow(); }   /* the scan wouldn't load: fall back to the plain sign-in card */ toast("Couldn't open that scene."); }); }
@@ -1709,7 +1708,7 @@
   document.addEventListener("visibilitychange", function(){ if(document.hidden) saveSessionNow(); });
   /* the safety-net save: only when something actually changed. It used to write every photo (full-size images) to the
      browser's database every 9 seconds whatever happened, a freeze that got longer with every photo taken */
-  function sessPrint(){ try{ return JSON.stringify(sessionData(), function(k,v){ if(k==="savedAt") return 0; return (typeof v==="string"&&v.length>256)?v.length+":"+v.slice(-48):v; }); }catch(e){ return String(Math.random()); } }
+  function sessPrint(){ try{ return JSON.stringify(sessionData(), function(k,v){ if(k==="savedAt") return 0; return (typeof v==="string"&&v.length>256)?v.length+":"+v.slice(0,32)+v.substr(v.length>>1,32)+v.slice(-48):v; }); }catch(e){ return String(Math.random()); } }
   var _sessPrint=null;
   setInterval(function(){ if(!(photos.length||(typeof foItems!=="undefined"&&foItems&&foItems.length))) return; var fp=sessPrint(); if(fp===_sessPrint&&!_sessEdit) return; _sessPrint=fp; saveSessionNow(); }, 9000);
   if(/[?&]dev/.test(location.search)){ try{ window.__ed={openEditor:openEditor,eglInit:eglInit,photos:photos,defEd:defEd,editRender:editRender,selectBody:selectBody,BODIES:BODIES,openFolio:openFolio,openPhotobook:openPhotobook,openGalleryShow:openGalleryShow,

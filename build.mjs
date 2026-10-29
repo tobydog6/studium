@@ -44,7 +44,7 @@ function resolveAssets(text) {
     if (ONLY && /^assets\/scenes\//.test(rel) && !ONLY.includes(basename(rel).split(/[-.]/)[0])) return '';   // a scene left out of this build
     /* web build: anything sizeable ships as its own file, not base64 inside the page. The page parses in a fraction of the
        time (it was ~20 MB), files load in parallel and cache, and an image used twice downloads once */
-    if (WEB && kind === 'asset' && assetBuf(rel).length > 48 * 1024 && MIME[extname(rel).toLowerCase()]) {
+    if (WEB && kind === 'asset' && assetBuf(rel).length > 48 * 1024 && MIME[extname(rel).toLowerCase()] && !/^assets\/research\//.test(rel)) {   /* research samples can become students' photos: they stay data: images */
       const n = 'assets/' + rel.replace(/^assets\//, '').replace(/\//g, '-');
       if (!existsSync(join(WEBDIR, n))) writeFileSync(join(WEBDIR, n), assetBuf(rel));
       return n;

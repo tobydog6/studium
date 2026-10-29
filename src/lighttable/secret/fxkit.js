@@ -318,8 +318,8 @@ Object.assign(FR, {
     vec3 lava=mix(vec3(0.05,0.01,0.0),mix(vec3(1.0,0.25,0.02),vec3(1.0,0.85,0.3),smoothstep(0.55,0.8,f)),smoothstep(0.35,0.6,f))*1.6;
     float glow=0.0; for(int i=1;i<7;i++){ vec2 o=vec2(0.0,-0.025*float(i)); vec2 q=vUv+o; vec3 nn=nrm(q,0.35); float lf=smoothstep(0.12,0.3,nn.y*1.6+0.2-texture2D(uMap,q).g*1.5); glow+=lf*(1.0-float(i)/7.0); }
     vec3 lit=p*(vec3(0.22,0.18,0.22)+vec3(1.0,0.4,0.1)*glow*0.45*uK); vec3 c=mix(lit,lava,floor_); gl_FragColor=vec4(c,1.0);`,
-  aurora: `void main(){ vec2 A=vec2(uAsp,1.0); vec3 p=texture2D(uTex,vUv).rgb; float d=Dp(vUv); float sky=smoothstep(0.3,0.12,d)*smoothstep(0.25,0.6,vUv.y);
-    float x=vUv.x*3.0; float band=0.62+0.12*sin(x*1.3+uT*0.12)+0.08*fbm(vec2(x*0.8,uT*0.05)); float dy=vUv.y-band;
+  aurora: `void main(){ vec2 A=vec2(uAsp,1.0); vec3 p=texture2D(uTex,vUv).rgb; float d=Dp(vUv); float sky=smoothstep(0.4,0.14,d)*smoothstep(0.18,0.5,vUv.y);
+    float x=vUv.x*3.0; float band=0.56+0.12*sin(x*1.3+uT*0.12)+0.08*fbm(vec2(x*0.8,uT*0.05)); float dy=vUv.y-band;
     float curtain=smoothstep(-0.05,0.02,dy)*exp(-max(dy,0.0)*5.0)*pow(vnoise(vec2(x*18.0+fbm(vec2(x,uT*0.1))*6.0,uT*0.25)),2.0)*1.8;
     vec3 ac=mix(vec3(0.1,1.0,0.45),vec3(0.9,0.2,0.7),smoothstep(0.03,0.25,dy))*curtain*min(uK,2.0);
     vec3 stars=vec3(step(0.997,h1(floor(vUv*A*400.0))))*(0.5+0.5*sin(uT*2.0+h1(floor(vUv*A*300.0))*30.0));

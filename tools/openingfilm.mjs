@@ -5,7 +5,7 @@
 //   node tools/openingfilm.mjs --from 400         carry on from frame 400 (frames already on disk are kept)
 //   node tools/openingfilm.mjs --step 30          a quick look: every 30th frame only, no encode
 //   node tools/openingfilm.mjs --encode           encode what's on disk
-//   --ss 2   draw at twice the size and scale down (smoother edges, four times the time)
+//   --ss 2   draw at twice the size and scale down (smoother edges, four times the time)   --gpu   use the graphics card
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
 import { createReadStream, existsSync, mkdirSync, statSync, writeFileSync, readdirSync } from 'node:fs';
@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 const require = createRequire(import.meta.url);
 let chromium; try { ({ chromium } = require('playwright')); } catch { ({ chromium } = require(process.env.PLAYWRIGHT_PATH || '/opt/npm-tools/node_modules/playwright')); }
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..'), WEB = join(ROOT, 'dist', 'web'), DIR = join(ROOT, 'tests', 'out', 'film');
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..'), WEB = join(ROOT, 'dist', 'web'), DIR = join(ROOT, 'tests', 'out', process.env.FILM_DIR || 'film');
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i < 0 ? d : (process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? +process.argv[i + 1] : true); };
 const FROM = arg('--from', 0), STEP = arg('--step', 1), SS = arg('--ss', 1), ENCODE_ONLY = arg('--encode', false), W = 1920, H = 1080;
 mkdirSync(DIR, { recursive: true });
@@ -37,12 +37,15 @@ const server = createServer((q, r) => { const f = join(WEB, decodeURIComponent(q
   if (!f.startsWith(WEB) || !existsSync(f) || statSync(f).isDirectory()) { r.writeHead(404); r.end(); return; }
   r.writeHead(200, { 'content-type': TYPES[extname(f)] || 'application/octet-stream' }); createReadStream(f).pipe(r); });
 await new Promise((ok) => server.listen(0, ok));
-const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--disable-background-timer-throttling', '--disable-renderer-backgrounding'] });
+/* --gpu: a real graphics card (EGL, as on a cloud GPU machine); otherwise the software renderer, which is very slow */
+const GPU = arg('--gpu', false), BG = ['--disable-background-timer-throttling', '--disable-renderer-backgrounding'];
+const browser = await chromium.launch(GPU ? { channel: 'chromium', args: ['--use-gl=angle', '--use-angle=gl-egl', '--ignore-gpu-blocklist', ...BG] } : { args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', ...BG] });
 const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: SS });
 await page.addInitScript(() => { try { localStorage.setItem('splat_tut_v1', '1'); localStorage.setItem('studium_guide_v1', 'off'); localStorage.setItem('studium_detail', 'full'); localStorage.setItem('studium_upscale', 'off'); localStorage.setItem('studium_launch_seen', '1'); } catch (e) {} });
 page.on('pageerror', (e) => console.log('page error:', String(e)));
 page.setDefaultTimeout(0);
-await page.goto(`http://localhost:${server.address().port}/index.html?dev&filmcap&noauto`);
+const SW = process.argv.includes('--sw') ? '&sw=' + process.argv[process.argv.indexOf('--sw') + 1] : '';   /* --sw 1,1.1: try another swing for the circle */
+await page.goto(`http://localhost:${server.address().port}/index.html?dev&filmcap&noauto${SW}`);
 await page.waitForFunction(() => window.__fc, null, { timeout: 120000 });
 const t0 = Date.now(); let st = '';
 for (;;) { st = await page.evaluate(() => __fc.prep()); if (st === 'ready') break; await page.waitForTimeout(250); if (Date.now() - t0 > 30 * 60000) throw new Error('never ready: ' + st); }

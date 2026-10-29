@@ -20,6 +20,7 @@ import * as print from './print.js';
 import * as rail from './rail.js';
 import * as parcel from './parcel.js';
 import * as sound from './sound.js';
+import * as under from './under.js';
 
 const stdM = (c, r, m, o) => new THREE.MeshStandardMaterial({ color: c, roughness: r ?? 0.5, metalness: m ?? 0, ...(o || {}) });
 const BRASS = () => stdM(0xb8903e, 0.32, 0.75);
@@ -116,6 +117,7 @@ export function installSecret(ctx) {
   /* ---------- the three diegetic buttons ---------- */
   function pushButton(color) { const g = new THREE.Group(); const bezel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.21, 0.07, 28), BRASS()); bezel.position.y = 0.035;
     const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.145, 0.09, 28), stdM(color, 0.35, 0.1, { emissive: color, emissiveIntensity: 0.18 })); cap.position.y = 0.1; g.add(bezel, cap); g.userData.cap = cap; g.userData.base = 0.18; return g; }
+  S.pushButton = pushButton;
   const btnLoot = pushButton(0xe4552e); btnLoot.name = 'loot';
   const btnVault = new THREE.Group(); btnVault.name = 'vault';
   { const dark = stdM(0x26231f, 0.6), body = new THREE.Mesh(new RoundedBoxGeometry(0.74, 0.3, 0.52, 3, 0.05), dark); body.position.y = 0.15; btnVault.add(body);
@@ -139,7 +141,8 @@ export function installSecret(ctx) {
   S.buttons = { loot: btnLoot, vault: btnVault, key: btnKey };
   let lootOnClamp = false;
   /* the loot button lives on the clamp only: with the stand folded, clicking the kit box opens the stand as it always did (Sam) */
-  function placeLoot() { const up = ctx.STAND.up && !ctx.STAND.dir; btnLoot.visible = up && S.unlocked() && !M.is('locked'); if (up === lootOnClamp && btnLoot.parent) return; lootOnClamp = up;
+  const underOn = () => !!(S.under && S.under.on);
+  function placeLoot() { const up = ctx.STAND.up && !ctx.STAND.dir; btnLoot.visible = false; btnVault.visible = underOn(); if (up === lootOnClamp && btnLoot.parent) return; lootOnClamp = up;
     ctx.clampG.add(btnLoot); btnLoot.position.set(-0.52, 0.16, 0.27); btnLoot.rotation.set(0, 0, 0); }
   placeLoot();
 
@@ -162,7 +165,7 @@ export function installSecret(ctx) {
     place(slab, x, z, yaw, o = {}) { return S.table.adopt(S.objFor(slab), x, z, yaw, o); },
     /* an object made elsewhere (the rail's print) becomes a table object at x, z */
     adopt(obj, x, z, yaw, o = {}) { const slab = obj.slab, g = obj.group, K = S.TABLE_K, y = (obj.th || SM.SLAB.th) * K / 2 + 0.004; if (g.parent !== ctx.scene) ctx.scene.attach(g); g.scale.setScalar(K); g.position.set(x, y, z); g.quaternion.copy(flatQ).premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw || 0));
-      obj.yaw = yaw || 0; const sh = S.shadow(3.6 * K, 4.4 * K); sh.position.set(x + 0.05, 0.0035, z + 0.07); sh.rotation.z = -(yaw || 0); ctx.scene.add(sh); obj.tableShadow = sh; ctx.scene.add(g); obj.where = 'table'; if (!tableSlabs.includes(obj)) tableSlabs.push(obj);
+      obj.yaw = yaw || 0; g.userData.secret = true; g.visible = underOn(); const sh = S.shadow(3.6 * K, 4.4 * K); sh.userData.secret = true; sh.visible = underOn(); sh.position.set(x + 0.05, 0.0035, z + 0.07); sh.rotation.z = -(yaw || 0); ctx.scene.add(sh); obj.tableShadow = sh; ctx.scene.add(g); obj.where = 'table'; if (!tableSlabs.includes(obj)) tableSlabs.push(obj);
       if (!o.quiet) store.toTable(slab.id, x, z, yaw);
       if (o.drop) { g.position.y = 1.2; sh.material.opacity = 0.1; T.to(g.position, new THREE.Vector3(x, y, z), { dur: 0.55, ease: T.E.outBounce }); T.to(sh.material, { opacity: 0.55 }, { dur: 0.5 }); setTimeout(() => S.sfx('ltPutDown'), 420); }
       return obj; },
@@ -206,14 +209,18 @@ export function installSecret(ctx) {
     pointer(kind, e, M) {
       /* a print, wall group or string being dragged keeps the table's own handling; the buttons only take a free pointer */
       if (ctx.drag.p || ctx.drag.pending || ctx.drag.wall || ctx.isBusy()) { setHot(null); return false; }
-      if (S.parcel && S.parcel.pointer(kind, e)) { setHot(null); return true; }
-      if (sd) return slabDrag(kind, e);
-      if (kind === 'move') { const h = S.hitAny(e, hittable()); setHot(h ? h.root : null); if (h) { ctx.canvas.style.cursor = 'pointer'; ctx.hideActs(); return true; } return false; }
-      if (kind === 'down') { if (e.button !== 0) return false; const h = S.hitAny(e, hittable()); if (!h) return false;
-        if (h.root === btnLoot) { S.sfx('detent'); M.send('LOOT'); } else if (h.root === btnVault) { S.sfx('detent'); M.send('VAULT'); } else if (h.root === btnKey) { S.sfx('detent'); M.send('ROOM'); }
-        else { const o = tableSlabs.find(o => o.group === h.root); if (o) { const t = S.tableHit(e, 0) || h.point; sd = { o, x0: e.clientX, y0: e.clientY, moved: 0, dx: o.group.position.x - t.x, dz: o.group.position.z - t.z, lifted: false }; } } return true; }
-      return false; },
+      return S.tablePointer(kind, e, hittable()); },
   });
+  /* the buttons, parcels and slabs on whichever side is up: shared by the light side's idle and the dark side's under */
+  S.tablePointer = function (kind, e, list) {
+    if (S.parcel && S.parcel.pointer(kind, e)) { setHot(null); return true; }
+    if (sd) return slabDrag(kind, e);
+    if (kind === 'move') { const h = S.hitAny(e, list); setHot(h ? h.root : null); if (h) { ctx.canvas.style.cursor = 'pointer'; ctx.hideActs(); return true; } ctx.canvas.style.cursor = 'default'; return false; }
+    if (kind === 'down') { if (e.button !== 0) return false; const h = S.hitAny(e, list); if (!h) return false;
+      if (h.root.name === 'loot') { S.sfx('detent'); M.send('LOOT'); } else if (h.root === btnVault) { S.sfx('detent'); M.send('VAULT'); } else if (h.root === btnKey) { S.sfx('detent'); M.send('ROOM'); }
+      else { const o = tableSlabs.find(o => o.group === h.root); if (o) { const t = S.tableHit(e, 0) || h.point; sd = { o, x0: e.clientX, y0: e.clientY, moved: 0, dx: o.group.position.x - t.x, dz: o.group.position.z - t.z, lifted: false }; } } return true; }
+    return false;
+  };
   M.define('room.knock', { busy: true, async enter(d, run) { S.sfx('ltMenu'); const r0 = btnKey.rotation.z; await T.tween({ dur: 0.7, ease: T.E.linear, update: (e, r) => { btnKey.rotation.z = r0 + Math.sin(r * Math.PI * 6) * 0.22 * (1 - r); } }); btnKey.rotation.z = r0; S.toast('The secret room is still being dug out. Coming soon.'); if (run.alive()) M.go('idle'); } });
   /* a slab on the table drags like a print; a click without movement inspects it */
   let sd = null;
@@ -229,16 +236,16 @@ export function installSecret(ctx) {
       S.sfx('ltPutDown'); store.toTable(o.slab.id, g.position.x, g.position.z, o.yaw || 0); return true; }
     return true;
   }
-  function hittable() { const wall = ctx.cam.view === 'wall'; return wall ? [btnKey] : [btnLoot, btnVault, ...tableSlabs.map(o => o.group)]; }
+  function hittable() { const wall = ctx.cam.view === 'wall'; return wall ? [btnKey] : [btnKey, ...tableSlabs.map(o => o.group)]; }
   let hot = null; function setHot(o) { if (hot === o) return; if (hot) hot.userData.hotT = 0; hot = o; if (hot) hot.userData.hotT = 1; }
 
   /* ---------- unlock / lock ---------- */
   function unlock() { store.get().unlocked = true; store.save(); M.go('idle'); S.sfx('kitOpen'); hud();
     buttons.forEach((b, i) => { b.visible = true; b.scale.setScalar(0.001); T.tween({ dur: 0.6, delay: 0.1 + i * 0.12, ease: T.E.outBack, update: e => b.scale.setScalar(Math.max(0.001, e)) }); });
     if (!tableSlabs.length) S.table.restore();
-    S.toast('Three things on the table that were not there before.'); }
+    S.toast('Unlocked. Press Space to turn the table over.'); }
   /* locking hides every trace: the buttons dissolve and the slabs on the table go too (they stay in the store for next time) */
-  function lock() { store.get().unlocked = false; store.save(); if (inspect.active()) inspect.close('back'); M.go('locked'); hud(); dev.toggle(false);
+  function lock() { if (S.under && S.under.on) { S.toast('Turn the table back over first (Space).'); return; } store.get().unlocked = false; store.save(); if (inspect.active()) inspect.close('back'); M.go('locked'); hud(); dev.toggle(false);
     buttons.forEach((b, i) => { P.dissolve(b, { mode: dev.opt('dissolve'), dur: 1.1, delay: i * 0.1, spread: 1.4 }); });
     tableSlabs.slice().forEach((o, i) => { P.dissolve(o.group, { mode: dev.opt('dissolve'), dur: 1.1, delay: 0.2 + i * 0.08, spread: 1.6 }); S.table.remove(o, true); }); }
   function resetAll() { tableSlabs.slice().forEach(o => S.table.remove(o, true)); store.reset(); SL.store.get().unlocked = true; store.save(); hud(); S.toast('Secret layer reset. Pulls, vault and binder are empty again.'); }
@@ -258,7 +265,7 @@ export function installSecret(ctx) {
   S.css(BASE_CSS + DEV_CSS + INSPECT_CSS);
 
   /* ---------- the modules (each owns one file) ---------- */
-  [sound, print, holo, rail, arm, vault, binder, parcel, loot].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  [sound, print, holo, rail, arm, vault, binder, parcel, loot, under].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
 
   /* ---------- boot ---------- */
   if (S.unlocked()) { buttons.forEach(b => { b.visible = true; }); M.go('idle'); S.table.restore(); } else M.go('locked');
@@ -277,6 +284,7 @@ export function installSecret(ctx) {
     key(e) {
       if (e.key === '=' && !e.ctrlKey && !e.metaKey && !e.altKey) { if (inspect.active()) { inspect.close('back'); return true; } if (M.active()) { M.send('CLOSE'); return true; } showBox(); return true; }
       if (e.key === '`' && S.unlocked()) { dev.toggle(); return true; }
+      if (e.key === ' ' && S.unlocked() && !inspect.active() && S.under && (M.is('idle') || M.is('under'))) { S.under.flip(M.is('idle') ? 'under' : 'idle'); return true; }
       if (inspect.active() && inspect.key(e)) return true;
       if (M.state === 'locked') return false;
       return M.key(e) || M.busy();
@@ -285,7 +293,7 @@ export function installSecret(ctx) {
       T.tick(dt); P.particleFrame(dt); placeLoot();
       if (S.unlocked()) { const pulse = 0.35 + 0.25 * Math.sin(now / 420);
         buttons.forEach(b => { const cap = b.userData.cap; if (!cap) return; const want = b.userData.hotT ? 1.4 : M.is('idle') ? pulse : 0.15; cap.material.emissiveIntensity += (want - cap.material.emissiveIntensity) * (1 - Math.exp(-dt * 10)); }); }
-      M.frame(dt); inspect.frame(dt); if (S.parcel) S.parcel.frame(dt);
+      M.frame(dt); inspect.frame(dt); if (S.parcel) S.parcel.frame(dt); if (S.under) S.under.frame(dt);
       slabObjs.forEach(o => { if (o.built) o.update(dt); });
     },
     pause(on) { if (on && inspect.active()) inspect.close('back'); },

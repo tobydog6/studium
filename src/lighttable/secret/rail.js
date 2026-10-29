@@ -109,13 +109,14 @@ export function install(S) {
   }
   /* once the print's photo is in and its size is known: clips, strings, and a back for the slab stand-in */
   function placeHanger(s) {
-    const o = s.obj, w = o.w * K, hh = o.h * K; s.spin.position.y = -HANG - hh / 2; s.placed = true;
+    const o = s.obj, side = o.w > o.h, w = (side ? o.h : o.w) * K, hh = (side ? o.w : o.h) * K; s.spin.position.y = -HANG - hh / 2; s.placed = true;
+    if (side) o.group.rotation.z = Math.PI / 2;   /* a landscape print hangs sideways so every slot is the same width */
     [-0.3, 0.3].forEach(x => { const clip = box(0.06, 0.12, 0.06, stdM(0x2a2a2e, 0.5, 0.6), x * w, -HANG + 0.02, 0, s.h); s.clips.push(clip); const str = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, HANG, 6), stdM(0x55565a, 0.6, 0.4)); str.position.set(x * w, -HANG / 2, 0); s.h.add(str); });
     if (!o.parts || !o.parts.back) {   /* the slab object has no back of its own: paper, the roundel blind, the tier bar along the foot */
       const t = S.SL.tierOf(o.slab), c = text(512, Math.round(512 * o.h / o.w), (g, cv) => { g.fillStyle = '#ece7dc'; g.fillRect(0, 0, cv.width, cv.height); g.fillStyle = '#e2ddd2'; for (let y = 8; y < cv.height; y += 22) for (let x = 8; x < 512; x += 22) { g.beginPath(); g.arc(x, y, 1.4, 0, 7); g.fill(); }
         g.strokeStyle = 'rgba(0,0,0,0.12)'; g.lineWidth = 6; g.beginPath(); g.arc(256, cv.height / 2 - 20, 70, 0, 7); g.stroke(); g.fillStyle = 'rgba(0,0,0,0.16)'; g.font = '700 46px "Geist", sans-serif'; g.textAlign = 'center'; g.fillText('STUDIUM', 256, cv.height / 2 - 4); g.font = '500 20px "Geist Mono", monospace'; g.fillText('RAW · UNGRADED', 256, cv.height / 2 + 30);
         g.fillStyle = t.color; g.fillRect(0, cv.height - 28, 512, 28); });
-      const back = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.02, hh - 0.02), lam(0xffffff, { map: c })); back.position.z = (o.th || 0.19) * K / 2 + 0.004; s.spin.add(back); s.back = back; }
+      const back = new THREE.Mesh(new THREE.PlaneGeometry(o.w * K - 0.02, o.h * K - 0.02), lam(0xffffff, { map: c })); back.position.z = (o.th || 0.19) * K / 2 + 0.004; if (side) back.rotation.z = Math.PI / 2; s.spin.add(back); s.back = back; }
   }
   function mk(slab) { const o = S.print && S.print.make ? S.print.make(slab) : null; return o ? S.slabs.adopt(o) : S.slabs.make(slab); }
 
@@ -164,7 +165,10 @@ export function install(S) {
     const up = T.to(rg.rig.position, { y: UP }, { dur: 2.4, ease: E.inOutCubic, tag: 'rail' });
     /* the prints' photos arrive while it rises; the pitch of the slots fits the widest */
     await Promise.race([Promise.all(slots.map(s => s.obj.ready.catch(() => null))), T.wait(5, 'rail')]); if (!alive()) return;
-    r.pitch = Math.max(1.4, ...slots.filter(s => s.obj.built).map(s => s.obj.w * K)) + 0.14;
+    r.pitch = Math.max(1.1, ...slots.filter(s => s.obj.built).map(s => Math.min(s.obj.w, s.obj.h) * K)) + 0.12;
+    /* a flash at the marker in the passing print's tier colour, and dust drifting in the pit */
+    r.flash = new THREE.PointLight(0xffffff, 0, 9, 1.6); r.flash.position.set(0, BAR_Y - 0.6, 1.4); rg.rig.add(r.flash);
+    { const n = 500, pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) { pos[i * 3] = rm.x0 + Math.random() * rm.W; pos[i * 3 + 1] = -4 + Math.random() * 5.5; pos[i * 3 + 2] = rm.z0 + Math.random() * rm.D; } const gm = new THREE.BufferGeometry(); gm.setAttribute('position', new THREE.BufferAttribute(pos, 3)); r.dust = new THREE.Points(gm, new THREE.PointsMaterial({ color: 0xffd2b0, size: 0.045, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending })); r.dust.userData.noParticles = true; group.add(r.dust); }
     await up; if (!alive()) return;
     S.snd && S.snd.play('servo'); await T.wait(0.35, 'rail'); if (!alive()) return;
     /* the reel */
@@ -242,6 +246,8 @@ export function install(S) {
       if (r.u >= reel.total + 0.1 && r.reelDone) { const f = r.reelDone; r.reelDone = null; r.pos = reel.target; f(); }
     } else r.blur *= Math.exp(-dt * 6);
     r.tick *= Math.exp(-dt * 14);
+    if (r.flash) { r.flash.intensity = 70 * r.tick; const near = slots.reduce((b, s) => { const dx = Math.abs(((s.i - r.pos) * r.pitch + slots.length * r.pitch * 1.5) % (slots.length * r.pitch) - slots.length * r.pitch / 2); return !b || dx < b.d ? { d: dx, s } : b; }, null); if (near) r.flash.color.set(S.SL.tierOf(near.s.obj.slab).color); }
+    if (r.dust) { const p = r.dust.geometry.attributes.position; for (let i = 0; i < p.count; i += 1) { p.setY(i, p.getY(i) + dt * (0.08 + 0.05 * Math.sin(i))); if (p.getY(i) > 1.6) p.setY(i, -4); } p.needsUpdate = true; r.dust.material.opacity = 0.25 + 0.4 * r.blur; }
     rg.marker.rotation.z = -r.tick * 0.45 * Math.sign(r.vel || 1); rg.mg.material.opacity = 0.35 + 0.65 * r.tick; rg.line.material.opacity = r.landed ? Math.max(0.08, 0.7 - (t - r.landed)) : 0.7;
     const n = slots.length, total = n * r.pitch, half = total / 2, lag = T.clamp(-r.vel * r.pitch / 30, -1, 1) * 0.05;
     slots.forEach(s => {

@@ -24,6 +24,9 @@ const CAN_K = 1.5;                                       /* the canister from th
 const LAND = [[18.9, -8.3], [18.9, -10.7], [18.9, -9.5]];  /* the print lands beside the pit, right under the arm's shoulder */
 
 export function install(S) {
+  S.dev.define('odds', 'Odds', { normal: 'As designed', lucky: 'Lucky (for testing)' }, 'lucky');
+  const lucky = () => S.dev.opt('odds') === 'lucky', BIG = ['rare', 'epic', 'legendary', 'mythic'];
+  const rollFor = o => S.SL.roll(lucky() && Math.random() < 0.8 ? { ...o, tier: BIG[Math.floor(Math.random() * BIG.length)], variant: Math.random() < 0.35 ? S.SL.VARIANTS[Math.floor(Math.random() * S.SL.VARIANTS.length)].id : undefined } : o);
   const { T, M, P, store } = S, E = T.E, ctx = S.ctx;
   const ENV = S.SM.envMap(S.renderer);
   const stdM = (c, r, m, o) => new THREE.MeshStandardMaterial({ color: c, roughness: r ?? 0.5, metalness: m ?? 0, envMap: ENV, envMapIntensity: m > 0.3 ? 1.2 : 0.35, ...(o || {}) });
@@ -143,6 +146,9 @@ export function install(S) {
   M.define('loot.open', { busy: true,
     async enter(d, run) {
       L.pushed = true; S.lockStand(true); S.cam.push(FRAME()); ctx.hideActs(); S.sfx('ltInspect'); hideBar();
+      /* on the dark side the hangar doors slide apart instead: no prints, tray, arm or blind */
+      L.under = !!(S.under && S.under.on);
+      if (L.under) { await S.under.doors(true); if (!run.alive()) return; await T.wait(0.2, 'loot'); if (!run.alive()) return; M.go('loot.rise'); return; }
       await S.clearPrints([X0 - 0.6, Z0 - 0.6, ctx.W_T / 2, Z1 + 0.6], S.dev.opt('clearing')); if (!run.alive()) return;
       /* the photo tray sits over the pit: it slides forward out of the way and comes back at the end */
       if (ctx.tray && !L.trayAway) { L.trayAway = true; S.sfx('lift'); T.to(ctx.tray.position, { x: ctx.TR.x + 2.4, z: ctx.TR.z + 5.6 }, { dur: 0.8, ease: E.inOutCubic, tag: 'loot' }); }
@@ -191,8 +197,8 @@ export function install(S) {
   M.define('loot.reel', {
     async enter(d, run) {
       const packs = S.packs(), pk = packs.length ? packs[Math.floor(Math.random() * packs.length)] : null;
-      const slab = S.SL.roll(pk && pk.id != null ? { pack: pk.id } : {}); store.addPull(slab); S.hud(); L.slab = slab;
-      const decoys = Array.from({ length: 14 }, () => S.SL.roll());
+      const slab = rollFor(pk && pk.id != null ? { pack: pk.id } : {}); store.addPull(slab); S.hud(); L.slab = slab;
+      const decoys = Array.from({ length: 14 }, () => rollFor({}));
       L.railLive = true; L.railUp = true;
       const obj = await S.rail.run(slab, { rect: RECT.slice(), decoys }); if (!run.alive()) return;
       M.go('loot.lay', { obj });
@@ -255,10 +261,11 @@ export function install(S) {
       L.cans.forEach(c => { if (c.open > 0) c.group.visible = false; });
       if (pedsUp()) await sinkPeds(run);
       L.lampT = 0;
-      await blind(run, false); setBlind(0); S.hole.close(); roller.visible = rollShadow.visible = false; rig.visible = false; resetCans();
+      if (L.under) { await S.under.doors(false); S.hole.close(); resetCans(); }
+      else { await blind(run, false); setBlind(0); S.hole.close(); roller.visible = rollShadow.visible = false; rig.visible = false; resetCans();
       /* the camera reforms on the arm before it rests; if the arm folds the stand away the camera goes with it */
       if (L.aimGone) { L.aimGone = false; await P.reform(ctx.aim, { mode: S.dev.opt('dissolve'), dur: 0.9, spread: 2 }); }
-      await S.arm.rest();
+      await S.arm.rest(); }
       if (L.trayAway) { L.trayAway = false; await T.to(ctx.tray.position, { x: ctx.TR.x, z: ctx.TR.z }, { dur: 0.7, ease: E.inOutCubic }); }
       S.lockStand(false); if (L.pushed) { S.cam.pop(); L.pushed = false; } S.sfx('detent');
       M.go('idle');

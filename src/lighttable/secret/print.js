@@ -46,15 +46,35 @@ function normalFrom(W, H, draw, strength) { const w = Math.round(W / 2), h = Mat
   sg.putImageData(out, 0, 0); return s; }
 /* the back's colour map and its emboss: bright white stock, the roundel with barely a tone of its own, the small
    embossed line above the tier bar, and the tier colour solid along the foot */
-function backCanvases(w, h, tier) {
+function backCanvases(w, h, tier, style, slab) {
   const px = 1024 / Math.max(w, h), W = Math.round(w * px), H = Math.round(h * px), c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  const dark = style === 'black';
+  if (style === 'exif') return exifBack(c, g, W, H, tier, slab);
   const R = Math.min(W, H) * 0.29, cx = W / 2, cy = H / 2 - H * 0.03, bar = Math.round(H * 0.043), lineY = H - bar - H * 0.045, lineFont = '500 ' + Math.round(Math.min(W, H) * 0.024) + 'px "Geist Mono", ui-monospace, monospace';
-  g.fillStyle = '#fbfbfa'; g.fillRect(0, 0, W, H); grain(g, W, H, 14000, 0.22, 0.05);
-  roundel(g, cx, cy, R, 'rgba(0,0,0,0.045)', Math.max(3, R * 0.02));
-  g.fillStyle = 'rgba(0,0,0,0.07)'; g.font = lineFont; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillText('S T U D I U M   ·   R A W   P R I N T', cx, lineY);
+  g.fillStyle = dark ? '#121214' : '#fbfbfa'; g.fillRect(0, 0, W, H); grain(g, W, H, 14000, dark ? 0.08 : 0.22, 0.05);
+  roundel(g, cx, cy, R, dark ? 'rgba(255,255,255,0.13)' : 'rgba(0,0,0,0.045)', Math.max(3, R * 0.02));
+  g.fillStyle = dark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.07)'; g.font = lineFont; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillText('S T U D I U M   ·   R A W   P R I N T', cx, lineY);
   g.fillStyle = tier.color; g.fillRect(0, H - bar, W, bar); g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(0, H - bar, W, Math.max(2, bar * 0.07));
   const n = normalFrom(W, H, hg => { roundel(hg, cx, cy, R, '#b8b8b8', Math.max(8, R * 0.087)); hg.fillStyle = '#b0b0b0'; hg.font = lineFont; hg.textAlign = 'center'; hg.textBaseline = 'alphabetic'; hg.fillText('S T U D I U M   ·   R A W   P R I N T', cx, lineY); }, 2.2);
-  return { map: c, normal: n };
+  return { map: c, normal: n, dark };
+}
+/* the camera settings back: white stock, the frame's title and a strip of settings like the back of a lab print */
+function exifBack(c, g, W, H, tier, slab) {
+  const r = (n => () => { n = (n * 1664525 + 1013904223) >>> 0; return n / 4294967296; })((String(slab && slab.id || 'x').split('').reduce((a, ch) => a + ch.charCodeAt(0) * 31, 7)) >>> 0);
+  const pick = a => a[Math.floor(r() * a.length)], bar = Math.round(H * 0.043), m = Math.round(W * 0.07), mono = px => '500 ' + Math.round(px) + 'px "Geist Mono", ui-monospace, monospace';
+  g.fillStyle = '#f6f4ef'; g.fillRect(0, 0, W, H); grain(g, W, H, 12000, 0.2, 0.05);
+  g.strokeStyle = 'rgba(0,0,0,0.18)'; g.lineWidth = 2; g.strokeRect(m, m, W - 2 * m, H - 2 * m - bar - m * 0.6);
+  g.fillStyle = '#2a241c'; g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  g.font = '400 ' + Math.round(Math.min(W, H) * 0.075) + 'px "Fraunces", Georgia, serif'; g.fillText((slab && slab.title) || 'Untitled', m * 1.5, m * 1.5 + Math.min(W, H) * 0.075);
+  const lines = [['CAMERA', pick(['Canon EOS R6', 'Nikon Z6 II', 'Fujifilm X-T4', 'Sony A7 III', 'Pentax K1000', 'Mamiya RB67'])], ['LENS', pick(['35 mm f/1.4', '50 mm f/1.8', '85 mm f/1.8', '24-70 mm f/2.8', '90 mm macro'])],
+    ['EXPOSURE', 'f/' + pick(['1.8', '2.8', '4', '5.6', '8', '11']) + '  ·  1/' + pick(['30', '60', '125', '250', '500', '1000']) + ' s  ·  ISO ' + pick(['100', '200', '400', '800', '1600'])],
+    ['LIGHT', pick(['Window, north', 'Overcast', 'Golden hour', 'Tungsten', 'Flash, bounced', 'Open shade'])], ['PAPER', pick(['Lustre 260', 'Matte 230', 'Baryta 310', 'Glossy 255'])], ['PRINTED', pick(['Christchurch', 'Ōtautahi', 'Studium lab'])]];
+  let y = m * 1.5 + Math.min(W, H) * 0.075 + m * 1.2; const lh = Math.min(W, H) * 0.052;
+  lines.forEach(([k, v]) => { g.fillStyle = '#8a7c66'; g.font = mono(lh * 0.42); g.fillText(k, m * 1.5, y); g.fillStyle = '#2a241c'; g.font = mono(lh * 0.5); g.fillText(v, m * 1.5 + W * 0.22, y); y += lh; });
+  roundel(g, W - m * 2.3, H - bar - m * 2.3, Math.min(W, H) * 0.09, 'rgba(0,0,0,0.3)', 3);
+  g.fillStyle = tier.color; g.fillRect(0, H - bar, W, bar);
+  const n = normalFrom(W, H, hg => { hg.strokeStyle = '#b8b8b8'; hg.lineWidth = 6; hg.strokeRect(m, m, W - 2 * m, H - 2 * m - bar - m * 0.6); }, 1.2);
+  return { map: c, normal: n, dark: false };
 }
 /* the hover rim: a soft halo round the sheet's outline, clear under the sheet itself */
 function haloCanvas(w, h, pad) {
@@ -107,8 +127,8 @@ function build(obj, S, env) {
   if (slab.variant === 'stamped') { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#e3ad57'; g.beginPath(); g.arc(64, 64, 58, 0, 7); g.fill(); g.fillStyle = '#3a2606'; g.font = '700 30px "Geist Mono", monospace'; g.textAlign = 'center'; g.fillText(S.SL.pad(slab.stamp, 2), 64, 60); g.font = '500 18px "Geist Mono", monospace'; g.fillText('/ 50', 64, 88);
     const st = new THREE.Mesh(new THREE.CircleGeometry(0.17, 32), new THREE.MeshBasicMaterial({ map: S.SM.tex(c), transparent: true })); st.position.set(photo.position.x + pw / 2 - 0.2, photo.position.y - ph / 2 + 0.2, pz + Z_OVER * 2); st.userData.order = 5; inner.add(st); obj.parts.stamp = st; }
   /* the back: blind emboss, lit only, and the tier bar along the foot */
-  const bc = backCanvases(obj.w, obj.h, tier), nmap = new THREE.CanvasTexture(bc.normal); nmap.anisotropy = 4;
-  const back = new THREE.Mesh(new THREE.PlaneGeometry(obj.w, obj.h), new THREE.MeshStandardMaterial({ map: S.SM.tex(bc.map), normalMap: nmap, normalScale: new THREE.Vector2(1, 1), roughness: 0.82, envMap: env, envMapIntensity: 0.3, transparent: clear, opacity: clear ? 0.35 : 1, depthWrite: !clear }));
+  const bc = backCanvases(obj.w, obj.h, tier, S.dev && S.dev.opt ? S.dev.opt('back') : 'white', slab), nmap = new THREE.CanvasTexture(bc.normal); nmap.anisotropy = 4;
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(obj.w, obj.h), new THREE.MeshStandardMaterial({ map: S.SM.tex(bc.map), normalMap: nmap, normalScale: new THREE.Vector2(1, 1), roughness: bc.dark ? 0.42 : 0.82, envMap: env, envMapIntensity: 0.3, transparent: clear, opacity: clear ? 0.35 : 1, depthWrite: !clear }));
   back.rotation.y = Math.PI; back.position.z = -th / 2 - Z_STOCK; back.userData.order = 2; inner.add(back); obj.parts.back = back;
   /* the hover rim: a halo plane through the middle of the sheet, so only the part past the edges shows */
   const pad = 0.5, halo = new THREE.Mesh(new THREE.PlaneGeometry(obj.w + pad * 2, obj.h + pad * 2), new THREE.MeshBasicMaterial({ map: S.SM.tex(haloCanvas(obj.w, obj.h, pad)), color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
@@ -145,4 +165,5 @@ function animateGlow(obj, S) {
   else { k = 0.9 + 0.1 * Math.sin(t * 1.5); gC.lerp(gC2, 0.5 + 0.5 * Math.sin(t * 0.7)); }
   m.color.copy(gC); m.opacity = obj.glow * k * 0.95; halo.scale.set(s, s, 1);
 }
-export function install(S) { S.print = { make: slab => makePrint(slab, S) }; }
+export function install(S) {
+  if (S.dev && S.dev.define) S.dev.define('back', 'Card back', { black: 'Darkroom varnish', white: 'Blind emboss', exif: 'Camera settings' }, 'black'); S.print = { make: slab => makePrint(slab, S) }; }

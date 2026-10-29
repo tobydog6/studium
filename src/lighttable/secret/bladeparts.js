@@ -188,3 +188,33 @@ export function hexSticker(photo, accent) {
   if (photo) { const s = Math.max(420 / photo.width, 420 / photo.height); try { g.filter = 'contrast(1.45) saturate(1.7) brightness(0.92)'; } catch (e) {} g.drawImage(photo, 256 - photo.width * s / 2, 256 - photo.height * s / 2, photo.width * s, photo.height * s); g.filter = 'none'; }
   g.restore(); g.lineWidth = 8; g.strokeStyle = '#fff'; hex(204); g.stroke(); g.lineWidth = 14; g.strokeStyle = accent; hex(228); g.stroke(); return c;
 }
+
+/* a dark photo studio for reflections: black, with a big softbox overhead and two strip lights (what product renders use),
+   so metal goes dark with bright streaks along its chamfers instead of an even grey */
+export function studioEnv(renderer) {
+  const sc = new THREE.Scene(); sc.background = new THREE.Color(0x050506);
+  const panel = (w, h, x, y, z, ry, rx, k, col) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col || 0xffffff).multiplyScalar(k), side: THREE.DoubleSide })); m.position.set(x, y, z); m.rotation.set(rx || 0, ry || 0, 0); sc.add(m); };
+  panel(6, 6, 0, 6, 0, 0, Math.PI / 2, 5);               /* overhead softbox */
+  panel(1.2, 7, -6, 2, 1, Math.PI / 2, 0, 7);            /* left strip */
+  panel(1.2, 7, 6, 2, -1, -Math.PI / 2, 0, 5, 0xdfe8ff); /* right strip, a touch cool */
+  panel(8, 1.2, 0, 1.5, -6, 0, 0, 2.5, 0xffe6cc);         /* a low warm kicker behind */
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshBasicMaterial({ color: 0x0c0c0e })); floor.rotation.x = -Math.PI / 2; floor.position.y = -2; sc.add(floor);
+  const pm = new THREE.PMREMGenerator(renderer), t = pm.fromScene(sc, 0.02).texture; pm.dispose(); return t;
+}
+/* the plastic's printed graphics: a solid colour with stripes or flames along the wings in the accent colour (no photo: it's on the sticker) */
+export function decalCanvas(style, base, accent, rng) {
+  const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d'); g.fillStyle = base; g.fillRect(0, 0, 512, 512);
+  /* a soft darkening towards the middle, like thick translucent plastic */
+  const v = g.createRadialGradient(256, 256, 40, 256, 256, 256); v.addColorStop(0, 'rgba(0,0,0,0.35)'); v.addColorStop(0.6, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(255,255,255,0.12)'); g.fillStyle = v; g.fillRect(0, 0, 512, 512);
+  g.save(); g.translate(256, 256); g.fillStyle = accent; g.strokeStyle = accent;
+  if (style === 'stripes' || style === 'speed') { const n = 3 + Math.floor(rng() * 3); for (let k = 0; k < n; k++) { const a = k / n * TAU + rng() * 0.3; g.lineWidth = style === 'speed' ? 5 : 11; g.beginPath(); g.arc(0, 0, 175 + rng() * 50, a, a + 0.5 + rng() * 0.5); g.stroke(); g.lineWidth = 4; g.strokeStyle = '#ffffff'; g.beginPath(); g.arc(0, 0, 160 + rng() * 40, a + 0.1, a + 0.45); g.stroke(); g.strokeStyle = accent; } }
+  else if (style === 'flames') { for (let k = 0; k < 6; k++) { g.save(); g.rotate(k / 6 * TAU); g.beginPath(); g.moveTo(120, -14); g.quadraticCurveTo(190, -30, 250, -70); g.quadraticCurveTo(205, -4, 248, 16); g.quadraticCurveTo(180, 12, 120, 14); g.closePath(); g.fill(); g.restore(); } }
+  else if (style === 'burst') { for (let k = 0; k < 12; k++) { g.save(); g.rotate(k / 12 * TAU); g.beginPath(); g.moveTo(130, -6); g.lineTo(250, 0); g.lineTo(130, 6); g.fill(); g.restore(); } }
+  else if (style === 'dots') { for (let k = 0; k < 60; k++) { const a = rng() * TAU, r = 150 + rng() * 100; g.beginPath(); g.arc(Math.cos(a) * r, Math.sin(a) * r, 3 + rng() * 6, 0, TAU); g.fill(); } }
+  g.restore(); return c;
+}
+/* a soft dark ring texture: contact shadow where one layer sits on another */
+let AO = null;
+export function aoTex() { if (AO) return AO; const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), gr = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.5, 'rgba(0,0,0,0)'); gr.addColorStop(0.62, 'rgba(0,0,0,0.75)'); gr.addColorStop(0.8, 'rgba(0,0,0,0.25)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+  AO = new THREE.CanvasTexture(c); return AO; }

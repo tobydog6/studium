@@ -69,7 +69,7 @@ try {
       const a = await A.evaluate(() => H.S.blades.sim().tops.map(t => [t.p.x, t.p.y, t.alive])), b = await B.evaluate(() => H.S.blades.sim().tops.map(t => [t.p.x, t.p.y, t.alive]));
       if (a[0][2] && a[1][2] && b[0][2] && b[1][2]) { const d = Math.max(Math.hypot(a[0][0] + b[1][0], a[0][1] + b[1][1]), Math.hypot(a[1][0] + b[0][0], a[1][1] + b[0][1])); worst = Math.max(worst, d); }
       if (!rounds && frames === 60) { await shot(A, '3-host-battle'); await shot(B, '3-guest-battle'); }
-      if (!rounds && frames === 30) await B.keyboard.press(' ');
+      if (!rounds && frames === 30) await B.evaluate(() => H.key(' '));
     }
     if (frames >= 3000) { fail = 'a round did not finish'; break; }
     await until(async () => !/blades\.battle/.test(await state(B)), 'guest round end', 60);
@@ -87,7 +87,7 @@ try {
     const lab = await A.evaluate(() => document.querySelector('#skBlBar [data-a="rematch"]').textContent); console.log('  host sees:', lab); if (!/Guest P\. wants a rematch/.test(lab)) fail = 'host did not see the rematch ask';
     await A.click('#skBlBar [data-a="rematch"]');
     await until(async () => (await state(A)) === 'blades.ready' && (await state(B)) === 'blades.ready', 'rematch');
-    await A.keyboard.press('Escape'); await until(async () => (await state(B)) === 'blades.build' && !(await B.evaluate(() => H.S.blades.net())), 'guest back to build after the host left');
+    await A.evaluate(() => H.key('Escape')); await until(async () => (await state(B)) === 'blades.build' && !(await B.evaluate(() => H.S.blades.net())), 'guest back to build after the host left');
     const after = await B.evaluate(() => ({ rot: H.S.blades.stadium.children[0].rotation.y, card: document.querySelector('#skBl .bl-h p').textContent }));
     console.log('  guest after the host left:', JSON.stringify(after)); if (after.rot !== 0) fail = 'guest stadium still turned round';
   }

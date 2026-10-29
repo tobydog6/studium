@@ -50,7 +50,7 @@
   try{ CH.hidden=localStorage.getItem("studium_frames_off")==="1"; }catch(e){}
   function chSetHidden(on){ CH.hidden=!!on; try{ localStorage.setItem("studium_frames_off",on?"1":"0"); }catch(e){} chFramesBtn(); chMarkers(); }
   function chFramesBtn(){ var b=$("navFrames"); if(!b) return; b.classList.toggle("hidden", !(CH.pads&&CH.pads.length)); b.textContent=CH.hidden?"SHOW FRAMES":"HIDE FRAMES"; b.classList.toggle("on", !!CH.hidden); }   // hidden during the first-time warm-up
-  function chRender(dt){ chGlowCss(); flRender(dt); if(!CH.fx||!CH.pads.length||CH.capturing||viewfinderOn||chOff()) return;   // camera up: nothing in the way of the picture
+  function chRender(dt){ chGlowCss(); if(!CH.fx||!CH.pads.length||CH.capturing||viewfinderOn||chOff()) return;   // camera up: nothing in the way of the picture
     CH.t+=dt||0.016; var br=0.5+0.5*Math.sin(CH.t*1.7);   // a slow breath while it has you
     CH.pads.forEach(function(P,i){ var u=P.frame.material.uniforms, a=chAlign(P), dist=P.F.distanceTo(camPos), mine=(CH.pull===i);
       P.vis+=((CH.done[P.c.id]?0:1)-P.vis)*(1-Math.exp(-(dt||0.016)*1.4)); if(P.vis<0.01) P.vis=CH.done[P.c.id]?0:P.vis;   // a finished frame melts away
@@ -137,7 +137,6 @@
     if(f>=0){ var Q=CH.pads[f]; if(CH.pull!==f&&(Math.hypot(camPos.x-Q.E.x,camPos.z-Q.E.z)>CH_NEAR*0.7||(CH.done[Q.c.id]&&!CH.doneHold))) f=-1; }
     CH.focus=f;
     if(f!==CH.active){ CH.active=f; chCard(f>=0?CH.pads[f]:null); }
-    if(CH.active>=0) coFrameLesson(CH.pads[CH.active]);   /* the bag and the camera back are taught the first time a frame needs them (coach.js) */
     var now=performance.now(); if(CH.active>=0&&now-CH.lastEval>160){ CH.lastEval=now; chCard(CH.pads[CH.active], true); }
     chMarkers(); }
   function chChecks(P){ var c=P.c, out=[], mm=chEquivMM(), f=chFStop(), a=chAlign(P), now;

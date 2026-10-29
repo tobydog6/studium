@@ -85,35 +85,28 @@
     cancelAnimationFrame(RF.raf); RF.raf=requestAnimationFrame(rfTick); }
   /* leave without the fade (a ?demo link, or the demo starting some other way) */
   function rfClose(){ if(!RF.on) return; RF.on=false; cancelAnimationFrame(RF.raf); document.body.classList.remove("rackin"); if(RF.el) RF.el.className=""; if(RF.scaled&&typeof setScale==="function"&&typeof dynTop==="function"){ RF.scaled=false; try{ setScale(dynTop()); }catch(x){} } }
-  /* FEEL: hand: the page stays up, racked soft, over the opening while it gets ready, and lifts off it as the scan arrives (launch.js) */
-  function rfVeil(){ RF.on=false; RF.veil=true; document.body.classList.remove("rackin"); RF.el.classList.add("veil"); RF.el.classList.remove("wait");
-    if(RF.scaled&&typeof setScale==="function"&&typeof dynTop==="function"){ RF.scaled=false; try{ setScale(dynTop()); }catch(x){} }
-    clearTimeout(RF.veilT); RF.veilT=setTimeout(rfVeilOff,30000); }
-  function rfVeilOff(){ if(!RF.veil||RF.lifting) return; RF.lifting=true; clearTimeout(RF.veilT); RF.el.classList.add("lift");
-    setTimeout(function(){ RF.veil=false; RF.lifting=false; RF.hand=false; cancelAnimationFrame(RF.raf); RF.el.className=""; },1550); }
   /* START FRESH: forget the "already seen it" marks on this computer (the long opening and welcome card, the hints, the
      lighting tour's pop-up, walk or fly, hidden frames), then launch. The demo already starts its work and quests over;
      a student's saved work, sign-in, presets, the detail setting and the FEEL switches stay */
   var RF_SEEN=["studium_launch_seen","studium_looked","studium_lighttour","studium_lighttourB","studium_frames_off","studium_move","splat_tut_v1","studium_guide_v1","studium_quests_demo_v1"];
   function rfFresh(){ if(!RF.on||RF.going) return; RF_SEEN.forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
-    if(typeof CH!=="undefined") CH.hidden=false; if(typeof WK!=="undefined"){ WK.mode="walk"; } RF.fresh=true; rfPlay(); }
-  function rfPlay(){ if(!RF.on||RF.going) return; RF.hand=!!FL.hand; RF.going=true; RF.over="word"; RF.el.classList.add("going"); RF.fadeT=performance.now()+450; }
+    if(typeof CH!=="undefined") CH.hidden=false; if(typeof WK!=="undefined"){ WK.mode="walk"; } rfPlay(); }
+  function rfPlay(){ if(!RF.on||RF.going) return; RF.going=true; RF.over="word"; RF.el.classList.add("going"); RF.fadeT=performance.now()+450; }
   /* pointer to the still's coordinates, the same cover fit the shader uses */
   function rfToImg(x,y){ var w=innerWidth, h=innerHeight, sa=w/h, u=x/w, v=y/h; if(sa>RF_IA) v=(v-0.5)*RF_IA/sa+0.5; else u=(u-0.5)*sa/RF_IA+0.5; return [u,v]; }
   function rfDepth(u,v){ if(!RF.dd) return 2; var x=Math.max(0,Math.min(RF.dw-1,Math.floor(u*RF.dw))), y=Math.max(0,Math.min(RF.dh-1,Math.floor(v*RF.dh))); return 1/(RF_INV[0]+RF.dd[(y*RF.dw+x)*4]/255*(RF_INV[1]-RF_INV[0])); }
   function rfCoc(d){ return Math.abs(1/d-1/RF.f)*7.5; }
   function rfSoft(el,k){ if(!el) return; k=Math.round(k*40)/40; if(el._k===k) return; el._k=k; el.style.setProperty("--soft",k.toFixed(3)); }
-  function rfTick(now){ if(!RF.on&&!RF.veil) return; RF.raf=requestAnimationFrame(rfTick); var G=RF.gl; if(!G||!G.ready||document.hidden) return;
+  function rfTick(now){ if(!RF.on) return; RF.raf=requestAnimationFrame(rfTick); var G=RF.gl; if(!G||!G.ready||document.hidden) return;
     var e=RF.el, t=(now-RF.t0)/1000, dt=Math.min(0.1,Math.max(0,(now-(RF.last||now))/1000)); RF.last=now;
-    if(RF.going) RF.ft=RF.hand?0.3:RF_WORD;   /* the hand-off racks right in close: everything goes soft */
+    if(RF.going) RF.ft=RF_WORD;
     else if(RF.over==="btn") RF.ft=RF_BTN;
     else if(RF.px>=0){ var iu=rfToImg(RF.px,RF.py), B=RF.box; RF.ft=(B&&iu[0]>=B[0]&&iu[0]<=B[2]&&iu[1]>=B[1]&&iu[1]<=B[3])?RF_WORD:rfDepth(iu[0],iu[1]); }
     else if(RF.idle) RF.ft = t<1.4?0.9 : 0.9+(1.7-0.9)*Math.min(1,(t-1.4)/2.8);   /* before you touch it, it drifts onto the stump by itself */
     var lf=Math.log(RF.f), lt=Math.log(RF.ft); RF.f=Math.exp(lf+(lt-lf)*(1-Math.exp(-dt*7)));
-    var fade=RF.going?Math.max(0,Math.min(1,(now-RF.fadeT)/(RF.hand?900:350))):0, gone=fade>=1; if(RF.hand) fade*=0.3;   /* handing off: a slow rack and a dim, never black */
-    if(RF.going&&gone&&!RF.veil) e.classList.toggle("wait",!loaded);
-    if(RF.going&&gone&&loaded&&RF.hand&&!RF.veil){ rfVeil(); if(typeof siAct==="function") siAct("demo"); }
-    if(RF.going&&gone&&loaded&&!RF.hand&&!RF.handed){ RF.handed=true; setTimeout(function(){ RF.handed=false; rfClose(); if(typeof siAct==="function") siAct("demo"); },0); }
+    var fade=RF.going?Math.max(0,Math.min(1,(now-RF.fadeT)/350)):0;
+    if(RF.going&&fade>=1) e.classList.toggle("wait",!loaded);
+    if(RF.going&&fade>=1&&loaded&&!RF.handed){ RF.handed=true; setTimeout(function(){ RF.handed=false; rfClose(); if(typeof siAct==="function") siAct("demo"); },0); }
     var gl=G.gl, d=Math.min(window.devicePixelRatio||1,1.5), w=Math.max(2,Math.round(innerWidth*d)), h=Math.max(2,Math.round(innerHeight*d));
     if(G.cv.width!==w||G.cv.height!==h){ G.cv.width=w; G.cv.height=h; } gl.viewport(0,0,w,h);
     var sa=w/h; if(sa>RF_IA) gl.uniform2f(G.u("px"),1/w,(1/h)*(RF_IA/sa)); else gl.uniform2f(G.u("px"),(1/w)*(sa/RF_IA),1/h);

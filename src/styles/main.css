@@ -3310,31 +3310,9 @@ body.la-warm #viewfinder,body.la-warm #crosshair{visibility:hidden!important}   
 #stAdvance .adv-frame{flex:1;display:flex;align-items:center;justify-content:space-between;padding:0 6vw;background:linear-gradient(90deg,#120f0c,#1a150f 50%,#120f0c)}
 #stAdvance .adv-frame span{font:500 12px var(--mono);letter-spacing:.2em;color:rgba(227,173,87,.55)}
 #stAdvance .adv-to{color:var(--accent)!important}
-/* ---- FEEL: the first minute (feel.js) ---- */
-body.fl-drag[data-state="scene"] #viewport canvas{cursor:grab}
+/* ---- FEEL: looking and moving (feel.js) ---- */
+body.fl-orbit[data-state="scene"] #viewport canvas{cursor:grab}
 body.fl-dragging #viewport canvas{cursor:grabbing!important}
-#navHomeV.hidden{display:none}
-/* the first raise: the finder comes up slowly from further off, the edges close in, the picture clears */
-body.fl-raise1 #viewfinder:not(.on){transform:scale(1.16);transition:none}
-body.fl-raise1 #viewfinder.on{transition:opacity .6s ease,transform 1.2s cubic-bezier(.16,.84,.2,1)}
-body.fl-raise1 #viewfinder .mask{animation:flMask 1.4s ease both}
-body.fl-raise1 #viewport canvas{animation:flRaiseCv 1.3s cubic-bezier(.2,.7,.2,1) both}
-@keyframes flMask{0%{box-shadow:inset 0 0 600px 320px rgba(0,0,0,.96)}100%{box-shadow:inset 0 0 220px 40px rgba(0,0,0,.55)}}
-@keyframes flRaiseCv{0%{filter:brightness(.55) blur(5px)}100%{filter:none}}
-/* the first photo: a print that develops in the middle, then goes into the studio */
-#flPrint{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;pointer-events:none;transition:transform .85s cubic-bezier(.5,0,.75,0),opacity .85s ease}
-#flPrint.show{display:flex}
-#flPrint .fp-card{background:#f4f1ea;padding:14px 14px 18px;border-radius:3px;box-shadow:0 30px 80px rgba(0,0,0,.55);display:flex;flex-direction:column;gap:6px;width:min(46vw,620px);transform:rotate(-1.5deg);animation:fpIn .7s cubic-bezier(.2,.8,.2,1) both}
-#flPrint img{width:100%;display:block;animation:fpDev 2.4s ease both}
-#flPrint .fp-k{font:500 11px var(--mono);letter-spacing:.18em;color:#9a7435;margin-top:8px}
-#flPrint b{font:400 24px var(--serif);color:#1a1712;font-weight:400}
-#flPrint em{font:400 13px var(--sans);color:#5a544a;font-style:normal}
-@keyframes fpDev{0%{filter:brightness(2.4) contrast(.4) saturate(0) sepia(.4)}100%{filter:none}}
-@keyframes fpIn{0%{opacity:0;transform:translateY(40px) rotate(2deg) scale(.9)}100%{opacity:1;transform:rotate(-1.5deg)}}
-/* the launch page held over the opening while it gets ready, then lifted off it */
-#rackin.veil{display:block;z-index:1300;pointer-events:none}
-#rackin.veil .rf-go,#rackin.veil .rf-hint,#rackin.veil .rf-wait{display:none}
-#rackin.veil.lift{opacity:0;transition:opacity 1.5s ease}
 /* the FEEL switches, for Sam (?dev) */
 #flBtn{position:fixed;left:12px;bottom:12px;z-index:2100;font:500 11px var(--mono);letter-spacing:.14em;padding:7px 10px;border-radius:6px;border:1px solid rgba(227,173,87,.5);background:rgba(23,20,15,.9);color:var(--accent);cursor:pointer}
 #flPanel{position:fixed;left:12px;bottom:48px;z-index:2100;width:330px;display:none;flex-direction:column;gap:8px;padding:14px;border-radius:10px;background:rgba(18,16,12,.96);border:1px solid rgba(227,173,87,.3);color:var(--text);font:400 13px var(--sans);box-shadow:0 20px 50px rgba(0,0,0,.5)}
@@ -3448,3 +3426,44 @@ body.fl-raise1 #viewport canvas{animation:flRaiseCv 1.3s cubic-bezier(.2,.7,.2,1
 @media (max-width:820px){.rs-case3{margin-left:-140px;top:38%}.rs-look{top:auto;bottom:110px;transform:translateX(-50%);text-align:center}.rs-look .rs-yn{justify-content:center}
   .rs-dvdx.disc .rs-disc{transform:translate(0,calc(62vh - 40px)) scale(.42) rotate(320deg)}.rs-dvdx.load .rs-disc{opacity:0;transform:translate(0,calc(62vh - 30px)) scale(.3)}.rs-deck{width:min(560px,92vw)}}
 @media (prefers-reduced-motion:reduce){.rs-dvdx *,.rs-dvdx{transition:none!important}}
+/* ---- the warm-up card, redesigned: a progress strip along the top, real key caps that press themselves to show the
+       move, the mouse drawn doing what it asks, and a gold tick that stamps in as each step is done ---- */
+.co-card{padding:24px 24px 18px;border-radius:16px;overflow:hidden;background:linear-gradient(180deg,rgba(32,28,21,.95),rgba(15,13,10,.95));border:1px solid rgba(var(--gold-rgb),.26);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 30px 60px -24px rgba(0,0,0,.9),0 0 50px -24px rgba(var(--gold-rgb),.4)}
+.co-prog{position:absolute;left:0;right:0;top:0;height:4px;display:flex;gap:3px;background:rgba(0,0,0,.25)}
+.co-prog i{position:relative;height:100%;background:rgba(var(--bone-rgb),.09);overflow:hidden}
+.co-prog b{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#b3843f,var(--accent));transition:width .45s cubic-bezier(.2,.8,.2,1)}
+.co-top{gap:9px}
+.co-top i{width:14px;background:rgba(var(--bone-rgb),.12)}
+.co-ch{transition:color .3s}
+.co-ch.on{display:inline-flex;align-items:center;gap:6px}
+.co-ch.on::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px rgba(var(--gold-rgb),.8)}
+.co-n{font:500 11px var(--mono);letter-spacing:.14em;color:var(--accent)}
+.co-n i{font-style:normal;color:var(--ink-5)}
+.co-foot{min-height:20px}
+/* key caps: raised, and the ones you haven't pressed yet press themselves in turn, so the move is shown, not described */
+.co-line kbd{background:linear-gradient(#3b362c,#27231c);border:1px solid rgba(var(--bone-rgb),.2);border-bottom:0;border-radius:8px;color:var(--text);
+  box-shadow:0 4px 0 #13110d,0 6px 10px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.12);transform:translateY(-3px);margin:0 5px 0 0;vertical-align:4px}
+.co-line kbd.on{background:linear-gradient(#f0c06e,var(--accent));color:var(--accent-ink);border-color:var(--accent);box-shadow:0 1px 0 #7a5826,0 0 18px rgba(var(--gold-rgb),.5);transform:translateY(0)}
+.co-line kbd[data-co-k]:not(.on){animation:coKey 2.6s ease-in-out infinite}
+.co-line kbd[data-co-k]:nth-of-type(2){animation-delay:.32s}.co-line kbd[data-co-k]:nth-of-type(3){animation-delay:.64s}.co-line kbd[data-co-k]:nth-of-type(4){animation-delay:.96s}
+@keyframes coKey{0%,55%,80%,100%{transform:translateY(-3px);box-shadow:0 4px 0 #13110d,0 6px 10px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.12);border-color:rgba(var(--bone-rgb),.2)}
+  64%,70%{transform:translateY(0);box-shadow:0 1px 0 #13110d,0 2px 4px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.08);border-color:rgba(var(--gold-rgb),.75)}}
+/* the mouse */
+.co-line kbd.co-mouse{display:inline-flex;align-items:center;gap:8px;padding:0 11px 0 9px;animation:none}
+.co-mouse svg{width:15px;height:21px;flex:none;overflow:visible}
+.co-mouse .b{fill:none;stroke:currentColor;stroke-width:1.4}
+.co-mouse .s{fill:none;stroke:currentColor;stroke-width:1.1;opacity:.6}
+.co-mouse .l,.co-mouse .r{fill:transparent}
+.co-mouse.m-l .l,.co-mouse.m-drag .l{animation:coBtn 1.3s ease-in-out infinite}
+.co-mouse.m-r .r{animation:coBtn 1.3s ease-in-out infinite}
+.co-mouse.m-drag svg{animation:coSwing 2.2s ease-in-out infinite}
+@keyframes coBtn{0%,30%{fill:transparent}40%,85%{fill:var(--accent)}100%{fill:transparent}}
+@keyframes coSwing{0%,100%{transform:translateX(-4px) rotate(-6deg)}50%{transform:translateX(4px) rotate(6deg)}}
+/* done: a gold tick stamps in beside the prompt */
+.co-card.ok .co-line::after{content:none}
+.co-tick{position:absolute;right:22px;top:50%;width:46px;height:46px;margin-top:-23px;border-radius:50%;background:var(--accent);box-shadow:0 0 30px rgba(var(--gold-rgb),.7);opacity:0;transform:scale(.3) rotate(-25deg);pointer-events:none;transition:opacity .15s,transform .35s cubic-bezier(.2,1.7,.4,1)}
+.co-tick::after{content:"";position:absolute;left:16px;top:10px;width:11px;height:20px;border:solid var(--accent-ink);border-width:0 4px 4px 0;transform:rotate(45deg)}
+.co-card.ok .co-tick{opacity:1;transform:scale(1) rotate(0)}
+.co-card.ok .co-line,.co-card.ok .co-sub{opacity:.45;transition:opacity .2s}
+@media (prefers-reduced-motion:reduce){.co-line kbd[data-co-k]:not(.on),.co-mouse .l,.co-mouse .r,.co-mouse svg{animation:none!important}}

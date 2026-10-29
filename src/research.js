@@ -145,14 +145,16 @@
   function rsThumb(id){ return "https://i.ytimg.com/vi/"+encodeURIComponent(id)+"/hqdefault.jpg"; }
   function rsVidSrc(v,auto){ return "https://www.youtube-nocookie.com/embed/"+encodeURIComponent(v.id)+"?rel=0&playsinline=1"+(v.s?"&start="+v.s:"")+(auto?"&autoplay=1":""); }
   function rsVidUrl(v){ return "https://www.youtube.com/watch?v="+encodeURIComponent(v.id)+(v.s?"&t="+v.s+"s":""); }
-  function rsWatchCard(){ var first=[]; RS_VIDS.slice(0,4).forEach(function(g){ first.push(g.v[0][0]); });
+  function rsWatchCard(){ var pick=RS_VIDS.map(function(g){ return rsVid(g.v[0][0]); });
     return '<section class="rs-hero rs-whero"><div class="rs-hero-t"><span class="eb">WATCH</span><h2>The DVD shelf</h2><p>'+rsVidCount()+' talks and short films picked by your teacher: Gregory Halpern, Alec Soth, Paul Graham, Wolfgang Tillmans and more. Pull one off the shelf and put it on.</p><button class="rs-go2" data-rs-act="watch">Browse the shelf ›</button></div>'
-      +'<button class="rs-wthumbs" data-rs-act="watch" aria-label="Open the DVD shelf">'+first.map(function(id){ var v=rsVid(id); return '<span class="rs-spine" style="--c:'+v.c+'"><i>'+rsEsc(v.a)+'</i></span>'; }).join("")+RS_VIDS.slice(4).map(function(g,gi){ return '<span class="rs-spine" style="--c:'+RS_DVDC[(gi+4)%RS_DVDC.length]+'"><i>'+rsEsc(g.a)+'</i></span>'; }).join("")+'</button></section>'; }
-  /* the shelf: one spine per video, grouped by photographer, on wooden shelves */
+      +'<button class="rs-rack rs-wrack" data-rs-act="watch" aria-label="Open the DVD shelf">'+pick.map(function(v){ return '<span class="rs-sp">'+rsMini(v)+'</span>'; }).join("")+'</button></section>'; }
+  /* a case standing face-out on the rack, slanted so the covers overlap like a video shop shelf */
+  function rsMini(v){ return '<span class="rs-mini" style="--c:'+v.c+'"><span class="rs-medge"></span>'+rsCover(v)+'</span>'; }
+  /* the shelf: one case per video, face-out and slanted, grouped by photographer on wooden shelves */
   function rsWatchHTML(top){ var d=rs.dvd;
     return top+'<span class="rs-count">WATCH · '+rsVidCount()+' DVDS</span></div><div class="rs-dvdw"><p class="rs-q">Pull a DVD off the shelf to have a look, then put it on. Watch with a question in mind: what does this photographer care about, and how could you try that in your own shoot?</p>'
-      +'<div class="rs-shelves">'+RS_VIDS.map(function(g){ return '<div class="rs-sgroup"><span class="rs-slabel">'+rsEsc(g.a)+'</span><div class="rs-srow">'+g.v.map(function(x){ var v=rsVid(x[0]);
-        return '<button class="rs-spine rs-sp'+(d&&d.id===v.id?' out':'')+'" style="--c:'+v.c+';--h:'+(232+((v.id.charCodeAt(0)+v.id.charCodeAt(1))%5)*6)+'px" data-rs-act="dvd" data-rs-vid="'+rsEsc(v.id)+'" aria-label="'+rsEsc(v.a+": "+v.t)+'"><b>S</b><i>'+rsEsc(v.a)+'</i><em>'+rsEsc(v.t)+'</em></button>'; }).join("")+'</div></div>'; }).join("")+'</div></div>'
+      +'<div class="rs-shelves">'+RS_VIDS.map(function(g){ return '<div class="rs-sgroup"><span class="rs-slabel">'+rsEsc(g.a)+'</span><div class="rs-rack">'+g.v.map(function(x){ var v=rsVid(x[0]);
+        return '<button class="rs-sp'+(d&&d.id===v.id?' out':'')+'" data-rs-act="dvd" data-rs-vid="'+rsEsc(v.id)+'" aria-label="'+rsEsc(v.a+": "+v.t)+'">'+rsMini(v)+'</button>'; }).join("")+'</div></div>'; }).join("")+'</div></div>'
       +(d?rsDvdHTML(rsVid(d.id), d.st):''); }
   /* one DVD case, front cover designed from the video's thumbnail */
   function rsCover(v){ return '<div class="rs-cov"><div class="rs-covt"><span>STUDIUM</span><span>PHOTOGRAPHERS ON PHOTOGRAPHY</span></div><div class="rs-covi"><img src="'+rsEsc(rsThumb(v.id))+'" alt="" draggable="false"></div>'
@@ -164,7 +166,10 @@
       +'<div class="rs-look"><span class="eb">'+rsEsc(v.a.toUpperCase())+'</span><h3>'+rsEsc(v.t)+'</h3><div class="rs-yn"><button class="rs-go" data-rs-act="dvdplay">Put it on ›</button><button class="rs-go2" data-rs-act="dvdback">Back on the shelf</button></div></div>'
       +'<div class="rs-deck"><div class="rs-scr"><div class="rs-vbox">'+(play?rsWatchFrame(v,rs.vidAuto):'')+'</div></div>'
       +'<div class="rs-chin"><span class="rs-slot"><i></i></span><span class="rs-led"></span><span class="rs-dt">'+rsEsc(v.a)+' · '+rsEsc(v.t)+'</span><a class="rs-dbtn" href="'+rsEsc(rsVidUrl(v))+'" target="_blank" rel="noopener">YouTube ›</a><button class="rs-dbtn" data-rs-act="dvdback">⏏ Eject</button></div></div></div>'; }
-  function rsWatchFrame(v,auto){ return '<iframe data-rs-vid="'+rsEsc(v.id)+'" src="'+rsEsc(rsVidSrc(v,auto))+'" title="'+rsEsc(v.t)+'" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>'; }
+  /* YouTube only plays embeds on a page with a web address; opened from a file it shows error 153, so offer YouTube itself */
+  function rsCanEmbed(){ return /^https?:$/.test(location.protocol); }
+  function rsWatchFrame(v,auto){ if(!rsCanEmbed()) return '<a class="rs-vext" href="'+rsEsc(rsVidUrl(v))+'" target="_blank" rel="noopener"><img src="'+rsEsc(rsThumb(v.id))+'" alt=""><span><b>▶ Watch on YouTube</b><i>This copy of Studium is opened from a file, so YouTube won\'t play inside it. On the Studium website it plays right here.</i></span></a>';
+    return '<iframe data-rs-vid="'+rsEsc(v.id)+'" src="'+rsEsc(rsVidSrc(v,auto))+'" title="'+rsEsc(v.t)+'" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>'; }
   function rsDvdTimers(){ (rs.dvdT||[]).forEach(clearTimeout); rs.dvdT=[]; }
   function rsDvdLater(ms,f){ (rs.dvdT||(rs.dvdT=[])).push(setTimeout(f,rsCalm()?0:ms)); }
   function rsCalm(){ try{ return matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(e){ return false; } }
@@ -176,7 +181,7 @@
   /* put it on: the case opens, the disc drops into the player, the player glides up to almost full screen and plays */
   function rsDvdPlay(box){ var d=rs.dvd, x=box.querySelector("[data-rs-dvdx]"); if(!d||!x||d.st!=="look") return; d.st="play"; rs.vidAuto=true; rsDvdTimers(); sfx("cullEnd");
     x.classList.add("open"); rsDvdLater(650,function(){ x.classList.add("deck"); }); rsDvdLater(900,function(){ x.classList.add("disc"); }); rsDvdLater(1700,function(){ x.classList.add("load"); });
-    rsDvdLater(2150,function(){ x.classList.add("big"); }); rsDvdLater(2900,function(){ var vb=x.querySelector(".rs-vbox"), v=rsVid(d.id); if(vb&&v&&!vb.querySelector("iframe")) vb.innerHTML=rsWatchFrame(v,true); x.classList.add("on"); }); }
+    rsDvdLater(2150,function(){ x.classList.add("big"); }); rsDvdLater(2900,function(){ var vb=x.querySelector(".rs-vbox"), v=rsVid(d.id); if(vb&&v&&!vb.firstChild) vb.innerHTML=rsWatchFrame(v,true); x.classList.add("on"); }); }
   function rsDvdBack(box){ rsDvdTimers(); var x=box.querySelector("[data-rs-dvdx]"), vb=x&&x.querySelector(".rs-vbox"); if(vb) vb.innerHTML=""; rs.vidAuto=false;
     if(!x||rsCalm()){ rs.dvd=null; if(x) x.remove(); return rsRender(); } x.classList.add("bye"); rsDvdLater(420,function(){ rs.dvd=null; x.remove(); rsRender(); }); }
   /* tilt the case with the mouse, like holding it */

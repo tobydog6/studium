@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DVD shelf · prototype</title>
+<style>
+@font-face{font-family:'Fraunces';font-weight:100 900;src:url(../../assets/fonts/fraunces.woff2) format('woff2')}
+@font-face{font-family:'Geist';font-weight:100 900;src:url(../../assets/fonts/geist.woff2) format('woff2')}
+@font-face{font-family:'Geist Mono';font-weight:400;src:url(../../assets/fonts/geist-mono.woff2) format('woff2')}
+html,body{margin:0;height:100%;background:#0b0a09;color:#f4f1ea;overflow:hidden}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.mast{position:fixed;left:44px;top:36px;pointer-events:none}
+.mast p{margin:0 0 10px;font:500 10px/1 'Geist Mono';letter-spacing:.24em;color:#e3ad57}
+.mast h1{margin:0;font:300 44px/1 'Fraunces';letter-spacing:-.01em}
+.mast span{display:block;margin-top:10px;font:400 14px/1.5 'Geist';color:rgba(244,241,234,.56)}
+#info{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);text-align:center;pointer-events:none;opacity:0;transition:opacity .3s}
+#info b{display:block;font:300 26px/1.1 'Fraunces'}
+#info i{display:block;margin-top:8px;font:500 10px/1 'Geist Mono';font-style:normal;letter-spacing:.2em;color:rgba(244,241,234,.5)}
+ #nav{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:94vw}
+#nav button{height:34px;padding:0 14px;border:1px solid rgba(244,241,234,.14);border-radius:17px;background:rgba(18,16,14,.6);color:rgba(244,241,234,.62);font:500 10px/1 'Geist Mono';letter-spacing:.16em;text-transform:uppercase;cursor:pointer;backdrop-filter:blur(8px);transition:color .2s,border-color .2s,background .2s}
+#nav button:hover{color:#f4f1ea;border-color:rgba(244,241,234,.35)}
+#nav button.on{color:#16130f;background:#e3ad57;border-color:#e3ad57}
+#c{cursor:grab}
+.vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 55%,rgba(0,0,0,.55))}
+</style>
+<script type="importmap">{"imports":{"three":"../../node_modules/three/build/three.module.js","three/addons/":"../../node_modules/three/examples/jsm/"}}</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="vig"></div>
+<div class="mast"><p>WATCH</p><h1>The DVD shelf</h1><span>Photographers on photography, picked by your teacher.</span></div>
+<div id="info"><b></b><i></i></div>
+<nav id="nav"></nav>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+const VIDS = [
+  ['Gregory Halpern','Quick-fire questions with Martin Parr'],['Gregory Halpern','Artist talk'],['Gregory Halpern','Fellowship lecture'],['Gregory Halpern','On sequence'],['Gregory Halpern','A tour of my bookshelf'],['Gregory Halpern','What we choose not to see'],
+  ['Alec Soth','A tour of my bookshelf'],['Alec Soth','The power of human connection'],['Alec Soth','Sofa Sessions with Martin Parr'],['Alec Soth','Dreams and chance'],['Alec Soth','10 favourite photobooks'],['Alec Soth','Somewhere to Disappear'],
+  ['Paul Graham','Photography lacks intentionality'],['Paul Graham','On time'],['Paul Graham','A Shimmer of Possibility'],
+  ['Wolfgang Tillmans','Beyond words'],['Wolfgang Tillmans','Interview'],['Wolfgang Tillmans','Are all photographs equal?'],
+  ['Sally Mann','Her photographic techniques'],['Alessandra Sanguinetti','Guille and Belinda'],['Stephen Gill','I want to lose control'],
+  ['Roland Barthes','Camera Lucida, explained'],['Ideas','Real time vs. storytime'],['Ideas','I photograph to remember']];
+const PHOTOS = (new URLSearchParams(location.search).get('photos') || '1,2,3,4,5,6').split(',').map(n => '../../assets/research/sample-' + n + '.jpg');
+
+await Promise.all([document.fonts.load('300 40px Fraunces'), document.fonts.load('400 20px Geist'), document.fonts.load('400 20px "Geist Mono"')]);
+const imgs = await Promise.all(PHOTOS.map(src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = src; })));
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.AgXToneMapping; renderer.toneMappingExposure = 1.15;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+RectAreaLightUniformsLib.init();
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0908);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.18;
+const camera = new THREE.PerspectiveCamera(28, 1, 0.1, 100);
+const aniso = renderer.capabilities.getMaxAnisotropy();
+/* material maps baked in Blender (design/dvd/tex): oak, plaster, sleeve wear */
+const TL = new THREE.TextureLoader(), TEX = {};
+await Promise.all(['oak_col', 'oak_rough', 'oak_nrm', 'wall_col', 'wall_nrm', 'sleeve_rough'].map(n => TL.loadAsync(texUrl(n)).then(t => { t.anisotropy = aniso; if (/col$/.test(n)) t.colorSpace = THREE.SRGBColorSpace; TEX[n] = t; })));
+function texUrl(n) { return './tex/' + n + '.jpg'; }
+function rep(t, x, y) { const c = t.clone(); c.wrapS = c.wrapT = THREE.MirroredRepeatWrapping; c.repeat.set(x, y); c.needsUpdate = true; return c; }
+
+/* ---- textures drawn in Studium's type ---- */
+function tex(c) { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = aniso; return t; }
+function cover(v, i) {
+  const W = 900, H = 1266, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  g.fillStyle = '#121110'; g.fillRect(0, 0, W, H);
+  const im = imgs[i % imgs.length], ph = 820;
+  if (im) { const s = Math.max(W / im.width, ph / im.height), w = im.width * s, h = im.height * s; g.drawImage(im, (W - w) / 2, (ph - h) / 2, w, h); }
+  let gr = g.createLinearGradient(0, ph - 360, 0, ph); gr.addColorStop(0, 'rgba(18,17,16,0)'); gr.addColorStop(1, 'rgba(18,17,16,1)'); g.fillStyle = gr; g.fillRect(0, ph - 360, W, 360);
+  gr = g.createLinearGradient(0, 0, 0, 140); gr.addColorStop(0, 'rgba(0,0,0,.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, 140);
+  g.fillStyle = '#f4f1ea'; g.font = '500 22px "Geist Mono"'; g.letterSpacing = '6px'; g.textBaseline = 'top';
+  g.fillText('STUDIUM', 56, 52); g.textAlign = 'right'; g.fillStyle = 'rgba(244,241,234,.75)'; g.fillText('No. ' + String(i + 1).padStart(2, '0'), W - 56, 52); g.textAlign = 'left';
+  g.fillStyle = '#e3ad57'; g.fillRect(56, ph + 40, 64, 3);
+  g.fillStyle = '#f4f1ea'; g.letterSpacing = '0px'; let fs = 92; g.font = '300 ' + fs + 'px Fraunces'; while (g.measureText(v[0]).width > W - 112) { fs -= 4; g.font = '300 ' + fs + 'px Fraunces'; }
+  g.fillText(v[0], 52, ph + 74);
+  g.font = '400 34px Geist'; g.fillStyle = 'rgba(244,241,234,.72)'; wrap(g, v[1], 56, ph + 92 + fs, W - 112, 44);
+  g.font = '500 18px "Geist Mono"'; g.letterSpacing = '5px'; g.fillStyle = 'rgba(244,241,234,.4)'; g.fillText('PHOTOGRAPHERS ON PHOTOGRAPHY', 56, H - 74);
+  return tex(c);
+}
+function wrap(g, t, x, y, w, lh) { let line = '', n = 0; t.split(' ').forEach(word => { const s = line ? line + ' ' + word : word; if (g.measureText(s).width > w && line) { g.fillText(line, x, y + n++ * lh); line = word; } else line = s; }); g.fillText(line, x, y + n * lh); }
+function spine(v, i) {
+  const W = 100, H = 1266, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  g.fillStyle = '#141312'; g.fillRect(0, 0, W, H);
+  g.save(); g.translate(W / 2, 0); g.rotate(Math.PI / 2); g.textBaseline = 'middle';
+  g.fillStyle = '#e3ad57'; g.font = '500 20px "Geist Mono"'; g.fillText(String(i + 1).padStart(2, '0'), 44, 0);
+  g.fillStyle = '#f4f1ea'; g.font = '300 40px Fraunces'; g.fillText(v[0], 120, 2); const aw = g.measureText(v[0]).width;
+  g.fillStyle = 'rgba(244,241,234,.55)'; g.font = '400 24px Geist'; g.fillText(v[1], 120 + aw + 28, 2);
+  g.restore(); return tex(c);
+}
+function edge() { const c = document.createElement('canvas'); c.width = 64; c.height = 512; const g = c.getContext('2d'); g.fillStyle = '#0c0c0c'; g.fillRect(0, 0, 64, 512);
+  for (let x = 6; x < 58; x += 3) { g.fillStyle = x % 2 ? '#1a1a1a' : '#111'; g.fillRect(x, 0, 1.5, 512); } return tex(c); }
+
+/* ---- the room: a dark gallery wall, one long oak shelf, pools of light ---- */
+const wall = new THREE.Mesh(new THREE.PlaneGeometry(60, 18), new THREE.MeshStandardMaterial({ map: rep(TEX.wall_col, 9, 2.7), normalMap: rep(TEX.wall_nrm, 9, 2.7), normalScale: new THREE.Vector2(1.4, 1.4), roughness: .93, color: 0x9a8f84 }));
+wall.position.set(8, 1, -1.05); wall.receiveShadow = true; scene.add(wall);
+
+const shelfMat = new THREE.MeshPhysicalMaterial({ roughness: 1, clearcoat: .25, clearcoatRoughness: .45, sheen: .2, sheenRoughness: .6, sheenColor: new THREE.Color(0x6b4a2e) });
+const SY = 0, SD = 1.3, ST = .16;
+const SX0 = -1.2;
+
+/* ---- the cases: face-out, slanted and overlapping, grouped by photographer ---- */
+const W = 1.35, H = 1.9, D = .15, geo = new RoundedBoxGeometry(W, H, D, 2, .014);
+geo.translate(W / 2, H / 2, 0);
+const wear = rep(TEX.sleeve_rough, 1, 1);
+const plastic = new THREE.MeshPhysicalMaterial({ color: 0x0b0b0b, roughness: .55, roughnessMap: wear, clearcoat: .8, clearcoatRoughness: .5, clearcoatRoughnessMap: wear });
+const edgeMat = new THREE.MeshStandardMaterial({ map: edge(), roughness: .5 });
+const cases = [], labels = [];
+let x = SX0, prev = null;
+VIDS.forEach((v, i) => {
+  if (prev !== v[0]) { if (prev) x += .9; labels.push({ x, a: v[0] }); }
+  prev = v[0];
+  const sleeve = new THREE.MeshPhysicalMaterial({ map: cover(v, i), roughness: .5, clearcoat: 1, clearcoatRoughness: .35, clearcoatRoughnessMap: wear });
+  const sp = new THREE.MeshPhysicalMaterial({ map: spine(v, i), roughness: .45, clearcoat: 1, clearcoatRoughness: .1 });
+  const m = new THREE.Mesh(geo, [edgeMat, sp, plastic, plastic, sleeve, plastic]);
+  m.castShadow = m.receiveShadow = true;
+  const base = { x, y: SY, z: -.35, ry: .95, rx: -.03 };
+  m.position.set(base.x, base.y, base.z); m.rotation.set(base.rx, base.ry, 0);
+  m.userData = { v, i, base, t: 0 };
+  scene.add(m); cases.push(m);
+  x += .56;
+});
+const SX1 = x + 1.6, SL = SX1 - SX0 + 1.2;
+shelfMat.map = rep(TEX.oak_col, SL / 4.5, 1); shelfMat.roughnessMap = rep(TEX.oak_rough, SL / 4.5, 1); shelfMat.normalMap = rep(TEX.oak_nrm, SL / 4.5, 1); shelfMat.normalScale.set(.8, .8);
+const shelf = new THREE.Mesh(new RoundedBoxGeometry(SL, ST, SD, 3, .025), shelfMat); shelf.position.set(SX0 - .6 + SL / 2, SY - ST / 2, -.4); shelf.castShadow = shelf.receiveShadow = true; scene.add(shelf);
+/* a warm light strip under the front lip, washing the wall below */
+const wash = new THREE.RectAreaLight(0xffd9a6, 6, SL - .2, .06); wash.position.set(shelf.position.x, SY - ST - .02, .2); wash.lookAt(shelf.position.x, SY - 3, -1.05); scene.add(wash);
+/* little plates on the shelf edge naming each photographer */
+labels.forEach(l => { const c = document.createElement('canvas'); c.width = 512; c.height = 64; const g = c.getContext('2d'); g.fillStyle = '#1a1714'; g.fillRect(0, 0, 512, 64);
+  g.fillStyle = '#e3ad57'; g.fillRect(0, 0, 4, 64); g.fillStyle = '#efe8db'; g.font = '500 24px "Geist Mono"'; g.letterSpacing = '6px'; g.textBaseline = 'middle'; g.fillText(l.a.toUpperCase(), 22, 33);
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(1.25, .16), new THREE.MeshStandardMaterial({ map: tex(c), roughness: .4, metalness: .2 })); p.position.set(l.x + .62, SY - ST / 2, -.4 + SD / 2 + .002); scene.add(p); });
+
+/* gallery spots along the wall; one shadow-casting key follows the camera */
+for (let sx = SX0; sx < SX1; sx += 3.2) { const s = new THREE.SpotLight(0xffe3bd, 70, 14, .36, .9, 1.4); s.position.set(sx + 1, 5.2, 2.6); s.target.position.set(sx + 1, .6, -1); scene.add(s, s.target); }
+const key = new THREE.SpotLight(0xfff0dc, 170, 30, .42, .75, 1.5); key.position.set(0, 6, 5); key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -.0003; key.shadow.radius = 5; scene.add(key, key.target);
+const rim = new THREE.DirectionalLight(0x8fa6ff, .18); rim.position.set(8, 2, 4); scene.add(rim);
+scene.fog = new THREE.Fog(0x0b0908, 16, 34);
+
+/* ---- camera, scrolling along the shelf, hover ---- */
+const composer = new EffectComposer(renderer); composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), .22, .5, .92); composer.addPass(bloom); composer.addPass(new OutputPass());
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(9, 9);
+let hot = null, pan = Number(new URLSearchParams(location.search).get('pan') || 2.2), panT = pan; const info = document.getElementById('info');
+addEventListener('pointermove', e => { mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
+const PMIN = SX0 + 3.4, PMAX = SX1 - 3.8, clampP = v => Math.max(PMIN, Math.min(PMAX, v));
+panT = clampP(panT); pan = panT;
+addEventListener('wheel', e => { panT = clampP(panT + (e.deltaY + e.deltaX) * .008); }, { passive: true });
+/* drag the shelf along; arrow keys step a photographer at a time; the names along the bottom jump */
+let drag = null;
+canvas.addEventListener('pointerdown', e => { drag = { x: e.clientX, p: panT, moved: false }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x; if (Math.abs(dx) > 4) drag.moved = true; panT = clampP(drag.p - dx * .018); });
+canvas.addEventListener('pointerup', () => { drag = null; });
+const nav = document.getElementById('nav');
+nav.innerHTML = labels.map((l, k) => '<button data-k="' + k + '">' + l.a + '</button>').join('');
+nav.addEventListener('click', e => { const b = e.target.closest('button'); if (b) panT = clampP(labels[+b.dataset.k].x + 1.6); });
+addEventListener('keydown', e => { if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return; const d = e.key === 'ArrowRight' ? 1 : -1;
+  const cur = labels.reduce((b, l, k) => Math.abs(l.x + 1.6 - pan) < Math.abs(labels[b].x + 1.6 - pan) ? k : b, 0); const k = Math.max(0, Math.min(labels.length - 1, cur + d)); panT = clampP(labels[k].x + 1.6); });
+function size() { const w = innerWidth, h = innerHeight; renderer.setSize(w, h, false); composer.setSize(w, h); camera.aspect = w / h; camera.fov = 30; camera.updateProjectionMatrix(); }
+addEventListener('resize', size); size();
+const clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(.05, clock.getDelta());
+  pan += (panT - pan) * (1 - Math.exp(-dt * 6));
+  const mx = mouse.x < 5 ? mouse.x : 0, my = mouse.y < 5 ? mouse.y : 0;
+  camera.position.set(pan + mx * .3, 1.45 + my * .12, 10.2); camera.lookAt(pan + .2, .85, -.4);
+  key.position.set(pan - 1.5, 6.5, 5); key.target.position.set(pan + 2, .4, -.6);
+  ray.setFromCamera(mouse, camera); const hit = ray.intersectObjects(cases, false)[0]; const h = hit && !(drag && drag.moved) ? hit.object : null;
+  if (h !== hot) { hot = h; canvas.style.cursor = h ? 'pointer' : ''; info.style.opacity = h ? 1 : 0; if (h) { info.querySelector('b').textContent = h.userData.v[0]; info.querySelector('i').textContent = h.userData.v[1].toUpperCase(); } }
+  { let best = 0; labels.forEach((l, k) => { if (Math.abs(l.x + 1.6 - pan) < Math.abs(labels[best].x + 1.6 - pan)) best = k; }); nav.querySelectorAll('button').forEach((el, k) => el.classList.toggle('on', k === best)); }
+  cases.forEach(m => { const u = m.userData, k = u === (hot && hot.userData) ? 1 : 0; u.t += (k - u.t) * (1 - Math.exp(-dt * 9));
+    m.position.set(u.base.x - .2 * u.t, u.base.y + .08 * u.t, u.base.z + .75 * u.t); m.rotation.set(u.base.rx + .03 * u.t, u.base.ry * (1 - .7 * u.t), 0); });
+  composer.render(); requestAnimationFrame(frame);
+}
+frame();
+window.__ready = true;
+</script>
+</body>
+</html>

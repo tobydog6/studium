@@ -1,4 +1,4 @@
-// The opening: demo start → dark → glide → shoot → spin → scene, then the short version. Needs `node build.mjs --web`.
+// The opening film: demo start → dark → film (marks, wordmark) → hold → live scene, then a second time with a skip. Needs `node build.mjs --web`.
 //   node tests/launch.mjs      screenshots to tests/out/launch-*.png
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
@@ -27,19 +27,20 @@ let fail = '';
 try {
   const t0 = Date.now(); await page.goto(BASE + '?dev&noauto&lahold&demo');   /* ?demo starts the demo, and its opening, straight away */
   await until('dark', 120000); await page.waitForTimeout(1500); await shot('1-dark');
-  await until('glide', 400000); console.log('in at', Date.now() - t0, 'ms', JSON.stringify(await ev(() => __la.state()))); await page.waitForTimeout(700); await shot('2-glide'); await page.waitForTimeout(2600); await shot('2-glide-b');
-  await ev(() => __la.go()); await until('shoot', 20000); await page.waitForTimeout(350); await shot('3-iris');
-  await ev(() => __la.go()); await until('spin', 30000); console.log('spin at', Date.now() - t0, 'ms');
-  const still = await ev(() => { const c = document.querySelector('.la-still canvas'); return c && c.width > 2 ? c.toDataURL('image/jpeg', 0.85) : 'none'; }); if (still.startsWith('data:')) writeFileSync(join(OUT, 'launch-still.jpg'), Buffer.from(still.split(',')[1], 'base64')); console.log('still:', still.length);
-  await page.waitForTimeout(1800); await shot('5-spin');
-  await ev(() => __la.go()); await until('end', 30000); await page.waitForTimeout(400); await shot('6-scene');
+  await until('film', 120000); console.log('film at', Date.now() - t0, 'ms', JSON.stringify(await ev(() => __la.state())));
+  await page.waitForFunction(() => __la.state().vt > 3, null, { timeout: 60000 }); await shot('2-glide');
+  await page.waitForFunction(() => __la.state().vt > 10.2, null, { timeout: 60000 }); await shot('3-shot'); console.log('marks:', await ev(() => document.getElementById('launch').className));
+  await page.waitForFunction(() => __la.state().vt > 13.5, null, { timeout: 60000 }); await shot('5-spin');
+  await until('hold', 120000); console.log('hold at', Date.now() - t0, 'ms', JSON.stringify(await ev(() => __la.state())));
+  await ev(() => __la.go()); await until('end', 600000); await page.waitForTimeout(400); await shot('6-scene');
   await page.waitForTimeout(2800); await shot('7-welcome'); console.log('welcome card:', await ev(() => __la.wel()));
   console.log('pose', JSON.stringify(await ev(() => __cb.pose())), 'spawn', JSON.stringify(await ev(() => SPLAT_SCENES[0].spawn)));
   const snd = await ev(() => __sd.render()); writeFileSync(join(OUT, 'launch-sound.wav'), Buffer.from(snd.wav, 'base64')); console.log('sound peak:', snd.peak);
   await ev(() => __la.welGo('skip')); console.log('card after skip:', await ev(() => __la.wel()));
   console.log('end:', await ev(() => ({ state: __cb.state(), log: __la.state().log, launching: document.body.classList.contains('launching'), hud: getComputedStyle(document.getElementById('hud')).visibility, vf: document.getElementById('viewfinder').classList.contains('on'), pose: __cb.pose(), spawn: (window.SPLAT_SCENES||[])[0].spawn })));
-  // second time: the short version
-  await ev(() => { __qu.closeAll(); __la.start(); }); await until('dark', 5000); const t1 = Date.now(); await until('end', 30000); console.log('short version took', Date.now() - t1, 'ms');
+  // second time: the full film again, skipped partway
+  await ev(() => { __qu.closeAll(); __la.start(); }); await until('film', 30000); await page.waitForTimeout(1500); await ev(() => __la.skip()); await page.waitForTimeout(300); console.log('after skip:', JSON.stringify(await ev(() => __la.state())));
+  await ev(() => __la.go()); await until('end', 120000); console.log('second time:', JSON.stringify(await ev(() => __la.state().log)));
 } catch (e) { fail = e.message; }
 await browser.close(); server.close();
 if (fail) console.error('FAIL ' + fail);

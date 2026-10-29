@@ -577,6 +577,7 @@
     fsMat.uniforms.gBloom.value=gBloom; fsMat.uniforms.gDof.value=gDof; fsMat.uniforms.gGrain.value=gGrain;
     var cap=typeof CH!=="undefined"&&CH&&CH.capturing; if(cap&&viewfinderOn) fsMat.uniforms.grain.value=isoGrain;   /* the photo gets the real sensor, not the eased one */
     var nf=NZ.lum>1e-6?Math.min(1,fsMat.uniforms.grain.value/NZ.lum):0; fsMat.uniforms.nChr.value=NZ.chr*nf; fsMat.uniforms.nX.value=NZ.x*nf; fsMat.uniforms.nFilm.value=NZ.film; fsMat.uniforms.nSize.value=NZ.size;
+    if(typeof FC!=="undefined"&&FC.on) fsMat.uniforms.grain.value=0;   /* no sensor noise in the film: it would only become video noise */
     if(!cap) seedCounter=(seedCounter+1)%9973; fsMat.uniforms.seed.value=seedCounter;   /* grain moves every frame you watch, and holds still for the one the shutter records */
     if(dt>0){ var nowT=performance.now(); if(nowT-(renderFrame._lt||0)>250){ renderFrame._lt=nowT; if(Math.abs(Math.log(sceneLightLin())/Math.LN2-lightStops)>0.02) computeCam(); } }   /* the light changed (time of day, a lamp): the meter follows */
     renderer.render(fsScene,fsCam);
@@ -598,9 +599,10 @@
     PF.n=0; PF.t=0; PF.worst=0; }
   (function pfCount(){ var n=0, t0=performance.now(); (function f(){ requestAnimationFrame(f); n++; var t=performance.now(); if(t-t0>=1000){ PF.fps=n*1000/(t-t0); n=0; t0=t; } })(); })();
   if(/[?&]dev/.test(location.search)) window.__pf={ spin:function(v){ PF.spin=v; }, fps:function(){ return PF.fps||0; }, sorting:function(){ var sp=viewer&&viewer.spark; return sp?{active:sp.activeSplats, sorting:sp.sorting}:null; } };
-  function animate(){ requestAnimationFrame(animate); pfTick(); if(PF.spin&&loaded) yaw+=PF.spin; var dt=Math.min(clock.getDelta(),0.1);
+  function animate(){ requestAnimationFrame(animate); if(typeof FC!=="undefined"&&FC.on) return;   /* the opening film's recorder draws every frame itself */ pfTick(); if(PF.spin&&loaded) yaw+=PF.spin; var dt=Math.min(clock.getDelta(),0.1);
     if((typeof cbOpen!=="undefined" && cbOpen) || (typeof bg!=="undefined" && bg.open) || (typeof st!=="undefined" && st.open)) return;   // the camera back covers the scene: stop drawing it (big win on school PCs)
     if(typeof RF!=="undefined"&&RF.on){ if(!loaded&&(RF.bg=(RF.bg||0)+1)%3===0) renderFrame(dt); return; }   /* the launch page is a still with its own lens; Spark only finishes building the scan while it's being drawn, so it's drawn now and then, small, under the still, until it's in */
+    if(typeof laBehind==="function"&&laBehind()){ if((animate.la=(animate.la||0)+1)%4===0){ if(loaded) updateCamera(dt); renderFrame(dt); } return; }   /* the opening film covers the scene: draw it now and then, so the scan finishes building without taking from the film */
     if(!(typeof LA!=="undefined"&&LA.on)&&(App.is("hub")||App.is("signin")||document.body.classList.contains("la-wel-on"))){ if(!loaded&&viewer&&(animate.bg=(animate.bg||0)+1)%3===0) renderFrame(dt); return; }   /* the hub, sign-in and the welcome card cover the scene: don't draw it (a scan still loading is drawn now and then so Spark finishes building it) */
     if(loaded) updateCamera(dt); renderFrame(dt); dynTick(dt); if(viewfinderOn) vfLevelTick(); }
   animate();

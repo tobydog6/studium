@@ -54,7 +54,7 @@ export const store = {
   get() { if (store.d) return store.d; let d = null; try { d = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { d = null; }
     store.d = d && d.v === 1 ? Object.assign(fresh(), d) : fresh(); return store.d; },
   save() { clearTimeout(store.t); store.t = setTimeout(store.saveNow, 200); },
-  saveNow() { clearTimeout(store.t); try { localStorage.setItem(KEY, JSON.stringify(store.get())); } catch (e) {} },
+  saveNow() { clearTimeout(store.t); try { localStorage.setItem(KEY, JSON.stringify(store.get())); } catch (e) {} if (store.onSave) try { store.onSave(); } catch (e) {} },   /* onSave: the page saves the session, so the collection reaches the cloud */
   reset() { store.d = fresh(); store.saveNow(); },
   pull(id) { return store.get().pulls.find(p => p.id === id) || null; },
   addPull(slab) { const d = store.get(); d.pulls.push(slab); d.points += slab.points; store.save(); return slab; },

@@ -862,6 +862,7 @@
     quests:(typeof Q!=="undefined"?Q:null), presets:(typeof prData==="function"?prData():null),
     workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), projects:(typeof st!=="undefined"?st.projects:[]), lightTable:(typeof st!=="undefined"?st.lightTable||null:null), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title,list:ga.list,label:ga.label}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
+    secret:(function(){ try{ return JSON.parse(localStorage.getItem("studium_secret_v1")||"null"); }catch(e){ return null; } })(),   /* the light table's secret collection (slabs, points), so it follows a signed-in player too */
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
   function saveSessionNow(){ if(!photos.length && !(typeof foItems!=="undefined"&&foItems&&foItems.length)) return;
     var edited=_sessEdit; _sessEdit=false; if(edited||!sessionSavedAt) sessionSavedAt=Date.now();   /* looking round without changing anything never makes an old copy look newest */
@@ -882,6 +883,7 @@
     if(d.workshop&&d.workshop.length&&typeof st!=="undefined") st.wsPages=d.workshop;
     if(d.book&&d.book.pages&&typeof bk!=="undefined"){ bk.size=d.book.size||"20x25"; bk.pages=d.book.pages; }
     if(d.galleryPrefs&&typeof ga!=="undefined"){ ga.frame=d.galleryPrefs.frame||"black"; ga.gap=d.galleryPrefs.gap||250; ga.sizes=d.galleryPrefs.sizes||{}; ga.pos=d.galleryPrefs.pos||{}; ga.title=d.galleryPrefs.title||""; ga.list=d.galleryPrefs.list||null; ga.label=d.galleryPrefs.label||{x:null,y:null,style:"card",size:1}; }
+    if(cloud&&d.secret&&d.secret.v===1){ try{ localStorage.setItem("studium_secret_v1", JSON.stringify(d.secret)); }catch(e){} }   /* before the table reloads, so it reads the collection back */
     if(typeof st!=="undefined"){ st.lightTable=d.lightTable||null; if(typeof ltReset==="function") ltReset(); }
     if(d.wsBoard&&typeof st!=="undefined"){ st.wsBoard=d.wsBoard; wsB.reset(d.wsBoard); }
     if(d.foBoard&&typeof st!=="undefined"){ st.foBoard=d.foBoard; foB.reset(d.foBoard); }
@@ -1259,6 +1261,7 @@
 @@include achieve.js@@
 @@include launch.js@@
 @@include rackin.js@@
+@@include duel.js@@
   function toggleGrid(){ grid.classList.toggle("hidden"); var s=$("mGrid"); if(s)s.classList.toggle("on",!grid.classList.contains("hidden")); }
 
   // ---- wire: landing ----

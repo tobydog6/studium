@@ -161,3 +161,17 @@ drop policy if exists "studium: own saves" on storage.objects;
 create policy "studium: own saves" on storage.objects for all to authenticated
   using (bucket_id = 'studium-saves' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'studium-saves' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------- live: the Blades duel lobby and each duel (src/duel.js), on Supabase Realtime ----------
+-- Private channels only. The lobby (who's on, invites) is for signed-in players; a duel's channel,
+-- studium-duel:<host id>:<guest id>, is only for those two.
+drop policy if exists "studium: duel lobby and duels, read" on realtime.messages;
+drop policy if exists "studium: duel lobby and duels, send" on realtime.messages;
+create policy "studium: duel lobby and duels, read" on realtime.messages for select to authenticated
+  using ( realtime.messages.extension in ('broadcast','presence') and (
+          realtime.topic() = 'studium-lobby'
+          or (realtime.topic() like 'studium-duel:%' and auth.uid()::text in (split_part(realtime.topic(), ':', 2), split_part(realtime.topic(), ':', 3))) ) );
+create policy "studium: duel lobby and duels, send" on realtime.messages for insert to authenticated
+  with check ( realtime.messages.extension in ('broadcast','presence') and (
+          realtime.topic() = 'studium-lobby'
+          or (realtime.topic() like 'studium-duel:%' and auth.uid()::text in (split_part(realtime.topic(), ':', 2), split_part(realtime.topic(), ':', 3))) ) );

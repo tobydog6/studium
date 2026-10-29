@@ -16,6 +16,11 @@
       if((!list||!list.length)&&typeof RS_SAMPLE!=="undefined") list=[RS_SAMPLE];
       return (list||[]).map(function(p){ return {id:p.id, name:p.name, imgs:(p.imgs||[]).map(function(im){ var u=im.url; try{ u=new URL(u, document.baseURI).href; }catch(e){} return {id:im.id, url:u}; })}; }); },
     sfx:function(id,o){ return sfx(id,o); },
+    /* the secret collection changed: the session saves, so a signed-in player's slabs go to the cloud with it */
+    secretSaved:function(){ saveSession(); },
+    /* online Blades duels (duel.js) */
+    duel:{ can:function(){ return typeof Duel!=="undefined"&&Duel.can(); }, list:function(){ if(typeof Duel!=="undefined") Duel.list(); }, end:function(){ if(typeof Duel!=="undefined") Duel.end(); },
+      channel:function(topic,h){ return Duel.channel(topic,h); } },
     shutter:function(){ try{ if(typeof shutterSound==="function") shutterSound(); else sfx("capture"); }catch(e){} },
     save:function(s){ st.lightTable=s; saveSession(); },
     tourDone:function(){ ltWant=false; if(typeof Q!=="undefined"&&Q&&Q.tours){ Q.tours.lighttable=true; if(typeof qSave==="function") qSave(); } },

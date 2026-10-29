@@ -53,6 +53,7 @@ export function installSecret(ctx) {
     shadow(w, d) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ map: SHADOW_TEX(), transparent: true, depthWrite: false, opacity: 0.55 })); m.rotation.x = -Math.PI / 2; m.position.y = 0.004; m.userData.noParticles = true; return m; },
   };
   SL.setPhotoSource(S.packs);
+  store.onSave = () => { if (ctx.HOST && ctx.HOST.secretSaved) ctx.HOST.secretSaved(); };
   let shadowTex = null; const SHADOW_TEX = () => { if (shadowTex) return shadowTex; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 20, 64, 64, 64); gr.addColorStop(0, 'rgba(0,0,0,0.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); shadowTex = new THREE.CanvasTexture(c); return shadowTex; };
 
   /* ---------- camera: push a framing for a sequence, pop it after ---------- */
@@ -312,7 +313,22 @@ export function installSecret(ctx) {
       slabObjs.forEach(o => { if (o.built) o.update(dt); });
     },
     pause(on) { if (on && inspect.active()) inspect.close('back'); if (S.blades && S.blades.pause) S.blades.pause(on); },
+    /* an online duel (the page's duel.js): from wherever the layer is, to the Blades build card, then blades.js takes it.
+       Someone invited who hasn't found the secret yet is let in: the invite is the way in. True once it has the duel. */
+    duel(info) { if (!S.blades || !S.blades.duel || duelGoing) return !!duelGoing;
+      duelGoing = info; const t0 = performance.now(), pause = () => new Promise(r => setTimeout(r, 250));
+      (async () => { try {
+          if (inspect.active()) inspect.close('back');
+          if (!S.unlocked()) unlock();
+          while (performance.now() - t0 < 30000) {
+            if (M.is('blades.build')) { S.blades.duel(info); return; }
+            if (!M.busy()) { if (M.is('blades')) M.go('blades.build'); else if (M.is('under')) M.send('BLADES'); else if (M.is('idle')) S.under.flip('under'); else if (M.active()) M.send('CLOSE'); }
+            await pause(); }
+          S.toast('The stadium didn\u2019t open in time, so the duel is off.'); if (ctx.HOST && ctx.HOST.duel) ctx.HOST.duel.end();
+        } finally { duelGoing = null; } })();
+      return true; },
   };
+  let duelGoing = null;
   return api;
 }
 

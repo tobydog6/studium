@@ -32,7 +32,7 @@
   function laHeld(){ if(!LA.hold) return false; if(!LA.held){ LA.held=true; if(LA.pass){ LA.pass=false; return false; } LA.wait=true; } return LA.wait; }   /* tests: ?lahold parks a phase until __la.go() */
   /* the film is fetched whole before it plays, so it can never stall halfway; once per page, then it's kept */
   function laFilmLoad(){ var v=LA.el.querySelector("video"); if(LA.filmURL){ if(v.src!==LA.filmURL) v.src=LA.filmURL; return; } if(LA.filmGet) return;
-    var src=v.canPlayType('video/mp4; codecs="avc1.640028"')?LA_FILM:LA_FILM_WEBM; LA.filmGet=fetch(src).then(function(r){ if(!r.ok) throw new Error("film "+r.status); return r.blob(); }).then(function(b){ LA.filmURL=URL.createObjectURL(b); if(LA.el) LA.el.querySelector("video").src=LA.filmURL; })
+    var src=v.canPlayType('video/mp4; codecs="avc1.640028"')||!LA_FILM_WEBM?LA_FILM:LA_FILM_WEBM;   /* the one-file build has no VP9 copy */ LA.filmGet=fetch(src).then(function(r){ if(!r.ok) throw new Error("film "+r.status); return r.blob(); }).then(function(b){ LA.filmURL=URL.createObjectURL(b); if(LA.el) LA.el.querySelector("video").src=LA.filmURL; })
       .catch(function(e){ console.warn("opening film",e); LA.filmBad=true; }); }
   function launchStart(after){ if(LA.on) return; LA.on=true; LA.after=after||null; LA.first=!laSeen(); LA.t0=performance.now(); LA.cam=null; LA.skipAsked=false; LA.log=[]; LA.placed=false; LA.looked=null; LA.warm=false; LA.warmT=null; LA.cued=false; LA.skipped=false; LA.filmBad=false; LA.eye0=WK.eye; LAG.on=false; laWelClose(true); SD.seq=null;
     var e=laEl(); LA.el=e; e.className=""; document.body.classList.add("launching"); laPhase("dark");

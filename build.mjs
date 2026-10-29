@@ -41,6 +41,7 @@ const stripNl = (s) => (s.endsWith('\n') ? s.slice(0, -1) : s);
 function resolveAssets(text) {
   return text.replace(/\b(asset|asset-b64):([A-Za-z0-9_./-]+)/g, (_, kind, rel) => {
     if (SWAP[rel]) rel = SWAP[rel];
+    if (!WEB && /\.webm$/.test(rel)) return '';   /* one file: the opening film goes in once, as H.264 (every desktop browser plays it); the web build also ships the VP9 copy */
     if (ONLY && /^assets\/scenes\//.test(rel) && !ONLY.includes(basename(rel).split(/[-.]/)[0])) return '';   // a scene left out of this build
     /* web build: anything sizeable ships as its own file, not base64 inside the page. The page parses in a fraction of the
        time (it was ~20 MB), files load in parallel and cache, and an image used twice downloads once */

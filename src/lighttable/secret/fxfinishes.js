@@ -263,7 +263,7 @@ const FX = {
       const SW = 200, SH = Math.round(200 / P.aspect), cur = new Float32Array(SW * SH), prev = new Float32Array(SW * SH), data = new Uint8Array(SW * SH * 4);
       const nt = new THREE.DataTexture(data, SW, SH, THREE.RGBAFormat); nt.magFilter = THREE.LinearFilter; nt.minFilter = THREE.LinearFilter; nt.needsUpdate = true;
       const N = P.W * P.H, Hf = new Float32Array(N); for (let i = 0; i < N; i++) Hf[i] = P.R[i] * 0.6 + P.D[i] * 0.2;
-      const map = texOf(P.W, P.H, true, i => { const t = 0.12 + 0.88 * Math.pow(P.L[i], 1.1); return [t * 0.97, t * 0.98, t]; });
+      const map = texOf(P.W, P.H, true, i => { const t = 0.25 + 0.75 * Math.pow(P.L[i], 1.1); return [t * 0.97, t * 0.98, t]; });
       const geo = reliefGeo(P, w, h, smoothHeight(P, Hf, 3));
       const mat = new THREE.MeshPhysicalMaterial({ map, metalness: 1, roughness: 0.1, normalMap: nt, normalScale: new THREE.Vector2(1.6, 1.6), envMap: ENV2, envMapIntensity: 1.3 });
       const mesh = new THREE.Mesh(geo, mat); g.add(mesh); let last = null, nextDrop = 1, damp = 0.986;

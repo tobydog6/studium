@@ -492,6 +492,6 @@ export function studioEnvs(renderer) {
   const room = (bg, panels) => { const s = new THREE.Scene(); s.background = new THREE.Color(bg); panels.forEach(([w, h, col, k, pos]) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(k), side: THREE.DoubleSide })); m.position.set(...pos); m.lookAt(0, 0, 0); s.add(m); });
     const p = new THREE.PMREMGenerator(renderer), t = p.fromScene(s, 0).texture; p.dispose(); s.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); return t; };
   const e = { studio: room(0x060505, [[7, 3.2, 0xfff1e0, 5, [-3.5, 5, 4.5]], [1.1, 9, 0xffffff, 3.6, [6.5, 0, 1.5]], [1.1, 9, 0xd8e4ff, 1.6, [-6.5, 0, -1]], [12, 2.5, 0xffd2a0, 0.9, [0, -5.5, 3]], [1.6, 1.6, 0xffffff, 12, [2.5, 3, 7]], [14, 6, 0x1a1612, 1, [0, 1, -8]]]),
-    bright: room(0x2a2622, [[9, 4, 0xffffff, 3, [0, 1, 9]], [3, 10, 0xfff0dc, 4, [-6, 0, 4]], [3, 10, 0xdce8ff, 3, [6, 0, 4]], [16, 3, 0x0a0a0c, 1, [0, -2.5, 8]], [16, 2, 0xffe2b8, 2, [0, 5, 3]]]) };
+    bright: room(0x2a2622, [[12, 12, 0xfff6ea, 2.2, [0, 10, 1]], [9, 4, 0xffffff, 3, [0, 1, 9]], [3, 10, 0xfff0dc, 4, [-6, 0, 4]], [3, 10, 0xdce8ff, 3, [6, 0, 4]], [16, 3, 0x0a0a0c, 1, [0, -2.5, 8]], [16, 2, 0xffe2b8, 2, [0, 5, 3]]]) };
   ENVS.set(renderer, e); return e;
 }

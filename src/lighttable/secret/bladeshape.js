@@ -87,3 +87,39 @@ export function discFacets(dna) { return dna.sat > 0.28 ? 64 : [6, 8, 10, 12][Ma
 
 /* the tip's proportions: length, flare at the neck, ribs round it */
 export function tipSpec(dna) { return { len: 0.3 + 0.14 * clamp(dna.mean, 0, 1), flare: 0.24 + 0.1 * clamp(dna.sat * 2, 0, 1), ribs: dna.edge > 0.5 ? 8 + Math.round(dna.edge * 8) : 24, dome: 0.45 + 0.5 * clamp(dna.contrast / 0.3, 0, 1) }; }
+
+/* ---- Beyblade X style (Sam's reference photos): a few heavy, angular chrome chunks over a swirl of coloured plastic flames ---- */
+/* how many metal wings: three is the classic, detailed photos and the top tiers get more, lopsided ones fewer */
+export function wingCount(dna, rank) { return clamp(3 + (dna.edge > 0.55 ? 1 : 0) + (rank >= 5 ? 1 : 0) - (dna.sym < 0.25 ? 1 : 0), 2, 5); }
+/* the metal: angular chunks (few points, so the faces stay flat and catch the light) round a base ring; [x, y] about radius 1 */
+export function metalChunks(dna, rank, dir) {
+  const W = wingCount(dna, rank), base = 0.6, span = (Math.PI * 2 / W) * clamp(0.5 + dna.contrast * 0.9, 0.5, 0.78), hook = 0.18 + 0.25 * (1 - dna.sym), pts = [];
+  /* one wing's profile, u across it from trailing to leading edge: a long ramp up, a sharp hooked tip, a notch, a drop */
+  const prof = [[0, base], [0.12, 0.8], [0.42, 0.93], [0.7, 1.0], [0.78 + hook * 0.3, 0.97], [0.8 + hook * 0.3, 0.86], [0.9, 0.9], [1, base]];
+  const notch = dna.edge > 0.4;
+  for (let w = 0; w < W; w++) { const a0 = w / W * Math.PI * 2 + dna.lean * 0.3;
+    prof.forEach(([u, r], i) => { if (!notch && (i === 5 || i === 6)) return; const uu = dir < 0 ? 1 - u : u, a = a0 + uu * span, rr = r + 0.03 * polarAt(dna, a); pts.push([a, clamp(rr, 0.5, 1.04)]); });
+    /* the base ring between wings, a few points so it stays round */
+    const gapA = a0 + span, gapB = a0 + Math.PI * 2 / W; for (let k = 1; k < 6; k++) { const a = gapA + (gapB - gapA) * k / 6; pts.push([a, base]); } }
+  pts.sort((p, q) => p[0] - q[0]);
+  return pts.map(([a, r]) => [Math.cos(a) * r, Math.sin(a) * r]);
+}
+/* the plastic: swept flames between and under the metal, more of them for busier photos, bent by the photo's light */
+export function flameOutline(dna, rank, dir) {
+  const W = wingCount(dna, rank), F = W * (2 + Math.round(dna.edge * 2)), N = F * 26, pts = [], sweep = 1.6 + dna.contrast * 2;
+  for (let i = 0; i < N; i++) { const a = i / N * Math.PI * 2, u0 = ((a * F / (Math.PI * 2)) % 1 + 1) % 1, u = dir < 0 ? 1 - u0 : u0;
+    const f = Math.pow(1 - u, sweep) * (0.7 + 0.3 * Math.cos(a * W));   /* hooked flames, longest where the metal wings sit */
+    const r = 0.5 + 0.36 * f + 0.04 * polarAt(dna, a); pts.push([Math.cos(a) * clamp(r, 0.48, 0.92), Math.sin(a) * clamp(r, 0.48, 0.92)]); }
+  return pts;
+}
+/* the metal as separate chunks (no plate between them, so the plastic shows through): one closed polygon per wing */
+export function metalWings(dna, rank, dir) {
+  const W = wingCount(dna, rank), rin = 0.66, span = (Math.PI * 2 / W) * clamp(0.42 + dna.contrast * 0.9, 0.42, 0.7), hook = 0.18 + 0.25 * (1 - dna.sym), out = [];
+  const prof = [[0, 0.74], [0.1, 0.86], [0.4, 0.94], [0.68, 1.0], [0.78 + hook * 0.3, 0.97], [0.8 + hook * 0.3, 0.86], [0.9, 0.9], [1, 0.74]], notch = dna.edge > 0.4;
+  for (let w = 0; w < W; w++) { const a0 = w / W * Math.PI * 2 + dna.lean * 0.3, poly = [];
+    prof.forEach(([u, r], i) => { if (!notch && (i === 5 || i === 6)) return; const uu = dir < 0 ? 1 - u : u, a = a0 + uu * span; poly.push([a, clamp(r + 0.03 * polarAt(dna, a), 0.7, 1.04)]); });
+    poly.sort((p, q) => p[0] - q[0]);
+    const back = []; for (let k = 4; k >= 0; k--) back.push([a0 + span * k / 4, rin]);
+    out.push(poly.concat(back).map(([a, r]) => [Math.cos(a) * r, Math.sin(a) * r])); }
+  return out;
+}

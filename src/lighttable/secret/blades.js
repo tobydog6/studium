@@ -178,28 +178,34 @@ export function install(S) {
     [0.43, 0.63].forEach(y => { const band = keep(new THREE.Mesh(new THREE.TorusGeometry(0.9, 0.035, 8, facets < 20 ? facets : 64), dmet)); band.rotation.x = Math.PI / 2; band.position.y = y + lift; gDisc.add(band); });
     finishOver(b, dtex, new THREE.LatheGeometry(prof.map(p => new THREE.Vector2(p.x * 1.01, p.y)), facets), gDisc, 0.42 + lift);
     /* the blade (attack ring): a metal blade cut to the photo's own outline, the photo as a raised face in it, the finish shimmering on the metal */
-    const shape = ringShape(a, st.dir, da), dep = BSH.ringDepth(da), ry = 0.62 + lift, clear = a.variant === 'clear', amet = metalOf(a); mats.push(amet);
-    amet.flatShading = true;   /* faceted metal, like a real blade's cut edges */
-    const dm = dep * 0.75, blade = keep(new THREE.Mesh(planarUV(new THREE.ExtrudeGeometry(shape, { depth: dm, bevelEnabled: true, bevelThickness: 0.035, bevelSize: 0.03, bevelSegments: 2, curveSegments: 6 }).rotateX(-Math.PI / 2)), amet)); blade.position.y = ry; gRing.add(blade);
-    /* the plastic wing layer: the outline turned a little and drawn in, tinted by the photo's own colour, the photo printed through it */
-    const hue = new THREE.Color().setHSL(da.hue, da.sat > 0.15 ? 0.85 : 0.05, da.sat > 0.15 ? 0.5 : 0.16), turn = 0.22 * st.dir, EMB = 0.44;
-    const wing = new THREE.Shape(shape.getPoints(6).map(p => new THREE.Vector2((p.x * Math.cos(turn) - p.y * Math.sin(turn)) * 0.8, (p.x * Math.sin(turn) + p.y * Math.cos(turn)) * 0.8)));
-    { const h = new THREE.Path(); h.absarc(0, 0, EMB - 0.02, 0, Math.PI * 2, true); wing.holes.push(h); BSH.ringWindows(da).forEach(w => { const p = new THREE.Path(); p.absarc(Math.cos(w.a) * w.r, Math.sin(w.a) * w.r, w.s * 0.8, 0, Math.PI * 2, true); wing.holes.push(p); }); }
-    const ptex = photoTex(a), wingM = keep(new THREE.Mesh(planarUV(new THREE.ExtrudeGeometry(wing, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2, curveSegments: 6 }).rotateX(-Math.PI / 2), 0.92),
-      photoMat(ptex, { color: hue.clone().lerp(new THREE.Color(0xffffff), 0.3), transparent: true, opacity: clear ? 0.5 : 0.92, emissive: hue, emissiveIntensity: 0.3, roughness: 0.2, metalness: 0 })));
-    wingM.position.y = ry + dm + 0.01; gRing.add(wingM);
-    finishOver(a, ptex, planarUV(new THREE.ShapeGeometry(wing, 6).rotateX(-Math.PI / 2), 0.92), gRing, ry + dm + 0.12);
-    /* the emblem: the whole photo, raised in the middle, in a bezel of its tier's colour */
-    const emb = new THREE.Shape(); emb.absarc(0, 0, EMB, 0, Math.PI * 2, false); const eh = new THREE.Path(); eh.absarc(0, 0, 0.06, 0, Math.PI * 2, true); emb.holes.push(eh);
-    const embM = keep(new THREE.Mesh(planarUV(new THREE.ExtrudeGeometry(emb, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.015, bevelSegments: 2, curveSegments: 48 }).rotateX(-Math.PI / 2), EMB), photoMat(ptex, { emissiveIntensity: 0.4, roughness: 0.3 })));
-    embM.position.y = ry + dm + 0.06; gRing.add(embM);
-    const bez = keep(new THREE.Mesh(new THREE.TorusGeometry(EMB + 0.03, 0.055, 10, 64), new THREE.MeshStandardMaterial({ color: tierCol(a), emissive: tierCol(a), emissiveIntensity: 0.45, roughness: 0.25, metalness: 0.4, envMap: ENV })));
-    bez.rotation.x = Math.PI / 2; bez.position.y = ry + dm + 0.16; gRing.add(bez);
-    const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(shape.getPoints(6).map(p => new THREE.Vector3(p.x, 0, -p.y))), new THREE.LineBasicMaterial({ color: tierCol(a), toneMapped: false, transparent: true, opacity: 0.55 })); edge.position.y = ry + dm + 0.004; gRing.add(edge); keep(edge);
+    const dep = BSH.ringDepth(da), ry = 0.62 + lift, clear = a.variant === 'clear', amet = metalOf(a); mats.push(amet);
+    amet.flatShading = true; amet.roughness = Math.min(amet.roughness, 0.22); amet.envMapIntensity = 1.0; if (amet.color.getHSL({}).l > 0.75) amet.color.multiplyScalar(0.78);   /* faceted, polished metal: every chamfer catches the light */
+    const hue = new THREE.Color().setHSL(da.hue, da.sat > 0.15 ? 0.9 : 0.05, da.sat > 0.15 ? 0.48 : 0.14), EMB = 0.4, ptex = photoTex(a);
+    /* the plastic: hooked flames swirling under the metal, the photo printed through the photo's own colour, glossy and lit from within */
+    const fl = new THREE.Shape(BSH.flameOutline(da, rank(a), st.dir).map(p => new THREE.Vector2(p[0], p[1]))); { const h = new THREE.Path(); h.absarc(0, 0, EMB - 0.02, 0, Math.PI * 2, true); fl.holes.push(h); }
+    const flM = keep(new THREE.Mesh(planarUV(new THREE.ExtrudeGeometry(fl, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.02, bevelSegments: 2, curveSegments: 6 }).rotateX(-Math.PI / 2), 0.92),
+      new THREE.MeshPhysicalMaterial({ map: ptex, color: hue.clone().lerp(new THREE.Color(0xffffff), 0.25), emissive: hue, emissiveMap: ptex, emissiveIntensity: 0.45, roughness: 0.12, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.08, envMap: ENV, envMapIntensity: 1.1, transparent: true, opacity: clear ? 0.55 : 0.93 })));
+    flM.position.y = ry; gRing.add(flM);
+    finishOver(a, ptex, planarUV(new THREE.ShapeGeometry(fl, 6).rotateX(-Math.PI / 2), 0.92), gRing, ry + 0.13);
+    /* the metal: a few heavy angular chunks with chamfered edges, sitting on the flames */
+    const mcS = BSH.metalWings(da, rank(a), st.dir).map(poly => new THREE.Shape(poly.map(p => new THREE.Vector2(p[0], p[1]))));
+    const blade = keep(new THREE.Mesh(new THREE.ExtrudeGeometry(mcS, { depth: 0.09, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.045, bevelSegments: 1, curveSegments: 4 }).rotateX(-Math.PI / 2), amet)); blade.position.y = ry + 0.06; gRing.add(blade);
+    /* the emblem: the whole photo, raised, glossy like a sticker, in a bezel of its tier's colour */
+    const emb = new THREE.Shape(); emb.absarc(0, 0, EMB, 0, Math.PI * 2, false);
+    const embM = keep(new THREE.Mesh(planarUV(new THREE.ExtrudeGeometry(emb, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.015, bevelSegments: 2, curveSegments: 48 }).rotateX(-Math.PI / 2), EMB),
+      new THREE.MeshPhysicalMaterial({ map: ptex, emissive: 0xffffff, emissiveMap: ptex, emissiveIntensity: 0.4, roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.05, envMap: ENV, envMapIntensity: 0.6 })));
+    embM.position.y = ry + 0.12; gRing.add(embM);
+    const bez = keep(new THREE.Mesh(new THREE.TorusGeometry(EMB + 0.035, 0.05, 12, 64), new THREE.MeshPhysicalMaterial({ color: tierCol(a), emissive: tierCol(a), emissiveIntensity: 0.35, roughness: 0.15, metalness: 0.6, clearcoat: 1, envMap: ENV })));
+    bez.rotation.x = Math.PI / 2; bez.position.y = ry + 0.24; gRing.add(bez);
+    /* an accent ring round the emblem in a colour that answers the photo's, like the coloured rings on real blades */
+    const acc = new THREE.Color().setHSL((da.hue + 0.5) % 1, 0.85, 0.55), ringS = new THREE.Shape(); ringS.absarc(0, 0, 0.58, 0, Math.PI * 2, false); { const h = new THREE.Path(); h.absarc(0, 0, EMB + 0.05, 0, Math.PI * 2, true); ringS.holes.push(h); }
+    const accM = keep(new THREE.Mesh(new THREE.ExtrudeGeometry(ringS, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.025, bevelSegments: 3, curveSegments: 64 }).rotateX(-Math.PI / 2),
+      new THREE.MeshPhysicalMaterial({ color: acc, emissive: acc, emissiveIntensity: 0.18, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.1, envMap: ENV })));
+    accM.position.y = ry + 0.11; gRing.add(accM);
     /* the spin: a blur of the face's own colours over the top as it gets fast (not on the spin group, so it doesn't strobe) */
     const btex = blurTex(da, METALS[SL.finishOf(a)] ? METALS[SL.finishOf(a)][0] : 0x8a9099); myTex.push(btex);
-    const halo = keep(new THREE.Mesh(new THREE.CircleGeometry(1.06, 64), new THREE.MeshBasicMaterial({ map: btex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }))); halo.rotation.x = -Math.PI / 2; halo.position.y = ry + dep * 0.75 + 0.22; halo.renderOrder = 3; tilt.add(halo);
-    const glint = keep(new THREE.Mesh(new THREE.RingGeometry(0.86, 1.05, 48, 1, 0, 0.9), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide }))); glint.rotation.x = -Math.PI / 2; glint.position.y = ry + dep * 0.75 + 0.23; glint.renderOrder = 4; tilt.add(glint);
+    const halo = keep(new THREE.Mesh(new THREE.CircleGeometry(1.06, 64), new THREE.MeshBasicMaterial({ map: btex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }))); halo.rotation.x = -Math.PI / 2; halo.position.y = ry + 0.3; halo.renderOrder = 3; tilt.add(halo);
+    const glint = keep(new THREE.Mesh(new THREE.RingGeometry(0.86, 1.05, 48, 1, 0, 0.9), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide }))); glint.rotation.x = -Math.PI / 2; glint.position.y = ry + 0.31; glint.renderOrder = 4; tilt.add(glint);
     /* grounded: a soft shadow and a dark contact spot under the tip */
     const shadow = S.shadow(2.6, 2.6); shadow.position.y = 0.02; root.add(shadow); keep(shadow); const contact = S.shadow(0.9, 0.9); contact.material.opacity = 0.8; contact.position.y = 0.025; root.add(contact); keep(contact); const bl0 = {};
     if (who) { const mk = keep(new THREE.Mesh(new THREE.RingGeometry(1.2, 1.3, 64), new THREE.MeshBasicMaterial({ color: who === 'me' ? 0xe3ad57 : 0xe4552e, transparent: true, opacity: 0.7, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }))); mk.rotation.x = -Math.PI / 2; mk.position.y = 0.05; root.add(mk); bl0.marker = mk; }
@@ -323,11 +329,31 @@ export function install(S) {
     const a = BS.makeTop(st, 1), b = BS.makeTop(rs, -1); B.W = BS.world(a, b); B.acc = 0;
     a.p = { x: 0, y: R * 0.62 }; b.p = { x: 0, y: -R * 0.62 }; a.w = st.dir * 6; b.w = rs.dir * 6;
     B.me.drop = B.rival.drop = 1.1; B.rivalPlan = BS.aiLaunch(); }
-  function clearBlades() { [B.me, B.rival].forEach(b => { if (b) b.dispose(); }); B.me = B.rival = null; B.debris.forEach(d => { d.g.removeFromParent(); }); B.debris = []; if (aim) aim.visible = false; }
+  function clearBlades() { [B.myL, B.rvL].forEach(L => { if (L) L.dispose(); }); B.myL = B.rvL = null; [B.me, B.rival].forEach(b => { if (b) b.dispose(); }); B.me = B.rival = null; B.debris.forEach(d => { d.g.removeFromParent(); }); B.debris = []; if (aim) aim.visible = false; }
   /* the aim: a thin arrow on the bowl from your blade, as long as the pull */
+  /* ---------- the launcher (Sam's photo): a pistol grip, a housing the blade hangs under, a toothed ripcord with a winged handle ---------- */
+  const cordTex = (() => { const c = document.createElement('canvas'); c.width = 64; c.height = 16; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, 64, 16); g.fillStyle = 'rgba(0,0,0,0.35)'; for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 3, 16); const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  const decal = (() => { const c = document.createElement('canvas'); c.width = 256; c.height = 96; const g = c.getContext('2d'); g.fillStyle = '#16161c'; g.fillRect(0, 0, 256, 96); g.fillStyle = '#f2d22e'; g.font = 'italic 900 52px sans-serif'; g.fillText('RIP', 14, 62); g.fillStyle = '#fff'; g.font = '700 20px sans-serif'; g.fillText('STUDIUM', 122, 42); g.font = '500 13px sans-serif'; g.fillText('X GRIP SYSTEM', 122, 64); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  function makeLauncher(col) { const g = new THREE.Group(), base = new THREE.Color(col), plast = new THREE.MeshPhysicalMaterial({ color: base, roughness: 0.38, clearcoat: 0.6, clearcoatRoughness: 0.3, envMap: ENV, envMapIntensity: 0.7 }), dark = new THREE.MeshPhysicalMaterial({ color: 0x1c1c22, roughness: 0.45, clearcoat: 0.3, envMap: ENV });
+    const housing = new THREE.Mesh(new S.RoundedBoxGeometry(1.7, 0.42, 1.5, 4, 0.14), plast); housing.position.y = 0.21; g.add(housing);
+    const top = new THREE.Mesh(new S.RoundedBoxGeometry(1.15, 0.12, 1.1, 3, 0.05), dark); top.position.set(0.05, 0.46, -0.05); g.add(top);
+    const sticker = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.36), new THREE.MeshBasicMaterial({ map: decal })); sticker.rotation.x = -Math.PI / 2; sticker.position.set(0.05, 0.53, 0.2); g.add(sticker);
+    const lip = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.12, 40), dark); lip.position.y = -0.04; g.add(lip);
+    [-0.62, 0.62].forEach(x => { const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.2, 20), plast); knob.rotation.z = Math.PI / 2; knob.position.set(x * 1.45, 0.25, -0.35); g.add(knob); });
+    /* the grip: an S-curved pistol handle reaching back towards you, with finger holes */
+    const gs = new THREE.Shape(); gs.moveTo(-0.38, 0); gs.bezierCurveTo(-0.55, 0.7, -0.15, 1.1, -0.42, 1.8); gs.bezierCurveTo(-0.6, 2.3, -0.2, 2.75, 0.15, 2.7); gs.bezierCurveTo(0.5, 2.6, 0.55, 2.2, 0.38, 1.7); gs.bezierCurveTo(0.2, 1.2, 0.55, 0.7, 0.38, 0);
+    [[0, 0.75], [0.05, 1.35], [0, 1.95]].forEach(([x, y]) => { const h = new THREE.Path(); h.absarc(x, y, 0.07, 0, Math.PI * 2, true); gs.holes.push(h); });
+    const grip = new THREE.Mesh(new THREE.ExtrudeGeometry(gs, { depth: 0.34, bevelEnabled: true, bevelThickness: 0.07, bevelSize: 0.06, bevelSegments: 3, curveSegments: 16 }).rotateX(-Math.PI / 2), plast); grip.position.set(-0.1, 0.04, 0.55); grip.rotation.y = Math.PI; g.add(grip);
+    const button = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.08, 20), new THREE.MeshStandardMaterial({ color: 0xe0402e, roughness: 0.4 })); button.position.set(-0.05, 0.47, 2.6); g.add(button);
+    /* the ripcord: a toothed strip out of the side, its winged handle on the end */
+    const cordM = new THREE.MeshStandardMaterial({ map: cordTex, color: base.clone().lerp(new THREE.Color(0xffffff), 0.15), roughness: 0.5 }), cord = new THREE.Mesh(new THREE.BoxGeometry(1, 0.05, 0.16), cordM); cord.geometry.translate(0.5, 0, 0); cord.position.set(0.85, 0.24, -0.1); g.add(cord);
+    const hs = new THREE.Shape(); hs.moveTo(0, -0.08); hs.lineTo(0.35, -0.1); hs.lineTo(0.55, -0.45); hs.lineTo(0.68, -0.4); hs.lineTo(0.55, -0.1); hs.lineTo(0.8, -0.06); hs.lineTo(0.95, -0.22); hs.lineTo(1.0, 0); hs.lineTo(0.95, 0.22); hs.lineTo(0.8, 0.06); hs.lineTo(0.55, 0.1); hs.lineTo(0.68, 0.4); hs.lineTo(0.55, 0.45); hs.lineTo(0.35, 0.1); hs.lineTo(0, 0.08);
+    const handle = new THREE.Mesh(new THREE.ExtrudeGeometry(hs, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 2 }).rotateX(-Math.PI / 2), plast); g.add(handle);
+    const L = { g, setCord(len) { const l = Math.max(0.18, len); cord.scale.x = l; cordM.map.repeat.set(l * 3, 1); handle.position.set(0.85 + l, 0.2, -0.1); }, dispose() { g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material !== cordM) o.material.dispose(); }); cordM.map.dispose(); cordM.dispose(); g.removeFromParent(); } };
+    cordM.map = cordTex.clone(); cordM.map.needsUpdate = true; L.setCord(0.18); return L; }
   const aim = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false, toneMapped: false })); aim.geometry.translate(0, 0.5, 0); aim.rotation.x = -Math.PI / 2; aim.visible = false; stadium.add(aim);
-  function doLaunch(power, ang) { const [a, b] = B.W.tops; BS.launch(a, power, ang); BS.launch(b, B.rivalPlan.power, B.rivalPlan.aim);
-    B.me.whirr = whirr(); B.rival.whirr = whirr(); aim.visible = false; snd('pop'); snd('rumble', { gain: 0.5, dur: 0.6 }); banner('Let it rip!', '', 900); B.shake = 0.35;
+  function doLaunch(power, ang) { const [a, b] = B.W.tops, lx = a.p.x; BS.launch(a, power, ang); a.p.x = lx; BS.launch(b, B.rivalPlan.power, B.rivalPlan.aim); B.me.drop = B.rival.drop = LAUNCH_H - 0.75; B.ripT = 0;
+    B.me.whirr = whirr(); B.rival.whirr = whirr(); aim.visible = false; snd('pop'); snd('rumble', { gain: 0.5, dur: 0.6 }); B.shake = 0.35;
     [a, b].forEach(t => { spark(t.p.x, hB(Math.hypot(t.p.x, t.p.y)) + 0.05, t.p.y, 40, [0xffffff, 0xffd08a], 3.5); wave(t.p.x, t.p.y, 2, 0xffffff); }); M.go('blades.battle'); }
   function fx(ev) {
     const [a, b] = B.W.tops, blOf = t => t === a ? B.me : B.rival;
@@ -435,20 +461,38 @@ export function install(S) {
         el[i].style.transform = 'translate(' + Math.round(p.x + side * (60 + 30 * L.k) - (side < 0 ? el[i].offsetWidth : 0)) + 'px,' + Math.round(p.y - el[i].offsetHeight / 2 + (i - 1) * 46 * (1 - L.k)) + 'px)'; el[i].style.opacity = L.k > 0.5 || i === 0 ? 1 : 0.35 + 0.65 * L.k; } },
   });
   function lookBar() { showBar([['back', 'Back'], ['apart', B.look && B.look.apart ? 'Put it together' : 'Take it apart'], ['fight', 'Fight', true]]); }
+  /* where the launcher sits over the bowl: your side, the rival's across */
+  const LAUNCH_H = 2.4, CORD_MAX = 4.2;
+  function launcherPose(L, x, z, side, cordLen, k) { const r = Math.hypot(x, z); L.g.position.set(x + 0.15 * side, hB(r) + LAUNCH_H * k, z); L.g.rotation.y = side > 0 ? 0 : Math.PI; L.g.scale.setScalar(0.62 * k); L.setCord(cordLen); }
   M.define('blades.ready', {
-    enter() { hideBar(); newRound(); ctx.canvas.style.cursor = 'grab'; B.shake = 0; B.stop = 0; B.slowT = 0; camTo(CX, CZ + R * 0.6, 10.5, 0, 36); tip.innerHTML = 'Drag down to pull back, left or right to aim. Let go to rip.'; tip.classList.add('on'); hud.classList.add('on'); hudFrame(0, true); const rs = B.rivalParts[0]; banner(B.score[0] + B.score[1] ? 'Round ' + (B.roundN = (B.roundN || 1) + 1) : 'Pull back and let go', 'Your rival: ' + esc((rs.photo && rs.photo.pack || 'Sample pack').replace(/\s*·.*$/, '')) + ' ring, ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip', 0); rimTo(tierCol(B.slots[0])); },
+    enter() { hideBar(); newRound(); ctx.canvas.style.cursor = 'grab'; B.shake = 0; B.stop = 0; B.slowT = 0; camTo(CX, CZ + R * 0.6, 10.5, 0, 36);
+      tip.innerHTML = 'Move to aim. Grab the ripcord and yank it out fast: the faster the pull, the better the rip.'; tip.classList.add('on'); hud.classList.add('on'); hudFrame(0, true);
+      [B.myL, B.rvL].forEach(L => { if (L) L.dispose(); }); B.myL = makeLauncher(new THREE.Color().setHSL(dnaOf(B.slots[0]).hue, 0.8, 0.28)); B.rvL = makeLauncher(0xb3261e); stadium.add(B.myL.g, B.rvL.g);
+      B.me.root.scale.setScalar(B.me.st.radius); B.lx = 0; B.pull = null; B.ripK = 1;
+      const rs = B.rivalParts[0]; banner(B.score[0] + B.score[1] ? 'Round ' + (B.roundN = (B.roundN || 1) + 1) : 'Ready, set', 'Your rival: ' + esc((rs.photo && rs.photo.pack || 'Sample pack').replace(/\s*·.*$/, '')) + ' blade, ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip', 0); rimTo(tierCol(B.slots[0])); },
     pointer(kind, e) {
-      if (kind === 'down' && e.button === 0) { B.drag = { x: e.clientX, y: e.clientY, power: 0, aim: 0 }; ctx.canvas.style.cursor = 'grabbing'; snd('servo'); return true; }
-      if (kind === 'move' && B.drag) { const D = B.drag; D.power = T.clamp((e.clientY - D.y) / 220, 0, 1); D.aim = T.clamp(-(e.clientX - D.x) / 260, -0.7, 0.7); return true; }
-      if (kind === 'up' && B.drag) { const D = B.drag; B.drag = null; ctx.canvas.style.cursor = 'grab'; if (D.power < 0.12) { banner('Pull back further', 'Drag down, then let go', 1400); return true; } hideBanner(); tip.classList.remove('on'); doLaunch(D.power, D.aim); return true; }
-      return kind !== 'wheel' ? true : false; },
-    frame(dt) { if (!B.W) return; const [a, b] = B.W.tops, D = B.drag;
-      a.ang += a.w * dt; b.ang += b.w * dt; pose(B.me, a, dt); pose(B.rival, b, dt);
-      /* while you pull, your blade draws back towards you and the aim line shows where it goes */
-      if (D) { a.p.x = Math.sin(D.aim) * R * 0.25 - Math.sin(D.aim) * D.power * 0.6; a.p.y = R * 0.62 + D.power * 0.35; a.w = B.slots && BS.statsOf(B.slots).dir * (6 + D.power * 40);
-        aim.visible = D.power > 0.05; aim.position.set(a.p.x, hB(Math.hypot(a.p.x, a.p.y)) + 0.05, a.p.y); aim.scale.set(1, 0.6 + D.power * 3.2, 1); aim.rotation.set(-Math.PI / 2, 0, -D.aim); aim.material.opacity = 0.3 + 0.5 * D.power; }
-      else { aim.visible = false; a.p.x = 0; a.p.y = R * 0.62; } },
+      const P = B.pull;
+      if (kind === 'move' && !P) { const h = S.tableHit(e, LIFT); if (h) B.lx = T.clamp(h.x - CX, -R * 0.4, R * 0.4); return true; }
+      if (kind === 'down' && e.button === 0) { B.pull = { x: e.clientX, y: e.clientY, len: 0, tick: 0, pts: [{ t: performance.now(), d: 0 }] }; ctx.canvas.style.cursor = 'grabbing'; snd('servo'); hideBanner(); return true; }
+      if (kind === 'move' && P) { const d = Math.hypot(e.clientX - P.x, e.clientY - P.y), now = performance.now(); P.pts.push({ t: now, d }); if (P.pts.length > 12) P.pts.shift();
+        P.len = Math.min(CORD_MAX, d / 75 / 0.62); const sp = ripSpeed(P); if (Math.floor(P.len * 5) > P.tick) { P.tick = Math.floor(P.len * 5); if (S.snd && S.snd.tick) S.snd.tick(Math.min(1, sp / 3)); }
+        if (P.len >= CORD_MAX) rip(); return true; }
+      if (kind === 'up' && P) { rip(); return true; }
+      return kind !== 'wheel'; },
+    frame(dt) { if (!B.W) return; const [a, b] = B.W.tops, P = B.pull, dir = BS.statsOf(B.slots).dir;
+      a.p.x = T.damp(a.p.x, B.lx, 12, dt); a.p.y = R * 0.62; b.p.x = 0; b.p.y = -R * 0.62;
+      /* the cord winds the blade up as it comes out */
+      a.w = dir * (6 + (P ? P.len : 0) * 16); a.ang += a.w * dt; b.ang += b.w * dt; pose(B.me, a, dt); pose(B.rival, b, dt);
+      launcherPose(B.myL, a.p.x, a.p.y, 1, P ? P.len : 0, 1); launcherPose(B.rvL, b.p.x, b.p.y, -1, 0, 1);
+      B.me.root.position.y = hB(Math.hypot(a.p.x, a.p.y)) + LAUNCH_H - 0.75; B.rival.root.position.y = hB(Math.hypot(b.p.x, b.p.y)) + LAUNCH_H - 0.75; },
   });
+  /* how fast the cord came out over the last tenth of a second, in px per ms */
+  function ripSpeed(P) { const p = P.pts, now = p[p.length - 1]; let best = 0; for (let i = p.length - 2; i >= 0; i--) { const dt = now.t - p[i].t; if (dt > 140) break; if (dt > 4) best = Math.max(best, (now.d - p[i].d) / dt); } return best; }
+  const RIP = [[0.9, 'Perfect rip!'], [0.65, 'Great rip!'], [0.35, 'Good rip'], [0, 'Weak rip']];
+  function rip() { const P = B.pull; if (!P) return; B.pull = null; ctx.canvas.style.cursor = 'default';
+    if (P.len < 0.6) { banner('Yank the cord', 'Grab it and pull fast', 1300); return; }
+    const sp = ripSpeed(P), q = T.clamp((sp - 0.35) / 2.4, 0, 1) * T.clamp(P.len / 2.2, 0.4, 1), power = 0.2 + 0.8 * q, label = RIP.find(r => q >= r[0])[1];
+    tip.classList.remove('on'); doLaunch(power, B.lx / (R * 0.4) * 0.35); banner(label, 'Rip ' + Math.round(q * 100) + '%', 1100); }
   M.define('blades.battle', {
     enter() { ctx.canvas.style.cursor = 'default'; },
     key(e) { if (e.key === ' ') { const ev = []; if (BS.special(B.W, B.W.tops[0], ev)) fx(ev); return true; } return false; },
@@ -456,20 +500,21 @@ export function install(S) {
       /* a freeze frame on a big hit, slow motion on the biggest */
       if (B.stop > 0) { B.stop -= real; dt = 0; } else if (B.slowT > 0) { B.slowT -= real; dt *= B.slowK; }
       B.me.drop *= Math.exp(-dt * 14); B.rival.drop *= Math.exp(-dt * 14);
-      B.acc += dt; const ev = []; while (B.acc >= 1 / 120) { B.acc -= 1 / 120; BS.step(W, 1 / 120, ev); if (BS.aiThink(W, b, 1 / 120)) BS.special(W, b, ev); }
+      if (B.myL) { B.ripT = (B.ripT || 0) + real; const k = B.ripT; [B.myL, B.rvL].forEach((L, i) => { L.setCord(Math.max(0, (i ? 3 : 1.5) * (1 - k * 6))); L.g.position.y += real * (2 + k * 18); L.g.scale.setScalar(Math.max(0.001, 0.62 * (1 - k * 1.6))); }); if (k > 0.65) { B.myL.dispose(); B.rvL.dispose(); B.myL = B.rvL = null; } }
+      B.acc += dt * BS.TIME; const ev = []; while (B.acc >= 1 / 120) { B.acc -= 1 / 120; BS.step(W, 1 / 120, ev); if (BS.aiThink(W, b, 1 / 120)) BS.special(W, b, ev); }
       fx(ev);
       /* now and then, just before a big crash: everything slows, the camera dives in, then it lands */
       B.cineCd = (B.cineCd || 0) - real;
       if (a.alive && b.alive && !(B.cine && B.cine.t > 0) && B.cineCd <= 0 && B.slowT <= 0 && W.t > 1.5) { const nx = b.p.x - a.p.x, nz = b.p.y - a.p.y, d = Math.hypot(nx, nz) || 1, gap = d - a.st.radius - b.st.radius, close = -((b.v.x - a.v.x) * nx + (b.v.y - a.v.y) * nz) / d;
         if (gap > 0.1 && gap < 1.1 && close > 5.5 && Math.random() < 0.6) { B.cine = { t: 0.9, x: (a.p.x + b.p.x) / 2, z: (a.p.y + b.p.y) / 2 }; B.slowT = 0.9; B.slowK = 0.12; B.cineCd = 5; snd('rumble', { gain: 0.8, dur: 0.9 }); snd('glow'); } }
-      if (a.alive) pose(B.me, a, dt); else deadFrame(B.me, a, dt); if (b.alive) pose(B.rival, b, dt); else deadFrame(B.rival, b, dt);
+      const vdt = dt * BS.TIME; if (a.alive) pose(B.me, a, vdt); else deadFrame(B.me, a, vdt); if (b.alive) pose(B.rival, b, vdt); else deadFrame(B.rival, b, vdt);
       /* the camera leans towards the action, never far from the middle of the bowl */
       const mx = (a.p.x + b.p.x) / 2, mz = (a.p.y + b.p.y) / 2; if (B.cine && B.cine.t > 0) { B.cine.t -= real; camTo(CX + B.cine.x, CZ + B.cine.z + 1.4, 4.2, real * 3, 30); } else camTo(CX + mx * 0.4, CZ + 2.0 + mz * 0.4, 12, real, 44);
       hudFrame(dt); const o = BS.outcome(W); if (o) M.go('blades.round', o); },
   });
   M.define('blades.round', { busy: true,
     /* the winner keeps spinning and the loser finishes falling, for a beat */
-    frame(dt) { dt = Math.min(dt, 0.05); if (B.slowT > 0) { B.slowT -= dt; dt *= B.slowK; } const [a, b] = B.W.tops; [[a, B.me], [b, B.rival]].forEach(([t, bl]) => { if (!bl) return; if (t.alive) { t.ang += t.w * dt; t.w *= Math.exp(-dt * 0.3); pose(bl, t, dt); } else deadFrame(bl, t, dt); }); },
+    frame(dt) { dt = Math.min(dt, 0.05); if (B.slowT > 0) { B.slowT -= dt; dt *= B.slowK; } const [a, b] = B.W.tops; [[a, B.me], [b, B.rival]].forEach(([t, bl]) => { if (!bl) return; const vdt = dt * BS.TIME; if (t.alive) { t.ang += t.w * vdt; t.w *= Math.exp(-vdt * 0.3); pose(bl, t, vdt); } else deadFrame(bl, t, vdt); }); },
     async enter(o, run) { const W = B.W, [a, b] = W.tops, won = o.winner === a; tip.classList.remove('on'); B.score[won ? 0 : 1] += o.pts; hudFrame(0, true);
       if (o.how === 'time') { [a, b].forEach(t => { if (t !== o.winner) { t.alive = false; (t === a ? B.me : B.rival).dead = 'spin'; } }); }
       banner(HOW[o.how] + '!', (won ? 'You' : 'Your rival') + ' +' + o.pts + (o.pts === 1 ? ' point' : ' points'), 0); snd(won ? 'chime' : 'sink', won ? { tier: o.pts > 1 ? 'epic' : 'rare' } : { dur: 0.8 });

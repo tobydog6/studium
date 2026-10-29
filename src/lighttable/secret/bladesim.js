@@ -9,8 +9,10 @@
 export const BOWL = { R: 5.2, depth: 1.03 };
 /* the bowl grew (Sam: the blades looked big in it); every speed scales with it so the tuning holds */
 const SC = BOWL.R / 3.8;
+/* the battle clock runs this much faster than real time (Sam: real blades cross a stadium in a blink) */
+export const TIME = 2.5;
 export const TIPS = {
-  sharp: { name: 'Sharp', drive: 0.2,  damp: 0.6, decay: 2.25, hit: 0.85, hold: 1.35, grip: 0.35, hunt: 0,   desc: 'Holds the centre and spins for ages' },
+  sharp: { name: 'Sharp', drive: 0.2,  damp: 0.6, decay: 2.25, hit: 0.85, hold: 1.35, grip: 0.35, hunt: 3,   desc: 'Holds the centre and spins for ages' },
   ball:  { name: 'Ball',  drive: 1.5,  damp: 0.8, decay: 2.9,  hit: 1.2,  hold: 1.0,  grip: 0.7,  hunt: 9, desc: 'A bit of both' },
   flat:  { name: 'Flat',  drive: 4.2,  damp: 0.5, decay: 1.8, hit: 2.0,  hold: 0.85, grip: 1.0,  hunt: 20, desc: 'Races round the bowl and hits hard' },
 };
@@ -32,7 +34,7 @@ export const SPECIALS = {
 };
 export const POINTS = { burst: 2, out: 2, spin: 1, time: 1 };
 export const WIN_AT = 3;
-export const ROUND_S = 30;
+export const ROUND_S = 40;   /* battle-clock seconds: 16 real */
 const W_REF = 70;     /* a full-power launch spins at about this */
 const OUT_V = 3.2;    /* hitting the rim faster than this, soon after a hit, goes over it */
 const OUT_K = 2.0;   /* a hit that throws a blade outward this hard, scaled by how near the rim it is, knocks it clean out */
@@ -54,7 +56,7 @@ export function statsOf(parts) {
     guard: (0.7 + (gr(a) + gr(b) + gr(c)) / 30 * 0.6 + (rk(a) + rk(b) + rk(c)) * 0.03) * k,
     special: rk(best) >= 3 ? Object.keys(SPECIALS).find(id => SPECIALS[id].tier === best.tier) || null : null,
     dir: vars.includes('negative') ? -1 : 1, erratic: vars.includes('misprint'), clear: vars.includes('clear'), stamped: vars.includes('stamped'),
-    set, radius: 0.78 + rk(a) * 0.03,
+    set, radius: 0.6 + rk(a) * 0.025,
   };
 }
 
@@ -109,7 +111,7 @@ export function step(W, dt, ev) {
     { const v = Math.hypot(t.v.x, t.v.y), cap = 10 * SC; if (v > cap) { t.v.x *= cap / v; t.v.y *= cap / v; } }
     t.p.x += t.v.x * dt; t.p.y += t.v.y * dt;
     const sp = Math.hypot(t.v.x, t.v.y);
-    t.w -= sg * (T.decay * 0.95 + 0.06 * sp / SC) / t.st.stamina * dt; t.ang += t.w * dt;
+    t.w -= sg * (T.decay * 0.6 + 0.03 * sp / SC) / t.st.stamina * dt; t.ang += t.w * dt;
     t.slamT = Math.max(0, t.slamT - dt); t.guardT = Math.max(0, t.guardT - dt); t.hitT = Math.max(0, t.hitT - dt);
     t.charge = Math.min(1, t.charge + dt * 0.05);
     if (!Number.isFinite(t.p.x + t.p.y + t.v.x + t.v.y + t.w)) { t.p = { x: 0, y: 0 }; t.v = { x: 0, y: 0 }; t.w = 0; }   /* never let a bad number leave a blade lost and the round unending */
@@ -117,7 +119,7 @@ export function step(W, dt, ev) {
     /* the rim: a soft hit bounces back, a hard one goes over */
     r = Math.hypot(t.p.x, t.p.y) || 1e-6; const rad = t.st.radius;
     if (r + rad > R) { const nx = t.p.x / r, ny = t.p.y / r, vn = t.v.x * nx + t.v.y * ny;
-      if (vn > OUT_V * SC && t.hitT > 0 && W.t > 3) { t.alive = false; t.done = 'out'; ev.push({ type: 'out', top: t, k: vn, why: 'rim' }); continue; }
+      if (vn > OUT_V * SC && t.hitT > 0 && W.t > 6) { t.alive = false; t.done = 'out'; ev.push({ type: 'out', top: t, k: vn, why: 'rim' }); continue; }
       if (vn > 0) { t.v.x -= 1.5 * vn * nx; t.v.y -= 1.5 * vn * ny; t.v.x *= 0.96; t.v.y *= 0.96;   /* the wall drags too */ if (vn > 0.6 * SC) { if (vn > 1.6 * SC) t.w *= 1 - 0.004 * Math.min(vn / SC, 3); ev.push({ type: 'wall', top: t, k: vn, x: nx * R, y: ny * R }); } }
       t.p.x = nx * (R - rad); t.p.y = ny * (R - rad); }
     /* the X rail: on a toothed arc of the rim the tip's gear bites and the blade is flung along it (X Dash) */
@@ -144,7 +146,7 @@ function collide(a, b, W, ev) {
   const Jc = Math.min(J, 5.5 * SC / Math.max(ia, ib));   /* one hit throws a blade at most this fast */
   a.v.x -= nx * Jc * ia; a.v.y -= ny * Jc * ia; b.v.x += nx * Jc * ib; b.v.y += ny * Jc * ib;
   /* thrown outward hard enough near the rim, it goes straight over */
-  const thrown = (t, sx, sy, dv) => { const r = Math.hypot(t.p.x, t.p.y) || 1e-6, out = (sx * t.p.x + sy * t.p.y) / r * dv; if (W.t > 3 && out / SC * r / BOWL.R > OUT_K) { t.alive = false; t.done = 'out'; ev.push({ type: 'out', top: t, k: out, why: 'hit' }); } };
+  const thrown = (t, sx, sy, dv) => { const r = Math.hypot(t.p.x, t.p.y) || 1e-6, out = (sx * t.p.x + sy * t.p.y) / r * dv; if (W.t > 6 && out / SC * r / BOWL.R > OUT_K) { t.alive = false; t.done = 'out'; ev.push({ type: 'out', top: t, k: out, why: 'hit' }); } };
   const side = SC * slip * 0.012 * (same ? 1 : 0.4);
   a.v.x -= tx * side * ia; a.v.y -= ty * side * ia; b.v.x += tx * side * ib; b.v.y += ty * side * ib;
   const k = -vrel / SC + Math.abs(slip) * 0.02 * (same ? 1 : 0.3);
@@ -153,7 +155,7 @@ function collide(a, b, W, ev) {
   if (!same) { /* opposite spins: the stronger one steals some of what the other loses */
     if (Math.abs(a.w) * A >= Math.abs(b.w) * B) { a.w += Math.sign(a.w) * lb * 0.4; } else { b.w += Math.sign(b.w) * la * 0.4; } }
   keep(a, la); keep(b, lb);
-  const crack = (t, atk, s) => { if (t.guardT > 0) return; t.burst += Math.min(1, W.t / 5) * k * atk * 0.026 / (t.st.guard * TIPS[t.st.tip].hold) * (2 - s);
+  const crack = (t, atk, s) => { if (t.guardT > 0) return; t.burst += Math.min(1, W.t / 10) * k * atk * 0.014 / (t.st.guard * TIPS[t.st.tip].hold) * (2 - s);
     if (t.burst >= 1) { if (t.shield) { t.shield = false; t.burst = 0.45; ev.push({ type: 'shield', top: t }); } else { t.alive = false; t.done = 'burst'; ev.push({ type: 'burst', top: t }); } } };
   crack(a, B, sa); crack(b, A, sb);
   if (a.alive) thrown(a, -nx, -ny, Jc * ia); if (b.alive) thrown(b, nx, ny, Jc * ib);

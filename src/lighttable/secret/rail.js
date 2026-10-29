@@ -276,7 +276,7 @@ export function install(S) {
       const c = r.rim.material.color; if (r.glow.kind === 'cycle') c.setHSL((t * 0.12) % 1, 0.75, 0.72); else c.copy(r.glow.color); if (r.glow.kind === 'sparkle') c.multiplyScalar(0.7 + 0.3 * Math.random());
       r.rim.material.opacity = (0.1 + 0.16 * p) * (1 + 1.4 * r.hoverT) * on; const b = (1 + 0.05 * p) * (1 + 0.06 * r.hoverT); r.rim.scale.set(b, b, 1);
       if (r.phase === 'prompt') w.spin.scale.setScalar(1.32 * (1 + 0.02 * p + 0.025 * r.hoverT));
-      if (w.obj.setGlow) { try { w.obj.setGlow(r.phase === 'prompt' ? 0.25 + 0.75 * r.hoverT : 0); } catch (e) {} } }
+      if (w.obj.setGlow) { try { w.obj.setGlow(r.phase === 'prompt' && !r.blaze ? 0.25 + 0.75 * r.hoverT : 0);   /* the new reveal's aura replaces the print's box-shaped hover glow */ } catch (e) {} } }
     if (r.burst && r.burstT) { const k = t - r.burstT, b = Math.exp(-k * k * 18); r.burst.material.opacity = b; r.burst.scale.setScalar(0.8 + 1.2 * Math.min(1, k * 3)); const rk = T.clamp(k / 0.8, 0, 1); r.ring.scale.setScalar(0.55 + 1.6 * rk); r.ring.material.opacity = (1 - rk) * (1 - rk) * 0.9; }
     if (r.wobble && r.phase === 'reveal') { const k = t - r.wobble, e = Math.exp(-k * 2.6); w.spin.rotation.z = e * Math.sin(k * 12) * 0.08; w.spin.rotation.x = e * Math.sin(k * 9 + 0.8) * 0.06; }
   }

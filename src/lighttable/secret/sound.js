@@ -12,7 +12,7 @@
 // Setup > Sound (studium_sound_lv, shared localStorage): master about 0.5 into a compressor, so nothing clips.
 const LV = [0, 0.35, 0.65, 1];
 const N = { A3: 220, E4: 329.63, A4: 440, Cs5: 554.37, E5: 659.25, A5: 880, Cs6: 1108.73, E6: 1318.51, A6: 1760, Cs7: 2217.46, E7: 2637.02, A7: 3520 };
-const SEND = { land: 0.1, slam: 0.3, flip: 0.08, burst: 0.25, chime: 0.4, pop: 0.15, countFinal: 0.35, blind: 0.1, rise: 0.12, sink: 0.12, servo: 0.05, glow: 0.5, ignite: 0.15, charge: 0.2 };
+const SEND = { land: 0.1, slam: 0.3, flip: 0.08, burst: 0.25, chime: 0.4, pop: 0.15, countFinal: 0.35, blind: 0.1, rise: 0.12, sink: 0.12, servo: 0.05, glow: 0.5, ignite: 0.15, charge: 0.2, splash: 0.3, void: 0.35, zap: 0.15, crack: 0.2, shimmer: 0.5 };
 const EVS = ['pointerdown', 'keydown', 'click'];
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -155,6 +155,19 @@ export function install(S) {
     /* fire catching and running: a soft whoosh over o.dur with crackles through it */
     ignite: (b, t, o) => { const d = Math.max(0.2, o.dur || 1); noise(b, t, 'bandpass', 300, 0.7, Math.min(0.25, d * 0.4), 0.3, Math.max(0, d - 0.4), 0.35, 1400); noise(b, t, 'lowpass', 180, 0.8, 0.1, 0.2, Math.max(0, d - 0.3), 0.3);
       for (let i = 0, n = Math.round(d * 30); i < n; i++) noise(b, t + rnd(0, d), 'bandpass', rnd(1500, 4500), 5, 0.001, rnd(0.04, 0.12), 0.001, rnd(0.005, 0.02)); },
+    /* water: a splash (a wet noise burst falling in pitch), droplets plinking after it */
+    splash: (b, t, o) => { const k = o.k == null ? 1 : o.k; noise(b, t, 'bandpass', 1800, 0.6, 0.004, 0.45 * k, 0.03, 0.4, 400); noise(b, t, 'lowpass', 600, 0.7, 0.003, 0.25 * k, 0.02, 0.25, 150); thump(b, t, 90, 0.3 * k, 0.25);
+      for (let i = 0; i < 7; i++) drip(b, t + 0.08 + Math.random() * 0.5); },
+    /* the void: air rushing in (a rising hiss), a deep sub dropping away under it */
+    void: (b, t, o) => { const d = Math.max(0.3, o.dur || 0.6), k = o.k == null ? 1 : o.k; noise(b, t, 'bandpass', 300, 1.2, d * 0.8, 0.3 * k, 0.02, 0.25, 3200); tone(b, t, 90, 'sine', d * 0.5, 0.5 * k, d * 0.3, 0.9, 28); tone(b, t, 55, 'triangle', 0.05, 0.25 * k, d, 0.6, 30); },
+    /* electricity: a buzzing crackle over o.dur, a sharp snap on top */
+    zap: (b, t, o) => { const d = Math.max(0.15, o.dur || 0.4), k = o.k == null ? 1 : o.k; tone(b, t, 120, 'sawtooth', 0.005, 0.12 * k, d * 0.6, d * 0.4, 70); noise(b, t, 'highpass', 3000, 0.7, 0.002, 0.35 * k, 0.01, 0.08);
+      for (let i = 0, n = Math.round(d * 40); i < n; i++) noise(b, t + Math.random() * d, 'bandpass', rnd(2000, 7000), 4, 0.001, rnd(0.05, 0.16) * k, 0.001, rnd(0.004, 0.015)); },
+    /* stone or ice: a hard crack and a splinter of chips */
+    crack: (b, t, o) => { const k = o.k == null ? 1 : o.k; noise(b, t, 'highpass', 3200, 0.8, 0.001, 0.4 * k, 0.004, 0.06); thump(b, t, 120, 0.35 * k, 0.15); tone(b, t, rnd(2200, 2900), 'sine', 0.001, 0.05 * k, 0.005, 0.3);
+      for (let i = 0; i < 10; i++) noise(b, t + 0.02 + Math.random() * 0.25, 'bandpass', rnd(2500, 6500), 5, 0.001, 0.08 * k, 0.001, 0.015); },
+    /* a shimmer of high glints rising, for the prismatic burst */
+    shimmer: (b, t, o) => { const k = o.k == null ? 1 : o.k; [N.A6, N.Cs7, N.E7, N.A7, N.E7, N.A7].forEach((f, i) => glint(b, t + i * 0.05 + Math.random() * 0.02, f * rnd(0.997, 1.003), 0.035 * k, 0.8)); noise(b, t, 'highpass', 5000, 0.5, 0.05, 0.08 * k, 0.1, 0.4); },
     /* the power-up: a whine climbing through o.dur with a rising hiss under it */
     charge: (b, t, o) => { const d = Math.max(0.3, o.dur || 1.2); tone(b, t, 160, 'sawtooth', d * 0.6, 0.05, d * 0.35, 0.08, 1500); tone(b, t, 320, 'sine', d * 0.7, 0.07, d * 0.25, 0.1, 2600, 8); noise(b, t, 'bandpass', 400, 1.2, d * 0.8, 0.14, d * 0.15, 0.1, 6000); },
   };

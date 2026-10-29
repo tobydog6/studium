@@ -238,8 +238,8 @@
     /* 6 · Cinematic: a low drone and a slow brass swell building under the glide, low drums gathering pace toward the shot;
        the shutter cuts it all to silence, then a trailer "braam" lands with the title */
     6:{ bed:function(c,t){ var bus=sdBedBus(c,t); SD.ambSrc=sdAir(c,bus,t,0.008,300); },
-        scan:function(b,t){ var c=SD.ctx, F=LA_F, vb=sdVBus(c,t,0.9); sdDrone(vb,t,[55,82.41],F.fire+1,0.05,240,700);
-          sdPad(vb,t+1.5,[110,130.81,164.81,220],F.fire-1.5,0.022,260,2600);   /* A minor, opening up */
+        scan:function(b,t){ var c=SD.ctx, F=LA_F, vb=sdVBus(c,t,0.9); sdDrone(vb,t,[55,82.41],F.fire+1,0.011,240,700);
+          sdPad(vb,t+1.5,[110,130.81,164.81,220],F.fire-1.5,0.009,260,2600);   /* A minor, opening up */
           var at=t+4.2, gap=1.3; while(at<t+F.fire-0.25){ sdTom(vb,at,0.22*(0.5+0.5*(at-t)/F.fire)); at+=gap; gap=Math.max(0.32,gap*0.86); }   /* the drums gather pace */
           sdNoise(vb,t+F.fire-2.2,"highpass",1200,0.7,2.1,0.05,0.02,0.05,9000); },   /* a riser into the shot */
         lens:function(b,t){ sdNoise(b,t,"bandpass",600,0.9,0.08,0.02,0.08,0.3,1600); },
@@ -256,7 +256,7 @@
           sdNoise(vb,t,"bandpass",2500,0.4,1,0.006,F.fire,0.3);   /* hiss */
           var ch=[[62,66,69,73],[61,64,68,71],[59,62,66,69],[64,68,71,74],[62,66,69,73],[61,64,68,71]];   /* Dmaj7 C#m7 Bm7 E7(9) Dmaj7 C#m7 */
           ch.forEach(function(nt,k){ var at=t+k*4*B; nt.forEach(function(m,j){ sdEP(vb,at+j*0.018,sdMidi(m),0.045,4*B); }); sdEP(vb,at,sdMidi(nt[0]-24),0.05,4*B); });
-          for(i=4;i<24;i++){ var bt=t+i*B+(i%2?B*0.08:0); if(i%4===0) sdKick(vb,bt,0.3); if(i%4===2) sdKick(vb,bt+B*0.5,0.22); if(i%2===1) sdSnare(vb,bt,0.09); sdHat(vb,bt+B*0.5,0.025); } },
+          for(i=4;i<24;i++){ var bt=t+i*B+(i%2?B*0.08:0); if(i%4===0) sdKick(vb,bt,0.18); if(i%4===2) sdKick(vb,bt+B*0.5,0.13); if(i%2===1) sdSnare(vb,bt,0.09); sdHat(vb,bt+B*0.5,0.025); } },
         lens:function(b,t){ sdNoise(b,t,"bandpass",600,0.9,0.08,0.015,0.08,0.3,1600); },
         rack:function(b,t,D){ for(var i=0;i<8;i++) sdTick(b,t+D*0.85*(1-Math.pow(1-i/8,1.7)),3200,0.01); },
         shot:function(b,t){ [62,66,69,73].forEach(function(m){ sdTone(b,t+0.02,sdMidi(m),"sine",0.005,0.035,0.05,0.6,sdMidi(m)*0.45); }); },   /* the tape winds down */
@@ -264,7 +264,7 @@
     /* 8 · Deep drone: one evolving drone, the whole way: low and dark in the dark, opening and shimmering through the glide,
        a held breath for the shot, and it blooms into the title */
     8:{ bed:function(c,t){ var bus=sdBedBus(c,t); SD.ambSrc=sdAir(c,bus,t,0.006,300); },
-        scan:function(b,t){ var c=SD.ctx, F=LA_F, vb=sdVBus(c,t,1.3); sdDrone(vb,t,[36.71,73.42,110,146.83,164.81],F.len+2,0.045,150,1900);   /* D, open fifths and a ninth */
+        scan:function(b,t){ var c=SD.ctx, F=LA_F, vb=sdVBus(c,t,1.3); sdDrone(vb,t,[36.71,73.42,110,146.83,164.81],F.len+2,0.01,150,1900);   /* D, open fifths and a ninth */
           [587.33,880,1174.66].forEach(function(f,i){ sdTone(vb,t+3+i*1.4,f,"sine",3,0.008,F.fire-6-i*1.4,2.5,null,(i-1)*0.6); });   /* the shimmer above */
           sdNoise(vb,t+2,"bandpass",900,6,4,0.012,F.fire-7,2,2600); },
         lens:function(b,t){ sdNoise(b,t,"bandpass",500,0.9,0.1,0.015,0.08,0.3,1400); },
@@ -282,27 +282,27 @@
           sdNoise(vb,t+F.fire-4*B,"bandpass",800,2,4*B,0.06,0.01,0.02,9000); },   /* riser */
         lens:function(b,t){ sdTone(b,t,1760,"square",0.002,0.01,0.03,0.05); },
         rack:function(b,t,D){ for(var i=0;i<12;i++) sdTone(b,t+i*D/12,1760+i*120,"square",0.001,0.006,0.01,0.03); },
-        spin:function(b,t){ var w=t+0.7; [45,57,64,69,72,76].forEach(function(m,j){ sdPluck(b,w,sdMidi(m),0.07,2.8,(j%2?0.4:-0.4)); sdTone(b,w,sdMidi(m),"sawtooth",0.01,0.025,0.4,2.6); });
+        spin:function(b,t){ var w=t+0.7; [45,57,64,69,72,76].forEach(function(m,j){ sdPluck(b,w,sdMidi(m),0.1,2.8,(j%2?0.4:-0.4)); sdTone(b,w,sdMidi(m),"sawtooth",0.01,0.035,0.4,2.6); });
           sdKick(b,w,0.5); sdNoise(b,w,"highpass",6000,0.7,0.002,0.05,0.02,1.4); } },
     /* 10 · Bush: no music. A New Zealand bush in the morning: wind moving through the canopy, a stream nearby, tūī and
        bellbird calling, a fantail close by; the title lands on a gust and a bellbird's phrase */
-    10:{ bed:function(c,t){ var bus=sdBedBus(c,t); var a=sdAir(c,bus,t,0.02,900), w=sdAir(c,bus,t,0.012,3200); SD.ambSrc=a.concat(w); },
+    10:{ bed:function(c,t){ var bus=sdBedBus(c,t); var a=sdAir(c,bus,t,0.05,900), w=sdAir(c,bus,t,0.03,3200); SD.ambSrc=a.concat(w); },
         scan:function(b,t){ var F=LA_F, i, T=F.len+1;
-          for(i=0;i<T*22;i++) sdNoise(b,t+Math.random()*T,"bandpass",500+Math.random()*1300,3,0.02,0.006+Math.random()*0.008,0.03,0.08,null,-0.6+Math.random()*0.3);   /* the stream, off to the left */
+          for(i=0;i<T*22;i++) sdNoise(b,t+Math.random()*T,"bandpass",500+Math.random()*1300,3,0.02,0.02+Math.random()*0.025,0.03,0.08,null,-0.6+Math.random()*0.3);   /* the stream, off to the left */
           for(i=0;i<6;i++) sdTui(b,t+1.2+i*2.6+Math.random()*0.8,(Math.random()*2-1)*0.8);
           for(i=0;i<5;i++) sdBellbird(b,t+2.4+i*2.9+Math.random()*0.6,(Math.random()*2-1)*0.7);
           for(i=0;i<4;i++) sdFantail(b,t+3+i*3.3+Math.random(),(Math.random()*2-1)*0.6); },
         lens:function(b,t){ sdNoise(b,t,"bandpass",500,0.8,0.1,0.08,0.12,0.35,1400,-0.3,0.2); sdTick(b,t+0.52,1400,0.07); },
         rack:function(b,t,D){ for(var i=0;i<12;i++) sdTick(b,t+D*0.85*(1-Math.pow(1-i/12,1.7)),3800,0.01); },
-        spin:function(b,t){ var w=t+0.7; sdNoise(b,t,"lowpass",500,0.6,1.2,0.07,0.4,1.8,1800,-0.6,0.6); sdBellbird(b,w,0); sdBellbird(b,w+1.1,0.4); sdTone(b,w,55,"sine",1.2,0.05,1,3); } },
+        spin:function(b,t){ var w=t+0.7; sdNoise(b,t,"lowpass",500,0.6,1.2,0.18,0.4,1.8,1800,-0.6,0.6); sdBellbird(b,w,0); sdBellbird(b,w+1.1,0.4); sdTone(b,w,55,"sine",1.2,0.12,1,3); } },
     /* 11 · Piano and cello: a simple tune on a felt piano over a slow cello line, resolving as the title lands */
     11:{ bed:function(c,t){ var bus=sdBedBus(c,t); SD.ambSrc=sdAir(c,bus,t,0.006,400); },
         scan:function(b,t){ var c=SD.ctx, F=LA_F, vb=sdVBus(c,t,1.0), B=F.fire/16;   /* 16 slow beats to the shot */
-          [[0,76,1.5],[1.5,73,0.5],[2,71,1],[3,69,1],[4,73,1.5],[5.5,74,0.5],[6,76,2],[8,78,1.5],[9.5,76,0.5],[10,74,1],[11,73,1],[12,71,2],[14,73,1],[15,76,1]].forEach(function(n){ sdFelt(vb,t+n[0]*B,sdMidi(n[1]),0.06,0.15); });
-          [[0,57],[4,54],[8,50],[12,52]].forEach(function(n){ sdFelt(vb,t+n[0]*B,sdMidi(n[1]-12),0.05,-0.15); sdFelt(vb,t+n[0]*B+B,sdMidi(n[1]),0.035,-0.1); sdCello(vb,t+n[0]*B,sdMidi(n[1]-12),4*B,0.03); }); },
+          [[0,76,1.5],[1.5,73,0.5],[2,71,1],[3,69,1],[4,73,1.5],[5.5,74,0.5],[6,76,2],[8,78,1.5],[9.5,76,0.5],[10,74,1],[11,73,1],[12,71,2],[14,73,1],[15,76,1]].forEach(function(n){ sdFelt(vb,t+n[0]*B,sdMidi(n[1]),0.12,0.15); });
+          [[0,57],[4,54],[8,50],[12,52]].forEach(function(n){ sdFelt(vb,t+n[0]*B,sdMidi(n[1]-12),0.1,-0.15); sdFelt(vb,t+n[0]*B+B,sdMidi(n[1]),0.07,-0.1); sdCello(vb,t+n[0]*B,sdMidi(n[1]-12),4*B,0.06); }); },
         lens:function(b,t){ sdNoise(b,t,"bandpass",600,0.9,0.08,0.015,0.08,0.3,1600); },
         rack:function(b,t,D){ for(var i=0;i<8;i++) sdTick(b,t+D*0.85*(1-Math.pow(1-i/8,1.7)),3400,0.008); },
-        spin:function(b,t){ var w=t+0.7; [45,57,61,64,69,73,76].forEach(function(m,j){ sdFelt(b,w+j*0.07,sdMidi(m),0.06-j*0.004,(j-3)*0.12); }); sdCello(b,w,sdMidi(45),4,0.035); } } };
+        spin:function(b,t){ var w=t+0.7; [45,57,61,64,69,73,76].forEach(function(m,j){ sdFelt(b,w+j*0.07,sdMidi(m),0.12-j*0.008,(j-3)*0.12); }); sdCello(b,w,sdMidi(45),4,0.07); } } };
   // ---- the building blocks of 6 to 11 ----
   function sdMidi(m){ return 440*Math.pow(2,(m-69)/12); }
   function sdPad(b,t,fs,dur,peak,c0,c1){ var c=SD.ctx, lp=c.createBiquadFilter(), g=c.createGain(); lp.type="lowpass"; lp.Q.value=0.7; lp.frequency.setValueAtTime(c0,t); lp.frequency.exponentialRampToValueAtTime(c1,t+dur); sdEnv(g,t,dur*0.35,peak,dur*0.55,dur*0.25+0.6); lp.connect(g); g.connect(b);
@@ -320,9 +320,9 @@
   function sdCello(b,t,f,dur,peak){ var c=SD.ctx, o=c.createOscillator(), lp=c.createBiquadFilter(), g=c.createGain(), v=c.createOscillator(), vg=c.createGain(); o.type="sawtooth"; o.frequency.value=f; v.frequency.value=5.2; vg.gain.value=f*0.006; v.connect(vg); vg.connect(o.frequency);
     lp.type="lowpass"; lp.frequency.value=900; lp.Q.value=0.8; sdEnv(g,t,0.6,peak,Math.max(0.1,dur-1.2),1.2); o.connect(lp); lp.connect(g); g.connect(b); o.start(t); v.start(t); o.stop(t+dur+1); v.stop(t+dur+1); }
   function sdTui(b,t,pan){ var seq=[[1900,0.06],[2700,0.05],[0,0.05],[1250,0.09],[3400,0.04],[0,0.03],[2200,0.07]], at=t;   /* a tūī: bell notes, a click, a gurgle */
-    seq.forEach(function(s){ if(s[0]) sdTone(b,at,s[0],"sine",0.004,0.012,s[1]*0.5,s[1]*0.6,s[0]*(Math.random()<0.4?1.3:0.95),pan); else sdTick(b,at,3800,0.03,pan); at+=s[1]+0.03; }); }
-  function sdBellbird(b,t,pan){ [1568,2093,1760].forEach(function(f,i){ sdBell(b,t+i*0.2,f*(0.98+Math.random()*0.04),0.014,pan,0.9); }); }   /* korimako: three pure bell notes */
-  function sdFantail(b,t,pan){ for(var i=0;i<6;i++) sdTone(b,t+i*0.07,3600+((i%2)?500:-300),"sine",0.003,0.008,0.01,0.03,null,pan); }   /* pīwakawaka: a quick squeaky chatter */
+    seq.forEach(function(s){ if(s[0]) sdTone(b,at,s[0],"sine",0.004,0.035,s[1]*0.5,s[1]*0.6,s[0]*(Math.random()<0.4?1.3:0.95),pan); else sdTick(b,at,3800,0.03,pan); at+=s[1]+0.03; }); }
+  function sdBellbird(b,t,pan){ [1568,2093,1760].forEach(function(f,i){ sdBell(b,t+i*0.2,f*(0.98+Math.random()*0.04),0.04,pan,0.9); }); }   /* korimako: three pure bell notes */
+  function sdFantail(b,t,pan){ for(var i=0;i<6;i++) sdTone(b,t+i*0.07,3600+((i%2)?500:-300),"sine",0.003,0.024,0.01,0.03,null,pan); }   /* pīwakawaka: a quick squeaky chatter */
   // ---- the day in sound (Air): crickets in the night, fading as it greys; the first bird at first light, a dawn chorus by
   //      golden hour. The rain is the weather's own sound, following the rain you see. t is the reveal, T the time to the shot ----
   function sdCricket(b,t,f,peak,pan){ for(var k=0;k<4;k++) sdTone(b,t+k*0.028,f,"sine",0.002,peak,0.008,0.012,null,pan); }

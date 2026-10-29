@@ -29,7 +29,7 @@ export function foilMaterial(o = {}) { return new THREE.ShaderMaterial({ uniform
   vertexShader: FOIL_VERT, fragmentShader: FOIL_FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }); }
 const basicFoil = { make: c => new THREE.Mesh(new THREE.PlaneGeometry(c.w, c.h), foilMaterial({ strength: c.finish === 'gold' ? 0.5 : 0.38, tint: c.finish === 'gold' ? 0xffd27a : 0xffffff })),
   update: (m, c) => { m.material.uniforms.uTilt.value.copy(c.tilt); m.material.uniforms.uTime.value = c.time; } };
-export function finishDef(id) { return REG[id] || (id === 'matte' ? REG.matte : basicFoil); }
+export function finishDef(id) { return REG[id] || REG.matte; }   /* a finish with no shader shows through its photo treatment alone (foil for everything unknown read as rainbow on every card) */
 
 /* ---------- photographs ---------- */
 const PHOTOS = new Map();
@@ -47,14 +47,31 @@ export function photoCanvas(slab, S) {
   });
   PHOTOS.set(slab.id, p); return p;
 }
-const FILTERS = { gold: 'sepia(1) saturate(1.6) contrast(1.05) brightness(1.04)', prism: 'grayscale(1) contrast(1.45) brightness(0.82)', cyanotype: 'grayscale(1) sepia(1) hue-rotate(165deg) saturate(2.4) brightness(0.9)', chrome: 'grayscale(0.6) contrast(1.25)', steel: 'grayscale(1) contrast(1.1) brightness(0.9)' };
-/* the photo as the card shows it: tier and variant treatments baked into a copy */
-function processPhoto(base, finish, variant) {
+const FILTERS = { gold: 'sepia(1) saturate(1.6) contrast(1.05) brightness(1.04)', prism: 'grayscale(1) contrast(1.45) brightness(0.82)', cyanotype: 'grayscale(1) sepia(1) hue-rotate(165deg) saturate(2.4) brightness(0.9)', chrome: 'grayscale(0.6) contrast(1.25)', steel: 'grayscale(1) contrast(1.1) brightness(0.9)',
+  silver: 'grayscale(1) sepia(0.22) contrast(1.14) brightness(1.02)', polychrome: 'saturate(2.3) contrast(1.25)', eclipse: 'invert(1) hue-rotate(180deg) contrast(1.1)', raku: 'sepia(0.8) contrast(1.45) brightness(0.88) saturate(0.6)', glass: 'contrast(0.85) brightness(1.18) saturate(0.75)' };
+/* two colour gradient maps: the photo's tones mapped from the first colour (shadows) to the second (highlights) */
+const MAPS = { keywarm: ['#1b0f08', '#f3dcb5'], keyblue: ['#071a33', '#dff1ff'], kintsugi: ['#0b0906', '#e8c26a'], porcelain: ['#1e2229', '#f7f7f3'] };
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+function gradientMap(c, pair) { const g = c.getContext('2d'), img = g.getImageData(0, 0, c.width, c.height), d = img.data, a = hex(pair[0]), b = hex(pair[1]);
+  for (let i = 0; i < d.length; i += 4) { const l = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255; d[i] = a[0] + (b[0] - a[0]) * l; d[i + 1] = a[1] + (b[1] - a[1]) * l; d[i + 2] = a[2] + (b[2] - a[2]) * l; } g.putImageData(img, 0, 0); }
+/* wear by grade, so a raw print hints at what the lab will say: dust from 8 down, scratches from 6, a creased corner and a cast from 4, a stained edge at 2 */
+function wear(c, grade, seed) { if (grade == null || grade >= 9) return; const g = c.getContext('2d'), W = c.width, H = c.height; let a = (seed >>> 0) || 7; const r = () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; };
+  g.save(); g.fillStyle = 'rgba(255,255,255,0.5)'; for (let i = 0, n = (9 - grade) * 40; i < n; i++) { const s = 0.6 + r() * 2; g.fillRect(r() * W, r() * H, s, s); }
+  if (grade <= 6) { g.strokeStyle = 'rgba(255,255,255,0.33)'; g.lineWidth = 1.2; for (let i = 0; i < 8 - grade; i++) { const x = r() * W, y = r() * H, L = W * (0.1 + r() * 0.3), an = r() * Math.PI; g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(an) * L, y + Math.sin(an) * L); g.stroke(); } }
+  if (grade <= 4) { const k = W * 0.12; g.fillStyle = 'rgba(255,255,255,0.3)'; g.beginPath(); g.moveTo(W, 0); g.lineTo(W - k, 0); g.lineTo(W, k); g.closePath(); g.fill(); g.strokeStyle = 'rgba(0,0,0,0.3)'; g.lineWidth = 2; g.beginPath(); g.moveTo(W - k, 0); g.lineTo(W, k); g.stroke(); g.fillStyle = 'rgba(120,90,40,0.12)'; g.fillRect(0, 0, W, H); }
+  if (grade <= 2) { g.fillStyle = 'rgba(60,40,20,0.4)'; g.fillRect(0, H * 0.95, W, H * 0.05); g.fillRect(0, 0, W * 0.02, H); }
+  g.restore(); }
+/* the photo as the card shows it: finish, variant and wear baked into a copy */
+export function processPhoto(base, finish, variant, grade, seed) {
   const f = [FILTERS[finish], variant === 'negative' ? 'invert(1) sepia(0.45) hue-rotate(-15deg) contrast(1.15)' : ''].filter(Boolean).join(' ');
-  if (!f) return base;
+  const map = MAPS[finish], worn = grade != null && grade < 9;
+  if (!f && !map && !worn) return base;
   const c = document.createElement('canvas'); c.width = base.width; c.height = base.height; const g = c.getContext('2d');
-  try { g.filter = f; } catch (e) {} g.drawImage(base, 0, 0); g.filter = 'none'; return c;
+  try { g.filter = f || 'none'; } catch (e) {} g.drawImage(base, 0, 0); g.filter = 'none';
+  if (map) gradientMap(c, map); if (worn) wear(c, grade, seed); return c;
 }
+/* text that shrinks to fit its column (long titles on the label) */
+function fitFill(g, maxW, minPx, text, x, y) { const font = g.font; let px = +(font.match(/(\d+(?:\.\d+)?)px/) || [0, 24])[1]; while (px > minPx && g.measureText(text).width > maxW) { px -= 1; g.font = font.replace(/\d+(?:\.\d+)?px/, px + 'px'); } g.fillText(text, x, y); g.font = font; }
 export function tex(c) { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; return t; }
 
 /* ---------- the label ---------- */
@@ -74,8 +91,8 @@ function labelCanvas(slab) {
   g.strokeStyle = dim; g.lineWidth = 2; g.strokeRect(44, 96, 208, 208);
   g.fillStyle = ink; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.font = '700 112px "Geist", system-ui, sans-serif'; g.fillText('STUDIUM', 290, 190);
   g.font = '500 26px "Geist Mono", ui-monospace, monospace'; g.fillStyle = dim; g.fillText('G R A D E D   P H O T O G R A P H', 294, 232);
-  g.fillStyle = ink; g.font = '600 34px "Geist", system-ui, sans-serif'; g.fillText(slab.title || '', 292, 296);
-  g.fillStyle = dim; g.font = '500 24px "Geist Mono", ui-monospace, monospace'; g.fillText(['Studium · 2026 · NZ', t.name.toUpperCase(), slab.variant ? (VARIANT[slab.variant] || {}).name : '', serialOf(slab)].filter(Boolean).join(' · '), 294, 336);
+  g.fillStyle = ink; g.font = '600 34px "Geist", system-ui, sans-serif'; fitFill(g, 470, 16, slab.title || '', 292, 296);
+  g.fillStyle = dim; g.font = '500 24px "Geist Mono", ui-monospace, monospace'; fitFill(g, 470, 12, ['Studium · 2026 · NZ', t.name.toUpperCase(), slab.variant ? (VARIANT[slab.variant] || {}).name : '', serialOf(slab)].filter(Boolean).join(' · '), 294, 336);
   g.fillStyle = dim; g.fillRect(762, 70, 2, 260); g.fillRect(1052, 70, 2, 260);
   const subs = slab.subs || [slab.grade, slab.grade, slab.grade, slab.grade]; g.font = '600 30px "Geist Mono", ui-monospace, monospace';
   SUBS.forEach((k, i) => { const y = 122 + i * 62; g.fillStyle = ink; g.textAlign = 'left'; g.fillText(k, 796, y); g.textAlign = 'right'; g.fillText(String(subs[i]), 1022, y); const kw = g.measureText(k).width; g.fillStyle = dim; g.fillRect(796 + kw + 18, y - 8, Math.max(0, 1022 - 60 - (796 + kw + 18)), 2); });
@@ -90,8 +107,8 @@ function labelCanvasVertical(slab) {
   g.strokeStyle = dim; g.lineWidth = 2; g.strokeRect(96, 44, 208, 208);
   g.fillStyle = ink; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.font = '700 74px "Geist", system-ui, sans-serif'; g.fillText('STUDIUM', W / 2, 346);
   g.fillStyle = dim; g.font = '500 20px "Geist Mono", ui-monospace, monospace'; g.fillText('G R A D E D  P H O T O G R A P H', W / 2, 382);
-  g.fillStyle = ink; g.font = '600 27px "Geist", system-ui, sans-serif'; const parts = String(slab.title || '').split(' · '); g.fillText(parts[0] || '', W / 2, 448); g.fillText(parts.slice(1).join(' · '), W / 2, 486);
-  g.fillStyle = dim; g.font = '500 19px "Geist Mono", ui-monospace, monospace'; g.fillText(['2026 · NZ', t.name.toUpperCase(), serialOf(slab)].filter(Boolean).join(' · '), W / 2, 524);
+  g.fillStyle = ink; g.font = '600 27px "Geist", system-ui, sans-serif'; const parts = String(slab.title || '').split(' · '); fitFill(g, 360, 14, parts[0] || '', W / 2, 448); fitFill(g, 360, 14, parts.slice(1).join(' · '), W / 2, 486);
+  g.fillStyle = dim; g.font = '500 19px "Geist Mono", ui-monospace, monospace'; fitFill(g, 360, 11, ['2026 · NZ', t.name.toUpperCase(), serialOf(slab)].filter(Boolean).join(' · '), W / 2, 524);
   if (slab.variant) g.fillText(((VARIANT[slab.variant] || {}).name || '').toUpperCase(), W / 2, 552);
   g.fillStyle = dim; g.fillRect(50, 566, 300, 2);
   const subs = slab.subs || [slab.grade, slab.grade, slab.grade, slab.grade]; g.font = '600 27px "Geist Mono", ui-monospace, monospace';
@@ -164,7 +181,7 @@ function build(obj, S, env) {
 }
 function applyFinish(obj, S, env, id) {
   const { slab, inner, base } = obj; obj.finishId = id;
-  const shown = processPhoto(base, id, slab.variant);
+  const shown = processPhoto(base, id, slab.variant, slab.grade, slab.seed);
   if (obj.parts.photoTex) obj.parts.photoTex.dispose(); const t = tex(shown); obj.parts.photoTex = t;
   obj.parts.photo.material.map = t; obj.parts.photo.material.needsUpdate = true; if (obj.parts.ghost) { obj.parts.ghost.material.map = t; obj.parts.ghost.material.needsUpdate = true; }
   if (obj.finish) { if (obj.finish.mesh) { inner.remove(obj.finish.mesh); obj.finish.mesh.geometry.dispose(); [].concat(obj.finish.mesh.material).forEach(m => m.dispose()); } obj.finish = null; }

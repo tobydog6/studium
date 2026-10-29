@@ -46,7 +46,7 @@ export function install(S) {
   const caseShadow = S.shadow(W + 1.2, D + 1.2); caseShadow.position.set(0.1, 0.004, 0.15); lift.add(caseShadow);
 
   /* ---------- the case ---------- */
-  const V = { group: null, lid: null, kp: null, btn: null, well: null, style: null, kstyle: null, slabs: [], hover: null, pushed: false, lidA: 0, lidOpen: false, inspecting: false, kpKeys: [] };
+  const V = { group: null, lid: null, kp: null, btn: null, press: null, press: null, well: null, style: null, kstyle: null, slabs: [], hover: null, pushed: false, lidA: 0, lidOpen: false, inspecting: false, kpKeys: [] };
   function buildCase() {
     if (V.group) { lift.remove(V.group); V.group.traverse(m => { if (m.isMesh) { m.geometry.dispose(); [].concat(m.material).forEach(mt => { if (mt.map) mt.map.dispose(); mt.dispose(); }); } }); }
     const style = S.dev.opt('case') || 'pelican', ks = S.dev.opt('keypad') || 'rubber'; V.style = style; V.kstyle = ks;
@@ -110,7 +110,7 @@ export function install(S) {
     gg.fillText(V.ok > 0 ? 'OPEN' : V.shake > 0 ? 'NO' : shown, 256, 66); gg.shadowBlur = 0; L.t.needsUpdate = true; }
   /* the "To binder" button: a rubber cap in a graphite bezel, its name etched under it */
   function buildButton(parent) {
-    const g = new THREE.Group(); g.position.set(BX_BTN, KY + 0.12, D / 2); parent.add(g); V.btn = g;
+    const g = new THREE.Group(); g.position.set(BX_BTN, KY + 0.12, D / 2); parent.add(g); V.btn = g; g.visible = false;   /* the binder is its own thing on the table now */
     const bezel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.21, 0.07, 28), GRAPHITE()); bezel.rotation.x = Math.PI / 2; bezel.position.z = 0.035; g.add(bezel);
     const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.145, 0.09, 28), stdM(0x2b2927, 0.6, 0.05, { emissive: 0x3fcf7a, emissiveIntensity: 0.2 })); cap.rotation.x = Math.PI / 2; cap.position.z = 0.1; g.add(cap); g.userData.cap = cap; cap.userData.z0 = 0.1;
     const lab = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.16), new THREE.MeshBasicMaterial({ map: text(512, 102, gg => { gg.clearRect(0, 0, 512, 102); gg.fillStyle = 'rgba(241,237,228,0.8)'; gg.font = '600 54px "Geist Mono", monospace'; gg.textAlign = 'center'; gg.textBaseline = 'middle'; gg.fillText('TO BINDER', 256, 54); }), transparent: true })); lab.position.set(0, -0.33, 0.005); g.add(lab);
@@ -163,7 +163,19 @@ export function install(S) {
   }
 
   /* ---------- the sequences ---------- */
-  function showRig(on) { rig.visible = on; }
+  function showRig(on) { rig.visible = on; disc.material[1].color.set(S.under && S.under.on ? 0x111115 : TABLE_COL()); }
+  const tableGroups = () => S.table.list.map(o => o.group);
+  /* a slab dragged onto the case goes in: it dissolves into the case and stands up with the others */
+  async function stash(obj, e) { const h = S.tableHit(e, 0); if (!h || Math.abs(h.x - CX) > W / 2 + 1.4 || Math.abs(h.z - CZ) > D / 2 + 1.4) return false;
+    const slab = obj.slab; if (!slab.graded) { S.toast('The case is for graded slabs. Send this one away for grading first.'); return false; }
+    const g = obj.group; S.sfx('lift'); await T.par([T.to(g.position, new THREE.Vector3(CX, 1.7, CZ - 0.2), { dur: 0.45, ease: E.inOutCubic }), T.to(g.scale, { x: SLAB_K, y: SLAB_K, z: SLAB_K }, { dur: 0.45, ease: E.inOutCubic })]);
+    S.table.remove(obj, true); store.toVault(slab.id); S.hud();
+    if (!/^vault\.(case|lid|keypad)/.test(M.state)) return true; await buildSlabs(); const s = V.slabs.find(x => x.slab.id === slab.id);
+    if (M.is('vault.lid')) { V.slabs.forEach(x => { if (!x.off) x.pivot.visible = true; }); if (s && !s.off) { const y0 = s.y; s.y = y0 + 1.3; S.sfx('ltPutDown'); T.to(s, { y: y0 }, { dur: 0.55, ease: E.outCubic, tag: 'vault' }); } }
+    return true; }
+  /* a slab dragged off its row comes out onto the table, in the hand, and drops wherever it is let go */
+  function takeOut(s, e) { const slab = s.slab; s.out = true; s.pivot.visible = false; S.slabs.drop(s.obj); if (s.pivot.parent) s.pivot.parent.remove(s.pivot); V.slabs = V.slabs.filter(x => x !== s); setHover(null);
+    const t = S.tableHit(e, 0) || { x: CX, z: CZ + D }; const obj = S.table.place(slab, t.x, t.z, 0, { quiet: true }); S.sfx('lift'); S.beginSlabDrag(obj, e); }
   function hitFront(e) { const h = S.hitAny(e, [V.kp, V.btn]); return h ? (h.root === V.kp ? 'keypad' : 'binder') : null; }
   function frontHover(kind) { const cap = V.btn.userData.cap; cap.userData.hot = kind === 'binder' ? 1 : 0; V.kpHot = kind === 'keypad' ? 1 : 0; ctx.canvas.style.cursor = kind ? 'pointer' : 'default'; }
 
@@ -176,7 +188,7 @@ export function install(S) {
       if (V.shake > 0) { V.shake -= dt; V.kp.position.x = KX + Math.sin(V.shake * 60) * 0.05 * V.shake; if (V.shake <= 0) { V.kp.position.x = KX; drawLCD(); } }
       if (V.ok > 0) { V.ok -= dt; if (V.ok <= 0) { V.code = ''; drawLCD(); } }
       const cap = V.btn.userData.cap; cap.material.emissiveIntensity += (((cap.userData.hot ? 0.9 : 0.25) + (cap.userData.press || 0) * 1.5) - cap.material.emissiveIntensity) * k; cap.position.z = cap.userData.z0 - (cap.userData.press || 0) * 0.05; if (cap.userData.press) cap.userData.press *= Math.exp(-dt * 8);
-      V.slabs.forEach(s => { s.hoverT += ((V.hover === s ? 1 : 0) - s.hoverT) * k; if (!s.off && !V.inspecting) s.pivot.position.y = s.y + s.hoverT * 0.16; });
+      V.slabs.forEach(s => { s.hoverT += ((V.hover === s ? 1 : 0) - s.hoverT) * k; if (!s.off && !V.inspecting) { s.pivot.position.y = s.y + s.hoverT * 0.55; s.pivot.rotation.x = -LEAN + s.hoverT * 0.28; } });
       lamp.intensity = Math.max(0, V.lampT || 0) * (0.96 + 0.04 * Math.sin(T.time() * 23)) ;
     },
   });
@@ -188,7 +200,7 @@ export function install(S) {
       ctx.hideActs(); const slabsReady = buildSlabs();
       await S.clearPrints([CX - R - 0.5, CZ - R - 0.5, CX + R + 0.5, CZ + R + 0.5], S.dev.opt('clearing')); if (!run.alive()) return;
       /* the disc unlatches: the trim shows, the surface stops drawing inside the rect and the cover makes the hole round */
-      V.lampT = 2; lift.position.y = 0; V.group.visible = false; V.group.position.x = 0; S.hole.open(CX - R, CZ - R, CX + R, CZ + R); showRig(true); S.sfx('detent');
+      V.lampT = 2; lift.position.y = 0; V.group.visible = false; V.group.position.x = 0; S.hole.open(CX - R, CZ - R, CX + R, CZ + R); showRig(true); S.sfx('detent'); S.dropTargets.vault = stash;
       await T.wait(0.35, 'vault'); if (!run.alive()) return;
       S.sfx('raise'); await T.to(lift.position, { y: DOWN }, { dur: 1.7, ease: E.inOutCubic, tag: 'vault' }); if (!run.alive()) return;
       /* loaded from the side at the bottom, in the shaft's own light */
@@ -207,9 +219,10 @@ export function install(S) {
     enter(d, run) { S.cam.set(FRAME()); if (run.from === 'vault.open') S.toast('The vault. Click the keypad on the front and put the code in.'); },
     on: { KEYPAD: () => 'vault.keypad', BINDER: () => 'vault.tobinder' },
     pointer(kind, e, M) {
-      if (kind === 'move') { const h = hitFront(e); frontHover(h); return !!h; }
-      if (kind === 'down') { if (e.button !== 0) return true; const h = hitFront(e); if (h === 'keypad') M.send('KEYPAD'); else if (h === 'binder') pressBinder(); return !!h; }
-      return false; },
+      if (S.dragging()) return S.tablePointer(kind, e, tableGroups());
+      if (kind === 'move') { const h = hitFront(e); frontHover(h); if (h) return true; return S.tablePointer(kind, e, tableGroups()); }
+      if (kind === 'down') { if (e.button !== 0) return false; const h = hitFront(e); if (h === 'keypad') { M.send('KEYPAD'); return true; } if (h === 'binder') { pressBinder(); return true; } return S.tablePointer(kind, e, tableGroups()); }
+      return S.tablePointer(kind, e, tableGroups()); },
     exit() { frontHover(null); },
   });
   function pressBinder() { V.btn.userData.cap.userData.press = 1; S.sfx('detent'); M.send('BINDER'); }
@@ -251,9 +264,12 @@ export function install(S) {
     on: { BINDER: () => 'vault.tobinder' },
     pointer(kind, e, M) {
       if (V.inspecting) return true;
-      if (kind === 'move') { const h = S.hitAny(e, slabGroups()); if (h) { setHover(V.slabs.find(s => s.obj.group === h.root) || null); frontHover(null); return true; } setHover(null); const f = hitFront(e) === 'binder'; frontHover(f ? 'binder' : null); return f; }
-      if (kind === 'down') { if (e.button !== 0) return false; const h = S.hitAny(e, slabGroups()); if (h) { const s = V.slabs.find(s => s.obj.group === h.root); if (s) inspectCaseSlab(s); return true; } if (hitFront(e) === 'binder') { pressBinder(); return true; } return false; }
-      return false; },
+      if (S.dragging()) return S.tablePointer(kind, e, tableGroups());
+      /* a press on a slab: a still release looks closer, a pull takes it out */
+      if (V.press) { if (kind === 'move') { if (Math.abs(e.clientX - V.press.x) + Math.abs(e.clientY - V.press.y) > 6) { const s = V.press.s; V.press = null; takeOut(s, e); } return true; } if (kind === 'up') { const s = V.press.s; V.press = null; inspectCaseSlab(s); return true; } return true; }
+      if (kind === 'move') { const h = S.hitAny(e, slabGroups()); if (h) { setHover(V.slabs.find(s => s.obj.group === h.root) || null); frontHover(null); return true; } setHover(null); const f = hitFront(e) === 'binder'; frontHover(f ? 'binder' : null); if (f) return true; return S.tablePointer(kind, e, tableGroups()); }
+      if (kind === 'down') { if (e.button !== 0) return false; const h = S.hitAny(e, slabGroups()); if (h) { const s = V.slabs.find(s => s.obj.group === h.root); if (s) V.press = { s, x: e.clientX, y: e.clientY }; return true; } if (hitFront(e) === 'binder') { pressBinder(); return true; } return S.tablePointer(kind, e, tableGroups()); }
+      return S.tablePointer(kind, e, tableGroups()); },
     exit() { setHover(null); frontHover(null); },
   });
 
@@ -283,7 +299,7 @@ export function install(S) {
   M.define('vault.closing', { busy: true,
     on: { CLOSE: () => undefined },
     async enter(d, run) {
-      T.cancelAll('vault'); setHover(null); frontHover(null); V.inspecting = false; V.ok = 0; V.shake = 0; V.kp.position.x = KX;
+      T.cancelAll('vault'); setHover(null); frontHover(null); V.inspecting = false; V.ok = 0; V.shake = 0; V.kp.position.x = KX; S.dropTargets.vault = null;
       if (V.pushed) { S.cam.pop(); V.pushed = false; }
       if (!rig.visible) { dropSlabs(); M.go('idle'); return; }
       await closeLid(run);

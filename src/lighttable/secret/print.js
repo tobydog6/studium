@@ -12,12 +12,8 @@ const Z_STOCK = 0.003, Z_PHOTO = 0.008, Z_OVER = 0.004, Z_FINISH = 0.01;
 
 /* ---------- the photo as the print shows it (slabmesh keeps its processPhoto private, so the same treatments live here) ---------- */
 const FILTERS = { gold: 'sepia(1) saturate(1.6) contrast(1.05) brightness(1.04)', prism: 'grayscale(1) contrast(1.45) brightness(0.82)', cyanotype: 'grayscale(1) sepia(1) hue-rotate(165deg) saturate(2.4) brightness(0.9)', chrome: 'grayscale(0.6) contrast(1.25)', steel: 'grayscale(1) contrast(1.1) brightness(0.9)' };
-function processPhoto(base, finish, variant) {
-  const f = [FILTERS[finish], variant === 'negative' ? 'invert(1) sepia(0.45) hue-rotate(-15deg) contrast(1.15)' : ''].filter(Boolean).join(' ');
-  if (!f) return base;
-  const c = document.createElement('canvas'); c.width = base.width; c.height = base.height; const g = c.getContext('2d');
-  try { g.filter = f; } catch (e) {} g.drawImage(base, 0, 0); g.filter = 'none'; return c;
-}
+let SMref = null;   /* slabmesh, once a print has been made; the treatments live there */
+function processPhoto(base, finish, variant, grade, seed) { return SMref.processPhoto(base, finish, variant, grade, seed); }
 
 /* ---------- the finish registry, read through a slab: slabmesh keeps its registry private, so the first print with a
    given finish builds a throwaway slab for the same photo, keeps the def it resolved (the registered shader, or
@@ -85,7 +81,7 @@ function haloCanvas(w, h, pad) {
 
 /* ---------- the print ---------- */
 export function makePrint(slab, S) {
-  const SM = S.SM, SL = S.SL, group = new THREE.Group(); group.userData.slab = slab; const inner = new THREE.Group(); group.add(inner);
+  const SM = S.SM, SL = S.SL, group = new THREE.Group(); SMref = SM; group.userData.slab = slab; const inner = new THREE.Group(); group.add(inner);
   const full = slab.variant === 'full', border = full ? 0 : PRINT.border;
   /* w and h are known for sure once the photo arrives; until then a 3:2 landscape sheet, the painted stand-in's shape */
   const obj = { group, inner, slab, w: SM.SLAB.lw * 1.5 + border * 2, h: SM.SLAB.lw + border * 2, th: PRINT.th, photoW: SM.SLAB.lw * 1.5, photoH: SM.SLAB.lw, land: true, finish: null, finishId: null, finishSeq: 0, tilt: new THREE.Vector2(), pointer: new THREE.Vector2(0.5, 0.5), time: Math.random() * 100, base: null, parts: {}, built: false, ready: null, top: false, glow: 0, disposed: false };
@@ -138,7 +134,7 @@ function build(obj, S, env) {
 }
 function applyFinish(obj, S, env, id) {
   const { slab, inner, base } = obj; obj.finishId = id;
-  const shown = processPhoto(base, id, slab.variant);
+  const shown = processPhoto(base, id, slab.variant, slab.grade, slab.seed);
   if (obj.parts.photoTex) obj.parts.photoTex.dispose(); const t = S.SM.tex(shown); obj.parts.photoTex = t;
   obj.parts.photo.material.emissiveMap = t; obj.parts.photo.material.needsUpdate = true; if (obj.parts.ghost) { obj.parts.ghost.material.map = t; obj.parts.ghost.material.needsUpdate = true; }
   if (obj.finish) { if (obj.finish.mesh) { inner.remove(obj.finish.mesh); obj.finish.mesh.geometry.dispose(); [].concat(obj.finish.mesh.material).forEach(m => m.dispose()); } obj.finish = null; }

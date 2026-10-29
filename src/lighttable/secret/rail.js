@@ -156,6 +156,7 @@ export function install(S) {
   }
   async function sequence(r) {
     const { rm, rg, slots, winner } = r; const alive = () => R === r && r.alive;
+    rm.room.children.forEach(c => { if (c !== rm.walls && !c.isLight) c.visible = false; });   /* Sam: no darkroom set behind the reel */
     S.cam.set(FRAME(rm)); ctx.hideActs();
     /* the safelight stutters on, the rail comes up out of the dark */
     r.hum = S.snd && S.snd.loop ? S.snd.loop('safelight') : null;

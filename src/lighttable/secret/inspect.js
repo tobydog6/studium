@@ -23,6 +23,8 @@ export function createInspect(S) {
       bar.classList.add('on'); hint.textContent = o.hint || 'Drag to turn it, scroll to zoom. Click the room to put it back.'; hint.classList.add('on');
       return new Promise(res => { I.res = res; });
     },
+    /* where it goes home to, changed while it is up (a pull that should land on the table, not back on the rail) */
+    retarget(o) { if (!I.obj || !I.from) return; const f = I.from; f.parent = o.parent || S.ctx.scene; if (o.pos) { f.pos.copy(o.pos); f.wp.copy(o.pos); } if (o.quat) { f.quat.copy(o.quat); f.wq.copy(o.quat); } if (o.scale) f.scale.copy(o.scale); },
     close(id) {
       if (!I.obj || I.closing) return; I.closing = true; I.target = 0; bar.classList.remove('on'); hint.classList.remove('on'); S.sfx('ltPutDown');
       const res = I.res, obj = I.obj; I.res = null; I.drag = null; if (res) res(id || 'back');
@@ -66,6 +68,6 @@ export function createInspect(S) {
 export const INSPECT_CSS = `
 #skActs{ position:fixed; left:50%; bottom:calc(70px + env(safe-area-inset-bottom,0px)); transform:translate(-50%,12px); display:flex; gap:6px; padding:6px; background:var(--panel); border:1px solid var(--line); border-radius:8px; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); opacity:0; pointer-events:none; transition:opacity .25s, transform .35s cubic-bezier(.2,.8,.2,1); z-index:13; }
 #skActs.on{ opacity:1; pointer-events:auto; transform:translate(-50%,0); }
-#skHint{ position:fixed; left:50%; top:calc(22px + env(safe-area-inset-top,0px)); transform:translate(-50%,10px); opacity:0; pointer-events:none; transition:opacity .3s, transform .4s cubic-bezier(.2,.8,.2,1); font:400 12px/1.35 var(--f-ui); color:var(--text); background:rgba(12,11,10,.7); padding:8px 12px; border-radius:20px; border:1px solid var(--line); z-index:13; white-space:nowrap; }
+#skHint{ white-space:pre-line; text-align:center; max-width:min(92vw, 820px); position:fixed; left:50%; top:calc(22px + env(safe-area-inset-top,0px)); transform:translate(-50%,10px); opacity:0; pointer-events:none; transition:opacity .3s, transform .4s cubic-bezier(.2,.8,.2,1); font:400 12px/1.35 var(--f-ui); color:var(--text); background:rgba(12,11,10,.7); padding:8px 12px; border-radius:20px; border:1px solid var(--line); z-index:13; white-space:nowrap; }
 #skHint.on{ opacity:1; transform:translate(-50%,0); }
 `;

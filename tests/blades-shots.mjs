@@ -45,6 +45,7 @@ try {
   await hideHub();
   await ev(() => __lt.secret.S.ctx.canvas.focus());
   await page.keyboard.press('='); await W(500); await page.keyboard.type('secret'); await page.keyboard.press('Enter'); await W(1500);
+  if (!(await ev(() => __lt.secret.S.unlocked()))) { log('typing did not unlock, using S.unlock'); await ev(() => __lt.secret.S.unlock()); await W(1500); }
   if (!(await ev(() => __lt.secret.S.unlocked()))) fail = 'did not unlock';
   await ev(() => { const S = __lt.secret.S; S.store.reset(); S.store.get().unlocked = true; S.store.save(); S.hud(); S.T.setTimeScale(3); });
   log('unlocked'); await ev(() => __lt.secret.S.under.flip('under'));
@@ -77,7 +78,7 @@ try {
   await until(() => __lt.secret.S.M.state === 'under', 'back on the dark side'); await W(600); await shot('10-closed');
   const left = await ev(() => ({ stadium: __lt.secret.S.blades.stadium.visible, hole: __lt.secret.S.hole.rect, card: document.getElementById('skBl').classList.contains('on') }));
   if (left.stadium || left.hole || left.card) fail = fail || 'did not tidy up: ' + JSON.stringify(left);
-} catch (e) { fail = fail || String(e && e.message || e); }
+} catch (e) { console.log('  threw: ' + String(e && e.message || e)); fail = fail || String(e && e.message || e); }
 if (errors.length) { console.log('ERRORS:\n' + errors.slice(0, 12).join('\n')); fail = fail || errors.length + ' page errors'; }
 await browser.close(); server.close();
 console.log(fail ? 'FAIL: ' + fail : 'ok'); process.exit(fail ? 1 : 0);

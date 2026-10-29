@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 /* the closed binder: w across the table, h tall, d deep; covers, two page stacks and a thin cloth spine */
-const B = { w: 4.4, h: 0.5, d: 4.2, cover: 0.08, stack: 0.17, spine: 0.06, pageW: 4.1, pageD: 3.9, x: 0, z: 0.3 };
+const B = { w: 4.4, h: 0.5, d: 4.2, cover: 0.08, stack: 0.17, spine: 0.06, pageW: 4.1, pageD: 3.9, x: -8.5, z: 5 };   /* its own spot on the dark side */
 const PK = { w: 0.95, h: 1.12, px: 1.12, pz: 1.24 };                     /* a pocket and the grid pitch */
 const SPINE_X = -B.w / 2;                                                /* the spine stands at the left edge */
 const HINGE_X = SPINE_X - B.h;                                           /* where the cover pivots once the spine lies flat */
@@ -43,7 +43,13 @@ export function install(S) {
   };
   S.dev.action('Open binder', () => M.is('idle') && M.go('binder.open'), 'Try');
 
-  const pointer = (kind, e, M) => b.pointer(kind, e);
+  const pointer = (kind, e, M) => b.pointer(kind, e) || S.tablePointer(kind, e, S.table.list.map(o => o.group));
+  /* a slab or print dragged onto the open binder files into the pocket under it, or the first free one */
+  function dropInto(obj, e) { if (!b.active() || b.busy) return false; const h = S.hitAny(e, b.allPockets().map(pk => pk.group)); const pk = h ? h.root.userData.pocket : null;
+    if (!h) { const t = S.tableHit(e, 0); if (!t || Math.abs(t.x - B.x - AX) > B.w + 0.8 || Math.abs(t.z - B.z) > B.d / 2 + 0.8) return false; }
+    const id = obj.slab.id, pages = store.get().binder; S.sfx('binder'); S.table.remove(obj, true);
+    if (pk && !pk.id) { store.detach(id); while (pages.length <= pk.page) pages.push(new Array(9).fill(null)); pages[pk.page][pk.slot] = id; store.save(); } else store.toBinder(id);
+    S.hud(); b.loadSpread(); b.drawCover(); return true; }
   const key = (e) => b.key(e);
   const frame = (dt) => b.frame(dt);
   /* ---------- from the vault: the case has just become the binder ---------- */
@@ -69,11 +75,10 @@ export function install(S) {
   /* ---------- straight from the table (the Library's Rare folder, the dev panel) ---------- */
   M.define('binder.open', {
     async enter(d, run) {
-      S.cam.push(); b.pushed = true; b.resetClosed(); b.begin(true);
-      const rect = [HINGE_X - B.w - 0.6 + B.x, B.z - B.d / 2 - 0.6, B.w / 2 + 0.6 + B.x, B.z + B.d / 2 + 0.6];
-      await S.clearPrints(rect, S.dev.opt('clearing')); if (!run.alive()) return;
-      S.sfx('detent');
-      await S.P.reform(b.root, { mode: S.dev.opt('dissolve'), dur: 1.1 }); if (!run.alive()) return;
+      S.cam.push(); b.pushed = true; const already = b.root.visible; b.resetClosed(); b.begin(true); S.dropTargets.binder = dropInto;
+      if (!already) { const rect = [HINGE_X - B.w - 0.6 + B.x, B.z - B.d / 2 - 0.6, B.w / 2 + 0.6 + B.x, B.z + B.d / 2 + 0.6];
+        await S.clearPrints(rect, S.dev.opt('clearing')); if (!run.alive()) return;
+        S.sfx('detent'); await S.P.reform(b.root, { mode: S.dev.opt('dissolve'), dur: 1.1 }); if (!run.alive()) return; } else S.sfx('detent');
       await b.openCover(); if (!run.alive()) return;
       b.showSpread();
     },
@@ -85,7 +90,7 @@ export function install(S) {
     async enter(d, run) {
       await b.closeCover(); if (!run.alive()) return;
       await T.wait(0.15); if (!run.alive()) return;
-      await S.P.dissolve(b.root, { mode: S.dev.opt('dissolve'), dur: 1.2 }); if (!run.alive()) return;
+      if (!(S.under && S.under.on)) { await S.P.dissolve(b.root, { mode: S.dev.opt('dissolve'), dur: 1.2 }); if (!run.alive()) return; }
       if (b.pushed) { S.cam.pop(); b.pushed = false; }
       M.go('idle');
     },
@@ -95,16 +100,16 @@ export function install(S) {
 
 /* ================= canvases, in the table binder's own style ================= */
 function speckle(g, W, H, n, r) { for (let i = 0; i < n; i++) { g.fillStyle = r() < 0.5 ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.025)'; g.fillRect(r() * W, r() * H, 2, 2); } }
-function clothCanvas(S) { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), r = S.ctx.mulberry(17); g.fillStyle = '#1d2a24'; g.fillRect(0, 0, 256, 256); speckle(g, 256, 256, 2600, r); return c; }
+function clothCanvas(S) { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), r = S.ctx.mulberry(17); g.fillStyle = '#141519'; g.fillRect(0, 0, 256, 256); speckle(g, 256, 256, 2600, r); return c; }
 function coverCanvas(S, count) {
   const W = 1024, H = Math.round(1024 * B.d / B.w), c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'), r = S.ctx.mulberry(7);
-  g.fillStyle = '#1d2a24'; g.fillRect(0, 0, W, H); speckle(g, W, H, 14000, r);
-  g.fillStyle = '#141d19'; g.fillRect(0, 0, 70, H); g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(70, 0, 3, H);
+  g.fillStyle = '#141519'; g.fillRect(0, 0, W, H); speckle(g, W, H, 14000, r);
+  g.fillStyle = '#0c0d10'; g.fillRect(0, 0, 70, H); g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(70, 0, 3, H);
   g.strokeStyle = 'rgba(244,241,234,0.3)'; g.lineWidth = 3; g.strokeRect(110, 36, W - 146, H - 72);
   g.strokeStyle = 'rgba(227,173,87,0.35)'; g.lineWidth = 2; g.strokeRect(126, 52, W - 178, H - 104);
-  const px = W / 2 + 35, py = H / 2; g.fillStyle = '#efe9dc'; g.fillRect(px - 210, py - 100, 420, 200); g.strokeStyle = 'rgba(0,0,0,0.2)'; g.lineWidth = 2; g.strokeRect(px - 202, py - 92, 404, 184);
-  g.fillStyle = '#2a241c'; g.textAlign = 'center'; g.font = '400 54px "Fraunces", Georgia, serif'; g.fillText('Studium · Rare', px, py + 2);
-  g.font = '500 22px "Geist Mono", ui-monospace, monospace'; g.fillStyle = '#7a6a52'; g.fillText((count === 1 ? '1 SLAB' : count + ' SLABS') + '  ·  GRADED', px, py + 52);
+  const px = W / 2 + 35, py = H / 2; g.fillStyle = '#222329'; g.fillRect(px - 210, py - 100, 420, 200); g.strokeStyle = 'rgba(255,255,255,0.18)'; g.lineWidth = 2; g.strokeRect(px - 202, py - 92, 404, 184);
+  g.fillStyle = '#efe9dc'; g.textAlign = 'center'; g.font = '400 54px "Fraunces", Georgia, serif'; g.fillText('Studium · Rare', px, py + 2);
+  g.font = '500 22px "Geist Mono", ui-monospace, monospace'; g.fillStyle = '#9a9aa6'; g.fillText((count === 1 ? '1 CARD' : count + ' CARDS'), px, py + 52);
   g.fillStyle = '#e3ad57'; g.font = '500 20px "Geist Mono", ui-monospace, monospace'; g.fillText('C O L L E C T O R', px, H - 96);
   return c;
 }
@@ -130,7 +135,7 @@ function build(S) {
   const env = S.SM.envMap(S.renderer);
   const root = new THREE.Group(); root.name = 'rareBinder'; root.position.set(B.x, 0, B.z); root.visible = false; S.scene.add(root);
   const clothTex = S.SM.tex(clothCanvas(S)); clothTex.wrapS = clothTex.wrapT = THREE.RepeatWrapping; clothTex.repeat.set(3, 3);
-  const cloth = new THREE.MeshLambertMaterial({ map: clothTex }), lining = new THREE.MeshLambertMaterial({ color: 0xe9e2d2 });
+  const cloth = new THREE.MeshLambertMaterial({ map: clothTex }), lining = new THREE.MeshLambertMaterial({ color: 0x2a2b31 });
   const edge = new THREE.MeshLambertMaterial({ map: S.SM.tex(edgeCanvas()) });
   const paperTex = S.SM.tex(pageCanvas(S)), paper = new THREE.MeshLambertMaterial({ map: paperTex });
   const coverCv = coverCanvas(S, 0), coverTex = S.SM.tex(coverCv), art = new THREE.MeshBasicMaterial({ map: coverTex });
@@ -176,9 +181,9 @@ function build(S) {
     /* from above and in front, the open spread filling the view; wide pulls back a touch so a slab laid in front shows too */
     frameCam(wide) { S.cam.set({ pitch: 58 }); if (wide) S.cam.set({ tx: B.x + AX + 0.6, ty: 0, tz: B.z + 1.6, dT: S.cam.fit(11.4, 9.2) }); else S.cam.set({ tx: B.x + AX + 0.4, ty: 0, tz: B.z + 0.3, dT: S.cam.fit(10.8, 6.2) }); },
     showSpread() { b.busy = false; b.loadSpread(); S.ctx.hint(HINT); },
-    leave(next) { if (/^(vault\.binder|binder)(\.|$)/.test(next)) return; b.gen++; T.cancelAll('binder'); b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; b.busy = false; b.mode = null;
+    leave(next) { if (/^(vault\.binder|binder)(\.|$)/.test(next)) return; S.dropTargets.binder = null; b.gen++; T.cancelAll('binder'); b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; b.busy = false; b.mode = null;
       if (b.pushed) { S.cam.pop(); b.pushed = false; }
-      if (/^vault\./.test(next)) { spineG.rotation.z = 0; coverG.rotation.z = 0; if (next === 'vault.closing') root.visible = false; } else { b.resetClosed(); root.visible = false; } },
+      if (/^vault\./.test(next)) { spineG.rotation.z = 0; coverG.rotation.z = 0; if (next === 'vault.closing') root.visible = false; } else { b.resetClosed(); root.visible = !!(S.under && S.under.on); } },
     /* ---------- pages ---------- */
     pageCount() { return Math.max(2, Math.ceil(store.get().binder.length / 2) * 2); },
     spreads() { return b.pageCount() / 2; },
@@ -212,7 +217,7 @@ function build(S) {
     /* a slab scaled down into its pocket, once its photo and label have built */
     fillPocket(pk) {
       const slab = store.pull(pk.id); if (!slab) { pk.id = null; return; }
-      const obj = S.slabs.make(slab); pk.obj = obj; obj.group.visible = false; pk.group.add(obj.group);
+      const obj = S.objFor(slab); pk.obj = obj; obj.group.visible = true; pk.group.add(obj.group); obj.group.visible = false;
       const gen = pk.pc.gen;
       obj.ready.then(() => { if (pk.pc.gen !== gen || pk.obj !== obj) return;
         /* a landscape slab goes in sideways, label to the top of the page, so it fills the pocket like a portrait one */

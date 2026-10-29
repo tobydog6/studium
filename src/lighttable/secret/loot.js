@@ -228,7 +228,7 @@ export function install(S) {
     async enter(d, run) { const t = S.SL.tierOf(L.slab); S.toast(t.name + ' · ' + L.slab.title + '.');
       if (!(d && d.fresh)) { showBar('print'); return; }
       const obj = L.obj; if (!obj) { showBar('print'); return; }
-      S.slabs.adopt(obj); const r = await S.inspect.open(obj, { actions: [{ id: 'grade', label: 'Send for grading' }, { id: 'another', label: 'Open another' }, { id: 'ok', label: 'OK', primary: true }], hint: 'Drag to turn it, scroll to zoom. OK puts it on the table.' });
+      S.slabs.adopt(obj); const r = await S.inspect.open(obj, { actions: [{ id: 'grade', label: 'Send for grading' }, { id: 'another', label: 'Open another' }, { id: 'ok', label: 'OK', primary: true }], hint: S.specLine(obj.slab) + '\nDrag to turn it, scroll to zoom. OK puts it on the table.' });
       while (S.inspect.active()) await T.wait(0.05); if (!run.alive()) return;
       const to = landingSpot(), yaw = (Math.random() - 0.5) * 0.3; S.table.adopt(obj, to.x, to.z, yaw, { drop: true });
       if (r === 'grade') { await T.wait(0.6); if (!run.alive()) return; L.obj = null; S.sendForGrading(obj); await T.wait(0.6); if (!run.alive()) return; M.send('CLOSE'); return; }

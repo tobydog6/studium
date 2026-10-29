@@ -66,6 +66,6 @@ export function createInspect(S) {
 export const INSPECT_CSS = `
 #skActs{ position:fixed; left:50%; bottom:calc(70px + env(safe-area-inset-bottom,0px)); transform:translate(-50%,12px); display:flex; gap:6px; padding:6px; background:var(--panel); border:1px solid var(--line); border-radius:8px; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); opacity:0; pointer-events:none; transition:opacity .25s, transform .35s cubic-bezier(.2,.8,.2,1); z-index:13; }
 #skActs.on{ opacity:1; pointer-events:auto; transform:translate(-50%,0); }
-#skHint{ position:fixed; left:50%; top:calc(22px + env(safe-area-inset-top,0px)); transform:translate(-50%,10px); opacity:0; pointer-events:none; transition:opacity .3s, transform .4s cubic-bezier(.2,.8,.2,1); font:400 12px/1.35 var(--f-ui); color:var(--text); background:rgba(12,11,10,.7); padding:8px 12px; border-radius:20px; border:1px solid var(--line); z-index:13; white-space:nowrap; }
+#skHint{ white-space:pre-line; text-align:center; max-width:min(92vw, 820px); position:fixed; left:50%; top:calc(22px + env(safe-area-inset-top,0px)); transform:translate(-50%,10px); opacity:0; pointer-events:none; transition:opacity .3s, transform .4s cubic-bezier(.2,.8,.2,1); font:400 12px/1.35 var(--f-ui); color:var(--text); background:rgba(12,11,10,.7); padding:8px 12px; border-radius:20px; border:1px solid var(--line); z-index:13; white-space:nowrap; }
 #skHint.on{ opacity:1; transform:translate(-50%,0); }
 `;

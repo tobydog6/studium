@@ -32,7 +32,7 @@ export function installSecret(ctx) {
   const lightSide = new Set(ctx.scene.children);
   P.initParticles(ctx.scene);
   const S = {
-    THREE, ctx, M, T, P, SL, SM, store, RoundedBoxGeometry, isLightSide: o => lightSide.has(o), scene: ctx.scene, camera: ctx.camera, renderer: ctx.renderer, paintPhoto: ctx.paintPhoto, KINDS: ctx.KINDS,
+    THREE, ctx, M, T, P, SL, SM, store, RoundedBoxGeometry, isLightSide: o => !o.userData.secret && !secretTop.has(o), scene: ctx.scene, camera: ctx.camera, renderer: ctx.renderer, paintPhoto: ctx.paintPhoto, KINDS: ctx.KINDS,
     el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; },
     css(text) { const s = document.createElement('style'); s.textContent = text; document.head.appendChild(s); return s; },
     sfx(id, o) { try { return ctx.SFX(id, o); } catch (e) { return null; } },
@@ -111,6 +111,9 @@ export function installSecret(ctx) {
   /* the HUD keeps up with the clock so AWAY turns into a parcel without a click */
   setInterval(() => { if (S.unlocked()) hud(); }, 5000);
   S.hud = hud;
+  /* where a dragged slab can be dropped: the open case or binder register here; a one line read of what a card is */
+  S.dropTargets = { vault: null, binder: null };
+  S.specLine = slab => { const f = SL.FINISH[SL.finishOf(slab, S.testFinish())]; return [SL.tierOf(slab).name, f ? f.name : '', slab.variant ? (SL.VARIANT[slab.variant] || {}).name : '', slab.graded ? 'Grade ' + slab.grade + ' ' + SL.gradeText(slab.grade) : 'Raw, ungraded', slab.title, slab.photo && (slab.photo.artist || slab.photo.by)].filter(Boolean).join('  ·  '); };
   /* a small bar while the vault or binder is open: the way back to the case, and out */
   const nav = S.el('div', 'sk-nav', ''); nav.id = 'skNav'; document.body.appendChild(nav); nav.addEventListener('pointerdown', e => e.stopPropagation());
   nav.addEventListener('click', e => { const b = e.target.closest('[data-ev]'); if (b) M.send(b.dataset.ev); });
@@ -192,7 +195,7 @@ export function installSecret(ctx) {
   async function inspectTableSlab(obj) {
     const raw = !obj.slab.graded, g = obj.group, K = S.TABLE_K;
     T.to(g.scale, { x: 1, y: 1, z: 1 }, { dur: 0.5, ease: T.E.outCubic, tag: 'tslab' });
-    const r = await inspect.open(obj, { actions: raw ? [{ id: 'bin', label: 'Bin it' }, { id: 'back', label: 'Put back' }, { id: 'grade', label: 'Send for grading', primary: true }] : [{ id: 'bin', label: 'Bin it' }, { id: 'back', label: 'Put back' }, { id: 'binder', label: 'Into the binder' }, { id: 'vault', label: 'Into the vault', primary: true }], hint: 'Drag to turn it, scroll to zoom. Click the room to put it back. Back on the table, drag it anywhere.' });
+    const r = await inspect.open(obj, { actions: raw ? [{ id: 'bin', label: 'Bin it' }, { id: 'back', label: 'Put back' }, { id: 'grade', label: 'Send for grading', primary: true }] : [{ id: 'bin', label: 'Bin it' }, { id: 'back', label: 'Put back' }, { id: 'binder', label: 'Into the binder' }, { id: 'vault', label: 'Into the vault', primary: true }], hint: S.specLine(obj.slab) + '\nDrag to turn it, scroll to zoom. Click the room to put it back.' });
     T.to(g.scale, { x: K, y: K, z: K }, { dur: 0.45, ease: T.E.inOutSine, tag: 'tslab' });
     if (r === 'bin') { await T.wait(0.45); binSlab(obj); return; }
     if (r === 'grade') { await T.wait(0.45); S.sendForGrading(obj); }
@@ -220,13 +223,15 @@ export function installSecret(ctx) {
     if (sd) return slabDrag(kind, e);
     if (kind === 'move') { const h = S.hitAny(e, list); setHot(h ? h.root : null); if (h) { ctx.canvas.style.cursor = 'pointer'; ctx.hideActs(); return true; } ctx.canvas.style.cursor = 'default'; return false; }
     if (kind === 'down') { if (e.button !== 0) return false; const h = S.hitAny(e, list); if (!h) return false;
-      if (h.root.name === 'loot') { S.sfx('detent'); M.send('LOOT'); } else if (h.root.name === 'blades') { S.sfx('detent'); M.send('BLADES'); } else if (h.root === btnVault) { S.sfx('detent'); M.send('VAULT'); } else if (h.root === btnKey) { S.sfx('detent'); M.send('ROOM'); }
+      if (h.root.name === 'loot') { S.sfx('detent'); M.send('LOOT'); } else if (h.root.name === 'blades') { S.sfx('detent'); M.send('BLADES'); } else if (h.root.name === 'rareBinder') { S.sfx('detent'); M.send('BINDER'); } else if (h.root === btnVault) { S.sfx('detent'); M.send('VAULT'); } else if (h.root === btnKey) { S.sfx('detent'); M.send('ROOM'); }
       else { const o = tableSlabs.find(o => o.group === h.root); if (o) { const t = S.tableHit(e, 0) || h.point; sd = { o, x0: e.clientX, y0: e.clientY, moved: 0, dx: o.group.position.x - t.x, dz: o.group.position.z - t.z, lifted: false }; } } return true; }
     return false;
   };
   M.define('room.knock', { busy: true, async enter(d, run) { S.sfx('ltMenu'); const r0 = btnKey.rotation.z; await T.tween({ dur: 0.7, ease: T.E.linear, update: (e, r) => { btnKey.rotation.z = r0 + Math.sin(r * Math.PI * 6) * 0.22 * (1 - r); } }); btnKey.rotation.z = r0; S.toast('The secret room is still being dug out. Coming soon.'); if (run.alive()) M.go('idle'); } });
   /* a slab on the table drags like a print; a click without movement inspects it */
   let sd = null;
+  S.dragging = () => !!sd;
+  S.beginSlabDrag = (o, e) => { const t = S.tableHit(e, 0) || o.group.position; sd = { o, x0: e.clientX, y0: e.clientY, moved: 10, dx: o.group.position.x - t.x, dz: o.group.position.z - t.z, lifted: true }; o.group.position.y = 0.5; if (o.tableShadow) o.tableShadow.material.opacity = 0.3; ctx.canvas.style.cursor = 'grabbing'; };
   function slabDrag(kind, e) {
     const o = sd.o, g = o.group;
     if (kind === 'move') { sd.moved += Math.abs(e.clientX - sd.x0) + Math.abs(e.clientY - sd.y0); sd.x0 = e.clientX; sd.y0 = e.clientY;
@@ -235,6 +240,7 @@ export function installSecret(ctx) {
       return true; }
     if (kind === 'up') { const d = sd; sd = null; ctx.canvas.style.cursor = 'pointer';
       if (!d.lifted) { S.sfx('detent'); inspectTableSlab(o); return true; }
+      for (const k in S.dropTargets) { const f = S.dropTargets[k]; if (f) { let ok = false; try { ok = f(o, e); } catch (err) { console.error(err); } if (ok && ok !== false) return true; } }
       const y = (o.th || SM.SLAB.th) * S.TABLE_K / 2 + 0.004; T.to(g.position, { y }, { dur: 0.22, ease: T.E.outCubic, tag: 'tslab' }); if (o.tableShadow) T.to(o.tableShadow.material, { opacity: 0.55 }, { dur: 0.25 });
       S.sfx('ltPutDown'); store.toTable(o.slab.id, g.position.x, g.position.z, o.yaw || 0); return true; }
     return true;
@@ -268,7 +274,9 @@ export function installSecret(ctx) {
   S.css(BASE_CSS + DEV_CSS + INSPECT_CSS);
 
   /* ---------- the modules (each owns one file) ---------- */
+  const secretTop = new Set();
   [sound, print, holo, rail, arm, vault, binder, parcel, loot, under, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  ctx.scene.children.forEach(c => { if (!lightSide.has(c)) secretTop.add(c); });   /* the rigs the modules just added */
 
   /* ---------- boot ---------- */
   if (S.unlocked()) { buttons.forEach(b => { b.visible = true; }); M.go('idle'); S.table.restore(); } else M.go('locked');
@@ -314,7 +322,7 @@ const BASE_CSS = `
 #skPts.on{ opacity:1; }
 #skSkip{ position:fixed; right:max(16px, env(safe-area-inset-right,0px)); bottom:calc(36px + env(safe-area-inset-bottom,0px)); font:500 10px/1 var(--f-mono); letter-spacing:.14em; text-transform:uppercase; color:var(--text); background:rgba(20,18,16,.78); border:1px solid rgba(244,241,234,.25); border-radius:999px; padding:7px 12px; cursor:pointer; z-index:4; }
 #skSkip:hover{ border-color:rgba(244,241,234,.6); }
-#skNav{ position:fixed; left:50%; bottom:calc(74px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); display:flex; gap:8px; opacity:0; pointer-events:none; transition:opacity .3s; z-index:6; }
+#skNav{ position:fixed; left:50%; top:84px; transform:translateX(-50%); display:flex; gap:8px; opacity:0; pointer-events:none; transition:opacity .3s; z-index:6; }
 #skNav.on{ opacity:1; pointer-events:auto; }
 #skNav button{ font:500 11px/1 var(--f-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text); background:rgba(20,18,16,.82); border:1px solid rgba(244,241,234,.28); border-radius:999px; padding:9px 14px; cursor:pointer; }
 #skNav button:hover{ border-color:rgba(244,241,234,.65); }

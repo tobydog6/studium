@@ -32,8 +32,11 @@ export const FINISHES = [
   { id: 'chrome', name: 'Liquid chrome' }, { id: 'lenticular', name: 'Lenticular' }, { id: 'latent', name: 'Latent' }, { id: 'thermal', name: 'Thermal' },
   { id: 'cyanotype', name: 'Cyanotype' }, { id: 'eclipse', name: 'Eclipse' }, { id: 'steel', name: 'Steel' }, { id: 'glass', name: 'Glass' },
   { id: 'porcelain', name: 'Porcelain' }, { id: 'kintsugi', name: 'Kintsugi' }, { id: 'raku', name: 'Raku' }, { id: 'stone', name: 'Carved stone' },
-  { id: 'polychrome', name: 'Polychrome' }, { id: 'keywarm', name: 'Colour key · warm' }, { id: 'keyblue', name: 'Colour key · blue' }, { id: 'leaf', name: 'Highlight leaf' },
+  { id: 'polychrome', name: 'Polychrome' }, { id: 'keywarm', name: 'Colour key · warm' }, { id: 'keyblue', name: 'Colour key · blue' }, { id: 'leaf', name: 'Highlight leaf' }, { id: 'silver', name: 'Silver gelatin' },
 ];
+/* each tier draws its finish from a pool: the signature one most often, with looks of its own beside it (Sam: not all rainbow) */
+const POOL = { common: ['matte', 'matte', 'matte', 'steel', 'silver'], uncommon: ['foil', 'foil', 'keywarm', 'keyblue', 'polychrome'], rare: ['etch', 'etch', 'lenticular', 'latent', 'cyanotype'], epic: ['glitter', 'glitter', 'chrome', 'thermal', 'porcelain'], legendary: ['gold', 'gold', 'kintsugi', 'raku', 'glass'], mythic: ['prism', 'prism', 'eclipse', 'kintsugi'] };
+export function rollFinish(r, tier) { const p = POOL[tier] || ['matte']; return p[Math.floor(r() * p.length)]; }
 export const FINISH = Object.fromEntries(FINISHES.map(f => [f.id, f]));
 
 export function rollTier(r) { const total = TIERS.reduce((s, t) => s + t.odds, 0); let acc = 0; const v = r * total; for (const t of TIERS) { acc += t.odds; if (v <= acc) return t.id; } return 'common'; }
@@ -83,7 +86,7 @@ export const GRADING_MS = 24 * 60 * 60 * 1000;
 export function roll(o = {}) {
   const seed = o.seed ?? (Math.random() * 2 ** 31) >>> 0, r = rng(seed), d = store.get();
   const tier = o.tier || rollTier(r()), grade = o.grade || rollGrade(r()), variant = o.variant !== undefined ? o.variant : rollVariant(r());
-  const slab = { id: 's' + Date.now().toString(36) + Math.floor(r() * 1e6).toString(36), seed, tier, grade, variant, finish: TIER[tier].finish,
+  const slab = { id: 's' + Date.now().toString(36) + Math.floor(r() * 1e6).toString(36), seed, tier, grade, variant, finish: o.finish || rollFinish(r, tier),
     cert: '#' + pad(++d.certN, 5), photo: pickPhoto(r, o.pack), ts: Date.now(), points: TIER[tier].points + (grade >= 10 ? 50 : grade >= 9 ? 20 : 0),
     graded: !!o.graded, sentAt: null, readyAt: null };
   if (variant === 'stamped') slab.stamp = 1 + Math.floor(r() * 50);

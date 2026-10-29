@@ -42,6 +42,7 @@ export function install(S) {
   const l2 = new THREE.PointLight(0xff7a3a, 70, 36, 1.6); l2.position.set(CX, 6, CZ + 3); group.add(l2);
   const l3 = new THREE.PointLight(0xffffff, 30, 30, 1.8); l3.position.set(10, 6, 8); group.add(l3);
   let vaultHome = null, hum = null;
+  const binderRoot = S.binder && S.binder.mesh ? S.binder.mesh() : null;   /* the Rare binder is a prop on the dark side; click it to open */
   [S.buttons.vault, S.buttons.key].forEach(b => { if (b) b.userData.secret = true; });   /* ours: the flip moves the case itself and leaves the keyhole alone */
 
   function setDoors(k) { U.doorK = k; doors.forEach(d => { d.position.x = CX + d.userData.s * (PW / 2 + 0.5) * k; }); }
@@ -54,7 +55,7 @@ export function install(S) {
   /* hidden by layer, not by visible: main.js sets visible on its prints every frame, but never touches layers */
   function hideLightSide() { U.hidden = []; ctx.scene.children.forEach(c => { if (c === pivot || c.isLight || c.userData.secret || !S.isLightSide(c)) return; c.getWorldPosition(v); if (Math.abs(v.x) < W / 2 + 3 && Math.abs(v.z) < H / 2 + 3 && v.y > -0.5 && v.y < 12) { U.hidden.push(c); c.traverse(o => o.layers.set(7)); } }); }
   function showLightSide() { U.hidden.forEach(c => c.traverse(o => o.layers.set(0))); U.hidden = []; }
-  function showSecret(on) { S.table.list.forEach(o => { o.group.visible = on; if (o.tableShadow) o.tableShadow.visible = on; }); if (S.buttons.vault) S.buttons.vault.visible = on; big.visible = on;
+  function showSecret(on) { S.table.list.forEach(o => { o.group.visible = on; if (o.tableShadow) o.tableShadow.visible = on; }); if (S.buttons.vault) S.buttons.vault.visible = on; big.visible = on; if (binderRoot) binderRoot.visible = on;
     if (S.parcel && S.parcel.__boxes) S.parcel.__boxes().forEach(b => { if (b.group) b.group.visible = on; }); }
   function takeVault(on) { const b = S.buttons.vault; if (!b) return;
     if (on) { vaultHome = { parent: b.parent, pos: b.position.clone(), rot: b.rotation.clone(), scale: b.scale.clone() }; group.add(b); b.position.set(-13.5, 0, -2.5); b.rotation.set(0, 0.35, 0); b.scale.setScalar(2.6); }
@@ -78,11 +79,11 @@ export function install(S) {
     },
   });
   M.define('under', {
-    on: { VAULT: (p, M) => M.defined('vault.open') ? 'vault.open' : undefined, LOOT: (p, M) => M.defined('loot.open') ? 'loot.open' : undefined, BLADES: (p, M) => M.defined('blades.open') ? 'blades.open' : undefined, CLOSE: () => undefined },
+    on: { VAULT: (p, M) => M.defined('vault.open') ? 'vault.open' : undefined, LOOT: (p, M) => M.defined('loot.open') ? 'loot.open' : undefined, BLADES: (p, M) => M.defined('blades.open') ? 'blades.open' : undefined, BINDER: (p, M) => M.defined('binder.open') ? 'binder.open' : undefined, CLOSE: () => undefined },
     enter() { ctx.hideActs(); },
     pointer(kind, e) {
       if (U.pan) { if (kind === 'move') { const h = S.tableHit(e, 0); if (h) { ctx.cam.tx += U.pan.x - h.x; ctx.cam.tz += U.pan.z - h.z; if (ctx.clampCam) ctx.clampCam(); } return true; } if (kind === 'up') { U.pan = null; ctx.canvas.style.cursor = 'default'; } return true; }
-      if (S.tablePointer(kind, e, [big, S.buttons.vault, S.buttons.blades, ...S.table.list.map(o => o.group)])) return true;
+      if (S.tablePointer(kind, e, [big, S.buttons.vault, S.buttons.blades, binderRoot, ...S.table.list.map(o => o.group)])) return true;
       if (kind === 'down' && e.button === 0) { const h = S.tableHit(e, 0); if (h) { U.pan = { x: h.x, z: h.z }; ctx.canvas.style.cursor = 'grabbing'; } return true; }
       if (kind === 'wheel') { ctx.cam.dT = T.clamp(ctx.cam.dT * Math.exp(e.deltaY * 0.0012), 8, 70); return true; }
       return true;
@@ -91,6 +92,6 @@ export function install(S) {
     frame(dt) { big.userData.pulse = (big.userData.pulse || 0) + dt; const cap = big.userData.cap; if (cap) { const want = big.userData.hotT ? 1.4 : 0.35 + 0.25 * Math.sin(big.userData.pulse * 2.4); cap.material.emissiveIntensity += (want - cap.material.emissiveIntensity) * (1 - Math.exp(-dt * 10)); } },
   });
   S.under = { get on() { return U.on; }, rect: RECT, group, doors: openDoors, flip(to) { if (M.is('idle') || M.is('under')) M.go('flipping', { to }); }, state: U,
-    frame() { cover.visible = !/^vault/.test(M.state); if (U.on && M.is('idle')) M.go('under'); if (U.on && S.parcel && S.parcel.__boxes) S.parcel.__boxes().forEach(b => { if (b.group && !b.group.visible && !b.opening) b.group.visible = true; }); } };
+    frame() { cover.visible = !/^vault/.test(M.state); if (U.on && M.is('idle')) M.go('under'); if (U.on && M.is('under') && binderRoot && !binderRoot.visible) binderRoot.visible = true; if (U.on && S.parcel && S.parcel.__boxes) S.parcel.__boxes().forEach(b => { if (b.group && !b.group.visible && !b.opening) b.group.visible = true; }); } };
   S.dev.action('Flip the table', () => S.under.flip(U.on ? 'idle' : 'under'), 'Try');
 }

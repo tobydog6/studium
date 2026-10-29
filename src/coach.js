@@ -148,12 +148,14 @@
       target:'#camback [data-cb-row="'+row+'"]', place:"side", need:"back", dwell:1200,   /* beside the screen, level with its row: the slider and the needle stay clear */
       prep:function(){ cbTab="shoot"; cbRow=row; if(cbOpen) cbRender(); }, start:function(){ CO.s.v=coDialVal(key); },
       done:function(){ return Math.abs(coDialVal(key)-CO.s.v)>=2; }, bar:function(){ return Math.min(1,Math.abs(coDialVal(key)-CO.s.v)/2); }}; }
+  function coLearn(media,row,key,line,sub){ var s=coDial(row,key,"",sub); s.media=media; s.dwell=1800; s.line=function(){ return line; }; return s; }
   var CO_TOURS={
     basics:{where:function(){ return loaded&&!App.is("hub")&&!(typeof st!=="undefined"&&st.open); }, steps:[
-      {ch:"MOVE", line:function(){ return 'Click, then move the mouse to look around'; }, sub:"Esc lets go of the mouse. The sharp thing in front of you is the subject; if you lose it, a gold ring points the way back.",
-        done:function(){ return CO.look>1.6; }, bar:function(){ return CO.look/1.6; }},
+      {ch:"MOVE", line:function(){ return FL.orbit?'<kbd class="co-drag">DRAG</kbd> to go round '+chSubjectName().replace(/^The /,"the "):'Click, then move the mouse to look around'; },
+        sub:function(){ return FL.orbit?"Side to side takes you round it, up and down raises and lowers you. If you lose it, a gold ring points the way back.":"Esc lets go of the mouse. The sharp thing in front of you is the subject; if you lose it, a gold ring points the way back."; },
+        start:function(){ CO.s.o0=FLX.orb; }, done:function(){ return CO.look+FLX.orb-CO.s.o0>1.6; }, bar:function(){ return (CO.look+FLX.orb-CO.s.o0)/1.6; }},
       {ch:"MOVE", line:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return isFinite(d)&&d>4.5?'Head for the gold ring: that\'s '+(typeof chSubjectName==="function"?chSubjectName():"the subject")+', your subject':coK("W")+coK("A")+coK("S")+coK("D")+' to walk'; },
-        sub:"Just a few steps, and stay close. A scan is only sharp near the thing it was made of; the edges always go soft.",
+        sub:function(){ return (FL.orbit?"Now the mouse looks around as you walk. Drag any time to go round again. ":"")+"Just a few steps, and stay close: a scan is only sharp near the thing it was made of."; },
         start:function(){ CO.s.d0=typeof chSubjectDist==="function"?chSubjectDist():Infinity; },   /* a scene that starts you far from its subject only asks you to head its way */
         done:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return CO.walked>1.2&&(!isFinite(d)||d<4.5||d<CO.s.d0-1); }, bar:function(){ return Math.min(1,CO.walked/1.2); }},
       {ch:"MOVE", line:function(){ return coK("Q")+' to crouch, '+coK("E")+' to stand tall'; }, sub:"Try shooting from low down and up high.",
@@ -173,21 +175,17 @@
       {ch:"BAG", line:function(){ return 'Choose <b>one of these</b>'; }, sub:"Each lens sees differently: a wide one takes in more, a long one pulls far things close. Watch it twist off and the new one click on.",
         target:'#bag .bg-tray', targets:function(){ return Array.prototype.filter.call(document.querySelectorAll('#bag [data-bg-lens]'),function(c){ return c.getAttribute("data-bg-lens")!==CO.s.l0; }); },
         start:function(){ CO.s.l0=lensId; }, done:function(){ return bg.lens!==CO.s.l0&&!bg.busy; }, need:"lens", nodim:true},
-      {ch:"BAG", line:function(){ return '<b>Lock it in</b>'; }, sub:"",
-        target:'#bag [data-bg="done"]', done:function(){ return bg.stage==="choose"&&lensId===bg.lens; }, need:"lens"},
-      {ch:"BAG", line:function(){ return coK("SPACE")+' closes the bag'; }, sub:"",
-        done:function(){ return !bg.open; }},
+      {ch:"BAG", line:function(){ return bg.stage==="lens"?'<b>Lock it in</b>, then '+coK("SPACE")+' closes the bag':coK("SPACE")+' closes the bag'; }, sub:"",   /* one step, not two chores */
+        target:function(){ return bg.stage==="lens"?document.querySelector('#bag [data-bg="done"]'):null; }, done:function(){ return !bg.open&&lensId===bg.lens; }},
       {ch:"SETTINGS", line:function(){ return coK("SPACE")+' opens the menu: choose <b>Settings</b>'; }, sub:"The back of the camera: shutter, aperture and ISO.",
         kit:"back", done:function(){ return cbOpen; }},
-      {ch:"SETTINGS", media:"shutter", info:true, need:"back", line:function(){ return 'The <b>shutter speed</b> is how long the camera looks'; },
-        sub:"Fast, like 1/1000, freezes everything but lets in less light. Slow, like 1/15, lets in lots of light, but any wobble in your hands smears the photo. With a longer lens you need a faster shutter."},
-      coDial(0,"sh","shutter speed","Or click any number on it. Watch the needle at the bottom swing as you go."),
-      {ch:"SETTINGS", media:"aperture", info:true, need:"back", line:function(){ return 'The <b>aperture</b> is how wide the lens opens'; },
-        sub:"A small number, like f/2, is a wide hole: lots of light, and a soft background, so your subject stands out. A big number, like f/16, is a pinhole: darker, but sharp from front to back."},
-      coDial(1,"ap","aperture","Small numbers open it up, big numbers close it down."),
-      {ch:"SETTINGS", media:"iso", info:true, need:"back", line:function(){ return '<b>ISO</b> is how sensitive the sensor is'; },
-        sub:"Low, like 100, is clean and smooth but needs plenty of light. Turn it up when it's dark, but the photo gets grainy. Most photographers change shutter and aperture before ISO."},
-      coDial(2,"iso","ISO","Higher sees in the dark, lower keeps it clean."),
+      /* each setting: the clip shows what it does while you drag it yourself, so there's nothing to sit and read */
+      coLearn("shutter",0,"sh",'The <b>shutter speed</b> is how long the camera looks. '+'<kbd class="co-drag">DRAG</kbd> it',
+        "Fast, like 1/1000, freezes everything but lets in less light. Slow, like 1/15, lets in lots, but any wobble in your hands smears the photo."),
+      coLearn("aperture",1,"ap",'The <b>aperture</b> is how wide the lens opens. '+'<kbd class="co-drag">DRAG</kbd> it',
+        "A small number, like f/2, is a wide hole: lots of light and a soft background. A big number, like f/16, is darker but sharp front to back."),
+      coLearn("iso",2,"iso",'<b>ISO</b> is how sensitive the sensor is. '+'<kbd class="co-drag">DRAG</kbd> it',
+        "Low, like 100, is clean but needs plenty of light. Higher sees in the dark, but the photo gets grainy. Change shutter and aperture first."),
       {ch:"SETTINGS", media:"meter", info:true, need:"back", line:function(){ return 'The <b>light meter</b> adds them all up'; },
         sub:"Every setting moves the needle. Left of the middle is too dark, right is too bright. Get it near the middle, then trade one setting against another for the look you want."},
       /* a clear break: the explaining's over, now it's a challenge with three lights to expose for */
@@ -438,68 +436,6 @@
   function coSteps(){ return (CO_TOURS[CO.tour]||{steps:[]}).steps; }
   function coLen(id){ return (CO_TOURS[id]||{steps:[]}).steps.length; }
   var CO_STEPS=CO_TOURS.basics.steps;   // the guide's basics step counts these
-  // ---- the new warm-up (FEEL: tour): look, move, raise, and one guided shot from down low. Then you're free, and the
-  //      bag and the camera back are taught inside the gold frames, the first time a frame needs them ----
-  var CO_OLD=CO_TOURS.basics.steps;
-  function coDragging(){ return FL.drag&&!looking; }
-  var CO_WARM=[
-    {ch:"LOOK", line:function(){ return coDragging()?'<kbd>DRAG</kbd> to look around':'Click, then move the mouse to look around'; },
-      sub:function(){ return "Up, down and all the way round. The sharp thing in front of you is your subject. If you lose it, a gold ring points the way back"+(FL.home?", and "+coK("R")+" takes you straight there.":"."); },
-      start:function(){ CO.s.l0=FLX.look; }, done:function(){ return FLX.look-CO.s.l0>1.4; }, bar:function(){ return (FLX.look-CO.s.l0)/1.4; }},
-    {ch:"MOVE", line:function(){ var d=chSubjectDist(); if(isFinite(d)&&d>4.5) return 'Head for the gold ring: that\'s '+chSubjectName()+', your subject';
-        return FL.drag&&FLX.used!=="keys"?'<kbd>CLICK</kbd> the ground to walk there':coK("W")+coK("A")+coK("S")+coK("D")+' to walk'; },
-      sub:function(){ return FL.drag&&FLX.used!=="keys"?"Click somewhere near the stump. A scan is only sharp near the thing it was made of; the edges always go soft.":"Hold Shift to go faster. A scan is only sharp near the thing it was made of, so stay close."; },
-      start:function(){ CO.s.d0=chSubjectDist(); },
-      done:function(){ var d=chSubjectDist(); return CO.walked>1.0&&(!isFinite(d)||d<4.5||d<CO.s.d0-1); }, bar:function(){ return Math.min(1,CO.walked/1.0); }},
-    {ch:"RAISE", line:function(){ return '<kbd>RIGHT CLICK</kbd> raises the camera to your eye'; },
-      sub:function(){ return FL.drag?"Now the mouse aims the camera. Right click again lowers it, and Esc lets go of the mouse.":"Right click again to lower it. "+coK("P")+" does the same."; },
-      done:function(){ return viewfinderOn; }},
-    {ch:"SHOOT", ghost:true, dwell:600,
-      line:function(){ var f=flGhostFit(); if(!FLX.ghost) return '<kbd>CLICK</kbd> to take a photo';
-        if(!f.near) return 'Walk to the <b>low gold frame</b> <span class="co-rng">'+f.hz.toFixed(1)+' m</span>';
-        if(!f.low) return coK("Q")+' to <b>crouch</b> down to the frame';
-        if(f.ang>=14) return 'Look <b>through</b> the frame at '+chSubjectName().replace(/^The /,"the ");
-        if(!viewfinderOn) return '<kbd>RIGHT CLICK</kbd> to raise the camera';
-        return '<kbd>CLICK</kbd> to take the photo'; },
-      sub:function(){ var f=flGhostFit(); return f.near&&!f.low?"Hold "+coK("Q")+" to go lower, "+coK("E")+" to stand back up.":"From down low the stump stands up tall against what's behind it. Getting low or high changes a photo more than you'd think."; },
-      start:function(){ CO.s.n=photos.length; FLX.ghostHit=false; flGhostOn(); },
-      done:function(){ return photos.length>CO.s.n&&(FLX.ghostHit||!FLX.ghost); },
-      bar:function(){ var f=flGhostFit(); if(!FLX.ghost) return null; return (f.near?0.4:0.4*Math.max(0,1-f.hz/4))+(f.near&&f.low?0.3:0)+(f.ok?0.3:0); }}];
-  function coBasicsPick(){ if(typeof CO_TOURS==="undefined"||!CO_OLD) return; var want=FL.tour?CO_WARM:CO_OLD; if(CO_TOURS.basics.steps===want) return; CO_TOURS.basics.steps=want;
-    var v=FL.tour?"new":"old", was=Q.flags.warmV; Q.flags.warmV=v; if(!was||was===v) return;   /* progress only resets when the warm-up actually changes */
-    if(CO.on&&CO.tour==="basics"){ coStop(); Q.tourStep.basics=0; coStart("basics"); } else if(!Q.tours.basics) Q.tourStep.basics=0; }
-  coBasicsPick();
-  // ---- the lessons inside the gold frames: built for the frame that needs them, from the old warm-up's own steps ----
-  var CO_BODY_SUB={dslr:"Full frame: every lens sees exactly its own focal length.", ml:"Its smaller sensor crops every lens 1.6× tighter.", "67":"Medium format film: a big negative, and only ten frames a roll."};
-  function coBodyName(id){ var b=BODIES.filter(function(x){ return x.id===id; })[0]; return b?b.name:id; }
-  function coOldAt(test){ for(var i=0;i<CO_OLD.length;i++) if(test(CO_OLD[i])) return i; return -1; }
-  function coBagSteps(P){ var W=chWants(P), S=[], body=W.body&&W.body!==curBody().id?W.body:null, lens=W.lensMM!=null&&Math.round(focalMM)!==W.lensMM;
-    S.push({ch:"BAG", line:function(){ return 'This frame needs different gear. '+coK("SPACE")+' opens the menu: choose <b>Bag</b>'; }, sub:"Or press "+coK("B")+". The frame's card says what it wants, and the bag shows it glowing gold.", kit:"bag", done:function(){ return bg.open; }});
-    if(body) S.push({ch:"BAG", line:function(){ return 'Click the <b>'+coBodyName(body)+'</b>'; }, sub:CO_BODY_SUB[body]||"", target:'#bag [data-bg-body="'+body+'"]', done:function(){ return bg.body===body; }, need:"bag"});
-    if(lens){ var i=coOldAt(function(x){ return x.lens; }); if(i>=0) S.push(CO_OLD[i]);
-      S.push({ch:"BAG", line:function(){ return 'Choose the <b>'+W.lensMM+' mm</b>'; }, sub:"The one glowing gold. Watch the old one twist off and the new one click on.",
-        target:'#bag .bg-tray', targets:function(){ var w=Array.prototype.slice.call(document.querySelectorAll('#bag .bg-cell.want')); return w.length?w:Array.prototype.slice.call(document.querySelectorAll('#bag [data-bg-lens]')); },
-        start:function(){ CO.s.l0=lensId; }, done:function(){ return bg.lens!==CO.s.l0&&!bg.busy; }, need:"lens", nodim:true});
-      var j=coOldAt(function(x){ return x.target==='#bag [data-bg="done"]'; }); if(j>=0) S.push(CO_OLD[j]); }
-    S.push({ch:"BAG", line:function(){ return coK("SPACE")+' closes the bag'; }, sub:"Back to the frame. Its card ticks off what's done.", done:function(){ return !bg.open; }});
-    return S; }
-  function coBackSteps(P){ var S=[], a=coOldAt(function(x){ return x.media==="shutter"; }), b=coOldAt(function(x){ return x.media==="meter"; });
-    S.push({ch:"SETTINGS", line:function(){ return 'Now the settings. '+coK("SPACE")+' opens the menu: choose <b>Settings</b>'; }, sub:"The back of the camera: shutter, aperture and ISO. This frame needs them.", kit:"back", done:function(){ return cbOpen; }});
-    if(a>=0&&b>=a) S=S.concat(CO_OLD.slice(a,b+1));
-    S.push({ch:"SETTINGS", need:"back", target:'#camback .cb-meter', place:"side", nodim:true, dwell:1200,
-      line:function(){ return 'Now set it up for <b>'+cbEsc(P.c.title)+'</b>'; },
-      sub:"Use what you've just learnt: match what the frame's card asks for, then bring the needle to the middle.",
-      targets:function(){ return Array.prototype.slice.call(document.querySelectorAll('#camback .cb-scale')); },
-      done:function(){ return chChecks(P).every(function(x){ return x.ok||!x.where||x.where.at!=="back"; }); },
-      bar:function(){ var c=chChecks(P).filter(function(x){ return x.where&&x.where.at==="back"; }); return c.length?c.filter(function(x){ return x.ok; }).length/c.length:1; }});
-    S.push({ch:"SETTINGS", line:function(){ return coK("SPACE")+' takes you back to the frame'; }, sub:"", done:function(){ return !cbOpen; }});
-    return S; }
-  CO_TOURS.kbag={where:CO_TOURS.basics.where, steps:[]}; CO_TOURS.kback={where:CO_TOURS.basics.where, steps:[]};
-  /* challenge.js asks each frame: the first time one needs the bag or the camera back, teach it there and then */
-  function coFrameLesson(P){ if(!FL.tour||CO.on||!P||viewfinderOn||CH.intro||(CH.pull>=0&&!CH.locked)||CH.done[P.c.id]||bg.open||cbOpen) return;
-    var nx=null; chChecks(P).forEach(function(x){ if(!nx&&!x.ok&&x.where&&(x.where.at==="bag"||x.where.at==="back")) nx=x.where.at; });
-    var t=nx==="bag"?"kbag":nx==="back"?"kback":null; if(!t||Q.tours[t]) return;
-    CO_TOURS[t].steps=t==="kbag"?coBagSteps(P):coBackSteps(P); Q.tourStep[t]=0; coStart(t); }
   function coTourDone(id){ return !!Q.tours[id]; }
   function coProg(id){ return Q.tourStep[id]||0; }
   function coActive(){ return CO.on&&!CO.done; }
@@ -514,9 +450,9 @@
   function coStart(tour, replay){ tour=tour||"basics"; if(CO.on&&CO.tour===tour&&!replay) return; if(CO.on) coStop(); CO.ticking=false; CO.replay=!!replay; if(replay) Q.tourStep[tour]=0;
     CO.tour=tour; CO.on=true; CO.done=false; CO.skipped=0; if(Q.tours[tour]&&(Q.tourStep[tour]||0)>=coLen(tour)) Q.tourStep[tour]=0; CO.i=Q.tourStep[tour]||0; CO.look=0; CO.walked=0; CO.lx=null; CO.seen=-1; coEnter(); coLoop(); }
   function coMultiOff(){ Array.prototype.forEach.call(document.querySelectorAll('.co-multi,.co-float'),function(e){ e.classList.remove('co-multi','co-float'); }); }
-  function coEnter(){ coUnmark(); coMultiOff(); if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); if(typeof cbRender==="function") cbRender(); } var s=coSteps()[CO.i]; if(s&&s.ghost) flGhostOn(); else flGhostOff(); CO.s={}; CO.keys={}; CO.t0=performance.now(); CO.seen=-1; CO.lockTo=s&&s.info?CO.t0+READ_MS:0; if(s&&s.start) s.start(); CO.html="";
+  function coEnter(){ coUnmark(); coMultiOff(); if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); if(typeof cbRender==="function") cbRender(); } var s=coSteps()[CO.i]; CO.s={}; CO.keys={}; CO.t0=performance.now(); CO.seen=-1; CO.lockTo=s&&s.info?CO.t0+READ_MS:0; if(s&&s.start) s.start(); CO.html="";
     if(CO.replay&&s&&!s.info&&!s.click&&s.done){ var met=false; try{ met=!!s.done(); }catch(e){} if(met){ CO.s.pre=true; CO.lockTo=CO.t0+Math.min(READ_MS,1500); } } }
-  function coStop(){ coMultiOff(); flGhostOff(); document.body.classList.remove("co-golden"); if(typeof RL!=="undefined"&&(RL.spots||RL.want)){ RL.spots=null; RL.want=null; if(typeof rlPlanUI==="function"){ rlPlanUI(); rlPanel(); } } if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); } setTimeout(function(){ if(typeof chMarkers==="function") chMarkers(); },0); coUnmark(); if(CO.tgt){ CO.tgt.classList.remove("co-target"); CO.tgt=null; } CO.on=false; document.body.removeAttribute("data-co-kit"); document.body.classList.remove("co-lens"); cancelAnimationFrame(CO.raf); var e=$("coCard"), r=$("coRing"); if(e) e.classList.remove("show","media"); if(r) r.classList.remove("show"); document.body.classList.remove("co-on","co-dial"); }
+  function coStop(){ coMultiOff(); document.body.classList.remove("co-golden"); if(typeof RL!=="undefined"&&(RL.spots||RL.want)){ RL.spots=null; RL.want=null; if(typeof rlPlanUI==="function"){ rlPlanUI(); rlPanel(); } } if(typeof meterBias!=="undefined"&&meterBias){ meterBias=0; computeCam(); } setTimeout(function(){ if(typeof chMarkers==="function") chMarkers(); },0); coUnmark(); if(CO.tgt){ CO.tgt.classList.remove("co-target"); CO.tgt=null; } CO.on=false; document.body.removeAttribute("data-co-kit"); document.body.classList.remove("co-lens"); cancelAnimationFrame(CO.raf); var e=$("coCard"), r=$("coRing"); if(e) e.classList.remove("show","media"); if(r) r.classList.remove("show"); document.body.classList.remove("co-on","co-dial"); }
   /* SKIP moves past one prompt, not the whole tour: one click on the first step used to throw the warm-up away. Skip all is offered once you've skipped a step */
   function coSkipStep(){ if(!CO.on||CO.ticking) return; CO.skipped=(CO.skipped||0)+1; coUnmark(); CO.i++; Q.tourStep[CO.tour]=CO.i; qSave(); if(CO.i>=coSteps().length) coFinish(false); else coEnter(); }
   function coFinish(skipped){ CO.done=true; Q.tourStep[CO.tour]=coSteps().length; Q.tours[CO.tour]=true; qSave(); coStop();
@@ -532,10 +468,14 @@
     var s=coSteps()[CO.i]; if(!s){ coFinish(false); return; }   // each prompt stays up long enough to read (dwell) before it ticks
     if(CO.seen!==CO.i){ CO.seen=CO.i; CO.lockTo=s.info?performance.now()+READ_MS:0; if(s.prep) s.prep(); }   // the read timer starts when the card first shows
     var isDone=(s.info||s.click||s.finish||CO.s.pre)?CO.s.ok:s.done();
-    if(!CO.ticking&&performance.now()-CO.t0>(s.info?0:(s.dwell||900))&&isDone){ coTicked(); return; }   // one tick per prompt, however late the timer runs
+    if(!CO.ticking&&performance.now()-CO.t0>(s.info?0:(s.dwell||600))&&isDone){ coTicked(); return; }   // one tick per prompt, however late the timer runs
     coRender(s); }
   function coTicked(){ CO.ticking=true; var e=coEl(); e.classList.add("ok"); setTimeout(function(){ CO.ticking=false; e.classList.remove("ok"); CO.i++; Q.tourStep[CO.tour]=CO.i; qSave();
-      if(CO.i>=coSteps().length){ coFinish(false); return; } coEnter(); }, 600); }
+      if(CO.i>=coSteps().length){ coFinish(false); return; } coEnter(); }, 480); }
+  /* the mouse moves in the prompt, drawn as a mouse doing them: dragging side to side, a button flashing */
+  var CO_MOUSE='<svg viewBox="0 0 16 22" aria-hidden="true"><path class="l" d="M8 1.5A6.5 6.5 0 0 0 1.5 8V9.5H8z"/><path class="r" d="M8 1.5A6.5 6.5 0 0 1 14.5 8V9.5H8z"/><rect class="b" x="1.5" y="1.5" width="13" height="19" rx="6.5"/><path class="s" d="M8 1.5v8M1.5 9.5h13"/></svg>';
+  function coMouse(h){ return String(h).replace(/<kbd( class="co-drag")?>DRAG<\/kbd>/g,'<kbd class="co-mouse m-drag">'+CO_MOUSE+'DRAG</kbd>')
+      .replace(/<kbd>RIGHT CLICK<\/kbd>/g,'<kbd class="co-mouse m-r">'+CO_MOUSE+'RIGHT CLICK</kbd>').replace(/<kbd>CLICK<\/kbd>/g,'<kbd class="co-mouse m-l">'+CO_MOUSE+'CLICK</kbd>'); }
   function coSub(s){ return typeof s.sub==="function"?s.sub():s.sub; }
   function coRender(s){ var e=coEl(), ring=$("coRing"), steps=coSteps(); if(CO.sndStep!==s){ CO.sndStep=s; sfx("tour"); }
     var chs=[], prev=null; steps.forEach(function(x,i){ if(x.ch!==prev){ chs.push({ch:x.ch, first:i}); prev=x.ch; } });
@@ -546,12 +486,15 @@
     else if((s.need==="bag"||s.need==="lens")&&!bg.open) pre='Open the bag again: '+coK("SPACE")+', then <b>Bag</b>';
     else if(s.need==="back"&&!cbOpen) pre='Open the settings again: '+coK("SPACE")+', then <b>Settings</b>';
     else if(s.need==="crop"&&!cropActive()) pre='Open the crop again: click <b>Crop</b> or press '+coK("C");
-    var b=s.bar?s.bar():null; if(b!=null) b=Math.max(0,Math.min(1,b));
-    var html='<div class="co-top">'+chs.map(function(c){ var on=c.ch===s.ch, past=CO.i>c.first&&!on; return '<span class="co-ch'+(on?' on':'')+(past?' past':'')+'">'+c.ch+'</span>'; }).join('<i></i>')
+    var b=s.bar?Math.max(0,Math.min(1,s.bar())):null;
+    /* the whole tour as one strip along the card's top edge: a segment per chapter, filling as you go */
+    var N=steps.length, prog='<div class="co-prog">'+chs.map(function(c,j){ var end=j+1<chs.length?chs[j+1].first:N, n=end-c.first, f=Math.max(0,Math.min(1,(CO.i-c.first+(CO.ticking?1:0))/n));
+      return '<i style="flex:'+n+'"><b style="width:'+(f*100).toFixed(1)+'%"></b></i>'; }).join("")+'</div>';
+    var html=prog+'<i class="co-tick"></i><div class="co-top">'+chs.map(function(c){ var on=c.ch===s.ch, past=CO.i>c.first&&!on; return '<span class="co-ch'+(on?' on':'')+(past?' past':'')+'">'+c.ch+'</span>'; }).join('<i></i>')
       +(CO.skipped?'<button class="co-skip all" data-co-skipall title="Skip the rest of this tour">SKIP ALL</button>':'')+'<button class="co-skip" data-co-skip title="Skip this step">SKIP STEP</button></div>'
       +(s.media&&!pre?'<canvas class="co-media" data-co-media="'+s.media+'"></canvas>':'')
-      +'<div class="co-line">'+(pre||s.line())+'</div>'+((pre?'':coSub(s))?'<div class="co-sub">'+coSub(s)+'</div>':'')+(!pre&&CO.s.pre?'<div class="co-sub co-again">You\'ve already done this one. Have another go, or press GOT IT.</div>':'')
-      +'<div class="co-foot"><div class="co-dots">'+inCh.map(function(_,j){ return '<i class="'+(j<k?'d':j===k?'c':'')+'"></i>'; }).join("")+'</div>'
+      +'<div class="co-line">'+coMouse(pre||s.line())+'</div>'+((pre?'':coSub(s))?'<div class="co-sub">'+coSub(s)+'</div>':'')+(!pre&&CO.s.pre?'<div class="co-sub co-again">You\'ve already done this one. Have another go, or press GOT IT.</div>':'')
+      +'<div class="co-foot"><span class="co-n">'+(CO.i+1)+' <i>OF '+N+'</i></span>'
       +(s.finish&&!pre?'<button class="co-next" data-co-next>FINISHED ✓</button>':(s.info||CO.s.pre)?(performance.now()<CO.lockTo?'<button class="co-next rl" data-co-next disabled style="--rl:'+Math.round(CO.lockTo-performance.now())+'ms">GOT IT ›</button>':'<button class="co-next" data-co-next>GOT IT ›</button>'):'')+'</div>'
       +(b!=null?'<div class="co-bar"><b style="width:'+(b*100).toFixed(0)+'%"></b></div>':'');
     if(html!==CO.html){ e.innerHTML=html; CO.html=html; }

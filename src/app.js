@@ -200,7 +200,7 @@
   function menuOpen(){ return (typeof KIT!=="undefined"&&KIT.open)||(typeof cbOpen!=="undefined"&&cbOpen)||(typeof bg!=="undefined"&&bg.open)||(typeof st!=="undefined"&&st.open)||!menu.classList.contains("hidden")||!gallery.classList.contains("hidden")||!landing.classList.contains("hidden")||!editor.classList.contains("hidden")||anyOutputOpen(); }
   var toastTimer=null;
   function toast(m){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(function(){toastEl.classList.remove("show");},3200); }
-  function updatePrompt(){ if(loaded && !looking && !viewfinderOn && !menuOpen() && !(FL.drag&&FLX.look>0.6)) show(prompt); else hide(prompt); }   /* drag to look: the pill goes once you have */
+  function updatePrompt(){ if(loaded && !looking && !viewfinderOn && !menuOpen() && !(FL.orbit&&FLX.look+FLX.orb>0.6)) show(prompt); else hide(prompt); }   /* the pill goes once you have looked or gone round */
   function updateCrosshair(){ crosshair.classList.toggle("hidden", !(looking && !viewfinderOn)); }
 
   // ---- camera-sim math ----
@@ -503,7 +503,7 @@
         if(walking){ var e0=WK.eye; if(keys["KeyE"]) wkEye(us,dt); if(keys["KeyQ"]) wkEye(-us,dt); var qe=!!(keys["KeyE"]||keys["KeyQ"]); if(qe&&!SFX.qe&&WK.eye!==e0) sfx("crouch"); SFX.qe=qe&&WK.eye!==e0||(qe&&SFX.qe); }
         else { if(keys["KeyE"]) _mv.addScaledVector(UPY,us); if(keys["KeyQ"]) _mv.addScaledVector(UPY,-us); }
       }
-      if(_mv.lengthSq()>0){ _mv.normalize().multiplyScalar(maxV); flEdge(_mv); FLX.used="keys"; }   // target velocity, eased off near the soft edges
+      if(_mv.lengthSq()>0) _mv.normalize().multiplyScalar(maxV);   // target velocity
       // frame-rate-independent smoothing: ease velocity toward target (smooth accel + glide to stop)
       var resp=moving?5.5:3.8, t=1-Math.exp(-resp*Math.min(dt,0.05));   /* a slow lean in, a long glide out */
       _vel.x+=(_mv.x-_vel.x)*t; _vel.y+=(_mv.y-_vel.y)*t; _vel.z+=(_mv.z-_vel.z)*t;
@@ -548,7 +548,7 @@
     afHunt(Math.log(Math.max(0.3,Math.min(18,m))/0.3)/Math.log(60), near?"Too close to focus. This lens focuses down to "+mf+" m, so step back.":say?"Focused at "+(m<10?m.toFixed(1):Math.round(m))+" m":""); }
   /* like a real lens: the square thinks (the focus rocks past the subject and back), then turns green when it locks */
   var afLocks=0, afAnim=null;
-  function afHunt(target, msg){ var el=$("vfAF"), from=focusDist, t0=performance.now(), dur=FLX.slowAF?(FLX.slowAF=false,1500):520, over=(target-from)*0.35+(target>from?0.06:-0.06);
+  function afHunt(target, msg){ var el=$("vfAF"), from=focusDist, t0=performance.now(), dur=520, over=(target-from)*0.35+(target>from?0.06:-0.06);
     if(afAnim) cancelAnimationFrame(afAnim); if(el){ el.classList.remove("ok"); el.classList.add("hunt"); }
     (function step(){ var u=Math.min(1,(performance.now()-t0)/dur), v;
       if(u<0.55) v=from+(target+over-from)*(u/0.55); else if(u<0.8) v=target+over-(over*1.6)*((u-0.55)/0.25); else v=target-over*0.6*(1-(u-0.8)/0.2);
@@ -942,7 +942,7 @@
   function endTutorial(){ var e=$("tutorial"); if(e) e.classList.add("hidden"); setTutSeen(); }
 
   // ---- viewfinder + photos ----
-  function raiseCamera(){ if(!loaded) return; var big=flRaise(); if(soundOn){ try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); shutterLoad(); }catch(e){} } App.note("viewfinder"); if(!big) sfx("raise"); afPending=!big; viewfinderOn=true; viewfinder.classList.add("on"); updateCrosshair(); updatePrompt(); computeCam(); applyFinder(); drawComp(); }
+  function raiseCamera(){ if(!loaded) return; flLockForCamera(); if(soundOn){ try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); shutterLoad(); }catch(e){} } App.note("viewfinder"); sfx("raise"); afPending=true; viewfinderOn=true; viewfinder.classList.add("on"); updateCrosshair(); updatePrompt(); computeCam(); applyFinder(); drawComp(); }
   function lowerCamera(){ if(App.state==="viewfinder") App.note("scene"); var was=viewfinderOn; viewfinderOn=false; viewfinder.classList.remove("on"); updateCrosshair(); updatePrompt(); applyFinder(); if(was) computeCam(); }
   // ---- composition / framing guides (in-frame, teach composition in any scene) ----
   var COMP=["off","thirds","phi","center","diagonal","grid"], compIdx=1;
@@ -1014,7 +1014,7 @@
     photos.push({url:url,t:new Date(),f:APERTURES[apIdx],sh:SHUTTER_LABELS[shIdx],iso:ISOS[isoIdx],mm:focalMM,body:curBody().name,lens:lensId,brief:brf?brf.t:null,place:cbPlace,shake:+lastShake.toFixed(4), ev:+evStops.toFixed(2), light:qCaptureLight(), cap:achCapture()});
     chOnShot(photos[photos.length-1]); achShot(photos[photos.length-1]);
     if(brf){ briefDone[brf.id]=(briefDone[brf.id]||0)+1; buildBriefList(); }
-    refreshCount(); fireFlash(); shutterSound(); captureFX(url); flShot(url); vfRefresh();
+    refreshCount(); fireFlash(); shutterSound(); captureFX(url); vfRefresh();
     if(brf) toast("“"+brf.t+"” captured ✓");
     if(curBody().film){ var onBody=photos.filter(function(p){ return p.body===curBody().name; }).length; if(onBody%(curBody().roll||10)===0) toast("Roll finished. A fresh roll is loaded: choose its ISO on the camera back before the first frame."); computeCam(); }
     photoTip(); saveSession();
@@ -1394,8 +1394,8 @@
   window.addEventListener("resize",function(){ if(!editor.classList.contains("hidden")) queueRender(); });
 
   // ---- wire: look / shutter (pointer lock) ----
-  viewport.addEventListener("click",function(){ if(menuOpen()||!loaded||FL.drag) return;   /* drag to look: the pointer only locks when the camera comes up */ if(document.pointerLockElement!==renderer.domElement){ try{renderer.domElement.requestPointerLock();}catch(e){} } });
-  document.addEventListener("mousedown",function(e){ if((looking||(FL.drag&&e.target===renderer.domElement&&flHere())) && viewfinderOn && e.button===0) shutter(); });   /* the lock can fail (a trackpad, a browser setting): a click on the picture still shoots */
+  viewport.addEventListener("click",function(){ if(menuOpen()||!loaded||FL.orbit) return;   /* drag goes round the subject: the pointer locks on W A S D or when the camera comes up (feel.js) */ if(document.pointerLockElement!==renderer.domElement){ try{renderer.domElement.requestPointerLock();}catch(e){} } });
+  document.addEventListener("mousedown",function(e){ if((looking||(FL.orbit&&e.target===renderer.domElement&&flHere())) && viewfinderOn && e.button===0) shutter(); });   /* the lock can fail (a trackpad, a browser setting): a click on the picture still shoots */
   // right click raises and lowers the camera, like aiming in a game (P does the same)
   function rcScene(){ return loaded&&(App.is("scene")||App.is("viewfinder"))&&!cbOpen&&!bg.open&&!(typeof st!=="undefined"&&st.open)&&!menuOpen(); }
   document.addEventListener("mousedown",function(e){ if(e.button===2&&rcScene()){ e.preventDefault(); toggleViewfinder(); } });

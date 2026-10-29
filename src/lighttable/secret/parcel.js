@@ -81,7 +81,7 @@ export function install(S) {
     const pulls = store.get().pulls, now = Date.now();
     /* a box whose pull is gone (reset) or no longer waiting to be opened goes too */
     boxes.slice().forEach(bx => { if (bx.opening) return; if (!pulls.includes(bx.slab) || SL.gradingState(bx.slab, now) !== 'back') disposeBox(bx); });
-    if (!S.unlocked() || !M.is('idle')) return;
+    if (!S.unlocked() || !(M.is('under') || M.is('idle'))) return;   /* parcels land on the dark side (the state there is 'under', which is why none ever came) */
     const due = pulls.filter(p => SL.gradingState(p, now) === 'back' && !boxes.some(b => b.slab === p));
     due.forEach((p, i) => { const bx = makeBox(p); boxes.push(bx); arrive(bx, spot(), i); });
     if (due.length) S.toast(due.length > 1 ? due.length + ' parcels for you, on the table.' : 'A parcel for you, on the table.');
@@ -91,7 +91,7 @@ export function install(S) {
     const list = boxes.filter(b => b.arrived && !b.opening); if (!list.length || ctx.cam.view === 'wall') { setHot(null); return false; }
     const find = () => { const h = S.hitAny(e, list.map(b => b.body)); return h ? list.find(b => b.body === h.root) || null : null; };
     if (kind === 'move') { const bx = find(); setHot(bx); if (bx) { ctx.canvas.style.cursor = 'pointer'; ctx.hideActs(); return true; } return false; }
-    if (kind === 'down') { if (e.button !== 0) return false; const bx = find(); if (!bx) return false; if (M.is('idle')) { setHot(null); S.sfx('detent'); M.go('parcel.open', { box: bx }); } return true; }
+    if (kind === 'down') { if (e.button !== 0) return false; const bx = find(); if (!bx) return false; if ((M.is('idle') || M.is('under'))) { setHot(null); S.sfx('detent'); M.go('parcel.open', { box: bx }); } return true; }
     return false;
   }
   function frame(dt) {

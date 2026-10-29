@@ -177,7 +177,9 @@ export function install(S) {
   const METALS = { matte: [0x8a9099, 0.32], steel: [0xa3acb6, 0.26], silver: [0xe6eaee, 0.16], foil: [0xf3f6fa, 0.07], keywarm: [0xd6834f, 0.2], keyblue: [0x3f74e0, 0.2], polychrome: [0xd0d0d8, 0.1, 1],
     etch: [0xb9824e, 0.28], lenticular: [0xc4cad8, 0.1, 1], latent: [0x8c2a1f, 0.28], cyanotype: [0x2f5f9a, 0.22], glitter: [0xeadcbe, 0.18], chrome: [0xffffff, 0.03], thermal: [0xc77a3a, 0.14, 1],
     porcelain: [0xf0ede6, 0.3, 0, 0.05], gold: [0xe6b24a, 0.16], kintsugi: [0x1f1e22, 0.28], raku: [0x8f5537, 0.32], glass: [0xbfe6f2, 0.04, 0, 0.1, 1], prism: [0x1a1a22, 0.08, 1], eclipse: [0x0d0d10, 0.18] };
-  function metalOf(slab) { const f = SL.finishOf(slab, S.testFinish ? S.testFinish() : null), m = METALS[f] || METALS.matte;
+  /* the depth finishes bring their own metals (fxfinishes.js META) */
+  const metalFor = f => METALS[f] || (S.fx && S.fx.META[f] && S.fx.META[f].metal) || null;
+  function metalOf(slab) { const f = SL.finishOf(slab, S.testFinish ? S.testFinish() : null), m = metalFor(f) || METALS.matte;
     return new THREE.MeshPhysicalMaterial({ color: m[0], roughness: m[1], metalness: m[3] != null ? m[3] : 1, iridescence: m[2] ? 1 : 0, iridescenceIOR: 1.7, clearcoat: 0.5, clearcoatRoughness: 0.2, envMap: ENV, envMapIntensity: 1.4, transparent: !!m[4], opacity: m[4] ? 0.55 : 1 }); }
   /* the photo lit so it reads even in the dark bowl */
   const photoMat = (tex, o) => new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.32, roughness: 0.42, metalness: 0, envMap: ENV, envMapIntensity: 0.35, ...(o || {}) });
@@ -268,7 +270,7 @@ export function install(S) {
     { const uv = embM.geometry.attributes.uv, pp = embM.geometry.attributes.position; for (let k = 0; k < pp.count; k++) if (pp.getY(k) > 0.005) uv.setXY(k, pp.getX(k) / 0.54 + 0.5, -pp.getZ(k) / 0.54 + 0.5); }
     embM.position.y = ry + 0.17; gRing.add(embM);
     /* the spin: a blur of the face's own colours over the top as it gets fast (not on the spin group, so it doesn't strobe) */
-    const btex = blurTex(da, METALS[SL.finishOf(a)] ? METALS[SL.finishOf(a)][0] : 0x8a9099); myTex.push(btex);
+    const btex = blurTex(da, metalFor(SL.finishOf(a)) ? metalFor(SL.finishOf(a))[0] : 0x8a9099); myTex.push(btex);
     const halo = keep(new THREE.Mesh(new THREE.CircleGeometry(1.06, 64), new THREE.MeshBasicMaterial({ map: btex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }))); halo.rotation.x = -Math.PI / 2; halo.position.y = ry + 0.3; halo.renderOrder = 3; tilt.add(halo);
     const glint = keep(new THREE.Mesh(new THREE.RingGeometry(0.86, 1.05, 48, 1, 0, 0.9), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide }))); glint.rotation.x = -Math.PI / 2; glint.position.y = ry + 0.305; glint.renderOrder = 4; tilt.add(glint);
     /* grounded: a soft shadow and a dark contact spot under the tip */

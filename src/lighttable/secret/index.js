@@ -24,6 +24,9 @@ import * as under from './under.js';
 import * as casebox from './casebox.js';
 import * as shelf from './shelf.js';
 import * as blades from './blades.js';
+import * as fxfin from './fxfinishes.js';
+import { createTools, TOOLS_CSS } from './fxtools.js';
+import * as FXM from './fxmoments.js';
 
 const stdM = (c, r, m, o) => new THREE.MeshStandardMaterial({ color: c, roughness: r ?? 0.5, metalness: m ?? 0, ...(o || {}) });
 const BRASS = () => stdM(0xb8903e, 0.32, 0.75);
@@ -115,7 +118,7 @@ export function installSecret(ctx) {
   S.hud = hud;
   /* where a dragged slab can be dropped: the open case or binder register here; a one line read of what a card is */
   S.dropTargets = { vault: null, binder: null }; S.dropPreviews = {};
-  S.specLine = slab => { const f = SL.FINISH[SL.finishOf(slab, S.testFinish())]; return [SL.tierOf(slab).name, f ? f.name : '', slab.variant ? (SL.VARIANT[slab.variant] || {}).name : '', slab.graded ? 'Grade ' + slab.grade + ' ' + SL.gradeText(slab.grade) : 'Raw, ungraded', slab.title, slab.photo && (slab.photo.artist || slab.photo.by)].filter(Boolean).join('  ·  '); };
+  S.specLine = slab => { const f = SL.FINISH[SL.finishOf(slab, S.testFinish())]; return [SL.tierOf(slab).name, f ? f.name + (S.fx && S.fx.fxLabel(slab, f.id) ? ' (' + S.fx.fxLabel(slab, f.id) + ')' : '') : '', slab.variant ? (SL.VARIANT[slab.variant] || {}).name : '', slab.graded ? 'Grade ' + slab.grade + ' ' + SL.gradeText(slab.grade) : 'Raw, ungraded', slab.title, slab.photo && (slab.photo.artist || slab.photo.by)].filter(Boolean).join('  ·  '); };
   /* a small bar while the vault or binder is open: the way back to the case, and out */
   const nav = S.el('div', 'sk-nav', ''); nav.id = 'skNav'; document.body.appendChild(nav); nav.addEventListener('pointerdown', e => e.stopPropagation());
   nav.addEventListener('click', e => { const b = e.target.closest('[data-ev]'); if (b) M.send(b.dataset.ev); });
@@ -193,7 +196,8 @@ export function installSecret(ctx) {
     const ms = S.gradingWait(); S.toast(ms >= 3600000 ? 'Away for grading. It comes back as a parcel in a day, real time.' : ms ? 'Away for grading. Back in a minute, as a parcel.' : 'Away for grading. The parcel is already on its way.');
   };
   /* gone for good: it dissolves where it lies and leaves the collection */
-  function binSlab(obj) { S.sfx('shred'); P.dissolve(obj.group, { mode: dev.opt('dissolve'), dur: 1.0, spread: 1.2 }); const id = obj.slab.id; S.table.remove(obj, true); store.discard(id); hud(); S.toast('Gone. The points it earned stay with you.'); }
+  S.binSlab = obj => binSlab(obj);
+  function binSlab(obj) { S.sfx('shred'); try { (obj.slab.graded ? FXM.shatter : FXM.sand)(obj, S).catch(e => console.error(e)); } catch (e) { console.error(e); } const id = obj.slab.id; S.table.remove(obj, true); store.discard(id); hud(); S.toast('Gone. The points it earned stay with you.'); }
   async function inspectTableSlab(obj) {
     const raw = !obj.slab.graded, g = obj.group, K = S.TABLE_K;
     T.to(g.scale, { x: 1, y: 1, z: 1 }, { dur: 0.5, ease: T.E.outCubic, tag: 'tslab' });
@@ -266,7 +270,7 @@ export function installSecret(ctx) {
 
   /* ---------- dev panel and shared inspect ---------- */
   const dev = createDev(S); S.dev = dev;
-  const inspect = createInspect(S); S.inspect = inspect;
+  const inspect = createInspect(S); S.inspect = inspect; S.fxTools = createTools(S);
   dev.on('finishTest', () => S.slabs.refreshFinish()); dev.on('speed', v => T.setTimeScale(+v || 1)); T.setTimeScale(+dev.opt('speed') || 1);
   dev.action('Roll a raw print', () => S.rollToTable({ graded: false }), 'Try'); dev.action('Roll a slab', () => S.rollToTable(), 'Try'); dev.action('Roll a Mythic', () => S.rollToTable({ tier: 'mythic' }), 'Try'); dev.action('Roll a variant', () => S.rollToTable({ variant: SL.VARIANTS[Math.floor(Math.random() * SL.VARIANTS.length)].id }), 'Try');
   dev.action('Open vault', () => M.is('idle') && M.send('VAULT'), 'Try'); dev.action('Open loot', () => M.is('idle') && M.send('LOOT'), 'Try');
@@ -275,11 +279,11 @@ export function installSecret(ctx) {
   dev.action('Skip the wait', () => { let n = 0; store.get().pulls.forEach(p => { if (p.sentAt && !p.graded && Date.now() < p.readyAt) { SL.skipGrading(p); n++; } }); S.toast(n ? n + ' parcel' + (n === 1 ? '' : 's') + ' back on the table.' : 'Nothing is away for grading.'); hud(); if (S.parcel) S.parcel.check(); }, 'Try');
   dev.action('Lock again', () => lock(), 'Reset'); dev.action('Reset secret data', () => resetAll(), 'Reset');
   dev.info(() => { const d = store.get(); return d.pulls.length + ' pulls · ' + d.vault.length + ' in vault'; });
-  S.css(BASE_CSS + DEV_CSS + INSPECT_CSS);
+  S.css(BASE_CSS + DEV_CSS + INSPECT_CSS + TOOLS_CSS);
 
   /* ---------- the modules (each owns one file) ---------- */
   const secretTop = new Set();
-  [sound, print, holo, rail, arm, binder, parcel, loot, under, casebox, shelf, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  [sound, print, holo, fxfin, rail, arm, binder, parcel, loot, under, casebox, shelf, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
   ctx.scene.children.forEach(c => { if (!lightSide.has(c)) secretTop.add(c); });   /* the rigs the modules just added */
 
   /* ---------- boot ---------- */

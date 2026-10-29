@@ -16,28 +16,53 @@ export const TIER = Object.fromEntries(TIERS.map(t => [t.id, t]));
 export const RANK = Object.fromEntries(TIERS.map((t, i) => [t.id, TIERS.length - i]));   /* mythic highest */
 export const GRADES = { 10: 'GEM MINT', 9: 'MINT', 8: 'NM-MT', 7: 'NEAR MINT', 6: 'EX-MT', 5: 'EXCELLENT', 4: 'VG-EX', 3: 'VERY GOOD', 2: 'GOOD', 1: 'POOR' };
 export const GRADE_ODDS = [[10, 6], [9, 22], [8, 30], [7, 20], [6, 11], [5, 5], [4, 3], [3, 1.6], [2, 0.9], [1, 0.5]];
-export const VARIANT_CHANCE = 0.12;
+export const VARIANT_CHANCE = 0.14;
 export const VARIANTS = [
   { id: 'full',     name: 'Full art', desc: 'The image bleeds to every edge, no border at all.' },
   { id: 'misprint', name: 'Misprint', desc: 'Off-centre, a ghosted double image and a stray foil band.' },
   { id: 'negative', name: 'Negative', desc: 'The film negative instead of the print, sprockets and all.' },
   { id: 'clear',    name: 'Clear',    desc: 'Printed on acrylic, so the light comes straight through.' },
   { id: 'stamped',  name: 'Stamped',  desc: 'A numbered foil stamp in the corner, one of only 50.' },
+  { id: 'breakout', name: 'Breakout', desc: 'The subject climbs out of the photo and over its mount.' },
+  { id: 'liquid',   name: 'Liquid-filled', desc: 'The case is half full of oil and gold glitter that sloshes as you move it.' },
 ];
 export const VARIANT = Object.fromEntries(VARIANTS.map(v => [v.id, v]));
 /* the first six are the tier finishes; the rest are test finishes for the dev panel (holo.js builds them) */
 export const FINISHES = [
   { id: 'matte', name: 'Matte', tier: 'common' }, { id: 'foil', name: 'Rainbow foil', tier: 'uncommon' }, { id: 'etch', name: 'Rainbow etch', tier: 'rare' },
-  { id: 'glitter', name: 'Glitter', tier: 'epic' }, { id: 'gold', name: 'Full gold', tier: 'legendary' }, { id: 'prism', name: 'Prism black', tier: 'mythic' },
+  { id: 'glitter', name: 'Glitter', tier: 'epic' }, { id: 'gold', name: 'Gold repoussé', tier: 'legendary' }, { id: 'prism', name: 'Prism black', tier: 'mythic' },
   { id: 'chrome', name: 'Liquid chrome' }, { id: 'lenticular', name: 'Lenticular' }, { id: 'latent', name: 'Latent' }, { id: 'thermal', name: 'Thermal' },
   { id: 'cyanotype', name: 'Cyanotype' }, { id: 'eclipse', name: 'Eclipse' }, { id: 'steel', name: 'Steel' }, { id: 'glass', name: 'Glass' },
-  { id: 'porcelain', name: 'Porcelain' }, { id: 'kintsugi', name: 'Kintsugi' }, { id: 'raku', name: 'Raku' }, { id: 'stone', name: 'Carved stone' },
+  { id: 'porcelain', name: 'Blue and white porcelain' }, { id: 'kintsugi', name: 'Kintsugi' }, { id: 'raku', name: 'Raku' }, { id: 'stone', name: 'Carved stone' },
   { id: 'polychrome', name: 'Polychrome' }, { id: 'keywarm', name: 'Colour key · warm' }, { id: 'keyblue', name: 'Colour key · blue' }, { id: 'leaf', name: 'Highlight leaf' }, { id: 'silver', name: 'Silver gelatin' },
   { id: 'selective', name: 'Selective colour' }, { id: 'split', name: 'Split tone' }, { id: 'solar', name: 'Solarised' }, { id: 'infrared', name: 'Infrared' }, { id: 'poster', name: 'Posterised' }, { id: 'xpro', name: 'Cross processed' },
   { id: 'duoRose', name: 'Duotone · rose' }, { id: 'duoMoss', name: 'Duotone · moss' }, { id: 'duoInk', name: 'Duotone · ink' }, { id: 'duoEmber', name: 'Duotone · ember' }, { id: 'tritone', name: 'Tritone' }, { id: 'vignette', name: 'Vignette' },
+  /* the depth finishes (fxfinishes.js), Sam's picks from the Slab Lab */
+  { id: 'gilt', name: 'Gilded subject' }, { id: 'dag', name: 'Daguerreotype' }, { id: 'bronze', name: 'Bronze and verdigris' }, { id: 'litho', name: 'Lithophane' },
+  { id: 'crystal', name: 'Crystal etch' }, { id: 'focus', name: 'Rack focus' }, { id: 'fireflies', name: 'Fireflies' }, { id: 'depthscan', name: 'Depth scan' }, { id: 'window', name: 'Window into the scene' },
+  { id: 'anaglyph', name: 'Red-cyan 3D' }, { id: 'sun', name: 'Golden hour' }, { id: 'rain', name: 'Rainy window' }, { id: 'snow', name: 'First snow' }, { id: 'mist', name: 'Morning mist' }, { id: 'sunken', name: 'Sunken' },
+  { id: 'lava', name: 'The floor is lava' }, { id: 'aurora', name: 'Aurora australis' }, { id: 'seasons', name: 'Four seasons' }, { id: 'puddles', name: 'After the rain' }, { id: 'storm', name: 'Thunderstorm' },
+  { id: 'fireworks', name: 'Guy Fawkes night' }, { id: 'lightpaint', name: 'Light painting' }, { id: 'holoplate', name: 'Hologram plate' }, { id: 'planet', name: 'Tiny planet' }, { id: 'droste', name: 'Infinite slab' },
+  { id: 'blackhole', name: 'Event horizon' }, { id: 'polaroid', name: 'Instant film' }, { id: 'tray', name: 'Developing tray' }, { id: 'burn', name: 'Film burn' }, { id: 'kaleido', name: 'Kaleidoscope' },
+  { id: 'riso', name: 'Riso print' }, { id: 'terminal', name: 'Terminal' }, { id: 'aero', name: 'Aerochrome' }, { id: 'coin', name: 'Struck coin' }, { id: 'pyro', name: 'Pyrography' }, { id: 'jade', name: 'Carved jade' },
+  { id: 'vertigo', name: 'Vertigo' }, { id: 'tiltshift', name: 'Tilt-shift miniature' }, { id: 'camcorder', name: 'Camcorder' }, { id: 'lensball', name: 'Lensball' }, { id: 'scan3d', name: 'Inside the scan' },
 ];
 /* each tier draws its finish from a pool: the signature one most often, with looks of its own beside it (Sam: not all rainbow) */
-const POOL = { common: ['matte', 'matte', 'steel', 'silver', 'vignette', 'poster', 'duoInk'], uncommon: ['foil', 'foil', 'keywarm', 'keyblue', 'polychrome', 'split', 'xpro', 'duoMoss', 'duoRose'], rare: ['etch', 'etch', 'lenticular', 'latent', 'cyanotype', 'selective', 'infrared', 'duoEmber'], epic: ['glitter', 'glitter', 'chrome', 'thermal', 'porcelain', 'solar', 'tritone'], legendary: ['gold', 'gold', 'kintsugi', 'raku', 'glass', 'selective'], mythic: ['prism', 'prism', 'eclipse', 'kintsugi', 'solar'] };
+/* Sam's Slab Lab picks folded in by how special they feel: calm photo treatments low down, weather and tricks of the lens in
+   the middle, worked metal and stone at legendary, and the strangest at mythic. The signature finish stays the most likely
+   in each tier (three tickets), so a tier still reads at a glance. */
+const POOL = { common: ['matte', 'matte', 'matte', 'matte', 'steel', 'silver', 'vignette', 'poster', 'duoInk', 'riso', 'tiltshift'],
+  uncommon: ['foil', 'foil', 'foil', 'keywarm', 'keyblue', 'polychrome', 'split', 'xpro', 'duoMoss', 'duoRose', 'aero', 'terminal', 'camcorder', 'kaleido', 'mist', 'puddles', 'focus'],
+  rare: ['etch', 'etch', 'etch', 'lenticular', 'latent', 'cyanotype', 'selective', 'infrared', 'duoEmber', 'depthscan', 'anaglyph', 'polaroid', 'pyro', 'vertigo', 'lensball', 'seasons', 'rain', 'sunken', 'planet'],
+  epic: ['glitter', 'glitter', 'glitter', 'chrome', 'thermal', 'solar', 'tritone', 'porcelain', 'bronze', 'litho', 'fireflies', 'snow', 'lava', 'storm', 'fireworks', 'tray', 'burn', 'jade'],
+  legendary: ['gold', 'gold', 'gold', 'gilt', 'kintsugi', 'raku', 'glass', 'sun', 'holoplate', 'aurora', 'coin'],
+  mythic: ['prism', 'prism', 'eclipse', 'dag', 'crystal', 'window', 'droste', 'blackhole', 'lightpaint', 'scan3d'] };
+/* the sealed finishes only exist in a slab: they come out of the pull already graded */
+export const SEALED = new Set(['crystal', 'window', 'coin', 'scan3d']);
+/* a variant has to make sense on its finish (a breakout needs a photo to climb out of; a coin has no Full art) */
+const NO_VARIANT = { breakout: ['crystal', 'window', 'coin', 'scan3d', 'planet', 'droste', 'kaleido', 'polaroid', 'tray', 'burn', 'terminal', 'camcorder', 'lensball', 'blackhole'],
+  liquid: ['crystal', 'window', 'coin', 'scan3d', 'polaroid', 'tray'], full: ['coin', 'scan3d', 'crystal', 'polaroid'], misprint: ['coin', 'scan3d', 'crystal'], negative: ['coin', 'scan3d'], clear: ['coin', 'scan3d', 'crystal', 'window'] };
+export function variantFits(v, f) { return !v || !(NO_VARIANT[v] || []).includes(f); }
 export function rollFinish(r, tier) { const p = POOL[tier] || ['matte']; return p[Math.floor(r() * p.length)]; }
 export const FINISH = Object.fromEntries(FINISHES.map(f => [f.id, f]));
 
@@ -91,6 +116,8 @@ export function roll(o = {}) {
   const slab = { id: 's' + Date.now().toString(36) + Math.floor(r() * 1e6).toString(36), seed, tier, grade, variant, finish: o.finish || rollFinish(r, tier),
     cert: '#' + pad(++d.certN, 5), photo: pickPhoto(r, o.pack), ts: Date.now(), points: TIER[tier].points + (grade >= 10 ? 50 : grade >= 9 ? 20 : 0),
     graded: !!o.graded, sentAt: null, readyAt: null };
+  if (!variantFits(slab.variant, slab.finish)) slab.variant = null;
+  if (SEALED.has(slab.finish)) slab.graded = true;
   if (variant === 'stamped') slab.stamp = 1 + Math.floor(r() * 50);
   if (tier === 'mythic') slab.serial = '1/1';
   slab.title = slab.photo.title; slab.label = rollLabel(r, tier); slab.subs = rollSubs(r, grade);

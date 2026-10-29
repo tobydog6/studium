@@ -113,7 +113,7 @@ export function install(S) {
   /* ---------- the result bar (the inspect bar's look, its own element so both can show) ---------- */
   const bar = S.el('div', '', ''); bar.id = 'skLoot'; document.body.appendChild(bar);
   const ACTS = { print: [['look', 'Look closer'], ['grade', 'Send for grading', true], ['another', 'Open another'], ['done', 'Done']], bare: [['another', 'Open another'], ['done', 'Done', true]] };
-  function showBar(which) { bar.innerHTML = ACTS[which].map(a => '<button type="button" class="btn' + (a[2] ? ' primary' : '') + '" data-id="' + a[0] + '">' + a[1] + '</button>').join(''); bar.classList.add('on'); }
+  function showBar(which) { bar.innerHTML = ACTS[which].filter(a => !(a[0] === 'grade' && L.slab && L.slab.graded)).map(a => '<button type="button" class="btn' + (a[2] ? ' primary' : '') + '" data-id="' + a[0] + '">' + a[1] + '</button>').join(''); bar.classList.add('on'); }
   function hideBar() { bar.classList.remove('on'); }
   bar.addEventListener('click', e => { const b = e.target.closest('[data-id]'); if (!b) return; e.stopPropagation(); if (M.is('loot.result')) act(b.dataset.id); });
   bar.addEventListener('pointerdown', e => e.stopPropagation());
@@ -228,7 +228,7 @@ export function install(S) {
     async enter(d, run) { const t = S.SL.tierOf(L.slab); S.toast(t.name + ' · ' + L.slab.title + '.');
       if (!(d && d.fresh)) { showBar('print'); return; }
       const obj = L.obj; if (!obj) { showBar('print'); return; }
-      S.slabs.adopt(obj); const r = await S.inspect.open(obj, { actions: [{ id: 'grade', label: 'Send for grading' }, { id: 'another', label: 'Open another' }, { id: 'ok', label: 'OK', primary: true }], hint: S.specLine(obj.slab) + '\nDrag to turn it, scroll to zoom. OK puts it on the table.' });
+      S.slabs.adopt(obj); const sealed = !!obj.slab.graded; const r = await S.inspect.open(obj, { actions: (sealed ? [] : [{ id: 'grade', label: 'Send for grading' }]).concat([{ id: 'another', label: 'Open another' }, { id: 'ok', label: 'OK', primary: true }]), hint: S.specLine(obj.slab) + '\nDrag to turn it, scroll to zoom. OK puts it on the table.' });
       /* it settles straight onto the table from the close view, no detour back to the rail */
       const to = landingSpot(), yaw = (Math.random() - 0.5) * 0.3, K = S.TABLE_K, y = (obj.th || S.SM.SLAB.th) * K / 2 + 0.004;
       const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2).premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw));
@@ -250,9 +250,9 @@ export function install(S) {
     if (id === 'done') { M.send('CLOSE'); return; }
     if (id === 'another') { M.go('loot.rise'); return; }
     const obj = L.obj; if (!obj || obj.where !== 'table') return;
-    if (id === 'look') { hideBar(); const r = await S.inspect.open(obj, { actions: [{ id: 'back', label: 'Put down' }, { id: 'grade', label: 'Send for grading', primary: true }], hint: 'Drag to turn it, scroll to zoom. Click the room to put it down.' });
+    if (id === 'look') { hideBar(); const r = await S.inspect.open(obj, { actions: obj.slab.graded ? [{ id: 'back', label: 'Put down', primary: true }] : [{ id: 'back', label: 'Put down' }, { id: 'grade', label: 'Send for grading', primary: true }], hint: 'Drag to turn it, scroll to zoom. Click the room to put it down.' });
       while (S.inspect.active()) await T.wait(0.05); if (!M.is('loot.result')) return; if (r === 'grade') { await T.wait(0.3); if (!M.is('loot.result')) return; id = 'grade'; } else { showBar('print'); return; } }
-    if (id === 'grade') { showBar('bare'); L.obj = null; S.sendForGrading(obj); }
+    if (id === 'grade') { if (obj.slab.graded) return; showBar('bare'); L.obj = null; S.sendForGrading(obj); }
   }
 
   M.define('loot.closing', { busy: true,

@@ -17,7 +17,7 @@ export function createInspect(S) {
       const g = obj.group; g.updateMatrixWorld(true);
       I.from = { parent: g.parent, pos: g.position.clone(), quat: g.quaternion.clone(), scale: g.scale.clone(), wp: g.getWorldPosition(new THREE.Vector3()), wq: g.getWorldQuaternion(new THREE.Quaternion()) };
       S.ctx.scene.attach(g);
-      I.obj = obj; I.o = o; I.t = 0; I.target = 1; I.rot.x = I.rot.y = 0; I.zoom = o.zoom || 1; I.closing = false; obj.setTop(true); dim.visible = true;
+      I.obj = obj; I.o = o; I.t = 0; I.target = 1; I.rot.x = I.rot.y = 0; I.zoom = o.zoom || 1; I.closing = false; obj.setTop(true); dim.visible = true; if (S.fxTools) S.fxTools.open(obj);
       S.sfx('ltInspect');
       bar.innerHTML = (o.actions || [{ id: 'back', label: 'Put back' }]).map(a => '<button type="button" class="btn' + (a.primary ? ' primary' : '') + '" data-id="' + a.id + '">' + a.label + '</button>').join('');
       bar.classList.add('on'); hint.textContent = o.hint || 'Drag to turn it, scroll to zoom. Click the room to put it back.'; hint.classList.add('on');
@@ -26,14 +26,16 @@ export function createInspect(S) {
     /* where it goes home to, changed while it is up (a pull that should land on the table, not back on the rail) */
     retarget(o) { if (!I.obj || !I.from) return; const f = I.from; f.parent = o.parent || S.ctx.scene; if (o.pos) { f.pos.copy(o.pos); f.wp.copy(o.pos); } if (o.quat) { f.quat.copy(o.quat); f.wq.copy(o.quat); } if (o.scale) f.scale.copy(o.scale); },
     close(id) {
-      if (!I.obj || I.closing) return; I.closing = true; I.target = 0; bar.classList.remove('on'); hint.classList.remove('on'); S.sfx('ltPutDown');
+      if (!I.obj || I.closing) return; I.closing = true; I.target = 0; bar.classList.remove('on'); hint.classList.remove('on'); S.sfx('ltPutDown'); if (S.fxTools) S.fxTools.close();
       const res = I.res, obj = I.obj; I.res = null; I.drag = null; if (res) res(id || 'back');
     },
     pointer(kind, e) {
       if (!I.obj) return false;
       if (kind === 'down') { if (e.button !== 0) return true; I.drag = { x: e.clientX, y: e.clientY, moved: 0, onSlab: S.hit(e, I.obj.group) }; return true; }
       if (kind === 'move') { if (I.drag) { const dx = e.clientX - I.drag.x, dy = e.clientY - I.drag.y; I.drag.x = e.clientX; I.drag.y = e.clientY; I.drag.moved += Math.abs(dx) + Math.abs(dy); I.rot.y += dx * 0.011; I.rot.x += dy * 0.009; I.rot.x = clamp(I.rot.x, -1.2, 1.2); } S.ctx.canvas.style.cursor = I.drag ? 'grabbing' : 'grab'; return true; }
-      if (kind === 'up') { const d = I.drag; I.drag = null; if (d && d.moved < 5 && !d.onSlab && !I.closing) I.close('back'); return true; }
+      if (kind === 'up') { const d = I.drag; I.drag = null; if (d && d.moved < 5 && !d.onSlab && !I.closing) I.close('back');
+        /* a still click on the slab is for its finish (turn the coin, start a burn, pull a fresh instant print) */
+        else if (d && d.moved < 5 && d.onSlab && !I.closing && I.obj.click) { try { I.obj.click(I.obj.pointer.clone()); } catch (err) { console.error(err); } } return true; }
       if (kind === 'wheel') { I.zoom = clamp(I.zoom * Math.exp(-e.deltaY * 0.0012), 0.6, 2.4); return true; }
       return true;
     },
@@ -53,10 +55,12 @@ export function createInspect(S) {
       g.position.lerpVectors(I.from.wp, pos, e); g.quaternion.copy(I.from.wq).slerp(q, e);
       obj.tilt.set(clamp(yaw / 0.9, -1, 1), clamp(-pitch / 0.7, -1, 1));
       /* the pointer over the photo, 0..1, for finishes that develop under the light */
-      if (m.in && obj.parts.photo) { S.ctx.setNDC({ clientX: m.x, clientY: m.y }); S.ctx.ray.setFromCamera(S.ctx.ndc, cam); const h = S.ctx.ray.intersectObject(obj.parts.photo, false)[0]; if (h && h.uv) obj.pointer.copy(h.uv); }
+      obj.pointerOn = false;
+      if (m.in && obj.parts.photo) { S.ctx.setNDC({ clientX: m.x, clientY: m.y }); S.ctx.ray.setFromCamera(S.ctx.ndc, cam); const h = S.ctx.ray.intersectObject(obj.parts.photo, false)[0]; if (h && h.uv) { obj.pointer.copy(h.uv); obj.pointerOn = true; } }
+      if (S.fxTools) S.fxTools.frame(dt);
       dim.material.opacity = 0.62 * e; const dd = D + 0.6, hh = 2 * dd * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * 1.1; dim.position.set(0, 0, -dd); dim.scale.set(hh * cam.aspect, hh, 1);
       if (!I.target && I.t < 0.004) { /* home again */
-        const p = I.from.parent || S.ctx.scene; p.attach(g); g.position.copy(I.from.pos); g.quaternion.copy(I.from.quat); g.scale.copy(I.from.scale); obj.setTop(false); obj.tilt.set(0, 0);
+        const p = I.from.parent || S.ctx.scene; p.attach(g); g.position.copy(I.from.pos); g.quaternion.copy(I.from.quat); g.scale.copy(I.from.scale); obj.setTop(false); obj.tilt.set(0, 0); obj.pointerOn = false;
         dim.visible = false; dim.material.opacity = 0; I.obj = null; I.o = null; I.closing = false; S.ctx.canvas.style.cursor = 'default';
       }
     },

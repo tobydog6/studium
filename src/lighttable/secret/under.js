@@ -41,7 +41,13 @@ export function install(S) {
   const l2 = new THREE.PointLight(0xff7a3a, 70, 36, 1.6); l2.position.set(CX, 6, CZ + 3); group.add(l2);
   const l3 = new THREE.PointLight(0xffffff, 30, 30, 1.8); l3.position.set(10, 6, 8); group.add(l3);
   let vaultHome = null, hum = null;
+  /* the pan reads the table through a camera placed at the target view, not the smoothed one, so it never chases itself (the table's own pan does the same) */
+  const tmpCam = new THREE.PerspectiveCamera();
+  function panHit(e) { ctx.setNDC(e); ctx.placeCam(tmpCam, ctx.cam); tmpCam.fov = ctx.camera.fov; tmpCam.aspect = ctx.camera.aspect; tmpCam.updateProjectionMatrix(); return ctx.planeHit(tmpCam, ctx.ndc, 0); }
   const binderRoot = S.binder && S.binder.mesh ? S.binder.mesh() : null;   /* the Rare binder is a prop on the dark side; click it to open */
+  /* a card dropped on the closed binder files itself */
+  S.dropTargets.binderProp = (obj, e) => { if (!binderRoot || !U.on || /^binder|vault\.binder/.test(M.state)) return false; const t = S.tableHit(e, 0); if (!t) return false; const p = binderRoot.position; if (Math.abs(t.x - p.x) > 2.9 || Math.abs(t.z - p.z) > 2.7) return false;
+    const id = obj.slab.id, g = obj.group; S.sfx('binder'); (async () => { await T.to(g.position, new THREE.Vector3(p.x, 1.2, p.z), { dur: 0.35, ease: E.inOutCubic }); S.table.remove(obj, true); S.store.toBinder(id); S.hud(); S.binder.mesh(); S.toast('Filed in the binder.'); })(); return true; };
   [S.buttons.vault, S.buttons.key].forEach(b => { if (b) b.userData.secret = true; });   /* ours: the flip moves the case itself and leaves the keyhole alone */
 
   function setDoors(k) { U.doorK = k; doors.forEach(d => { d.position.x = CX + d.userData.s * (PW / 2 + 0.5) * k; }); }
@@ -81,10 +87,10 @@ export function install(S) {
     on: { VAULT: (p, M) => M.defined('vault.open') ? 'vault.open' : undefined, LOOT: (p, M) => M.defined('loot.open') ? 'loot.open' : undefined, BLADES: (p, M) => M.defined('blades.open') ? 'blades.open' : undefined, BINDER: (p, M) => M.defined('binder.open') ? 'binder.open' : undefined, CLOSE: () => undefined },
     enter() { ctx.hideActs(); },
     pointer(kind, e) {
-      if (U.pan) { if (kind === 'move') { const h = S.tableHit(e, 0); if (h) { ctx.cam.tx += U.pan.x - h.x; ctx.cam.tz += U.pan.z - h.z; if (ctx.clampCam) ctx.clampCam(); } return true; } if (kind === 'up') { U.pan = null; ctx.canvas.style.cursor = 'default'; } return true; }
+      if (U.pan) { if (kind === 'move') { const h = panHit(e); if (h) { ctx.cam.tx += U.pan.x - h.x; ctx.cam.tz += U.pan.z - h.z; if (ctx.clampCam) ctx.clampCam(); } return true; } if (kind === 'up') { U.pan = null; ctx.canvas.style.cursor = 'default'; } return true; }
       if (S.caseBox && S.caseBox.pointer(kind, e)) return true; if (S.vitrine && S.vitrine.pointer(kind, e)) return true;
       if (S.tablePointer(kind, e, [big, S.buttons.blades, binderRoot, ...S.table.list.map(o => o.group)])) return true;
-      if (kind === 'down' && e.button === 0) { const h = S.tableHit(e, 0); if (h) { U.pan = { x: h.x, z: h.z }; ctx.canvas.style.cursor = 'grabbing'; } return true; }
+      if (kind === 'down' && e.button === 0) { const h = panHit(e); if (h) { U.pan = { x: h.x, z: h.z }; ctx.canvas.style.cursor = 'grabbing'; } return true; }
       if (kind === 'wheel') { ctx.cam.dT = T.clamp(ctx.cam.dT * Math.exp(e.deltaY * 0.0012), 8, 70); return true; }
       return true;
     },

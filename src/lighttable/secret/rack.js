@@ -34,19 +34,21 @@ export function makeRack(S, o) {
     S.hud();
   }
   R.pointer = (kind, e) => {
-    if (R.busy || S.dragging()) return false;
+    if (R.busy || S.dragging() || (o.closed && o.closed())) return false;
     if (R.press) { if (kind === 'move') { if (Math.abs(e.clientX - R.press.x) + Math.abs(e.clientY - R.press.y) > 6) { const s = R.press.s; R.press = null; takeOut(s, e); } return true; } if (kind === 'up') { const s = R.press.s; R.press = null; look(s); return true; } return true; }
     if (kind === 'move') { const s = find(S.hitAny(e, groups())); R.hover = s || null; if (s) { S.ctx.canvas.style.cursor = 'pointer'; return true; } return false; }
     if (kind === 'down') { if (e.button !== 0) return false; const s = find(S.hitAny(e, groups())); if (!s) return false; R.press = { s, x: e.clientX, y: e.clientY }; return true; }
     return false;
   };
   /* a table object let go over the prop: it lifts, shrinks and slides into its slot */
-  R.drop = async (obj, e) => {
+  R.drop = (obj, e) => {
     const t = S.tableHit(e, 0), b = o.bounds; if (!t || t.x < b[0] || t.x > b[2] || t.z < b[1] || t.z > b[3]) return false;
+    if (o.closed && o.closed()) { S.toast('Open it first.'); return false; }
     const slab = obj.slab; if (o.accept && !o.accept(slab)) return false;
-    const g = obj.group, top = new THREE.Vector3((b[0] + b[2]) / 2, 2.2, (b[1] + b[3]) / 2); S.sfx('lift');
-    await T.par([T.to(g.position, top, { dur: 0.4, ease: E.inOutCubic }), T.to(g.scale, { x: K, y: K, z: K }, { dur: 0.4, ease: E.inOutCubic })]);
-    S.table.remove(obj, true); o.add(slab.id); S.hud(); await rebuild(slab.id); return true;
+    (async () => { const g = obj.group, top = new THREE.Vector3((b[0] + b[2]) / 2, 2.2, (b[1] + b[3]) / 2); S.sfx('lift');
+      await T.par([T.to(g.position, top, { dur: 0.4, ease: E.inOutCubic }), T.to(g.scale, { x: K, y: K, z: K }, { dur: 0.4, ease: E.inOutCubic })]);
+      S.table.remove(obj, true); o.add(slab.id); S.hud(); await rebuild(slab.id); })();
+    return true;
   };
   R.frame = dt => { const k = 1 - Math.exp(-dt * 10); R.slabs.forEach(s => { s.hoverT += ((R.hover === s ? 1 : 0) - s.hoverT) * k; if (!s.base) return; s.pivot.position.y = s.y + s.hoverT * peek; s.pivot.rotation.x = (s.base.rx || 0) - s.hoverT * 0.18; }); };
   R.rebuild = rebuild; R.setVisible = on => { group.visible = on; }; R.dispose = dispose;

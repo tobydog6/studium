@@ -245,19 +245,50 @@ function makeRig(S, obj, kind) {
   return R;
 }
 
+
+/* ---------- the finish's own flourish, laid over the tier's landing (Sam: more variety, more punch) ---------- */
+const INTENSITY = { common: 0.55, uncommon: 0.8, rare: 1.0, epic: 1.35, legendary: 1.7, mythic: 2.1 };
+function pushIn(R, k, dur) { const c = R.S.ctx && R.S.ctx.cam; if (!c || !R.S.cam || !k) return; const d0 = c.dT, d1 = d0 * (1 - k); R.S.cam.set({ dT: d1 }); const back = () => { if (Math.abs(c.dT - d1) < 1e-6) R.S.cam.set({ dT: d0 }); }; R.at(R.t + dur, back); R.undo(back); }
+/* thin bars of light wheeling round the print, rainbow or tinted */
+function ribbons(R, n, tint, dur, rate) { const grp = new THREE.Group(); R.add(grp, R.above + 0.02 / R.k); const L = Math.hypot(R.w, R.h) * 1.5, bars = [];
+  for (let i = 0; i < n; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(L, R.w * 0.045), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })); m.rotation.z = i / n * Math.PI; m.userData.ph = Math.random() * 6; grp.add(m); bars.push(m); }
+  R.tick((t, dt) => { const u = Math.min(1, t / dur), env = Math.sin(u * Math.PI); grp.rotation.z += dt * (rate || 0.9); bars.forEach((m, i) => { m.material.opacity = 0.55 * env * (0.6 + 0.4 * Math.sin(t * 5 + m.userData.ph)); if (tint) m.material.color.set(tint); else m.material.color.setHSL(((t * 0.25) + i / n) % 1, 0.9, 0.65); m.scale.x = 0.6 + 0.6 * env; }); if (u >= 1) grp.visible = false; }); return grp; }
+/* flecks falling onto the print from above, gold or silver */
+function rain(R, col, count, dur) { const c = R.cloud(count, { grav: 3.2 }); const up = R.down.clone().multiplyScalar(-1); let acc = 0;
+  R.tick((t, dt) => { if (t > dur) return; acc += dt * count / dur; const n = Math.floor(acc); if (n > 0) { acc -= n; c.emit(n, () => { const p = R.onPrint(1.5); p.addScaledVector(up, R.w * (0.9 + Math.random() * 0.6)); return p; }, () => new THREE.Vector3((Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 0.3, 0).addScaledVector(up, -0.4), () => new THREE.Color(col).offsetHSL(0, 0, (Math.random() - 0.5) * 0.25), 1.6, 0.42 * R.w / 2.9); } }); return c; }
+/* jagged bolts from the print's edge outward, flickering for a moment */
+function bolts(R, col, n, dur) { const grp = new THREE.Group(); R.add(grp, R.above + 0.03 / R.k); const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending }); let next = 0;
+  const make = () => { grp.children.slice().forEach(c => { grp.remove(c); c.geometry.dispose(); }); for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, r0 = Math.hypot(R.w, R.h) * 0.45, L = R.w * (0.5 + Math.random() * 0.9), pts = []; for (let k = 0; k <= 8; k++) { const r = r0 + L * k / 8, j = k === 0 || k === 8 ? 0 : (Math.random() - 0.5) * R.w * 0.16; pts.push(new THREE.Vector3(Math.cos(a) * r - Math.sin(a) * j, Math.sin(a) * r + Math.cos(a) * j, 0)); } grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat)); } };
+  R.tick(t => { if (t > dur) { grp.visible = false; return; } if (t >= next) { next = t + 0.06 + Math.random() * 0.06; make(); } mat.opacity = 0.5 + 0.5 * Math.random(); }); return grp; }
+/* a chain of lens flares along a line through the print */
+function flareChain(R, col, dur) { const grp = new THREE.Group(); R.add(grp, R.above + 0.04 / R.k); const L = Math.hypot(R.w, R.h); const ss = [0.5, 0.22, 0.9, 0.3, 0.6, 0.18]; const sps = ss.map((sz, i) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(R.w * sz, R.w * sz), new THREE.MeshBasicMaterial({ map: i % 2 ? SOFT() : raysTex(12), color: col, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); m.position.set((i / (ss.length - 1) - 0.5) * L * 1.3, 0, 0); grp.add(m); return m; }); grp.rotation.z = 0.7;
+  R.tick((t, dt) => { const u = Math.min(1, t / dur), env = Math.sin(u * Math.PI); grp.rotation.z += dt * 0.15; sps.forEach((m, i) => { m.material.opacity = 0.7 * env * (0.7 + 0.3 * Math.sin(t * 7 + i)); m.rotation.z += dt * (i % 2 ? -0.6 : 0.4); }); if (u >= 1) grp.visible = false; }); return grp; }
+function signature(R, obj, col, snd) {
+  const S = R.S, fin = S.SL.finishOf(obj.slab, S.testFinish && S.testFinish()), k = INTENSITY[R.tier] || 1, dur = 1.6 + 0.9 * k;
+  const RIB = { foil: null, lenticular: null, keywarm: 0xffc27a, keyblue: 0x8ac8ff, duoRose: 0xff9fc0, duoMoss: 0xb8e08a, duoInk: 0x8fa3ff, duoEmber: 0xffa860, split: 0xffd2a0, xpro: 0x9ff0c0, polychrome: null };
+  if (fin in RIB) ribbons(R, Math.round(4 + 4 * k), RIB[fin], dur, 0.8 + 0.4 * k);
+  else if (['etch', 'latent', 'cyanotype', 'infrared', 'selective', 'thermal'].includes(fin)) { bolts(R, fin === 'infrared' ? 0xff6a9a : fin === 'thermal' ? 0xffb347 : 0x9ff3ff, Math.round(5 + 6 * k), 0.5 + 0.4 * k); R.at(0.5, () => bolts(R, 0xffffff, Math.round(3 + 4 * k), 0.35)); }
+  else if (['glitter', 'porcelain', 'poster', 'tritone', 'silver', 'steel'].includes(fin)) { const c = R.cloud(700, { grav: 0.9 }); const burst = () => c.emit(Math.round(140 * k), () => R.onPrint(1.0), () => { const a = Math.random() * Math.PI * 2, sp = (0.3 + Math.random()) * R.w * 0.7; return new THREE.Vector3(Math.cos(a) * sp, Math.sin(a) * sp, (0.5 + Math.random() * 1.5) * R.w * 0.5); }, () => new THREE.Color(fin === 'silver' || fin === 'steel' ? 0xe8eef5 : 0xfff0b0).offsetHSL(0, 0, (Math.random() - 0.5) * 0.3), 1.5, 0.5 * R.w / 2.9); R.at(0.2, burst); R.at(0.75, burst); R.at(1.3, burst); }
+  else if (['gold', 'kintsugi', 'raku', 'leaf'].includes(fin)) rain(R, fin === 'raku' ? 0xff8a3a : 0xffd27a, Math.round(260 * k), dur);
+  else if (['prism', 'eclipse', 'glass', 'chrome', 'solar'].includes(fin)) { flareChain(R, fin === 'chrome' ? 0xe0f0ff : fin === 'solar' ? 0xffb0ff : col, dur); ribbons(R, Math.round(3 + 3 * k), null, dur, 1.4); }
+  else { const halo = R.add(glowPlane('soft', R.w, R.h, R.w * 1.6, R.h * 1.5, { color: col }), R.below + 0.0004 / R.k); R.tick(t => { const u = Math.min(1, t / dur); halo.material.uniforms.uH.value = 0.45 * k * Math.sin(u * Math.PI); halo.material.uniforms.uTime.value = t; }); }
+  pushIn(R, Math.min(0.3, 0.06 * k), dur + 0.6);
+  if (k >= 1.3) { R.at(0.25, () => R.shock(col, 0.4, R.w * 2.2 * k)); R.at(0.6, () => R.shock(0xffffff, 0.4, R.w * 1.6 * k)); }
+}
+
 /* ---------- the landings, one per tier (The Pull page) ---------- */
 const LAND = {
   /* common: a settle. The paper breathes a warm glow and one soft pass of light crosses the print. */
   async common(R, obj, col, snd) {
     const paper = R.add(glowPlane('soft', R.w, R.h, R.w * 2.0, R.h * 1.8, { color: 0xffe1bd }), R.below); const sh = R.sheen({ color: 0xfff4e4, amount: 0.55, width: 0.14 });
-    snd('chime', { tier: 'common' }); R.dim(0.4); R.at(0.9, () => R.dim(0));
+    snd('chime', { tier: 'common' }); signature(R, obj, col, snd); R.dim(0.4); R.at(0.9, () => R.dim(0));
     R.tick(t => { const u = Math.min(1, t / 1.3); paper.material.uniforms.uH.value = 0.55 * Math.sin(u * Math.PI); paper.material.uniforms.uTime.value = t; if (sh) sh.material.uniforms.uX.value = -0.4 + 2.0 * Math.min(1, t / 0.9); });
     await R.wait(1.4);
   },
   /* uncommon: a foil sweep. A rainbow halo comes up round the print while a rainbow bar sweeps across the photo and the foil rolls with it. */
   async uncommon(R, obj, col, snd) {
     const halo = R.add(glowPlane('foil', R.w, R.h, R.w * 2.2, R.h * 2.0), R.below); const sh = R.sheen({ hue: true, amount: 0.75, width: 0.13 });
-    snd('chime', { tier: 'uncommon' }); R.roll(0.1, 1.3, 1.0); R.dim(0.55); R.at(1.4, () => R.dim(0));
+    snd('chime', { tier: 'uncommon' }); signature(R, obj, col, snd); R.roll(0.1, 1.3, 1.0); R.dim(0.55); R.at(1.4, () => R.dim(0));
     R.tick(t => { const u = Math.min(1, t / 1.9); halo.material.uniforms.uH.value = Math.sin(u * Math.PI); halo.material.uniforms.uTime.value = t * 2.5; if (sh) sh.material.uniforms.uX.value = -0.4 + 2.0 * Math.min(1, Math.max(0, (t - 0.1) / 1.1)); });
     await R.wait(2.0);
   },
@@ -266,7 +297,7 @@ const LAND = {
     const etch = R.add(glowPlane('etch', R.w, R.h, R.w * 2.4, R.h * 2.2), R.below); const sp = R.cloud(200, { grav: 1.6 });
     const orbit = new THREE.Group(); R.add(orbit, R.above + 0.08 / R.k); const rr = Math.hypot(R.w, R.h) * 0.62;
     const rings = [0, 1].map(i => { const m = new THREE.Mesh(new THREE.RingGeometry(rr * 0.985, rr, 96), new THREE.MeshBasicMaterial({ color: i ? 0xffffff : col, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })); m.rotation.x = i ? 0.22 : -0.18; m.rotation.y = i ? -0.15 : 0.2; orbit.add(m); return m; });
-    snd('chime', { tier: 'rare' }); R.roll(0.2, 1.6, 0.8); R.dim(0.65); R.at(1.8, () => R.dim(0));
+    snd('chime', { tier: 'rare' }); signature(R, obj, col, snd); R.roll(0.2, 1.6, 0.8); R.dim(0.65); R.at(1.8, () => R.dim(0));
     const glint = () => { const tint = new THREE.Color(col); sp.emit(90, () => R.onPrint(0.9), () => { const a = Math.random() * Math.PI * 2, s = (0.5 + Math.random()) * R.w * 0.6; return new THREE.Vector3(Math.cos(a) * s, Math.sin(a) * s, (1.0 + Math.random() * 1.6) * R.w * 0.5); }, () => R.photoColor(tint, 0.3), 1.0, 0.55 * R.w / 2.9); };
     R.at(0.45, glint); R.at(1.1, glint);
     R.tick((t, dt) => { const u = Math.min(1, t / 2.3); etch.material.uniforms.uH.value = Math.sin(u * Math.PI); etch.material.uniforms.uTime.value = t; orbit.rotation.z += dt * 2.4; rings.forEach((m, i) => { m.material.opacity = 0.75 * Math.sin(u * Math.PI); const s = 0.55 + 0.6 * Math.min(1, t / 0.9) + i * 0.12; m.scale.setScalar(s); }); });
@@ -279,7 +310,7 @@ const LAND = {
     const rays = R.add(new THREE.Mesh(new THREE.PlaneGeometry(R.w * 3.2, R.w * 3.2), new THREE.MeshBasicMaterial({ map: raysTex(28), color: col, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })), R.below);
     const rays2 = R.add(new THREE.Mesh(rays.geometry, rays.material.clone()), R.below + 0.0003 / R.k); rays2.material.map = raysTex(20); rays2.material.color.copy(tint2); rays2.rotation.z = 1.1;
     const sp = R.cloud(400, { grav: 2.8 }); const sh = R.sheen({ color: tint2, amount: 0.5, width: 0.12 });
-    snd('chime', { tier: 'epic' }); R.roll(0.3, 1.9, 1.0); R.dim(0.72); R.at(2.3, () => R.dim(0));
+    snd('chime', { tier: 'epic' }); signature(R, obj, col, snd); R.roll(0.3, 1.9, 1.0); R.dim(0.72); R.at(2.3, () => R.dim(0));
     R.at(0.35, () => { R.shock(tint2, 0.5, R.w * 2.4); sp.emit(260, () => R.onPrint(0.95), () => { const a = Math.random() * Math.PI * 2, s = (0.4 + Math.random()) * R.w * 1.1; return new THREE.Vector3(Math.cos(a) * s, Math.sin(a) * s, (0.8 + Math.random() * 1.6) * R.w * 0.6); }, () => R.photoColor(tint, 0.4), 1.1, 0.6 * R.w / 2.9); });
     R.tick((t, dt) => { const k = Math.min(1, Math.max(0, (t - 0.1) / 0.9)), out = 1 - Math.min(1, Math.max(0, (t - 2.1) / 0.8)), e = k * k * (3 - 2 * k);
       rays.material.opacity = 0.6 * e * out; rays2.material.opacity = 0.35 * e * out; rays.rotation.z += dt * 0.3; rays2.rotation.z -= dt * 0.22; const s = 0.5 + 1.0 * e; rays.scale.setScalar(s); rays2.scale.setScalar(s * 1.3);
@@ -293,7 +324,7 @@ const LAND = {
     const flood = R.add(new THREE.Mesh(new THREE.PlaneGeometry(R.w * 5.5, R.w * 5.5), new THREE.MeshBasicMaterial({ map: SOFT(), color: gold, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })), R.below - 0.0006 / R.k);
     const rays = R.add(new THREE.Mesh(new THREE.PlaneGeometry(R.w * 3.6, R.w * 3.6), new THREE.MeshBasicMaterial({ map: raysTex(32), color: col, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })), R.below);
     const embers = R.cloud(900, { grav: -0.25, sway: R.w * 0.05, ember: true }), sp = R.cloud(500, { grav: 1.2 }); const sh = R.sheen({ color: 0xfff0c8, amount: 0.7, width: 0.18 });
-    snd('chime', { tier: 'legendary' }); R.roll(0.2, 2.2, 1.0); R.dim(0.78); R.at(3.2, () => R.dim(0));
+    snd('chime', { tier: 'legendary' }); signature(R, obj, col, snd); R.roll(0.2, 2.2, 1.0); R.dim(0.78); R.at(3.2, () => R.dim(0));
     R.at(1.3, restore);
     R.at(1.75, () => { snd('slam'); R.shock(gold, 0.45, R.w * 2.6); R.flash(0.35, 0xfff1d6); R.jolt(R.w * 0.06 * R.k);
       sp.emit(400, () => R.onPrint(1.0), () => { const a = Math.random() * Math.PI * 2, s = (0.3 + Math.random()) * R.w * 0.5; return new THREE.Vector3(Math.cos(a) * s, Math.sin(a) * s, (1.2 + Math.random() * 2.0) * R.w * 0.5); }, () => R.photoColor(hot, 0.5), 2.2, 0.55 * R.w / 2.9); });
@@ -315,7 +346,7 @@ const LAND = {
     const rim = new THREE.Mesh(new THREE.RingGeometry(rr * 0.98, rr * 1.06, 128), new THREE.MeshBasicMaterial({ color: 0xfff4d6, transparent: true, opacity: 1, depthWrite: false, blending: THREE.AdditiveBlending })); rim.position.z = 0.0005 / R.k; ecl.add(rim);
     const stamp = new THREE.Mesh(new THREE.PlaneGeometry(R.w * 0.78, R.w * 0.78 * 0.4), new THREE.MeshBasicMaterial({ map: stampTex(), transparent: true, opacity: 0, depthWrite: false, depthTest: false })); stamp.rotation.z = -0.09; stamp.renderOrder = 30; R.add(stamp, R.above + 0.05 / R.k); stamp.position.y = -R.h * 0.12;
     const sp = R.cloud(600, { grav: 0.8 });
-    snd('chime', { tier: 'mythic' }); R.dim(0.85); R.at(4.7, () => R.dim(0));
+    snd('chime', { tier: 'mythic' }); signature(R, obj, col, snd); R.dim(0.85); R.at(4.7, () => R.dim(0));
     R.at(1.0, () => { ecl.visible = true; });
     R.at(1.75, stopHum);
     R.at(2.45, () => { snd('slam'); R.flash(0.9, 0xffffff); R.shock(0xffe9b8, 0.5, R.w * 2.8); R.jolt(R.w * 0.05 * R.k); R.roll(2.45, 4.0, 0.6);

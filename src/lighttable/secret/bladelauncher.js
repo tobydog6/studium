@@ -119,7 +119,7 @@ export function makeLauncher(col, ENV) {
   const handle = new THREE.Group(); g.add(handle);
   { const h1 = keep(new THREE.Mesh(slab(hs, 0.07, 0.02, 2), plast)); handle.add(h1);
     const ridge = new THREE.Shape(insetPts(hs, 0.8, 0.55, 0)); const h2 = keep(new THREE.Mesh(slab(ridge, 0.03, 0.01, 1), plastDk)); h2.position.y = 0.09; handle.add(h2); }
-  const L = { g,
+  const L = { g, grab: [cord, handle],   /* what you take hold of to rip (the rest of it is the body you aim with) */
     setCord(len) { const l = Math.max(0.12, len); cord.scale.x = l; cordM.map.repeat.set(l * 6, 1); handle.position.set(1.1 + l, 0.2, -0.1); },
     dispose() { own.forEach(x => x.dispose()); mats.forEach(m => m.dispose()); cordM.map.dispose(); g.removeFromParent(); } };
   L.setCord(0.12); return L;

@@ -526,20 +526,26 @@ export function install(S) {
   const LAUNCH_H = 2.4, CORD_MAX = 4.2;
   function launcherPose(L, x, z, side, cordLen, k) { const r = Math.hypot(x, z); L.g.position.set(x + 0.15 * side, hB(r) + LAUNCH_H * k, z); L.g.rotation.y = side > 0 ? 0 : Math.PI; L.g.scale.setScalar(0.62 * k); L.setCord(cordLen); }
   M.define('blades.ready', {
-    enter() { hideBar(); newRound(); ctx.canvas.style.cursor = 'grab'; B.shake = 0; B.stop = 0; B.slowT = 0; camTo(CX, CZ + R * 0.6, 10.5, 0, 36);
-      tip.innerHTML = 'Move to aim. Grab the ripcord and yank it out fast: the faster the pull, the better the rip.'; tip.classList.add('on'); hud.classList.add('on'); hudFrame(0, true);
+    enter() { hideBar(); newRound(); ctx.canvas.style.cursor = 'grab'; B.aimDrag = null; B.shake = 0; B.stop = 0; B.slowT = 0; camTo(CX, CZ + R * 0.6, 10.5, 0, 36);
+      tip.innerHTML = 'Drag the launcher (or A and D) to aim. Grab the ripcord and yank it out fast: the faster the pull, the better the rip.'; tip.classList.add('on'); hud.classList.add('on'); hudFrame(0, true);
       [B.myL, B.rvL].forEach(L => { if (L) L.dispose(); }); B.myL = makeLauncher(new THREE.Color().setHSL(dnaOf(B.slots[0]).hue, 0.8, 0.28)); B.rvL = makeLauncher(0xb3261e); stadium.add(B.myL.g, B.rvL.g);
       B.me.root.scale.setScalar(B.me.st.radius); B.lx = 0; B.pull = null; B.ripK = 1;
       const rs = B.rivalParts[0]; banner(B.score[0] + B.score[1] ? 'Round ' + (B.roundN = (B.roundN || 1) + 1) : 'Ready, set', 'Your rival: ' + esc((rs.photo && rs.photo.pack || 'Sample pack').replace(/\s*·.*$/, '')) + ' blade, ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip', 0); rimTo(tierCol(B.slots[0])); },
     pointer(kind, e) {
-      const P = B.pull;
-      if (kind === 'move' && !P) { const h = S.tableHit(e, LIFT); if (h) B.lx = T.clamp(h.x - CX, -R * 0.4, R * 0.4); return true; }
+      const P = B.pull, A = B.aimDrag;
+      /* the launcher stays where it is: drag its body to aim, take hold of the cord (or anywhere else) to pull */
+      const part = ev => { const h = B.myL && S.hitAny(ev, [B.myL.g]); if (!h) return null; let o = h.object; while (o) { if (B.myL.grab.includes(o)) return 'cord'; o = o.parent; } return 'body'; };
+      if (kind === 'move' && A) { const h = S.tableHit(e, LIFT + LAUNCH_H); if (h) B.lx = T.clamp(A.lx + (h.x - A.x), -R * 0.4, R * 0.4); return true; }
+      if (kind === 'up' && A) { B.aimDrag = null; ctx.canvas.style.cursor = 'grab'; return true; }
+      if (kind === 'move' && !P) { const k = part(e); ctx.canvas.style.cursor = k === 'body' ? 'ew-resize' : 'grab'; return true; }
+      if (kind === 'down' && e.button === 0 && part(e) === 'body') { const h = S.tableHit(e, LIFT + LAUNCH_H); if (h) { B.aimDrag = { x: h.x, lx: B.lx }; ctx.canvas.style.cursor = 'ew-resize'; return true; } }
       if (kind === 'down' && e.button === 0) { B.pull = { x: e.clientX, y: e.clientY, len: 0, tick: 0, pts: [{ t: performance.now(), d: 0 }] }; ctx.canvas.style.cursor = 'grabbing'; snd('servo'); hideBanner(); return true; }
       if (kind === 'move' && P) { const d = Math.hypot(e.clientX - P.x, e.clientY - P.y), now = performance.now(); P.pts.push({ t: now, d }); if (P.pts.length > 12) P.pts.shift();
         P.len = Math.min(CORD_MAX, d / 75 / 0.62); const sp = ripSpeed(P); if (Math.floor(P.len * 5) > P.tick) { P.tick = Math.floor(P.len * 5); if (S.snd && S.snd.tick) S.snd.tick(Math.min(1, sp / 3)); }
         if (P.len >= CORD_MAX) rip(); return true; }
       if (kind === 'up' && P) { rip(); return true; }
       return kind !== 'wheel'; },
+    key(e) { const k = e.key; if (k === 'a' || k === 'A' || k === 'ArrowLeft') { B.lx = T.clamp(B.lx - 0.3, -R * 0.4, R * 0.4); return true; } if (k === 'd' || k === 'D' || k === 'ArrowRight') { B.lx = T.clamp(B.lx + 0.3, -R * 0.4, R * 0.4); return true; } return false; },
     frame(dt) { if (!B.W) return; const [a, b] = B.W.tops, P = B.pull, dir = BS.statsOf(B.slots).dir;
       a.p.x = T.damp(a.p.x, B.lx, 12, dt); a.p.y = R * 0.62; b.p.x = 0; b.p.y = -R * 0.62;
       /* the cord winds the blade up as it comes out */
@@ -573,7 +579,7 @@ export function install(S) {
         if (gap > 0.1 && gap < 1.1 && close > 5.5 && Math.random() < 0.6) { B.cine = { t: 0.9, x: (a.p.x + b.p.x) / 2, z: (a.p.y + b.p.y) / 2 }; B.slowT = 0.9; B.slowK = 0.12; B.cineCd = 5; snd('rumble', { gain: 0.8, dur: 0.9 }); snd('glow'); } }
       const vdt = dt * BS.TIME; if (a.alive) pose(B.me, a, vdt); else deadFrame(B.me, a, vdt); if (b.alive) pose(B.rival, b, vdt); else deadFrame(B.rival, b, vdt);
       /* the camera leans towards the action, never far from the middle of the bowl */
-      const mx = (a.p.x + b.p.x) / 2, mz = (a.p.y + b.p.y) / 2; if (B.cine && B.cine.t > 0) { B.cine.t -= real; camTo(CX + B.cine.x, CZ + B.cine.z + 1.4, 4.2, real * 3, 30); } else camTo(CX + mx * 0.4, CZ + 2.0 + mz * 0.4, 12, real, 44);
+      const mx = (a.p.x + b.p.x) / 2, mz = (a.p.y + b.p.y) / 2; if (B.cine && B.cine.t > 0) { B.cine.t -= real; camTo(CX + B.cine.x, CZ + B.cine.z + 1.4, 4.2, real * 3, 30); } else { /* low and close, from your side, pulling out to keep both blades in frame as they part */ const gap = Math.hypot(a.p.x - b.p.x, a.p.y - b.p.y); camTo(CX + mx * 0.75, CZ + 0.7 + mz * 0.75, T.clamp(gap * 1.25 + 4.2, 6.5, 11.5), real, 33); }
       hudFrame(dt); const o = BS.outcome(W); if (o) M.go('blades.round', o); },
   });
   M.define('blades.round', { busy: true,

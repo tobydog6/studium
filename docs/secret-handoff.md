@@ -20,6 +20,11 @@ Sam's full brief is the "Studium secret collector layer" spec (unlock with `=` +
 - Vault and Loot Designs (https://claude.ai/artifact/C45kJ6jaFauCgepUnRcgit) and Round 2 (https://claude.ai/artifact/TtBRoRSyqjMiUuqk3PRjoN): hard case = ribbed polymer with graphite (not chrome) hardware · round opening = lift (the disc sinks into a lit shaft with the case on it and rises) · keypad = backlit rubber · reel = horizontal, neon rail look, no spotlight, raw prints on it (no grade) · loot button = red cap · dissolve = sand, fine grains · delivery = courier box.
 - Label (Round 2): textured black-and-gold / gold / black-and-tier-colour, rolled per pull; sub-grades Light, Frame, Moment, Print; holo verification sticker with the cert. Portrait: label on top, photo as wide as the label. Landscape: label stood on end down the left. Both slabs the same size.
 - The Pull (https://claude.ai/artifact/JX7vE1r4EKWcB5kj93z2RP): the whole loot run with the landing scaled by tier (common settle · uncommon foil sweep · rare spin + glints · epic starburst + sparks + flood · legendary slow-mo gold flood, embers, slam · mythic blackout, eclipse corona, 1 OF 1 stamp, flash). This is the spec for loot.js and holo.reveal.
+- Pull Environments (https://claude.ai/artifact/9GCWGpahkWJP9DFCB2RPXP): Darkroom · transition = the table rolls back · no haze.
+- Cases and Unboxing (https://claude.ai/artifact/8qSjRMUrs1nBtppHBVrh8V): case = 35 mm film canister · the three sit on three pedestals · unboxing = tape, flaps, tissue, lift · first look = count up.
+- Flip and Glow (https://claude.ai/artifact/TogBnHk8P1UgoShdj9XBqM): flip = turn with a burst · prompt = soft pulse. Prints ride the rail face down; the hover glow says finish or variant (new information), never the tier.
+- Card Backs (https://claude.ai/artifact/2WBkdvet41zhkqa8WMjDVG): blind emboss · colour carrier = bottom bar · hairline border, 2 mm · bright white paper · straight cut · glossy surface.
+- Sam, after those picks: "i want a playable test build as soon as you can".
 - Sam's loop: a pull comes out raw (no grade), goes away for grading (a real day; dev panel: a minute / instant / Skip the wait), and comes back as a parcel on the table; opening it is the grade reveal (slabs.js: sendForGrading / gradingState / receiveGraded).
 
 ## What the repo looks like

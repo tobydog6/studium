@@ -190,10 +190,10 @@
   function sdShutLoad(c){ if(SD.shBuf||!c||SD.shGet) return SD.shGet; SD.shGet=fetch(SHUTTER_SRC[0]).then(function(r){ return r.arrayBuffer(); }).then(function(ab){ return new Promise(function(ok,no){ c.decodeAudioData(ab,ok,no); }); }).then(function(bf){ SD.shBuf=bf; }).catch(function(){}); return SD.shGet; }
   function sdShutter(t){ var c=sdCtx(); if(!c) return; t=t==null?sdNow():t; var b=SD.shB&&SD.shB.context===c?SD.shB:(SD.shB=sdBus(0.22)); (SD_SHUT[SD_SH]||SD_SHUT[2])(b,t);   /* its own bus: a little room, not the music's big one */
     if(SD.drone){ sdDroneTo(1,t,0.05); } if(SD.vb){ SD.vb.gain.setTargetAtTime(0.0001,t+0.01,0.06); SD.vb=null; } if(sdVar("shot")) sdVar("shot")(sdSeq()||b,t); }
-  // ---- the soundtrack options (?snd=0..11, or localStorage studium_open_snd): each brings its bed, the film's start, the lens,
+  // ---- the soundtrack options (?snd=0..17, or localStorage studium_open_snd): each brings its bed, the film's start, the lens,
   //      the focus and the shot; 6 to 11 also their own title moment. tools/openingsound.mjs lays each under the film to compare ----
-  var SD_V=(function(){ var m=/[?&]snd=(\d+)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_snd"); if(v!=null) return +v; }catch(e){} return 3; })();   /* Strings is the default; ?snd=0..11 to compare */
-  var SD_VN=["As it is","Felt","Air","Strings","Pulse","Glass","Cinematic","Lo-fi","Deep drone","Electronic","Bush","Piano and cello"];
+  var SD_V=(function(){ var m=/[?&]snd=(\d+)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_snd"); if(v!=null) return +v; }catch(e){} return 12; })();   /* the drone is the default; ?snd=0..17 to compare */
+  var SD_VN=["As it is","Felt","Air","Strings","Pulse","Glass","Cinematic","Lo-fi","Deep drone","Electronic","Bush","Piano and cello","Drone","Drone carried through","Dark drone","Rising drone","Drone and choir","Drone in the bush"];
   function sdVar(k){ var v=SDV[SD_V]; return v&&v[k]||null; }
   function sdVBus(c,t,send){ var b=c.createGain(); b.gain.value=1; b.connect(SD.out); if(send){ var s=c.createGain(); s.gain.value=send; b.connect(s); s.connect(SD.verb); } SD.vb=b; return b; }   /* the beginning's own music: the shutter cuts it */
   function sdAir(c,bus,t,g0,lpf){ var s=c.createBufferSource(); s.buffer=SD.nb; s.loop=true; var lp=c.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=lpf||500; var hp=c.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=120; var g=c.createGain(); g.gain.value=g0;
@@ -302,7 +302,39 @@
           [[0,57],[4,54],[8,50],[12,52]].forEach(function(n){ sdFelt(vb,t+n[0]*B,sdMidi(n[1]-12),0.1,-0.15); sdFelt(vb,t+n[0]*B+B,sdMidi(n[1]),0.07,-0.1); sdCello(vb,t+n[0]*B,sdMidi(n[1]-12),4*B,0.06); }); },
         lens:function(b,t){ sdNoise(b,t,"bandpass",600,0.9,0.08,0.015,0.08,0.3,1600); },
         rack:function(b,t,D){ for(var i=0;i<8;i++) sdTick(b,t+D*0.85*(1-Math.pow(1-i/8,1.7)),3400,0.008); },
-        spin:function(b,t){ var w=t+0.7; [45,57,61,64,69,73,76].forEach(function(m,j){ sdFelt(b,w+j*0.07,sdMidi(m),0.12-j*0.008,(j-3)*0.12); }); sdCello(b,w,sdMidi(45),4,0.07); } } };
+        spin:function(b,t){ var w=t+0.7; [45,57,61,64,69,73,76].forEach(function(m,j){ sdFelt(b,w+j*0.07,sdMidi(m),0.12-j*0.008,(j-3)*0.12); }); sdCello(b,w,sdMidi(45),4,0.07); } },
+    /* 12 to 17: the drone, explored. All keep the original circle and title chord */
+    /* 12 · Drone: 8 as it was, with the original title */
+    12:{ bed:function(c,t){ SDV[8].bed(c,t); }, scan:function(b,t,D){ SDV[8].scan(b,t,D); }, lens:function(b,t){ SDV[8].lens(b,t); }, rack:function(b,t,D){ SDV[8].rack(b,t,D); } },
+    /* 13 · Drone, carried through: in A, the title chord's own key; it doesn't stop for the shot, it swells into the title */
+    13:{ bed:function(c,t){ SDV[8].bed(c,t); },
+        scan:function(b,t){ var F=LA_F; sdDrone(b,t,[27.5,55,82.41,110,123.47,164.81],F.len+3,0.009,140,1500);
+          [659.25,880,1318.51].forEach(function(f,i){ sdTone(b,t+3+i*1.4,f,"sine",3,0.006,F.len-6-i*1.4,3,null,(i-1)*0.6); }); },
+        lens:function(b,t){ SDV[8].lens(b,t); }, rack:function(b,t,D){ sdTone(b,t,1318.51,"sine",0.3,0.01,D-0.3,0.8); } },
+    /* 14 · Dark drone: lower and darker, a sub that breathes slowly, a little tape hiss; it holds its breath for the shot */
+    14:{ bed:function(c,t){ SDV[8].bed(c,t); },
+        scan:function(b,t){ var c=SD.ctx, F=LA_F, vb=sdVBus(c,t,1.1); sdDrone(vb,t,[27.5,55,82.41,103.83],F.fire+1,0.011,110,620);
+          var o=c.createOscillator(), g=c.createGain(), l=c.createOscillator(), lg=c.createGain(); o.frequency.value=41.2; l.frequency.value=0.22; lg.gain.value=0.05; g.gain.value=0.05; l.connect(lg); lg.connect(g.gain); o.connect(g); g.connect(vb); o.start(t); l.start(t); o.stop(t+F.fire+1); l.stop(t+F.fire+1);   /* the breath */
+          sdNoise(vb,t,"bandpass",3200,0.5,2,0.004,F.fire-2,0.4); },
+        lens:function(b,t){ SDV[8].lens(b,t); }, rack:function(b,t,D){ sdTone(b,t,880,"sine",0.3,0.006,D-0.3,0.6); } },
+    /* 15 · Rising drone: a slow climb in pitch over the drone, the tension building all the way to the shutter, then silence */
+    15:{ bed:function(c,t){ SDV[8].bed(c,t); },
+        scan:function(b,t){ var c=SD.ctx, F=LA_F, vb=sdVBus(c,t,1.2); sdDrone(vb,t,[55,82.41,110],F.fire+1,0.01,160,1400);
+          sdTone(vb,t+1,220,"sawtooth",3,0.004,F.fire-4.2,0.3,440); sdTone(vb,t+1,330,"sine",3,0.008,F.fire-4.2,0.3,660); sdTone(vb,t+2.5,660,"sine",3,0.005,F.fire-5.7,0.3,1320);   /* rising, all the way to the shot */
+          sdNoise(vb,t+F.fire-3,"highpass",1500,0.7,2.9,0.03,0.02,0.05,9000); },
+        lens:function(b,t){ SDV[8].lens(b,t); }, rack:function(b,t,D){ SDV[8].rack(b,t,D); } },
+    /* 16 · Drone and choir: an airy "ah" above the drone, carried through the shot into the title */
+    16:{ bed:function(c,t){ SDV[8].bed(c,t); },
+        scan:function(b,t){ var F=LA_F; sdDrone(b,t,[27.5,55,82.41],F.len+3,0.008,140,900); sdChoir(b,t+2,[220,277.18,329.63],F.len-0.5,0.012); sdChoir(b,t+5,[440,554.37],F.len-3.5,0.006); },
+        lens:function(b,t){ SDV[8].lens(b,t); }, rack:function(b,t,D){ sdTone(b,t,1318.51,"sine",0.3,0.008,D-0.3,0.8); } },
+    /* 17 · Drone in the bush: the drone low under the birds and the stream; the drone stops for the shot, the bush goes on */
+    17:{ bed:function(c,t){ SDV[10].bed(c,t); },
+        scan:function(b,t,D){ var c=SD.ctx, F=LA_F, vb=sdVBus(c,t,1.1); sdDrone(vb,t,[55,82.41,110,164.81],F.fire+1,0.007,150,1200); SDV[10].scan(b,t,D); },
+        lens:function(b,t){ SDV[10].lens(b,t); }, rack:function(b,t,D){ SDV[8].rack(b,t,D); } } };
+  function sdChoir(b,t,fs,dur,peak){ var c=SD.ctx, g=c.createGain(); sdEnv(g,t,dur*0.3,peak,dur*0.45,dur*0.25+1); g.connect(b);   /* "ah": saws through the vowel's three formants */
+    fs.forEach(function(f,i){ [-8,0,8].forEach(function(dt){ var o=c.createOscillator(), v=c.createOscillator(), vg=c.createGain(); o.type="sawtooth"; o.frequency.value=f; o.detune.value=dt; v.frequency.value=4.8+i*0.3+dt*0.02; vg.gain.value=f*0.004; v.connect(vg); vg.connect(o.frequency);
+      [[800,8,1],[1150,10,0.55],[2900,12,0.22]].forEach(function(F){ var bp=c.createBiquadFilter(), fg=c.createGain(); bp.type="bandpass"; bp.frequency.value=F[0]; bp.Q.value=F[1]; fg.gain.value=F[2]; o.connect(bp); bp.connect(fg); fg.connect(g); });
+      o.start(t); v.start(t); o.stop(t+dur+1.5); v.stop(t+dur+1.5); }); }); }
   // ---- the building blocks of 6 to 11 ----
   function sdMidi(m){ return 440*Math.pow(2,(m-69)/12); }
   function sdPad(b,t,fs,dur,peak,c0,c1){ var c=SD.ctx, lp=c.createBiquadFilter(), g=c.createGain(); lp.type="lowpass"; lp.Q.value=0.7; lp.frequency.setValueAtTime(c0,t); lp.frequency.exponentialRampToValueAtTime(c1,t+dur); sdEnv(g,t,dur*0.35,peak,dur*0.55,dur*0.25+0.6); lp.connect(g); g.connect(b);

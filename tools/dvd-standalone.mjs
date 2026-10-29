@@ -10,7 +10,7 @@ const js = r.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 const rs = readFileSync(join(ROOT, 'src', 'research.js'), 'utf8'), block = rs.slice(rs.indexOf('var RS_VIDS=['), rs.indexOf('];', rs.indexOf('var RS_VIDS=[')) + 2);
 const RS_VIDS = new Function(block + '; return RS_VIDS;')();
 const vids = []; RS_VIDS.forEach((g) => g.v.forEach((x) => vids.push({ id: x[0], a: g.a, t: x[1], s: x[2] || 0 })));
-const dev = { vids }; let devJs = 'window.DVD_DEV=' + JSON.stringify(dev) + ';';
+const dev = { vids, styles: true }; let devJs = 'window.DVD_DEV=' + JSON.stringify(dev) + ';';
 if (process.argv.includes('--samples')) devJs += 'window.DVD_DEV.thumb=function(id){ var S=' + JSON.stringify([1, 2, 3, 4, 5, 6].map((n) => b64(`assets/research/sample-${n}.jpg`, 'image/jpeg'))) + '; var h=0; for(var i=0;i<id.length;i++) h=(h*31+id.charCodeAt(i))|0; return S[Math.abs(h)%6]; };';
 const fonts = `@font-face{font-family:'Fraunces';font-weight:100 900;src:url(${b64('assets/fonts/fraunces.woff2', 'font/woff2')}) format('woff2')}
 @font-face{font-family:'Geist';font-weight:100 900;src:url(${b64('assets/fonts/geist.woff2', 'font/woff2')}) format('woff2')}

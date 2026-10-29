@@ -49,6 +49,11 @@ body.inapp .mast{ display:none; }
 #esc{ position:fixed; right:28px; top:24px; height:34px; padding:0 14px; border:1px solid rgba(244,241,234,.18); border-radius:17px; background:rgba(18,16,14,.6); color:var(--faint); font:500 10px/1 var(--f-mono); letter-spacing:.16em; cursor:pointer; opacity:0; pointer-events:none; transition:opacity .3s; }
 body.modal #esc{ opacity:1; pointer-events:auto; }
 #esc:hover{ color:var(--text); }
+#looks{ position:fixed; right:24px; top:72px; display:flex; flex-direction:column; gap:8px; padding:12px; border:1px solid rgba(244,241,234,.12); border-radius:12px; background:rgba(14,12,10,.72); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); z-index:5; }
+#looks div{ display:flex; align-items:center; gap:6px; } #looks span{ width:52px; font:500 9px/1 var(--f-mono); letter-spacing:.18em; color:var(--dim); }
+#looks button{ height:28px; padding:0 11px; border:1px solid rgba(244,241,234,.14); border-radius:14px; background:none; color:var(--faint); font:500 10px/1 var(--f-mono); letter-spacing:.1em; cursor:pointer; }
+#looks button:hover{ color:var(--text); } #looks button.on{ background:var(--accent); border-color:var(--accent); color:#16130f; }
+body.modal #looks{ opacity:0; pointer-events:none; }
 @media (max-width:760px){ #look{ left:50%; top:auto; bottom:24px; transform:translateX(-50%); width:88vw; text-align:center; } .btns{ justify-content:center; } .mast h1{ font-size:30px; } }
 </style>
 <canvas id="c"></canvas>

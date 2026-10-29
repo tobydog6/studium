@@ -145,7 +145,7 @@
   var DVD_B64="@@dvd-b64@@", dvdFrame=null, dvdHost=null;
   window.DVD_BRIDGE={
     data:function(){ var vids=[]; RS_VIDS.forEach(function(g){ g.v.forEach(function(x){ vids.push({id:x[0], a:g.a, t:x[1], s:x[2]||0}); }); });
-      return {vids:vids, canEmbed:/^https?:$/.test(location.protocol)}; },   /* YouTube only plays embeds on a page with a web address (error 153 from a file) */
+      return {vids:vids, canEmbed:/^https?:$/.test(location.protocol), styles:/[?&]dev/.test(location.search)}; },   /* ?dev shows the look switcher */   /* YouTube only plays embeds on a page with a web address (error 153 from a file) */
     sfx:function(id){ return sfx(id); },
     key:function(k){ if(k==="q"||k==="Q") stCycle(-1); else if(k==="e"||k==="E") stCycle(1); else if(k==="Escape"){ rsVidStop(); rs.view="shelf"; rs.pack=null; rsRender(); } }
   };

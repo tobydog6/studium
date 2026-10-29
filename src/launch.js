@@ -190,10 +190,10 @@
   function sdShutLoad(c){ if(SD.shBuf||!c||SD.shGet) return SD.shGet; SD.shGet=fetch(SHUTTER_SRC[0]).then(function(r){ return r.arrayBuffer(); }).then(function(ab){ return new Promise(function(ok,no){ c.decodeAudioData(ab,ok,no); }); }).then(function(bf){ SD.shBuf=bf; }).catch(function(){}); return SD.shGet; }
   function sdShutter(t){ var c=sdCtx(); if(!c) return; t=t==null?sdNow():t; var b=SD.shB&&SD.shB.context===c?SD.shB:(SD.shB=sdBus(0.22)); (SD_SHUT[SD_SH]||SD_SHUT[2])(b,t);   /* its own bus: a little room, not the music's big one */
     if(SD.drone){ sdDroneTo(1,t,0.05); } if(SD.vb){ SD.vb.gain.setTargetAtTime(0.0001,t+0.01,0.06); SD.vb=null; } if(sdVar("shot")) sdVar("shot")(sdSeq()||b,t); }
-  // ---- the soundtrack options (?snd=0..20, or localStorage studium_open_snd): each brings its bed, the film's start, the lens,
+  // ---- the soundtrack options (?snd=0..21, or localStorage studium_open_snd): each brings its bed, the film's start, the lens,
   //      the focus and the shot; 6 to 11 also their own title moment. tools/openingsound.mjs lays each under the film to compare ----
-  var SD_V=(function(){ var m=/[?&]snd=(\d+)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_snd"); if(v!=null) return +v; }catch(e){} return 18; })();   /* Attention, piano is the default; ?snd=0..20 to compare */
-  var SD_VN=["As it is","Felt","Air","Strings","Pulse","Glass","Cinematic","Lo-fi","Deep drone","Electronic","Bush","Piano and cello","Drone","Drone carried through","Dark drone","Rising drone","Drone and choir","Drone in the bush","Attention: piano","Attention: guitar","Attention: no music"];
+  var SD_V=(function(){ var m=/[?&]snd=(\d+)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_snd"); if(v!=null) return +v; }catch(e){} return 21; })();   /* camera only is the default; ?snd=0..21 to compare */
+  var SD_VN=["As it is","Felt","Air","Strings","Pulse","Glass","Cinematic","Lo-fi","Deep drone","Electronic","Bush","Piano and cello","Drone","Drone carried through","Dark drone","Rising drone","Drone and choir","Drone in the bush","Attention: piano","Attention: guitar","Attention: no music","Camera only"];
   function sdVar(k){ var v=SDV[SD_V]; return v&&v[k]||null; }
   function sdVBus(c,t,send){ var b=c.createGain(); b.gain.value=1; b.connect(SD.out); if(send){ var s=c.createGain(); s.gain.value=send; b.connect(s); s.connect(SD.verb); } SD.vb=b; return b; }   /* the beginning's own music: the shutter cuts it */
   function sdAir(c,bus,t,g0,lpf){ var s=c.createBufferSource(); s.buffer=SD.nb; s.loop=true; var lp=c.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=lpf||500; var hp=c.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=120; var g=c.createGain(); g.gain.value=g0;
@@ -337,7 +337,10 @@
        sound like a good gallery or documentary, on a laptop's own speakers. The three differ only in the voice */
     18:{ bed:function(c,t){ sdWorld(c,t); }, scan:function(b,t){ sdBirds(t,false); sdScore(b,t,"piano"); }, lens:sdNarrow, rack:sdRing, spin:function(b,t){ sdRise(b,t); sdResolve(b,t+0.7,"piano"); } },
     19:{ bed:function(c,t){ sdWorld(c,t); }, scan:function(b,t){ sdBirds(t,false); sdScore(b,t,"guitar"); }, lens:sdNarrow, rack:sdRing, spin:function(b,t){ sdRise(b,t); sdResolve(b,t+0.7,"guitar"); } },
-    20:{ bed:function(c,t){ sdWorld(c,t); }, scan:function(b,t){ sdBirds(t,true); }, lens:sdNarrow, rack:sdRing, spin:function(b,t){ sdRise(b,t); var w=t+0.7; sdBellbird(SD.bedPre||b,w+0.1,0.2); sdBellbird(SD.bedPre||b,w+1.3,-0.3); } } };
+    20:{ bed:function(c,t){ sdWorld(c,t); }, scan:function(b,t){ sdBirds(t,true); }, lens:sdNarrow, rack:sdRing, spin:function(b,t){ sdRise(b,t); var w=t+0.7; sdBellbird(SD.bedPre||b,w+0.1,0.2); sdBellbird(SD.bedPre||b,w+1.3,-0.3); } },
+    /* 21 · Camera only: nothing pretending to be an instrument or a bird. Quiet air, and the camera close: it comes up,
+       the world dims, the focus ring, the shutter; the air opens out again and the name lands in near silence */
+    21:{ bed:function(c,t){ sdWorld(c,t); }, scan:function(){}, lens:sdNarrow, rack:sdRing, spin:function(b,t){ sdRise(b,t); } } };
   // ---- Attention's parts ----
   /* the place: wind through the canopy and the leaves, fading in, through a filter the camera can close */
   function sdWorld(c,t){ var bus=sdBedBus(c,t), lp=c.createBiquadFilter(), pre=c.createGain(); lp.type="lowpass"; lp.frequency.value=9000; lp.Q.value=0.5; pre.gain.value=1.8; pre.connect(lp); lp.connect(bus); SD.bedLP=lp; SD.bedPre=pre;

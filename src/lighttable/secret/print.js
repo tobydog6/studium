@@ -83,7 +83,7 @@ export function makePrint(slab, S) {
   obj.dispose = () => { obj.disposed = true; group.traverse(m => { if (m.isMesh) { m.geometry.dispose(); [].concat(m.material).forEach(mt => { ['map', 'emissiveMap', 'normalMap'].forEach(k => { if (mt[k] && mt[k] !== obj.parts.photoTex) mt[k].dispose(); }); mt.dispose(); }); } }); if (obj.parts.photoTex) obj.parts.photoTex.dispose(); if (group.parent) group.parent.remove(group); };
   return obj;
 }
-const GLOSS = { roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.08, envMapIntensity: 1 };
+const GLOSS = { roughness: 0.4, clearcoat: 0.45, clearcoatRoughness: 0.2, envMapIntensity: 0.18 };   /* the room env map washed the photo out at full strength */
 function build(obj, S, env) {
   const { slab, inner, base } = obj, aspect = base.width / base.height, full = slab.variant === 'full', clear = slab.variant === 'clear', neg = slab.variant === 'negative';
   const land = aspect > 1.05, lw = S.SM.SLAB.lw, border = full ? 0 : PRINT.border, th = PRINT.th, tier = S.SL.tierOf(slab);

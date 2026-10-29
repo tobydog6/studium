@@ -54,14 +54,14 @@ export function install(S) {
       b.showSpread();
     },
     exit: next => b.leave(next),
-    on: { CLOSE: (p, M) => { if (M.state === 'vault.binder') M.go('vault.binder.closing'); } },
+    on: { CLOSE: (p, M) => { if (M.state === 'vault.binder') M.go('vault.binder.closing'); }, CASE: (p, M) => { if (M.state === 'vault.binder') M.go('vault.binder.closing', { toCase: true }); } },
     pointer, key, frame,
   });
   M.define('vault.binder.closing', { busy: true,
     async enter(d, run) {
       await b.closeCover(); if (!run.alive()) return;
       /* the binder becomes the case again, then the vault lowers it the way it came up */
-      if (S.vault && S.vault.caseBack && M.defined('vault.closing')) { await S.vault.caseBack(b.root); if (!run.alive()) return; b.root.visible = false; M.go('vault.closing', { fromBinder: true }); }
+      if (S.vault && S.vault.caseBack && M.defined('vault.closing')) { await S.vault.caseBack(b.root); if (!run.alive()) return; b.root.visible = false; M.go(d && d.toCase ? 'vault.case' : 'vault.closing', d && d.toCase ? { quiet: true } : { fromBinder: true }); }
       else { S.cam.pop(); M.go('idle'); }
     },
     exit: next => b.leave(next), on: { CLOSE: () => {} }, frame,

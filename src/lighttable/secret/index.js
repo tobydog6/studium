@@ -107,6 +107,11 @@ export function installSecret(ctx) {
   /* the HUD keeps up with the clock so AWAY turns into a parcel without a click */
   setInterval(() => { if (S.unlocked()) hud(); }, 5000);
   S.hud = hud;
+  /* a small bar while the vault or binder is open: the way back to the case, and out */
+  const nav = S.el('div', 'sk-nav', ''); nav.id = 'skNav'; document.body.appendChild(nav); nav.addEventListener('pointerdown', e => e.stopPropagation());
+  nav.addEventListener('click', e => { const b = e.target.closest('[data-ev]'); if (b) M.send(b.dataset.ev); });
+  const NAV = { 'vault.case': [['CLOSE', 'Close the vault']], 'vault.keypad': [['CLOSE', 'Close the vault']], 'vault.lid': [['CLOSE', 'Close the vault']], 'vault.binder': [['CASE', 'Back to the case'], ['CLOSE', 'Close']], 'binder.open': [['CLOSE', 'Close the binder']] };
+  M.onChange(st => { const b = NAV[st]; nav.innerHTML = b ? b.map(x => '<button type="button" data-ev="' + x[0] + '">' + x[1] + '</button>').join('') : ''; nav.classList.toggle('on', !!b); });
 
   /* ---------- the three diegetic buttons ---------- */
   function pushButton(color) { const g = new THREE.Group(); const bezel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.21, 0.07, 28), BRASS()); bezel.position.y = 0.035;
@@ -267,14 +272,14 @@ export function installSecret(ctx) {
     pointer(kind, e) {
       if (inspect.active()) return inspect.pointer(kind, e);
       if (M.state === 'locked') return false;
-      const r = M.pointer(kind, e); return r || M.active();
+      const r = M.pointer(kind, e); return r || M.busy();   /* the table stays usable while a case or binder is simply open */
     },
     key(e) {
       if (e.key === '=' && !e.ctrlKey && !e.metaKey && !e.altKey) { if (inspect.active()) { inspect.close('back'); return true; } if (M.active()) { M.send('CLOSE'); return true; } showBox(); return true; }
       if (e.key === '`' && S.unlocked()) { dev.toggle(); return true; }
       if (inspect.active() && inspect.key(e)) return true;
       if (M.state === 'locked') return false;
-      return M.key(e) || M.active();
+      return M.key(e) || M.busy();
     },
     frame(dt, now) {
       T.tick(dt); P.particleFrame(dt); placeLoot();
@@ -298,4 +303,8 @@ const BASE_CSS = `
 #skPts.on{ opacity:1; }
 #skSkip{ position:fixed; right:max(16px, env(safe-area-inset-right,0px)); bottom:calc(36px + env(safe-area-inset-bottom,0px)); font:500 10px/1 var(--f-mono); letter-spacing:.14em; text-transform:uppercase; color:var(--text); background:rgba(20,18,16,.78); border:1px solid rgba(244,241,234,.25); border-radius:999px; padding:7px 12px; cursor:pointer; z-index:4; }
 #skSkip:hover{ border-color:rgba(244,241,234,.6); }
+#skNav{ position:fixed; left:50%; bottom:calc(74px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); display:flex; gap:8px; opacity:0; pointer-events:none; transition:opacity .3s; z-index:6; }
+#skNav.on{ opacity:1; pointer-events:auto; }
+#skNav button{ font:500 11px/1 var(--f-mono); letter-spacing:.12em; text-transform:uppercase; color:var(--text); background:rgba(20,18,16,.82); border:1px solid rgba(244,241,234,.28); border-radius:999px; padding:9px 14px; cursor:pointer; }
+#skNav button:hover{ border-color:rgba(244,241,234,.65); }
 `;

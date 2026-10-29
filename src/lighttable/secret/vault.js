@@ -207,9 +207,9 @@ export function install(S) {
     enter(d, run) { S.cam.set(FRAME()); if (run.from === 'vault.open') S.toast('The vault. Click the keypad on the front and put the code in.'); },
     on: { KEYPAD: () => 'vault.keypad', BINDER: () => 'vault.tobinder' },
     pointer(kind, e, M) {
-      if (kind === 'move') { frontHover(hitFront(e)); return true; }
-      if (kind === 'down') { if (e.button !== 0) return true; const h = hitFront(e); if (h === 'keypad') M.send('KEYPAD'); else if (h === 'binder') pressBinder(); return true; }
-      return true; },
+      if (kind === 'move') { const h = hitFront(e); frontHover(h); return !!h; }
+      if (kind === 'down') { if (e.button !== 0) return true; const h = hitFront(e); if (h === 'keypad') M.send('KEYPAD'); else if (h === 'binder') pressBinder(); return !!h; }
+      return false; },
     exit() { frontHover(null); },
   });
   function pressBinder() { V.btn.userData.cap.userData.press = 1; S.sfx('detent'); M.send('BINDER'); }
@@ -251,9 +251,9 @@ export function install(S) {
     on: { BINDER: () => 'vault.tobinder' },
     pointer(kind, e, M) {
       if (V.inspecting) return true;
-      if (kind === 'move') { const h = S.hitAny(e, slabGroups()); if (h) { setHover(V.slabs.find(s => s.obj.group === h.root) || null); frontHover(null); } else { setHover(null); frontHover(hitFront(e) === 'binder' ? 'binder' : null); } return true; }
-      if (kind === 'down') { if (e.button !== 0) return true; const h = S.hitAny(e, slabGroups()); if (h) { const s = V.slabs.find(s => s.obj.group === h.root); if (s) inspectCaseSlab(s); return true; } if (hitFront(e) === 'binder') pressBinder(); return true; }
-      return true; },
+      if (kind === 'move') { const h = S.hitAny(e, slabGroups()); if (h) { setHover(V.slabs.find(s => s.obj.group === h.root) || null); frontHover(null); return true; } setHover(null); const f = hitFront(e) === 'binder'; frontHover(f ? 'binder' : null); return f; }
+      if (kind === 'down') { if (e.button !== 0) return false; const h = S.hitAny(e, slabGroups()); if (h) { const s = V.slabs.find(s => s.obj.group === h.root); if (s) inspectCaseSlab(s); return true; } if (hitFront(e) === 'binder') { pressBinder(); return true; } return false; }
+      return false; },
     exit() { setHover(null); frontHover(null); },
   });
 

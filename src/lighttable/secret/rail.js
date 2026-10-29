@@ -24,7 +24,7 @@ const K = 0.4;                 /* prints on the rail at the table's card scale *
 const BAR_Y = 0.55, HANG = 0.2;   /* the rail bar above the table top; clip and string down to the top of a print */
 const DEEP = -5.0, BENCH_Y = -1.95, SUNK = -4.6, UP = 1.55;   /* risen, the whole rail hangs above the table top so nothing is cut off */   /* the darkroom floor, the bench, where the rail waits in the dark */
 const ROLLBACK = 0.3;          /* how often the reel passes the winner and rolls back */
-const BACK_MAX = 3;
+const BACK_MAX = 1;   /* the roll-back is one slot, slow: it never jumps away from the winner */
 
 export function install(S) {
   const { T } = S, E = T.E, ctx = S.ctx;
@@ -125,8 +125,9 @@ export function install(S) {
   /* ---------- the reel plan: slots over time, with the long deceleration, the near miss or the roll-back ---------- */
   function plan(n, win) {
     const laps = Math.max(2, Math.round(34 / n)), target = win + laps * n, rollback = Math.random() < ROLLBACK, back = 1 + Math.floor(Math.random() * BACK_MAX);
-    const A = rollback ? target + back + 0.32 : target - 0.46, B = rollback ? target - 0.09 : target + 0.08;
-    return { target, rollback, back, RUN: 7.0, PAUSE: rollback ? 0.6 : 0.55, BD: rollback ? 1.6 : 1.3, CD: 0.5, A, B, total: 7.0 + (rollback ? 0.6 : 0.55) + (rollback ? 1.6 : 1.3) + 0.5 };
+    const A = rollback ? target + 0.78 : target - 0.42, B = rollback ? target - 0.1 : target + 0.07;
+    const PAUSE = rollback ? 0.35 : 0.3, BD = rollback ? 1.9 : 1.2;
+    return { target, rollback, back, RUN: 7.0, PAUSE, BD, CD: 0.5, A, B, total: 7.0 + PAUSE + BD + 0.5 };
   }
   function reelPos(p, u) {
     if (u <= 0) return 0;
@@ -163,7 +164,7 @@ export function install(S) {
     const up = T.to(rg.rig.position, { y: UP }, { dur: 2.4, ease: E.inOutCubic, tag: 'rail' });
     /* the prints' photos arrive while it rises; the pitch of the slots fits the widest */
     await Promise.race([Promise.all(slots.map(s => s.obj.ready.catch(() => null))), T.wait(5, 'rail')]); if (!alive()) return;
-    r.pitch = Math.max(2.0, ...slots.filter(s => s.obj.built).map(s => s.obj.w * K)) + 0.4;
+    r.pitch = Math.max(1.4, ...slots.filter(s => s.obj.built).map(s => s.obj.w * K)) + 0.14;
     await up; if (!alive()) return;
     S.snd && S.snd.play('servo'); await T.wait(0.35, 'rail'); if (!alive()) return;
     /* the reel */
@@ -242,17 +243,17 @@ export function install(S) {
     } else r.blur *= Math.exp(-dt * 6);
     r.tick *= Math.exp(-dt * 14);
     rg.marker.rotation.z = -r.tick * 0.45 * Math.sign(r.vel || 1); rg.mg.material.opacity = 0.35 + 0.65 * r.tick; rg.line.material.opacity = r.landed ? Math.max(0.08, 0.7 - (t - r.landed)) : 0.7;
-    const n = slots.length, total = n * r.pitch, half = total / 2, lag = T.clamp(-r.vel * r.pitch / 30, -1, 1) * 0.16;
+    const n = slots.length, total = n * r.pitch, half = total / 2, lag = T.clamp(-r.vel * r.pitch / 30, -1, 1) * 0.05;
     slots.forEach(s => {
       if (!s.placed && s.obj.built) placeHanger(s);
       if (s === r.winner && r.phase !== 'reel' && r.phase !== 'rise') return;
       let x = (s.i - r.pos) * r.pitch; x = ((x + half) % total + total) % total - half; const vis = Math.abs(x) < rm.span; s.h.visible = vis; s.h.position.x = x;
       s.swing += (lag - s.swing) * (1 - Math.exp(-dt * 9)); s.h.rotation.z = s.swing;
       /* the pass: prints bank into the motion, bob on their strings, and the one under the marker pops and flashes on each tick */
-      if (r.phase === 'reel') { const near = Math.exp(-x * x / Math.max(0.6, r.pitch * 0.5)); s.h.rotation.y = -T.clamp(r.vel * r.pitch / 40, -1, 1) * 0.42; s.h.position.y = BAR_Y + 0.07 * r.blur * Math.sin(x * 1.1 + t * 11);
-        s.spin.scale.setScalar(1 + 0.14 * r.tick * near); if (s.back) s.back.material.color.setScalar(1 + 0.9 * r.tick * near); }
-      else if (r.phase === 'rise') { s.h.rotation.y = 0; s.h.position.y = BAR_Y; }
-      s.streak.material.opacity = 0.7 * r.blur; s.streak.scale.x = 0.3 + r.blur * 2.2; s.streak.position.x = -Math.sign(r.vel || 1) * r.blur * 1.1;
+      if (r.phase === 'reel') { const near = Math.exp(-x * x / Math.max(0.6, r.pitch * 0.5)); s.h.rotation.y = -T.clamp(r.vel * r.pitch / 40, -1, 1) * 0.1; s.h.position.y = BAR_Y;
+        s.spin.scale.setScalar(1 + 0.05 * r.tick * near); if (s.back) s.back.material.color.setScalar(0.78 + 0.22 * r.tick * near); }
+      else if (r.phase === 'rise') { s.h.rotation.y = 0; s.h.position.y = BAR_Y; if (s.back) s.back.material.color.setScalar(0.78); }
+      s.streak.material.opacity = 0.35 * r.blur; s.streak.scale.x = 0.3 + r.blur * 1.4; s.streak.position.x = -Math.sign(r.vel || 1) * r.blur * 0.8;
       if (r.landed && s !== r.winner) { s.dim += (0.3 - s.dim) * (1 - Math.exp(-dt * 4)); if (s.back) s.back.material.color.setScalar(s.dim); }
     });
     /* the landed print: the breath of the prompt, the rim in the finish colour, the burst and ring of the flip, the wobble after */

@@ -144,6 +144,8 @@ export function install(S) {
     async enter(d, run) {
       L.pushed = true; S.lockStand(true); S.cam.push(FRAME()); ctx.hideActs(); S.sfx('ltInspect'); hideBar();
       await S.clearPrints([X0 - 0.6, Z0 - 0.6, ctx.W_T / 2, Z1 + 0.6], S.dev.opt('clearing')); if (!run.alive()) return;
+      /* the photo tray sits over the pit: it slides forward out of the way and comes back at the end */
+      if (ctx.tray && !L.trayAway) { L.trayAway = true; S.sfx('lift'); T.to(ctx.tray.position, { x: ctx.TR.x + 2.4, z: ctx.TR.z + 5.6 }, { dur: 0.8, ease: E.inOutCubic, tag: 'loot' }); }
       /* the stand camera dissolves (if the stand is up) while the arm swings aside */
       await S.arm.aside(); if (!run.alive()) return;
       /* after aside: the arm raises a folded stand itself, so only now is the camera on it for sure */
@@ -204,9 +206,8 @@ export function install(S) {
     async enter(d, run) {
       const to = landingSpot(), yaw = (Math.random() - 0.5) * 0.3; let obj = d && d.obj;
       if (obj) {
-        const y = (obj.th || S.SM.SLAB.th) / 2 + 0.004; closeRail();
-        await S.arm.carry(obj, S.rail.landing.clone(), new THREE.Vector3(to.x, y, to.z), { yaw }); if (!run.alive()) return;
-        S.table.adopt(obj, to.x, to.z, yaw);
+        /* Sam: the print stays up close in view; OK (or a click on the room) lays it on the table and closes up */
+        closeRail(); L.obj = obj; M.go('loot.result', { fresh: true }); return;
       } else {
         closeRail(); obj = S.objFor(L.slab); S.table.adopt(obj, to.x, to.z, yaw, { drop: true });
         await T.wait(0.7, 'loot'); if (!run.alive()) return;
@@ -218,7 +219,15 @@ export function install(S) {
     L.closeP = Promise.resolve(p).catch(() => null).then(() => { L.railLive = false; L.closeP = null; }); }
 
   M.define('loot.result', {
-    enter() { const t = S.SL.tierOf(L.slab); showBar('print'); S.toast(t.name + ' · ' + L.slab.title + '. Send it for grading, or open another.'); },
+    async enter(d, run) { const t = S.SL.tierOf(L.slab); S.toast(t.name + ' · ' + L.slab.title + '.');
+      if (!(d && d.fresh)) { showBar('print'); return; }
+      const obj = L.obj; if (!obj) { showBar('print'); return; }
+      S.slabs.adopt(obj); const r = await S.inspect.open(obj, { actions: [{ id: 'grade', label: 'Send for grading' }, { id: 'another', label: 'Open another' }, { id: 'ok', label: 'OK', primary: true }], hint: 'Drag to turn it, scroll to zoom. OK puts it on the table.' });
+      while (S.inspect.active()) await T.wait(0.05); if (!run.alive()) return;
+      const to = landingSpot(), yaw = (Math.random() - 0.5) * 0.3; S.table.adopt(obj, to.x, to.z, yaw, { drop: true });
+      if (r === 'grade') { await T.wait(0.6); if (!run.alive()) return; L.obj = null; S.sendForGrading(obj); await T.wait(0.6); if (!run.alive()) return; M.send('CLOSE'); return; }
+      if (r === 'another') { await T.wait(0.5); if (!run.alive()) return; M.go('loot.rise'); return; }
+      await T.wait(0.5); if (!run.alive()) return; M.send('CLOSE'); },
     pointer(kind, e) {
       const g = L.obj && L.obj.where === 'table' ? L.obj.group : null;
       if (kind === 'move') { const h = g && S.hit(e, g); ctx.canvas.style.cursor = h ? 'pointer' : 'default'; return true; }
@@ -239,7 +248,9 @@ export function install(S) {
   M.define('loot.closing', { busy: true,
     on: { CLOSE: () => undefined },
     async enter(d, run) {
-      T.cancelAll('loot'); hideBar(); setHot(-1); L.handX = null; L.lightT = 0; L.obj = null; if (S.inspect.active()) S.inspect.close('back');
+      T.cancelAll('loot'); hideBar(); setHot(-1); L.handX = null; L.lightT = 0; if (S.inspect.active()) S.inspect.close('back');
+      /* closed while the print was still up: it still goes on the table */
+      if (L.obj && L.obj.where !== 'table') { const to = landingSpot(); S.table.adopt(L.obj, to.x, to.z, (Math.random() - 0.5) * 0.3, { drop: true }); } L.obj = null;
       closeRail(); if (L.closeP) await L.closeP;
       L.cans.forEach(c => { if (c.open > 0) c.group.visible = false; });
       if (pedsUp()) await sinkPeds(run);
@@ -248,6 +259,7 @@ export function install(S) {
       /* the camera reforms on the arm before it rests; if the arm folds the stand away the camera goes with it */
       if (L.aimGone) { L.aimGone = false; await P.reform(ctx.aim, { mode: S.dev.opt('dissolve'), dur: 0.9, spread: 2 }); }
       await S.arm.rest();
+      if (L.trayAway) { L.trayAway = false; await T.to(ctx.tray.position, { x: ctx.TR.x, z: ctx.TR.z }, { dur: 0.7, ease: E.inOutCubic }); }
       S.lockStand(false); if (L.pushed) { S.cam.pop(); L.pushed = false; } S.sfx('detent');
       M.go('idle');
     },

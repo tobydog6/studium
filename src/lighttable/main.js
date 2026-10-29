@@ -1761,7 +1761,7 @@ requestAnimationFrame(()=>{
 /* ================= the secret collector layer (src/lighttable/secret/): hidden until = and "secret" ================= */
 try{ SECRET=installSecret({ scene, camera, renderer, canvas, cam, placeCam, focus, fitDist, clampCam, prints, drag, restack, saveAll, toast, hint, SFX, HOST, HOLE,
   kit, kitLid, KIT, stand, clampG, poleG, yawJ, j1, j2, aim, STAND, setStand, poseStand, solveArm, CL, POLE, L1, L2, FOLD, springs, placeSpring,
-  binder, BINDER, board, BX, BZ, BW, BH, BOARD_Y, padW, PAD_W, WALL_Z, SHELF, surfMat, bodyMat, tableBody, W_T, H_T, LAYER, PILE,
+  binder, BINDER, board, BX, BZ, BW, BH, BOARD_Y, tray, TR, padW, PAD_W, WALL_Z, SHELF, surfMat, bodyMat, tableBody, W_T, H_T, LAYER, PILE,
   ray, ndc, setNDC, planeHit, wallHit, mouse, hideActs, closeCtx, closeInspect, closeBinder, openBinder, library, libById, paintPhoto, KINDS, mulberry, $,
   isBusy:()=>!!(drag.p||inspected||SH.busy||SCAN.busy||BD.el.classList.contains('on')||TRV.el.classList.contains('on')), tourOn:()=>TOUR.on }); }
 catch(e){ console.error('secret layer', e); }

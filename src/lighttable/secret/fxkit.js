@@ -260,7 +260,7 @@ Object.assign(FR, {
   ascii: `uniform sampler2D uGlyph;
     void main(){ float cols=130.0; vec2 cell=vec2(cols,cols/uAsp*0.62); vec2 g=vUv*cell; vec2 id=floor(g); vec2 f=fract(g); vec2 cuv=(id+0.5)/cell;
     vec3 p=texture2D(uTex,cuv,1.5).rgb; float l=luma(p); float d=Dp(cuv); float idx=floor(clamp(pow(l,0.8)*1.2,0.0,0.999)*10.0);
-    float gl=texture2D(uGlyph,vec2((idx+f.x)/10.0,f.y)).r; vec3 phos=mix(vec3(0.08,0.85,0.3),vec3(0.75,1.0,0.85),smoothstep(0.5,0.9,d)*min(uK,1.5)/1.5);
+    float gl=texture2D(uGlyph,vec2((idx+f.x)/10.0,f.y)).r; float cpp=max(fwidth(g.x),fwidth(g.y)); gl=mix(gl,(idx/10.0)*0.55,smoothstep(0.18,0.4,cpp)); vec3 phos=mix(vec3(0.08,0.85,0.3),vec3(0.75,1.0,0.85),smoothstep(0.5,0.9,d)*min(uK,1.5)/1.5);
     float scan=0.78+0.22*sin(vUv.y*cell.y*6.2832); float fl=0.96+0.04*sin(uT*50.0); float roll=0.9+0.1*smoothstep(0.0,0.06,abs(fract(vUv.y-uT*0.07)-0.5));
     vec3 c=phos*gl*(1.0+1.6*d)*scan*fl*roll+phos*0.03; gl_FragColor=vec4(c,1.0);`,
   kal: `void main(){ vec2 A=vec2(uAsp,1.0); vec2 p=(vUv-0.5)*A; float n=floor(4.0+uK*3.2); float seg=6.2832/n; float r=length(p);

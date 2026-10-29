@@ -22,7 +22,7 @@ export function install(S) {
   const { T, M, SL, SM, ctx, store } = S, E = T.E;
   const [X0, Z0, X1, Z1] = S.under.rect, CX = (X0 + X1) / 2, CZ = (Z0 + Z1) / 2, R = BS.BOWL.R, DEP = BS.BOWL.depth;
   const ENV = SM.envMap(S.renderer);
-  const B = { shake: 0, stop: 0, slowT: 0, slowK: 1, gallery: [], slots: [null, null, null], active: 0, loaners: [], score: [0, 0], W: null, me: null, rival: null, acc: 0, drag: null, pushed: false, debris: [], thumbs: new Map(), preview: null, rivalParts: null, specialT: 0 };
+  const B = { spares: [], cine: null, cineCd: 0, shake: 0, stop: 0, slowT: 0, slowK: 1, gallery: [], slots: [null, null, null], active: 0, loaners: [], score: [0, 0], W: null, me: null, rival: null, acc: 0, drag: null, pushed: false, debris: [], thumbs: new Map(), preview: null, rivalParts: null, specialT: 0 };
   const hB = r => DEP * Math.min(1, (r / R) * (r / R));
 
   /* ---------- the launcher on the dark side: a ripcord launcher with a little blade on it ---------- */
@@ -68,6 +68,33 @@ export function install(S) {
       const glow = new THREE.Mesh(new THREE.TorusGeometry(R + 0.12, 0.035, 6, 64, a1 - a0), railMat); glow.rotation.set(Math.PI / 2, 0, a0); glow.position.y = DEP + 0.14; stadium.add(glow);
       const xs = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), new THREE.MeshBasicMaterial({ map: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.strokeStyle = '#ff7a2a'; g.lineWidth = 9; g.lineCap = 'round'; g.beginPath(); g.moveTo(14, 14); g.lineTo(50, 50); g.moveTo(50, 14); g.lineTo(14, 50); g.stroke(); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })(), transparent: true, toneMapped: false, depthWrite: false }));
       const am = (a0 + a1) / 2; xs.position.set(Math.cos(am) * (R + 0.28), DEP + 0.43, Math.sin(am) * (R + 0.28)); xs.rotation.x = -Math.PI / 2; stadium.add(xs); }); }
+  /* ---------- the stadium body: a black square base round the bowl, like a real one on the floor ---------- */
+  const HALF = R + 1.5;
+  { const sh = new THREE.Shape(), c = 1.4; sh.moveTo(-HALF + c, -HALF); sh.lineTo(HALF - c, -HALF); sh.quadraticCurveTo(HALF, -HALF, HALF, -HALF + c); sh.lineTo(HALF, HALF - c); sh.quadraticCurveTo(HALF, HALF, HALF - c, HALF);
+    sh.lineTo(-HALF + c, HALF); sh.quadraticCurveTo(-HALF, HALF, -HALF, HALF - c); sh.lineTo(-HALF, -HALF + c); sh.quadraticCurveTo(-HALF, -HALF, -HALF + c, -HALF);
+    const hole = new THREE.Path(); hole.absarc(0, 0, R + 0.44, 0, Math.PI * 2, true); sh.holes.push(hole);
+    const body = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: DEP + 0.42 + LIFT, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 3, curveSegments: 48 }).rotateX(-Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0x111115, roughness: 0.42, metalness: 0.25, envMap: ENV, envMapIntensity: 0.6 }));
+    body.position.y = -LIFT - 0.06; stadium.add(body); }
+  /* spare blades waiting on the corners: yours near you, your rival's across the bowl */
+  const SPOTS = [[-1, 1], [1, 1], [-1, -1], [1, -1]].map(([x, z]) => [x * (HALF - 0.95), z * (HALF - 0.95)]);
+  function clearSpares() { (B.spares || []).forEach(bl => { bl.dispose(); bl.slabs.forEach(x => { if (x.loaner || x.spare) { SM.forgetPhoto(x.id); DNA.delete(x.id); } }); }); B.spares = []; }
+  function spareSets() { const d = store.get(), n0 = d.certN, mineLeft = mine().filter(x => !B.slots.includes(x)).sort(() => Math.random() - 0.5), sets = [];
+    for (let i = 0; i < 2; i++) { const own = mineLeft.splice(0, 3); while (own.length < 3) { const r = SL.roll({ graded: true }); r.spare = true; own.push(r); } sets.push(own); }
+    for (let i = 0; i < 2; i++) sets.push([0, 1, 2].map(() => { const r = SL.roll({ graded: true, tier: B.rivalParts[0].tier }); r.spare = true; return r; }));
+    d.certN = n0; return sets; }
+  function placeSpares(sets) { clearSpares(); B.spares = sets.map((p, i) => { const bl = makeBlade(p, BS.statsOf(p)); bl.root.position.set(SPOTS[i][0], DEP + 0.42, SPOTS[i][1]); bl.spin.rotation.y = i * 1.7; bl.root.scale.multiplyScalar(0.9); bl.halo.visible = false; return bl; }); }
+  /* ---------- metal flying off: shards from both blades on the big hits ---------- */
+  const SHN = 48, SHD = [], shGeo = new THREE.TetrahedronGeometry(0.07);
+  for (let i = 0; i < SHN; i++) { const m = new THREE.Mesh(shGeo, new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 1, roughness: 0.22, envMap: ENV, envMapIntensity: 1.5, flatShading: true })); m.visible = false; m.userData = { life: 0, v: new THREE.Vector3(), w: new THREE.Vector3() }; stadium.add(m); SHD.push(m); }
+  let shN = 0;
+  function shards(x, y, z, n, cols, spd) { for (let k = 0; k < n; k++) { const m = SHD[shN++ % SHN], u = m.userData, a = Math.random() * 6.2832, s = spd * (0.5 + Math.random());
+      m.visible = true; m.position.set(x, y, z); m.material.color.copy(cols[k % cols.length]); m.scale.setScalar(0.6 + Math.random() * 1.2); u.life = 1.4 + Math.random() * 0.6; u.v.set(Math.cos(a) * s, 2 + Math.random() * spd * 0.8, Math.sin(a) * s); u.w.set(Math.random() * 30, Math.random() * 30, Math.random() * 30); } }
+  function shardFrame(dt) { SHD.forEach(m => { const u = m.userData; if (!m.visible) return; u.life -= dt; if (u.life <= 0) { m.visible = false; return; }
+      u.v.y -= 14 * dt; m.position.addScaledVector(u.v, dt); m.rotation.x += u.w.x * dt; m.rotation.y += u.w.y * dt; m.rotation.z += u.w.z * dt;
+      const r = Math.hypot(m.position.x, m.position.z), floor = r < R ? hB(r) + 0.03 : r < HALF ? DEP + 0.45 : -LIFT + 0.02;
+      if (m.position.y < floor) { m.position.y = floor; u.v.y = Math.abs(u.v.y) * 0.3; u.v.x *= 0.6; u.v.z *= 0.6; u.w.multiplyScalar(0.5); }
+      if (u.life < 0.4) m.scale.multiplyScalar(Math.max(0, 1 - dt * 6)); }); }
   /* ---------- impact flashes and shockwaves ---------- */
   const FL = [], WV = [];
   for (let i = 0; i < 8; i++) { const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: null, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })); f.userData.life = 0; stadium.add(f); FL.push(f); }
@@ -124,7 +151,7 @@ export function install(S) {
   const photoMat = (tex, o) => new THREE.MeshStandardMaterial({ map: tex, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 0.32, roughness: 0.42, metalness: 0, envMap: ENV, envMapIntensity: 0.35, ...(o || {}) });
   /* the blur a fast spin makes of the face: its own colours as rings, the metal at the edge */
   function blurTex(dna, metal) { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), rad = dna.radial || [[128, 128, 128]], gr = g.createRadialGradient(128, 128, 0, 128, 128, 128);
-    rad.forEach((p, i) => gr.addColorStop(i / rad.length * 0.74, 'rgba(' + p.map(Math.round).join(',') + ',1)')); const mc = new THREE.Color(metal);
+    gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.44, 'rgba(0,0,0,0)'); rad.forEach((p, i) => gr.addColorStop(0.46 + i / rad.length * 0.28, 'rgba(' + p.map(Math.round).join(',') + ',1)')); const mc = new THREE.Color(metal);
     gr.addColorStop(0.76, 'rgba(' + [mc.r, mc.g, mc.b].map(v => Math.round(v * 255)).join(',') + ',1)'); gr.addColorStop(0.97, 'rgba(' + [mc.r, mc.g, mc.b].map(v => Math.round(v * 200)).join(',') + ',0.9)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = gr; g.fillRect(0, 0, 256, 256); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
   const FACE = 0.74;
@@ -136,16 +163,13 @@ export function install(S) {
     const finishOver = (slab, tex, geo, parent, y, sy) => { const fid = SL.finishOf(slab, S.testFinish ? S.testFinish() : null), def = SM.finishDef(fid);
       try { const fm = def && def.make ? def.make({ THREE, slab, obj: null, w: 2, h: 2, photoTex: tex, tier: SL.tierOf(slab), renderer: S.renderer, envMap: ENV, finish: fid }) : null;
         if (!fm) { geo.dispose(); return null; } fm.geometry.dispose(); fm.geometry = geo; fm.position.y = y; if (sy) fm.scale.y = sy; fm.renderOrder = 2; parent.add(fm); keep(fm); fins.push({ m: fm, def }); return fm; } catch (e) { console.error('blade finish', e); geo.dispose(); return null; } };
-    /* the bit (tip): tier-coloured plastic on a metal shaft; its photo is the chip on top, in a metal bezel */
+    /* the bit (tip): its photo printed on it, tinted by its tier, on a metal shaft with a ring of tier light */
     const plastic = keep(new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshPhysicalMaterial({ color: tierCol(c), roughness: 0.3, clearcoat: 0.8, envMap: ENV, envMapIntensity: 0.6 }))).material, cmet = metalOf(c); mats.push(cmet);
     const tg = st.tip === 'sharp' ? new THREE.ConeGeometry(0.2, sp.len, sp.ribs) : st.tip === 'flat' ? new THREE.CylinderGeometry(sp.flare, 0.2, sp.len, sp.ribs) : new THREE.SphereGeometry(0.22, 24, 16);
     const tipM = keep(new THREE.Mesh(tg, plastic)); if (st.tip === 'sharp') { tipM.rotation.x = Math.PI; tipM.position.y = sp.len / 2; } else tipM.position.y = st.tip === 'ball' ? 0.22 : sp.len / 2; gTip.add(tipM);
     const neck = keep(new THREE.Mesh(new THREE.CylinderGeometry(0.3, sp.flare, 0.12, sp.ribs), cmet)); neck.position.y = sp.len; gTip.add(neck);
-    const ctex = photoTex(c), chip = keep(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.32, 0.08, 40), [photoMat(ctex, { emissiveIntensity: 0.4 }), photoMat(ctex), new THREE.MeshStandardMaterial({ color: 0x111111 })]));
-    { const uv = chip.geometry.attributes.uv, pos = chip.geometry.attributes.position; for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getY(i)) > 0.039) uv.setXY(i, pos.getX(i) / 0.64 + 0.5, -pos.getZ(i) / 0.64 + 0.5); }
-    chip.position.y = 0.8 + lift; chip.scale.y = 0.6 + sp.dome * 0.5; gTip.add(chip);
-    const bezel = keep(new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.045, 10, 48), cmet)); bezel.rotation.x = Math.PI / 2; bezel.position.y = 0.83 + lift; gTip.add(bezel);
-    const led = keep(new THREE.Mesh(new THREE.TorusGeometry(0.385, 0.014, 6, 48), new THREE.MeshBasicMaterial({ color: tierCol(c), toneMapped: false }))); led.rotation.x = Math.PI / 2; led.position.y = 0.83 + lift; gTip.add(led);
+    const ctex = photoTex(c); tipM.material = photoMat(ctex, { color: new THREE.Color(tierCol(c)).lerp(new THREE.Color(0xffffff), 0.5), roughness: 0.3, emissiveIntensity: 0.25 }); mats.push(tipM.material);
+    const led = keep(new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.025, 6, 48), new THREE.MeshBasicMaterial({ color: tierCol(c), toneMapped: false }))); led.rotation.x = Math.PI / 2; led.position.y = sp.len + 0.06; gTip.add(led);
     /* the ratchet (weight disc): its lathe profile and its photo, banded with its metal */
     const dmet = metalOf(b); mats.push(dmet);
     const prof = BSH.discProfile(db).map(p => new THREE.Vector2(p[0], p[1])), facets = BSH.discFacets(db);
@@ -155,17 +179,27 @@ export function install(S) {
     finishOver(b, dtex, new THREE.LatheGeometry(prof.map(p => new THREE.Vector2(p.x * 1.01, p.y)), facets), gDisc, 0.42 + lift);
     /* the blade (attack ring): a metal blade cut to the photo's own outline, the photo as a raised face in it, the finish shimmering on the metal */
     const shape = ringShape(a, st.dir, da), dep = BSH.ringDepth(da), ry = 0.62 + lift, clear = a.variant === 'clear', amet = metalOf(a); mats.push(amet);
-    const blade = keep(new THREE.Mesh(planarUV(new THREE.ExtrudeGeometry(shape, { depth: dep * 0.75, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.025, bevelSegments: 3, curveSegments: 6 }).rotateX(-Math.PI / 2)), amet)); blade.position.y = ry; gRing.add(blade);
-    const face = new THREE.Shape(); face.absarc(0, 0, FACE, 0, Math.PI * 2, false); const fh = new THREE.Path(); fh.absarc(0, 0, BSH.ringHole(da), 0, Math.PI * 2, true); face.holes.push(fh);
-    BSH.ringWindows(da).forEach(w => { const p = new THREE.Path(); p.absarc(Math.cos(w.a) * w.r, Math.sin(w.a) * w.r, w.s, 0, Math.PI * 2, true); face.holes.push(p); });
-    const ptex = photoTex(a), faceM = keep(new THREE.Mesh(planarUV(new THREE.ExtrudeGeometry(face, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 2, curveSegments: 48 }).rotateX(-Math.PI / 2), FACE), photoMat(ptex, clear ? { transparent: true, opacity: 0.6 } : {})));
-    faceM.position.y = ry + dep * 0.75; gRing.add(faceM);
-    { const band = new THREE.Shape(shape.getPoints(6)); const inner = new THREE.Path(); inner.absarc(0, 0, FACE + 0.01, 0, Math.PI * 2, true); band.holes.push(inner); finishOver(a, ptex, planarUV(new THREE.ShapeGeometry(band, 6).rotateX(-Math.PI / 2)), gRing, ry + dep * 0.75 + 0.032); }
-    const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(shape.getPoints(6).map(p => new THREE.Vector3(p.x, 0, -p.y))), new THREE.LineBasicMaterial({ color: tierCol(a), toneMapped: false, transparent: true, opacity: 0.8 })); edge.position.y = ry + dep * 0.75 + 0.035; gRing.add(edge); keep(edge);
+    amet.flatShading = true;   /* faceted metal, like a real blade's cut edges */
+    const dm = dep * 0.75, blade = keep(new THREE.Mesh(planarUV(new THREE.ExtrudeGeometry(shape, { depth: dm, bevelEnabled: true, bevelThickness: 0.035, bevelSize: 0.03, bevelSegments: 2, curveSegments: 6 }).rotateX(-Math.PI / 2)), amet)); blade.position.y = ry; gRing.add(blade);
+    /* the plastic wing layer: the outline turned a little and drawn in, tinted by the photo's own colour, the photo printed through it */
+    const hue = new THREE.Color().setHSL(da.hue, da.sat > 0.15 ? 0.85 : 0.05, da.sat > 0.15 ? 0.5 : 0.16), turn = 0.22 * st.dir, EMB = 0.44;
+    const wing = new THREE.Shape(shape.getPoints(6).map(p => new THREE.Vector2((p.x * Math.cos(turn) - p.y * Math.sin(turn)) * 0.8, (p.x * Math.sin(turn) + p.y * Math.cos(turn)) * 0.8)));
+    { const h = new THREE.Path(); h.absarc(0, 0, EMB - 0.02, 0, Math.PI * 2, true); wing.holes.push(h); BSH.ringWindows(da).forEach(w => { const p = new THREE.Path(); p.absarc(Math.cos(w.a) * w.r, Math.sin(w.a) * w.r, w.s * 0.8, 0, Math.PI * 2, true); wing.holes.push(p); }); }
+    const ptex = photoTex(a), wingM = keep(new THREE.Mesh(planarUV(new THREE.ExtrudeGeometry(wing, { depth: 0.07, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 2, curveSegments: 6 }).rotateX(-Math.PI / 2), 0.92),
+      photoMat(ptex, { color: hue.clone().lerp(new THREE.Color(0xffffff), 0.3), transparent: true, opacity: clear ? 0.5 : 0.92, emissive: hue, emissiveIntensity: 0.3, roughness: 0.2, metalness: 0 })));
+    wingM.position.y = ry + dm + 0.01; gRing.add(wingM);
+    finishOver(a, ptex, planarUV(new THREE.ShapeGeometry(wing, 6).rotateX(-Math.PI / 2), 0.92), gRing, ry + dm + 0.12);
+    /* the emblem: the whole photo, raised in the middle, in a bezel of its tier's colour */
+    const emb = new THREE.Shape(); emb.absarc(0, 0, EMB, 0, Math.PI * 2, false); const eh = new THREE.Path(); eh.absarc(0, 0, 0.06, 0, Math.PI * 2, true); emb.holes.push(eh);
+    const embM = keep(new THREE.Mesh(planarUV(new THREE.ExtrudeGeometry(emb, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.015, bevelSegments: 2, curveSegments: 48 }).rotateX(-Math.PI / 2), EMB), photoMat(ptex, { emissiveIntensity: 0.4, roughness: 0.3 })));
+    embM.position.y = ry + dm + 0.06; gRing.add(embM);
+    const bez = keep(new THREE.Mesh(new THREE.TorusGeometry(EMB + 0.03, 0.055, 10, 64), new THREE.MeshStandardMaterial({ color: tierCol(a), emissive: tierCol(a), emissiveIntensity: 0.45, roughness: 0.25, metalness: 0.4, envMap: ENV })));
+    bez.rotation.x = Math.PI / 2; bez.position.y = ry + dm + 0.16; gRing.add(bez);
+    const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(shape.getPoints(6).map(p => new THREE.Vector3(p.x, 0, -p.y))), new THREE.LineBasicMaterial({ color: tierCol(a), toneMapped: false, transparent: true, opacity: 0.55 })); edge.position.y = ry + dm + 0.004; gRing.add(edge); keep(edge);
     /* the spin: a blur of the face's own colours over the top as it gets fast (not on the spin group, so it doesn't strobe) */
     const btex = blurTex(da, METALS[SL.finishOf(a)] ? METALS[SL.finishOf(a)][0] : 0x8a9099); myTex.push(btex);
-    const halo = keep(new THREE.Mesh(new THREE.CircleGeometry(1.06, 64), new THREE.MeshBasicMaterial({ map: btex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }))); halo.rotation.x = -Math.PI / 2; halo.position.y = ry + dep * 0.75 + 0.1; halo.renderOrder = 3; tilt.add(halo);
-    const glint = keep(new THREE.Mesh(new THREE.RingGeometry(0.86, 1.05, 48, 1, 0, 0.9), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide }))); glint.rotation.x = -Math.PI / 2; glint.position.y = ry + dep * 0.75 + 0.11; glint.renderOrder = 4; tilt.add(glint);
+    const halo = keep(new THREE.Mesh(new THREE.CircleGeometry(1.06, 64), new THREE.MeshBasicMaterial({ map: btex, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }))); halo.rotation.x = -Math.PI / 2; halo.position.y = ry + dep * 0.75 + 0.22; halo.renderOrder = 3; tilt.add(halo);
+    const glint = keep(new THREE.Mesh(new THREE.RingGeometry(0.86, 1.05, 48, 1, 0, 0.9), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide }))); glint.rotation.x = -Math.PI / 2; glint.position.y = ry + dep * 0.75 + 0.23; glint.renderOrder = 4; tilt.add(glint);
     /* grounded: a soft shadow and a dark contact spot under the tip */
     const shadow = S.shadow(2.6, 2.6); shadow.position.y = 0.02; root.add(shadow); keep(shadow); const contact = S.shadow(0.9, 0.9); contact.material.opacity = 0.8; contact.position.y = 0.025; root.add(contact); keep(contact); const bl0 = {};
     if (who) { const mk = keep(new THREE.Mesh(new THREE.RingGeometry(1.2, 1.3, 64), new THREE.MeshBasicMaterial({ color: who === 'me' ? 0xe3ad57 : 0xe4552e, transparent: true, opacity: 0.7, depthWrite: false, toneMapped: false, side: THREE.DoubleSide }))); mk.rotation.x = -Math.PI / 2; mk.position.y = 0.05; root.add(mk); bl0.marker = mk; }
@@ -175,7 +209,7 @@ export function install(S) {
     tGeo.setAttribute('position', new THREE.BufferAttribute(tPos, 3)); tGeo.setAttribute('color', new THREE.BufferAttribute(tCol, 3)); tGeo.setIndex(idx);
     const trail = new THREE.Mesh(tGeo, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide })); trail.frustumCulled = false; trail.visible = false; stadium.add(trail); keep(trail);
     const bl = { root, tilt, spin, parts: [gRing, gDisc, gTip], halo, glint, fins, st, slabs: parts, who, marker: bl0.marker || null, vang: 0, drop: 0, dead: null, deadT: 0, vy: 0, fly: null, tiltN: new THREE.Quaternion(), whirr: null,
-      trail, hist: [], trailCol: new THREE.Color(tierCol(a)).lerp(new THREE.Color(0xffffff), 0.25),
+      trail, hist: [], metalCol: new THREE.Color(amet.color), trailCol: new THREE.Color(tierCol(a)).lerp(new THREE.Color(0xffffff), 0.25),
       dispose() { if (bl.whirr) bl.whirr.stop(); root.removeFromParent(); trail.removeFromParent(); bl.parts.forEach(p => p.removeFromParent()); new Set([...geos, ...mats, ...myTex]).forEach(x => { try { x.dispose(); } catch (e) {} }); } };
     texs = null;
     stadium.add(root); return bl;
@@ -202,7 +236,7 @@ export function install(S) {
     bl.tilt.quaternion.slerp(bl.tiltN, 1 - Math.exp(-dt * 20));
     /* the real spin, and the blur of it: the faster it goes the more the face melts into rings of its own colours */
     bl.vang += t.w * dt; bl.spin.rotation.y = -bl.vang; const aw = Math.abs(t.w), blur = T.clamp((aw - 14) / 26, 0, 1);
-    bl.halo.material.opacity = 0.6 * blur; bl.glint.material.opacity = 0.35 * blur; bl.glint.rotation.z = -bl.vang * 0.07;
+    bl.halo.material.opacity = 0.45 * blur; bl.glint.material.opacity = 0.35 * blur; bl.glint.rotation.z = -bl.vang * 0.07;
     const a = t.ang * 0.08 + T.time() * 0.6; bl.fins.forEach(f => { try { f.def.update(f.m, { tilt: new THREE.Vector2(Math.cos(a) * 0.7, Math.sin(a) * 0.7), pointer: new THREE.Vector2(0.5, 0.5), dt, time: T.time() }); } catch (e) {} });
     if (bl.whirr) bl.whirr.set(t.alive ? s : 0, t.p.x / R);
     trailPush(bl, t.alive ? spd : 0);
@@ -301,7 +335,8 @@ export function install(S) {
       if (e.type === 'hit') { const y = hB(Math.hypot(e.x, e.y)) + 0.45, n = Math.min(90, Math.round(8 + e.k * 16)); spark(e.x, y, e.y, n, [tierCol(B.me.slabs[0]), tierCol(B.rival.slabs[0]), 0xffe2a0, 0xffffff], 2.5 + e.k * 1.2);
         flash(e.x, y, e.y, e.k, e.k > 3 ? 0xffffff : 0xffe2a0); B.shake = Math.max(B.shake, Math.min(0.45, e.k * 0.06));
         /* the big ones land: a shockwave, a freeze frame, and the really big ones go to slow motion */
-        if (e.k > 2.5) wave(e.x, e.y, e.k); if (e.k > 3) B.stop = Math.min(0.12, 0.04 + e.k * 0.012); if (e.k > 5.5) { B.slowT = 0.45; B.slowK = 0.35; }
+        if (e.k > 2.5) { wave(e.x, e.y, e.k); shards(e.x, y, e.y, Math.min(14, Math.round(e.k * 2.2)), [B.me.metalCol, B.rival.metalCol], 1.5 + e.k * 0.6); }
+        if (B.cine && B.cine.t > 0) { B.cine.t = Math.min(B.cine.t, 0.35); B.slowT = 0.12; B.slowK = 0.4; B.shake = Math.max(B.shake, 0.7); flash(e.x, y, e.y, 9, 0xffffff); wave(e.x, e.y, 9, 0xffffff); shards(e.x, y, e.y, 18, [B.me.metalCol, B.rival.metalCol], 5); } if (e.k > 3) B.stop = Math.min(0.12, 0.04 + e.k * 0.012); if (e.k > 5.5) { B.slowT = 0.45; B.slowK = 0.35; }
         if (e.k > 1.6) snd('slam', { vol: Math.min(1, e.k / 4) }); else if (S.snd && S.snd.tick) S.snd.tick(Math.min(1, e.k / 2)); }
       else if (e.type === 'wall') { if (e.k > 0.6 && S.snd && S.snd.tick) S.snd.tick(Math.min(1, e.k / 3), true); spark(e.x, DEP + 0.2, e.y, Math.round(e.k * 4), 0xffd08a, 1.5); }
       else if (e.type === 'shield') { banner('Stamped!', 'One burst saved', 1300); snd('chime', { tier: 'rare' }); }
@@ -336,7 +371,7 @@ export function install(S) {
       if (f.y < floor) { f.y = floor; f.vy = Math.abs(f.vy) * 0.3; f.vx *= 0.5; f.vz *= 0.5; f.spin *= 0.5; } bl.root.position.set(f.x, f.y, f.z); t.ang += f.spin * dt; bl.spin.rotation.y = -t.ang; bl.tilt.rotation.x += dt * 2; if (bl.whirr) bl.whirr.set(0.3, f.x / R); } }
 
   /* ---------- the machine ---------- */
-  const FRAME = () => ({ tx: CX, ty: LIFT, tz: CZ + 0.8, pitch: 55, dT: ctx.fitDist(11, 11.5, 55) });
+  const FRAME = () => ({ tx: CX, ty: LIFT, tz: CZ + 1.0, pitch: 55, dT: ctx.fitDist(2 * R + 4, 2 * R + 4.5, 55) });
   /* ease the camera towards a framing (dt) or set it for the room's own smoothing to take there (no dt) */
   function camTo(tx, tz, size, dt, pitch) { const c = ctx.cam, pt = pitch || 55, d = ctx.fitDist(size, size, pt); if (dt) { c.tx = T.damp(c.tx, tx, 2.5, dt); c.tz = T.damp(c.tz, tz, 2.5, dt); c.dT = T.damp(c.dT, d, 2.5, dt); c.pitch = T.damp(c.pitch, pt, 2.5, dt); } else { c.tx = tx; c.tz = tz; c.dT = d; c.pitch = pt; } }
   /* You and Rival tags over the blades while they're in the bowl */
@@ -347,7 +382,7 @@ export function install(S) {
     on: { CLOSE: () => 'blades.closing' },
     key(e, M) { if (e.key === 'Escape') M.send('CLOSE'); return true; },
     pointer(kind, e) { if (kind === 'wheel') { ctx.cam.dT = T.clamp(ctx.cam.dT * Math.exp(e.deltaY * 0.0012), 8, 40); } return true; },
-    frame(dt) { dt = Math.min(dt, 0.05); sparkFrame(dt); debrisFrame(dt); fxFrame(dt); if (!M.is('blades.build.inspect')) battleTags();
+    frame(dt) { dt = Math.min(dt, 0.05); sparkFrame(dt); debrisFrame(dt); fxFrame(dt); shardFrame(dt); if (!M.is('blades.build.inspect')) battleTags(); (B.spares || []).forEach(bl => { bl.spin.rotation.y += dt * 0.15; });
       B.gallery.forEach(g => { g.ang += dt * 2; g.spin.rotation.y = -g.ang; });
       if (B.preview && M.is('blades.build') && !M.is('blades.build.inspect')) { B.preview.ang += dt * 9; B.preview.spin.rotation.y = -B.preview.ang; B.preview.fins.forEach(f => { try { f.def.update(f.m, { tilt: new THREE.Vector2(Math.cos(B.preview.ang * 0.1) * 0.7, Math.sin(B.preview.ang * 0.1) * 0.7), pointer: new THREE.Vector2(0.5, 0.5), dt, time: T.time() }); } catch (e) {} }); } },
   });
@@ -363,7 +398,7 @@ export function install(S) {
     },
   });
   M.define('blades.build', {
-    enter(d) { if (M.prev === 'blades.build.inspect') { renderCard(); card.classList.add('on'); return; } hud.classList.remove('on'); hideBar(); hideBanner(); tip.classList.remove('on'); clearBlades(); camTo(CX, CZ + 0.8, 11); B.slots = B.slots.map(s => s && byId(s.id) ? s : null); if (!B.slots.every(Boolean)) { const n = B.slots.findIndex(x => !x); B.active = n >= 0 ? n : 0; } renderCard(); card.classList.add('on'); buildPreview(); },
+    enter(d) { if (M.prev === 'blades.build.inspect') { renderCard(); card.classList.add('on'); return; } hud.classList.remove('on'); hideBar(); hideBanner(); tip.classList.remove('on'); clearBlades(); clearSpares(); camTo(CX, CZ + 1.0, 2 * R + 3.5); B.slots = B.slots.map(s => s && byId(s.id) ? s : null); if (!B.slots.every(Boolean)) { const n = B.slots.findIndex(x => !x); B.active = n >= 0 ? n : 0; } renderCard(); card.classList.add('on'); buildPreview(); },
     exit(next) { card.classList.remove('on'); if (!/^blades\.build/.test(next || '')) dropPreview(); },
   });
   function dropPreview() { if (B.preview) { B.preview.dispose(); B.preview = null; } B.gallery.forEach(g => { g.dispose(); g.slabs.forEach(x => { SM.forgetPhoto(x.id); DNA.delete(x.id); }); }); B.gallery = []; }
@@ -401,7 +436,7 @@ export function install(S) {
   });
   function lookBar() { showBar([['back', 'Back'], ['apart', B.look && B.look.apart ? 'Put it together' : 'Take it apart'], ['fight', 'Fight', true]]); }
   M.define('blades.ready', {
-    enter() { hideBar(); newRound(); ctx.canvas.style.cursor = 'grab'; B.shake = 0; B.stop = 0; B.slowT = 0; camTo(CX, CZ + 2.2, 7.5, 0, 36); tip.innerHTML = 'Drag down to pull back, left or right to aim. Let go to rip.'; tip.classList.add('on'); hud.classList.add('on'); hudFrame(0, true); const rs = B.rivalParts[0]; banner(B.score[0] + B.score[1] ? 'Round ' + (B.roundN = (B.roundN || 1) + 1) : 'Pull back and let go', 'Your rival: ' + esc((rs.photo && rs.photo.pack || 'Sample pack').replace(/\s*·.*$/, '')) + ' ring, ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip', 0); rimTo(tierCol(B.slots[0])); },
+    enter() { hideBar(); newRound(); ctx.canvas.style.cursor = 'grab'; B.shake = 0; B.stop = 0; B.slowT = 0; camTo(CX, CZ + R * 0.6, 10.5, 0, 36); tip.innerHTML = 'Drag down to pull back, left or right to aim. Let go to rip.'; tip.classList.add('on'); hud.classList.add('on'); hudFrame(0, true); const rs = B.rivalParts[0]; banner(B.score[0] + B.score[1] ? 'Round ' + (B.roundN = (B.roundN || 1) + 1) : 'Pull back and let go', 'Your rival: ' + esc((rs.photo && rs.photo.pack || 'Sample pack').replace(/\s*·.*$/, '')) + ' ring, ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip', 0); rimTo(tierCol(B.slots[0])); },
     pointer(kind, e) {
       if (kind === 'down' && e.button === 0) { B.drag = { x: e.clientX, y: e.clientY, power: 0, aim: 0 }; ctx.canvas.style.cursor = 'grabbing'; snd('servo'); return true; }
       if (kind === 'move' && B.drag) { const D = B.drag; D.power = T.clamp((e.clientY - D.y) / 220, 0, 1); D.aim = T.clamp(-(e.clientX - D.x) / 260, -0.7, 0.7); return true; }
@@ -423,9 +458,13 @@ export function install(S) {
       B.me.drop *= Math.exp(-dt * 14); B.rival.drop *= Math.exp(-dt * 14);
       B.acc += dt; const ev = []; while (B.acc >= 1 / 120) { B.acc -= 1 / 120; BS.step(W, 1 / 120, ev); if (BS.aiThink(W, b, 1 / 120)) BS.special(W, b, ev); }
       fx(ev);
+      /* now and then, just before a big crash: everything slows, the camera dives in, then it lands */
+      B.cineCd = (B.cineCd || 0) - real;
+      if (a.alive && b.alive && !(B.cine && B.cine.t > 0) && B.cineCd <= 0 && B.slowT <= 0 && W.t > 1.5) { const nx = b.p.x - a.p.x, nz = b.p.y - a.p.y, d = Math.hypot(nx, nz) || 1, gap = d - a.st.radius - b.st.radius, close = -((b.v.x - a.v.x) * nx + (b.v.y - a.v.y) * nz) / d;
+        if (gap > 0.1 && gap < 1.1 && close > 5.5 && Math.random() < 0.6) { B.cine = { t: 0.9, x: (a.p.x + b.p.x) / 2, z: (a.p.y + b.p.y) / 2 }; B.slowT = 0.9; B.slowK = 0.12; B.cineCd = 5; snd('rumble', { gain: 0.8, dur: 0.9 }); snd('glow'); } }
       if (a.alive) pose(B.me, a, dt); else deadFrame(B.me, a, dt); if (b.alive) pose(B.rival, b, dt); else deadFrame(B.rival, b, dt);
       /* the camera leans towards the action, never far from the middle of the bowl */
-      const mx = (a.p.x + b.p.x) / 2, mz = (a.p.y + b.p.y) / 2; camTo(CX + mx * 0.4, CZ + 1.6 + mz * 0.4, 8.6, real, 44);
+      const mx = (a.p.x + b.p.x) / 2, mz = (a.p.y + b.p.y) / 2; if (B.cine && B.cine.t > 0) { B.cine.t -= real; camTo(CX + B.cine.x, CZ + B.cine.z + 1.4, 4.2, real * 3, 30); } else camTo(CX + mx * 0.4, CZ + 2.0 + mz * 0.4, 12, real, 44);
       hudFrame(dt); const o = BS.outcome(W); if (o) M.go('blades.round', o); },
   });
   M.define('blades.round', { busy: true,
@@ -438,14 +477,14 @@ export function install(S) {
       if (B.score[0] >= BS.WIN_AT || B.score[1] >= BS.WIN_AT) M.go('blades.result'); else M.go('blades.ready'); },
   });
   M.define('blades.result', {
-    enter() { const win = B.score[0] >= BS.WIN_AT; hudFrame(0, true); camTo(CX, CZ + 0.8, 11); banner(win ? 'You win the match' : 'Your rival takes it', B.score[0] + ' to ' + B.score[1], 0); snd(win ? 'countFinal' : 'sink'); if (win) snd('chime', { tier: 'legendary' });
+    enter() { const win = B.score[0] >= BS.WIN_AT; hudFrame(0, true); camTo(CX, CZ + 1.0, 2 * R + 3.5); banner(win ? 'You win the match' : 'Your rival takes it', B.score[0] + ' to ' + B.score[1], 0); snd(win ? 'countFinal' : 'sink'); if (win) snd('chime', { tier: 'legendary' });
       showBar([['done', 'Done'], ['rebuild', 'Change parts'], ['rematch', 'Rematch', true]]); },
     exit() { hideBar(); },
   });
   M.define('blades.closing', { busy: true, on: { CLOSE: () => undefined },
     /* whatever goes wrong on the way down, the stadium goes, the pit closes and the camera comes back */
     async enter(d, run) { let doorsShut = false;
-      try { card.classList.remove('on'); hud.classList.remove('on'); tags.classList.remove('on'); tip.classList.remove('on'); hideBar(); hideBanner(); B.drag = null; clearBlades(); dropPreview();
+      try { card.classList.remove('on'); hud.classList.remove('on'); tags.classList.remove('on'); tip.classList.remove('on'); hideBar(); hideBanner(); B.drag = null; clearBlades(); clearSpares(); dropPreview();
         snd('sink', { dur: 1.4 }); T.to(spot, { intensity: 0 }, { dur: 1.2, tag: 'blades' });
         await T.tween({ dur: 0.5, ease: E.inBack, tag: 'blades', update: e => stadium.scale.setScalar(1 - 0.5 * e) });
         await T.to(stadium.position, { y: DOWN }, { dur: 1.2, ease: E.inCubic, tag: 'blades' });
@@ -457,7 +496,8 @@ export function install(S) {
   });
   function forgetRival() { if (B.rivalParts) B.rivalParts.forEach(s => { SM.forgetPhoto(s.id); DNA.delete(s.id); }); B.rivalParts = null; }
   function startMatch() { if (B.starting) return; B.starting = true; B.score = [0, 0]; B.roundN = 1; forgetRival(); const parts = B.rivalParts = rollRival();
-    Promise.all(B.slots.concat(parts).map(loadDNA)).then(() => { B.starting = false; if (B.rivalParts === parts && (M.is('blades.build') || M.is('blades.result'))) M.go('blades.ready'); }); }
+    const sets = spareSets();
+    Promise.all(B.slots.concat(parts, sets.flat()).map(loadDNA)).then(() => { B.starting = false; if (B.rivalParts === parts && (M.is('blades.build') || M.is('blades.result'))) { placeSpares(sets); M.go('blades.ready'); } }); }
   function act(a) {
     if (a === 'close' || a === 'done') M.send('CLOSE');
     else if (a === 'borrow') { borrow(); randomPick(); }

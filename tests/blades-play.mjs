@@ -26,7 +26,7 @@ try {
   for (let i = 0; i < 40 && (await step(10)) !== 'blades.build'; i++);
   await step(20); await shot('1-build');
   await page.evaluate(() => H.S.blades.gallery()); for (let i = 0; i < 20; i++) { await step(5); if (await page.evaluate(() => H.S.blades.state.gallery.length)) break; await page.waitForTimeout(200); }
-  await page.evaluate(() => Object.assign(H.S.ctx.cam, { tz: -8.0, dT: 15, pitch: 50 })); await step(40); await shot('0-gallery');
+  await page.evaluate(() => Object.assign(H.S.ctx.cam, { tz: -8.6, dT: 19, pitch: 50 })); await step(40); await shot('0-gallery');
   await page.evaluate(() => { H.M.go('blades.build'); Object.assign(H.S.ctx.cam, { tz: -8.55, dT: 16.6, pitch: 55 }); }); await step(20);
   await page.click('#skBl [data-a="borrow"]'); for (let i = 0; i < 20; i++) { await step(5); if (await page.evaluate(() => !!H.S.blades.state.preview)) break; await page.waitForTimeout(200); } await step(10); await shot('2-built');
   await page.click('#skBl [data-a="look"]'); await step(30); await shot('3-look');

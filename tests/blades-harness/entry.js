@@ -40,6 +40,6 @@ Object.assign(cam, { tx: 11.5, tz: -8.5, dT: 18 });
 function place() { const k = 0.2; cam.d += (cam.dT - cam.d) * k; cam.cx += (cam.tx - cam.cx) * k; cam.cy += (cam.ty - cam.cy) * k; cam.cz += (cam.tz - cam.cz) * k;
   const p = THREE.MathUtils.degToRad(cam.pitch); camera.position.set(cam.cx, cam.cy + Math.sin(p) * cam.d, cam.cz + Math.cos(p) * cam.d); camera.lookAt(cam.cx, cam.cy, cam.cz); }
 /* the page is stepped by the test: step(n, dt) runs n frames of dt each, then draws */
-window.H = { S, M, step(n, dt) { dt = dt || 1 / 30; for (let i = 0; i < n; i++) { T.tick(dt); P.particleFrame(dt); M.frame(dt); } place(); renderer.render(scene, camera); return M.state; },
+window.H = { S, M, step(n, dt) { dt = dt || 1 / 30; for (let i = 0; i < n; i++) { T.tick(dt); P.particleFrame(dt); M.frame(dt); place(); } renderer.render(scene, camera); return M.state; },
   pointer(kind, x, y) { M.pointer(kind, { clientX: x, clientY: y, button: 0, deltaY: 0 }); }, key(k) { M.key({ key: k }); } };
 place(); renderer.render(scene, camera);

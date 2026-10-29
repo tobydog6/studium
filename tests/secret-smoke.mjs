@@ -23,7 +23,7 @@ const hideHub = () => page.evaluate(() => { ['hub', 'signin', 'launch'].forEach(
 const shot = async (n) => { await hideHub(); await page.waitForTimeout(150); return page.screenshot({ path: join(OUT, `secret-${n}.png`), timeout: 120000 }).catch(() => console.log('  (no screenshot ' + n + ')')); };
 let fail = '';
 try {
-  await page.goto(`http://localhost:${server.address().port}/index.html?dev&quick&noauto`); await page.waitForTimeout(8000);
+  await page.goto(`http://localhost:${server.address().port}/index.html?dev&quick&noauto`); await page.waitForFunction(() => typeof __cb !== "undefined" && __cb.addPhoto, null, { timeout: 180000, polling: 500 }); await page.waitForTimeout(1500);
   await page.evaluate(() => { const cols = ['#7a8f6e', '#c58b52', '#3d5a7a', '#a35d4a', '#d9c9a3'];
     cols.forEach((c, i) => { const cv = document.createElement('canvas'); cv.width = i % 2 ? 600 : 900; cv.height = i % 2 ? 900 : 600; const g = cv.getContext('2d'); g.fillStyle = c; g.fillRect(0, 0, cv.width, cv.height); g.fillStyle = '#fff'; g.font = '120px sans-serif'; g.fillText('F' + i, 80, 300);
       __cb.addPhoto({ url: cv.toDataURL('image/jpeg', 0.8), place: 'Stump', pick: i < 2 }); });

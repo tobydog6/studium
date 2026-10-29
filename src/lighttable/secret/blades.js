@@ -13,7 +13,7 @@ import * as BS from './bladesim.js';
 const LIFT = 0.7;        /* the bowl floor's height above the table once it is up */
 const DOWN = -9;         /* the stadium's height while it waits in the pit */
 const PART = ['Attack ring', 'Weight disc', 'Tip'];
-const PART_SAYS = ['Its tier sets the points and the hit', 'Its grade and tier set the weight', 'Its finish sets how it moves'];
+const PART_SAYS = ['Its tier sets how hard it hits', 'Its grade and tier set the weight', 'Its finish sets how it moves'];
 const METAL = { gold: [0xd9a441, 0.9, 0.25], foil: [0xcfd6de, 0.85, 0.18], etch: [0xb07a4a, 0.85, 0.3], glitter: [0xd8c8f0, 0.7, 0.3], prism: [0x1a1a22, 0.6, 0.2], matte: [0x8a8f96, 0.6, 0.45] };
 const HOW = { burst: 'Burst finish', out: 'Ring out', spin: 'Spin finish', time: 'Time. More spin wins' };
 
@@ -89,24 +89,26 @@ export function install(S) {
     const [a, b, c] = parts, root = new THREE.Group(), tilt = new THREE.Group(), spin = new THREE.Group(), gRing = new THREE.Group(), gDisc = new THREE.Group(), gTip = new THREE.Group();
     root.add(tilt); tilt.add(spin); spin.add(gTip, gDisc, gRing); root.scale.setScalar(st.radius); const mats = [], geos = [], fins = [], myTex = texs = [];
     const keep = m => { if (m.geometry) geos.push(m.geometry); if (m.material) mats.push(m.material); return m; };
+    /* a slab's finish shader laid over one part (the ring's top, the disc's edge, the cap), so every part wears its finish */
+    const finishOver = (slab, tex, geo, parent, y, sy) => { const fid = SL.finishOf(slab, S.testFinish ? S.testFinish() : null), def = SM.finishDef(fid);
+      try { const fm = def && def.make ? def.make({ THREE, slab, obj: null, w: 2, h: 2, photoTex: tex, tier: SL.tierOf(slab), renderer: S.renderer, envMap: ENV, finish: fid }) : null;
+        if (!fm) { geo.dispose(); return null; } fm.geometry.dispose(); fm.geometry = geo; fm.position.y = y; if (sy) fm.scale.y = sy; fm.renderOrder = 2; parent.add(fm); keep(fm); fins.push({ m: fm, def }); return fm; } catch (e) { console.error('blade finish', e); geo.dispose(); return null; } };
     /* tip: the shape is the tip type, the plastic is the tip slab's tier colour; its photo sits on the cap up top */
     const plastic = new THREE.MeshStandardMaterial({ color: tierCol(c), roughness: 0.35, metalness: 0.1, envMap: ENV, envMapIntensity: 0.4 });
     const tg = st.tip === 'sharp' ? new THREE.ConeGeometry(0.2, 0.36, 24) : st.tip === 'flat' ? new THREE.CylinderGeometry(0.26, 0.2, 0.36, 24) : new THREE.SphereGeometry(0.22, 24, 16);
     const tipM = keep(new THREE.Mesh(tg, plastic)); if (st.tip === 'sharp') { tipM.rotation.x = Math.PI; tipM.position.y = 0.18; } else tipM.position.y = st.tip === 'ball' ? 0.22 : 0.18; gTip.add(tipM);
     const neck = keep(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.26, 0.12, 24), plastic)); neck.position.y = 0.36; gTip.add(neck);
-    const cap = keep(new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ map: photoTex(c), roughness: 0.25, metalness: 0.1, envMap: ENV, envMapIntensity: 0.5 }))); cap.position.y = 0.76; cap.scale.y = 0.6; gTip.add(cap);
+    const ctex = photoTex(c), cap = keep(new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ map: ctex, roughness: 0.25, metalness: 0.1, envMap: ENV, envMapIntensity: 0.5 }))); cap.position.y = 0.76; cap.scale.y = 0.6; gTip.add(cap); finishOver(c, ctex, new THREE.SphereGeometry(0.345, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), gTip, 0.76, 0.6);
     const capRing = keep(new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.035, 8, 40), new THREE.MeshBasicMaterial({ color: tierCol(c), toneMapped: false }))); capRing.rotation.x = Math.PI / 2; capRing.position.y = 0.77; gTip.add(capRing);
     /* weight disc: metal by its finish, its photo wrapped round the edge */
     const [mc, mm, mr] = METAL[SL.finishOf(b)] || METAL.matte;
-    const discM = keep(new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.92, 0.2, 64), [new THREE.MeshStandardMaterial({ map: photoTex(b), roughness: 0.3, metalness: 0.3, envMap: ENV, envMapIntensity: 0.5 }), new THREE.MeshStandardMaterial({ color: mc, roughness: mr, metalness: mm, envMap: ENV }), new THREE.MeshStandardMaterial({ color: mc, roughness: mr, metalness: mm, envMap: ENV })]));
-    discM.material.forEach(m => mats.push(m)); discM.position.y = 0.52; gDisc.add(discM);
+    const dtex = photoTex(b), discM = keep(new THREE.Mesh(new THREE.CylinderGeometry(0.92, 0.92, 0.2, 64), [new THREE.MeshStandardMaterial({ map: dtex, roughness: 0.3, metalness: 0.3, envMap: ENV, envMapIntensity: 0.5 }), new THREE.MeshStandardMaterial({ color: mc, roughness: mr, metalness: mm, envMap: ENV }), new THREE.MeshStandardMaterial({ color: mc, roughness: mr, metalness: mm, envMap: ENV })]));
+    discM.material.forEach(m => mats.push(m)); discM.position.y = 0.52; gDisc.add(discM); finishOver(b, dtex, new THREE.CylinderGeometry(0.925, 0.925, 0.2, 64, 1, true), gDisc, 0.52);
     /* attack ring: the photo cut to the ring's shape, its finish over the top, an edge of tier light */
     const shape = ringShape(a, st.dir), clear = a.variant === 'clear';
     const rg = planarUV(new THREE.ExtrudeGeometry(shape, { depth: 0.14, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.02, bevelSegments: 2, curveSegments: 6 }).rotateX(-Math.PI / 2));
     const ptex = photoTex(a), ring = keep(new THREE.Mesh(rg, new THREE.MeshStandardMaterial({ map: ptex, roughness: 0.3, metalness: 0.2, envMap: ENV, envMapIntensity: 0.6, transparent: clear, opacity: clear ? 0.55 : 1 }))); ring.position.y = 0.62; gRing.add(ring);
-    const fid = SL.finishOf(a, S.testFinish ? S.testFinish() : null), def = SM.finishDef(fid);
-    try { const fm = def && def.make ? def.make({ THREE, slab: a, obj: null, w: 2, h: 2, photoTex: ptex, tier: SL.tierOf(a), renderer: S.renderer, envMap: ENV, finish: fid }) : null;
-      if (fm) { fm.geometry.dispose(); fm.geometry = planarUV(new THREE.ShapeGeometry(shape, 6).rotateX(-Math.PI / 2)); fm.position.y = 0.62 + 0.14 + 0.03; fm.renderOrder = 2; gRing.add(fm); keep(fm); fins.push({ m: fm, def }); } } catch (e) { console.error('blade finish', e); }
+    finishOver(a, ptex, planarUV(new THREE.ShapeGeometry(shape, 6).rotateX(-Math.PI / 2)), gRing, 0.62 + 0.14 + 0.03);
     const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(shape.getPoints(6).map(p => new THREE.Vector3(p.x, 0, -p.y))), new THREE.LineBasicMaterial({ color: tierCol(a), toneMapped: false, transparent: true, opacity: 0.9 })); edge.position.y = 0.62 + 0.14 + 0.035; gRing.add(edge); keep(edge);
     /* the blur of a fast spin, and a soft shadow under it */
     const halo = keep(new THREE.Mesh(new THREE.CircleGeometry(1.04, 48), new THREE.MeshBasicMaterial({ map: dot, color: tierCol(a), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }))); halo.rotation.x = -Math.PI / 2; halo.position.y = 0.82; tilt.add(halo);
@@ -120,7 +122,7 @@ export function install(S) {
   /* ---------- the whirr: a sawtooth through a band-pass that follows the spin ---------- */
   function whirr() { const c = S.snd && S.snd.ctx ? S.snd.ctx() : null; if (!c) return null;
     try { const o = c.createOscillator(), f = c.createBiquadFilter(), g = c.createGain(), p = c.createStereoPanner ? c.createStereoPanner() : null; o.type = 'sawtooth'; o.frequency.value = 90; f.type = 'bandpass'; f.Q.value = 6; f.frequency.value = 600; g.gain.value = 0;
-      o.connect(f); f.connect(g); if (p) { g.connect(p); p.connect(c.destination); } else g.connect(c.destination); o.start();
+      const out = (S.snd.out && S.snd.out()) || c.destination; o.connect(f); f.connect(g); if (p) { g.connect(p); p.connect(out); } else g.connect(out); o.start();
       return { set(s, pan) { const t = c.currentTime; o.frequency.setTargetAtTime(40 + s * 150, t, 0.05); f.frequency.setTargetAtTime(300 + s * 1500, t, 0.05); g.gain.setTargetAtTime(0.045 * s, t, 0.05); if (p) p.pan.setTargetAtTime(Math.max(-1, Math.min(1, pan)), t, 0.05); },
         stop() { try { g.gain.setTargetAtTime(0, c.currentTime, 0.08); o.stop(c.currentTime + 0.4); } catch (e) {} } }; } catch (e) { return null; } }
   const snd = (id, o) => { try { return S.snd && S.snd.play ? S.snd.play(id, o) : null; } catch (e) { return null; } };
@@ -162,7 +164,7 @@ export function install(S) {
   const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
   const gradeTag = s => s.loaner ? 'Borrowed' : s.graded ? 'Grade ' + s.grade : 'Raw';
   function slotLine(i, s) { if (!s) return PART_SAYS[i];
-    const st = BS.statsOf([s, s, s]); if (i === 0) return SL.tierOf(s).name + ' · ' + (2 + rank(s)) + ' points'; if (i === 1) return SL.tierOf(s).name + ' · ' + (SL.finishOf(s) === 'matte' ? 'steel' : (SL.FINISH[SL.finishOf(s)] || {}).name || 'metal');
+    const st = BS.statsOf([s, s, s]); if (i === 0) return SL.tierOf(s).name + ' · ' + (rank(s) <= 1 ? 'rounded edge' : (2 + rank(s)) + ' sharp teeth'); if (i === 1) return SL.tierOf(s).name + ' · ' + (SL.finishOf(s) === 'matte' ? 'steel' : (SL.FINISH[SL.finishOf(s)] || {}).name || 'metal');
     return BS.TIPS[st.tip].name + ' tip · ' + BS.TIPS[st.tip].desc.toLowerCase(); }
   function renderCard() {
     const list = mine(), full = B.slots.every(Boolean), st = full ? BS.statsOf(B.slots) : null;
@@ -259,7 +261,7 @@ export function install(S) {
   });
   M.define('blades.open', { busy: true, on: { CLOSE: () => undefined },
     async enter(d, run) {
-      B.pushed = true; S.cam.push(FRAME()); ctx.hideActs(); hideBar(); S.sfx('ltInspect');
+      B.pushed = true; S.cam.push(FRAME()); ctx.hideActs(); hideBar(); S.sfx('ltInspect'); btn.userData.hotT = 0; ctx.canvas.style.cursor = 'default';
       await S.under.doors(true); if (!run.alive()) return;
       stadium.visible = true; spot.visible = true; stadium.scale.setScalar(0.5); stadium.position.y = DOWN; snd('rise', { dur: 1.6 }); snd('servo');
       T.to(spot, { intensity: 140 }, { dur: 1.6, tag: 'blades' });
@@ -273,11 +275,11 @@ export function install(S) {
     exit() { card.classList.remove('on'); if (B.preview) { B.preview.dispose(); B.preview = null; } },
   });
   M.define('blades.ready', {
-    enter() { hideBar(); newRound(); hud.classList.add('on'); hudFrame(0, true); const rs = B.rivalParts[0]; banner(B.score[0] + B.score[1] ? 'Round ' + (B.roundN = (B.roundN || 1) + 1) : 'Pull back and let go', 'Your rival: ' + esc((rs.photo && rs.photo.pack || 'Sample pack').replace(/\s*·.*$/, '')) + ' ring, ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip', 0); rimTo(tierCol(B.slots[0])); },
+    enter() { hideBar(); newRound(); ctx.canvas.style.cursor = 'grab'; hud.classList.add('on'); hudFrame(0, true); const rs = B.rivalParts[0]; banner(B.score[0] + B.score[1] ? 'Round ' + (B.roundN = (B.roundN || 1) + 1) : 'Pull back and let go', 'Your rival: ' + esc((rs.photo && rs.photo.pack || 'Sample pack').replace(/\s*·.*$/, '')) + ' ring, ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip', 0); rimTo(tierCol(B.slots[0])); },
     pointer(kind, e) {
-      if (kind === 'down' && e.button === 0) { B.drag = { x: e.clientX, y: e.clientY, power: 0, aim: 0 }; snd('servo'); return true; }
+      if (kind === 'down' && e.button === 0) { B.drag = { x: e.clientX, y: e.clientY, power: 0, aim: 0 }; ctx.canvas.style.cursor = 'grabbing'; snd('servo'); return true; }
       if (kind === 'move' && B.drag) { const D = B.drag; D.power = T.clamp((e.clientY - D.y) / 220, 0, 1); D.aim = T.clamp(-(e.clientX - D.x) / 260, -0.7, 0.7); return true; }
-      if (kind === 'up' && B.drag) { const D = B.drag; B.drag = null; if (D.power < 0.12) { banner('Pull back further', 'Drag down, then let go', 1400); return true; } hideBanner(); doLaunch(D.power, D.aim); return true; }
+      if (kind === 'up' && B.drag) { const D = B.drag; B.drag = null; ctx.canvas.style.cursor = 'grab'; if (D.power < 0.12) { banner('Pull back further', 'Drag down, then let go', 1400); return true; } hideBanner(); doLaunch(D.power, D.aim); return true; }
       return kind !== 'wheel' ? true : false; },
     frame(dt) { if (!B.W) return; const [a, b] = B.W.tops, D = B.drag;
       a.ang += a.w * dt; b.ang += b.w * dt; pose(B.me, a, dt); pose(B.rival, b, dt);
@@ -287,6 +289,7 @@ export function install(S) {
       else { aim.visible = false; a.p.x = 0; a.p.y = R * 0.62; } },
   });
   M.define('blades.battle', {
+    enter() { ctx.canvas.style.cursor = 'default'; },
     key(e) { if (e.key === ' ') { const ev = []; if (BS.special(B.W, B.W.tops[0], ev)) fx(ev); return true; } return false; },
     frame(dt) { dt = Math.min(dt, 0.05); const W = B.W, [a, b] = W.tops; B.me.drop *= Math.exp(-dt * 14); B.rival.drop *= Math.exp(-dt * 14);
       B.acc += dt; const ev = []; while (B.acc >= 1 / 120) { B.acc -= 1 / 120; BS.step(W, 1 / 120, ev); if (BS.aiThink(W, b, 1 / 120)) BS.special(W, b, ev); }
@@ -314,9 +317,10 @@ export function install(S) {
       await T.tween({ dur: 0.5, ease: E.inBack, tag: 'blades', update: e => stadium.scale.setScalar(1 - 0.5 * e) });
       await T.to(stadium.position, { y: DOWN }, { dur: 1.2, ease: E.inCubic, tag: 'blades' });
       stadium.visible = false; spot.visible = false; await S.under.doors(false);
-      if (B.pushed) { S.cam.pop(); B.pushed = false; } S.sfx('detent'); B.score = [0, 0]; B.roundN = 1; M.go(S.under.on ? 'under' : 'idle'); },
+      if (B.pushed) { S.cam.pop(); B.pushed = false; } forgetRival(); S.sfx('detent'); B.score = [0, 0]; B.roundN = 1; M.go(S.under.on ? 'under' : 'idle'); },
   });
-  function startMatch() { B.score = [0, 0]; B.roundN = 1; B.rivalParts = rollRival(); M.go('blades.ready'); }
+  function forgetRival() { if (B.rivalParts) B.rivalParts.forEach(s => SM.forgetPhoto(s.id)); B.rivalParts = null; }
+  function startMatch() { B.score = [0, 0]; B.roundN = 1; forgetRival(); B.rivalParts = rollRival(); M.go('blades.ready'); }
   function act(a) {
     if (a === 'close' || a === 'done') M.send('CLOSE');
     else if (a === 'borrow') { borrow(); randomPick(); }
@@ -328,6 +332,8 @@ export function install(S) {
 
   /* ---------- test hooks and the dev panel ---------- */
   S.blades = { sim: () => B.W, state: B, stadium,
+    /* the room is put away mid-battle: hush the whirrs (the next frame turns them back up) */
+    pause(on) { if (on) [B.me, B.rival].forEach(bl => { if (bl && bl.whirr) bl.whirr.set(0, 0); }); },
     pick(ids) { B.slots = ids.map(id => byId(id)); renderCard(); buildPreview(); },
     borrow() { borrow(); randomPick(); },
     launch(power, ang) { if (M.is('blades.ready')) doLaunch(power ?? 0.8, ang ?? 0); } };

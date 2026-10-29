@@ -186,5 +186,5 @@ export function install(S) {
       return { stop(fade) { try { const tt = A.ctx.currentTime; b.gain.cancelScheduledValues(tt); b.gain.setTargetAtTime(0, tt, Math.max(0.01, (fade == null ? 0.08 : fade) / 3)); } catch (e) {} }, set() {} }; }
     catch (e) { return null; } }
 
-  S.snd = { play, loop, tick, ids: Object.keys(V), loops: Object.keys(LOOPS).concat('rumble'), ctx() { return A.ctx; } };
+  S.snd = { play, loop, tick, ids: Object.keys(V), loops: Object.keys(LOOPS).concat('rumble'), ctx() { return A.ctx; }, out() { return A.out || null; } };
 }

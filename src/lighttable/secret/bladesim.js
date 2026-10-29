@@ -1,5 +1,5 @@
 // BLADE SIM: two spinning tops in a bowl, kept free of three.js so it can be tuned in node (blades.js draws it).
-// A blade is three slabs: the attack ring (its tier sets the points and the hit, its Frame sub-grade sharpens it), the
+// A blade is three slabs: the attack ring (its tier sets its teeth and the hit, its Frame sub-grade sharpens it), the
 // weight disc (grade and tier set the weight, Print sets stamina) and the tip (its finish sets how it moves, Moment
 // sets how hard it drives). Light across all three sets the launch. Raw prints count as grade 6 all round, so playing
 // one never gives away its hidden grade. Variants are quirks: Negative spins left, Misprint wobbles off line, Clear is
@@ -35,7 +35,6 @@ export function statsOf(parts) {
   const k = (set ? 1.1 : 1) * (vars.includes('full') ? 1.08 : 1);
   const best = parts.reduce((m, p) => rk(p) > rk(m) ? p : m, a);
   return {
-    points: 2 + rk(a),
     atk: (0.75 + rk(a) * 0.11 + sub(a, 1) * 0.04) * k,
     mass: 0.8 + gr(b) * 0.035 + rk(b) * 0.05 + (b.finish === 'gold' ? 0.25 : b.finish === 'foil' ? -0.1 : 0),
     stamina: (0.7 + sub(b, 3) * 0.05 + rk(b) * 0.04) * k,

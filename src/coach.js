@@ -156,8 +156,8 @@
         start:function(){ CO.s.o0=FLX.orb; }, done:function(){ return CO.look+FLX.orb-CO.s.o0>1.6; }, bar:function(){ return (CO.look+FLX.orb-CO.s.o0)/1.6; }},
       {ch:"MOVE", line:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return isFinite(d)&&d>4.5?'Head for the gold ring: that\'s '+(typeof chSubjectName==="function"?chSubjectName():"the subject")+', your subject':coK("W")+coK("A")+coK("S")+coK("D")+' to walk'; },
         sub:function(){ return (FL.orbit?"Now the mouse looks around as you walk. Drag any time to go round again. ":"")+"Just a few steps, and stay close: a scan is only sharp near the thing it was made of."; },
-        start:function(){ CO.s.d0=typeof chSubjectDist==="function"?chSubjectDist():Infinity; },   /* a scene that starts you far from its subject only asks you to head its way */
-        done:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return CO.walked>1.2&&(!isFinite(d)||d<4.5||d<CO.s.d0-1); }, bar:function(){ return Math.min(1,CO.walked/1.2); }},
+        start:function(){ CO.s.d0=typeof chSubjectDist==="function"?chSubjectDist():Infinity; CO.s.w0=CO.walked; },   /* a scene that starts you far from its subject only asks you to head its way; going round it in the step before doesn't count as walking */
+        done:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return CO.walked-CO.s.w0>1.2&&(!isFinite(d)||d<4.5||d<CO.s.d0-1); }, bar:function(){ return Math.min(1,(CO.walked-CO.s.w0)/1.2); }},
       {ch:"MOVE", line:function(){ return coK("Q")+' to crouch, '+coK("E")+' to stand tall'; }, sub:"Try shooting from low down and up high.",
         done:function(){ return CO.keys.Q&&CO.keys.E; }},
       {ch:"SHOOT", line:function(){ return '<kbd>RIGHT CLICK</kbd> raises the camera to your eye'; }, sub:"Right click again to lower it. "+coK("P")+" does the same.",
@@ -468,7 +468,7 @@
     var s=coSteps()[CO.i]; if(!s){ coFinish(false); return; }   // each prompt stays up long enough to read (dwell) before it ticks
     if(CO.seen!==CO.i){ CO.seen=CO.i; CO.lockTo=s.info?performance.now()+READ_MS:0; if(s.prep) s.prep(); }   // the read timer starts when the card first shows
     var isDone=(s.info||s.click||s.finish||CO.s.pre)?CO.s.ok:s.done();
-    if(!CO.ticking&&performance.now()-CO.t0>(s.info?0:(s.dwell||600))&&isDone){ coTicked(); return; }   // one tick per prompt, however late the timer runs
+    if(!CO.ticking&&performance.now()-CO.t0>(s.info?0:(s.dwell||600))&&isDone){ coTicked(); return; }   /* one tick per prompt, however late the timer runs */
     coRender(s); }
   function coTicked(){ CO.ticking=true; var e=coEl(); e.classList.add("ok"); setTimeout(function(){ CO.ticking=false; e.classList.remove("ok"); CO.i++; Q.tourStep[CO.tour]=CO.i; qSave();
       if(CO.i>=coSteps().length){ coFinish(false); return; } coEnter(); }, 480); }
@@ -490,7 +490,7 @@
     else if(s.need==="crop"&&!cropActive()) pre='Open the crop again: click <b>Crop</b> or press '+coK("C");
     var b=s.bar?Math.max(0,Math.min(1,s.bar())):null;
     /* the whole tour as one strip along the card's top edge: a segment per chapter, filling as you go */
-    var N=steps.length, prog='<div class="co-prog">'+chs.map(function(c,j){ var end=j+1<chs.length?chs[j+1].first:N, n=end-c.first, f=Math.max(0,Math.min(1,(CO.i-c.first+(CO.ticking?1:0))/n));
+    var N=steps.length, prog='<div class="co-prog">'+chs.map(function(c,j){ var end=j+1<chs.length?chs[j+1].first:N, n=end-c.first, f=Math.max(0,Math.min(1,(CO.i-c.first)/n));   /* no re-render while it ticks, so the gold tick can stamp in */
       return '<i style="flex:'+n+'"><b style="width:'+(f*100).toFixed(1)+'%"></b></i>'; }).join("")+'</div>';
     var html=prog+'<i class="co-tick"></i><div class="co-top">'+chs.map(function(c){ var on=c.ch===s.ch, past=CO.i>c.first&&!on; return '<span class="co-ch'+(on?' on':'')+(past?' past':'')+'">'+c.ch+'</span>'; }).join('<i></i>')
       +(CO.skipped?'<button class="co-skip all" data-co-skipall title="Skip the rest of this tour">SKIP ALL</button>':'')+'<button class="co-skip" data-co-skip title="Skip this step">SKIP STEP</button></div>'

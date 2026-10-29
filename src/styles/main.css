@@ -3430,8 +3430,8 @@ body.fl-dragging #viewport canvas{cursor:grabbing!important}
        move, the mouse drawn doing what it asks, and a gold tick that stamps in as each step is done ---- */
 .co-card{padding:24px 24px 18px;border-radius:16px;overflow:hidden;background:linear-gradient(180deg,rgba(32,28,21,.95),rgba(15,13,10,.95));border:1px solid rgba(var(--gold-rgb),.26);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 30px 60px -24px rgba(0,0,0,.9),0 0 50px -24px rgba(var(--gold-rgb),.4)}
-.co-prog{position:absolute;left:0;right:0;top:0;height:4px;display:flex;gap:3px;background:rgba(0,0,0,.25)}
-.co-prog i{position:relative;height:100%;background:rgba(var(--bone-rgb),.09);overflow:hidden}
+.co-prog{position:absolute;left:0;right:0;top:0;height:5px;display:flex;gap:3px;background:rgba(0,0,0,.35)}
+.co-prog i{position:relative;height:100%;background:rgba(var(--bone-rgb),.16);overflow:hidden}
 .co-prog b{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#b3843f,var(--accent));transition:width .45s cubic-bezier(.2,.8,.2,1)}
 .co-top{gap:9px}
 .co-top i{width:14px;background:rgba(var(--bone-rgb),.12)}

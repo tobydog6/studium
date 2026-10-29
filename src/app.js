@@ -1395,7 +1395,7 @@
 
   // ---- wire: look / shutter (pointer lock) ----
   viewport.addEventListener("click",function(){ if(menuOpen()||!loaded||FL.orbit) return;   /* drag goes round the subject: the pointer locks on W A S D or when the camera comes up (feel.js) */ if(document.pointerLockElement!==renderer.domElement){ try{renderer.domElement.requestPointerLock();}catch(e){} } });
-  document.addEventListener("mousedown",function(e){ if((looking||(FL.orbit&&e.target===renderer.domElement&&flHere())) && viewfinderOn && e.button===0) shutter(); });   /* the lock can fail (a trackpad, a browser setting): a click on the picture still shoots */
+  document.addEventListener("mousedown",function(e){ if(looking && viewfinderOn && e.button===0) shutter(); });   /* without the lock (a trackpad, a browser setting) a click that isn't a drag shoots: feel.js */
   // right click raises and lowers the camera, like aiming in a game (P does the same)
   function rcScene(){ return loaded&&(App.is("scene")||App.is("viewfinder"))&&!cbOpen&&!bg.open&&!(typeof st!=="undefined"&&st.open)&&!menuOpen(); }
   document.addEventListener("mousedown",function(e){ if(e.button===2&&rcScene()){ e.preventDefault(); toggleViewfinder(); } });

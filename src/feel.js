@@ -42,8 +42,8 @@
   function flOrbit(mx,my){ var S=flSubj(), W=Math.max(1,window.innerWidth), H=Math.max(1,window.innerHeight);
     if(!S){ var k=(camera?camera.fov:55)*Math.PI/180/H; flLook(mx*k, my*k); return; }   /* no subject (your own scan): drag just looks */
     var ox=camPos.x-S.x, oz=camPos.z-S.z, r=Math.hypot(ox,oz), a=r>1e-3?Math.atan2(ox,oz):yaw;
-    if(r<0.6){ r=0.6; } var da=-mx*Math.PI*2/W, a2=a+da, nx=S.x+Math.sin(a2)*r, nz=S.z+Math.cos(a2)*r, walk=!!(WK.col&&WK.mode==="walk");
-    if(!(WK.col&&wkBlocked(nx,nz,wkFeet()))){ camPos.x=nx; camPos.z=nz; }   /* something solid in the way: you stop there */
+    var da=-mx*Math.PI*2/W, a2=a+da, nx=S.x+Math.sin(a2)*r, nz=S.z+Math.cos(a2)*r, walk=!!(WK.col&&WK.mode==="walk");
+    if(r>0.3&&!(WK.col&&wkBlocked(nx,nz,wkFeet()))){ camPos.x=nx; camPos.z=nz; }   /* standing right over it: you only turn; something solid in the way: you stop there */
     var de=my*2.2/H; if(walk) WK.eye=Math.max(WK_EYE_MIN,Math.min(WK_EYE_MAX,WK.eye+de)); else { camPos.y+=de; if(WK.col) camPos.y=Math.max(camPos.y,wkGround(camPos.x,camPos.z)+0.15); }
     _vel.set(0,0,0); FLX.py=FLX.pp=0; FLX.orb+=Math.abs(da)+Math.abs(de);
     var ey=walk?wkGround(camPos.x,camPos.z)+WK.eye:camPos.y, rr=Math.hypot(camPos.x-S.x,camPos.z-S.z);
@@ -59,7 +59,8 @@
     if(!flHere()||chHold()) return;
     if(D.vf){ var fb=curBody().finder, ys=(fb==="waist"||fb==="ground")?-1:1, ps=(fb==="ground")?-1:1, k=(camera?camera.fov:55)*Math.PI/180/Math.max(1,window.innerHeight); flLook(mx*k*ys, my*k*ps); return; }   /* the camera's up but the lock didn't take: dragging aims it */
     flOrbit(mx,my); });
-  function flUp(e){ var D=FLX.dn; if(!D||e.pointerId!==D.id) return; FLX.dn=null; document.body.classList.remove("fl-dragging"); try{ renderer.domElement.releasePointerCapture(e.pointerId); }catch(er){} }
+  function flUp(e){ var D=FLX.dn; if(!D||e.pointerId!==D.id) return; FLX.dn=null; document.body.classList.remove("fl-dragging"); try{ renderer.domElement.releasePointerCapture(e.pointerId); }catch(er){}
+    if(D.vf&&!D.moved&&e.type==="pointerup"&&viewfinderOn&&!looking&&flHere()) shutter(); }   /* camera up without the lock: a click shoots, a drag aims */
   document.addEventListener("pointerup",flUp); document.addEventListener("pointercancel",flUp);
   /* W A S D: the mouse locks and looks around as you walk */
   window.addEventListener("keydown",function(e){ if(!FL.orbit||e.repeat||looking||FLX.dn||!renderer) return; if(e.code!=="KeyW"&&e.code!=="KeyA"&&e.code!=="KeyS"&&e.code!=="KeyD") return;

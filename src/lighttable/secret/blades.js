@@ -42,7 +42,10 @@ export function install(S) {
   /* the little top on the launcher turns, faster under the pointer; the cord glows like the other buttons */
   const underFrame = S.under.frame; let btnT = 0;
   S.under.frame = function (dt) { underFrame.call(S.under, dt); btnT += dt || 0; const hot = !!btn.userData.hotT, top = btn.userData.top, cap = btn.userData.cap;
-    if (top) top.rotation.y += (dt || 0) * (hot ? 14 : 2.5); if (cap) { const want = hot ? 1.2 : 0.25 + 0.2 * Math.sin(btnT * 2.4 + 1); cap.material.emissiveIntensity += (want - cap.material.emissiveIntensity) * (1 - Math.exp(-(dt || 0) * 10)); } };
+    if (top) top.rotation.y += (dt || 0) * (hot ? 14 : 2.5);
+    /* the ripper on the table: hover and its cord slides out, ready to pull */
+    const L = btn.userData.L; if (L) { btn.userData.cord = T.damp(btn.userData.cord || 0.18, hot ? 1.3 : 0.18 + 0.06 * Math.max(0, Math.sin(btnT * 1.6)), 10, dt || 0); L.setCord(btn.userData.cord); }
+    if (cap) { const want = hot ? 1.2 : 0.25 + 0.2 * Math.sin(btnT * 2.4 + 1); cap.material.emissiveIntensity += (want - cap.material.emissiveIntensity) * (1 - Math.exp(-(dt || 0) * 10)); } };
 
   /* ---------- the stadium: a lathe bowl on a column, a light round the rim ---------- */
   const stadium = new THREE.Group(); stadium.userData.secret = true; stadium.visible = false; stadium.position.set(CX, DOWN, CZ); ctx.scene.add(stadium);
@@ -387,6 +390,11 @@ export function install(S) {
     const handle = new THREE.Mesh(new THREE.ExtrudeGeometry(hs, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 2 }).rotateX(-Math.PI / 2), plast); g.add(handle);
     const L = { g, setCord(len) { const l = Math.max(0.18, len); cord.scale.x = l; cordM.map.repeat.set(l * 3, 1); handle.position.set(0.85 + l, 0.2, -0.1); }, dispose() { g.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material && o.material !== cordM) o.material.dispose(); }); cordM.map.dispose(); cordM.dispose(); g.removeFromParent(); } };
     cordM.map = cordTex.clone(); cordM.map.needsUpdate = true; L.setCord(0.18); return L; }
+  /* the table's Blades button is the ripper you launch with in the game (Sam): the old toy launcher is swapped out for it */
+  { btn.children.slice().forEach(c => { btn.remove(c); c.traverse(o => { if (o.geometry) o.geometry.dispose(); }); });
+    const L = makeLauncher(0x2a4fc0); L.g.scale.setScalar(0.42); L.g.position.set(-0.15, 0.06, -0.55); btn.add(L.g);
+    const sh = S.shadow(1.0, 1.7); sh.position.set(-0.12, 0.004, 0.05); btn.add(sh);
+    btn.userData.L = L; btn.userData.top = null; btn.userData.cap = null; btn.rotation.y = 0.35; }
   const aim = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false, toneMapped: false })); aim.geometry.translate(0, 0.5, 0); aim.rotation.x = -Math.PI / 2; aim.visible = false; stadium.add(aim);
   function doLaunch(power, ang) { const [a, b] = B.W.tops, lx = a.p.x; BS.launch(a, power, ang); a.p.x = lx; BS.launch(b, B.rivalPlan.power, B.rivalPlan.aim); B.me.drop = B.rival.drop = LAUNCH_H - 0.75; B.ripT = 0;
     B.me.whirr = whirr(); B.rival.whirr = whirr(); aim.visible = false; snd('pop'); snd('rumble', { gain: 0.5, dur: 0.6 }); B.shake = 0.35;

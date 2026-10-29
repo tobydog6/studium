@@ -98,7 +98,14 @@ export function installSecret(ctx) {
 
   /* ---------- points, kept small in the corner ---------- */
   const pts = S.el('div', 'sk-pts', ''); pts.id = 'skPts'; document.body.appendChild(pts);
-  function hud() { const d = store.get(); pts.textContent = d.points.toLocaleString('en-NZ') + ' PTS  ·  KEYS ∞  ·  ' + d.pulls.length + ' PULL' + (d.pulls.length === 1 ? '' : 'S'); pts.classList.toggle('on', !!d.unlocked); dev.refresh(); }
+  const skipBtn = S.el('button', 'sk-skip', 'Skip the wait'); skipBtn.id = 'skSkip'; skipBtn.type = 'button'; skipBtn.hidden = true; document.body.appendChild(skipBtn);
+  skipBtn.addEventListener('pointerdown', e => e.stopPropagation());
+  skipBtn.addEventListener('click', () => { let n = 0; store.get().pulls.forEach(p => { if (p.sentAt && !p.graded && Date.now() < p.readyAt) { SL.skipGrading(p); n++; } }); S.toast(n ? 'The lab worked through the night. ' + n + ' parcel' + (n === 1 ? '' : 's') + ' on the way.' : 'Nothing is away for grading.'); hud(); if (S.parcel) S.parcel.check(); });
+  function hud() { const d = store.get(), away = d.pulls.filter(p => SL.gradingState(p) === 'away').length;
+    pts.textContent = d.points.toLocaleString('en-NZ') + ' PTS  ·  KEYS ∞  ·  ' + d.pulls.length + ' PULL' + (d.pulls.length === 1 ? '' : 'S') + (away ? '  ·  ' + away + ' AWAY' : ''); pts.classList.toggle('on', !!d.unlocked);
+    skipBtn.hidden = !(d.unlocked && away); dev.refresh(); }
+  /* the HUD keeps up with the clock so AWAY turns into a parcel without a click */
+  setInterval(() => { if (S.unlocked()) hud(); }, 5000);
   S.hud = hud;
 
   /* ---------- the three diegetic buttons ---------- */
@@ -142,15 +149,17 @@ export function installSecret(ctx) {
   /* graded pulls are slabs; raw ones are prints (print.js), falling back to a slab until that file is built */
   S.objFor = function (slab) { if (!slab.graded && S.print && S.print.make) { const o = S.print.make(slab); if (o) { slabObjs.add(o); return o; } } return S.slabs.make(slab); };
   const tableSlabs = [];
+  /* objects are built at slab scale; on the table they show card sized beside the prints (Sam: full size was massive) */
+  S.TABLE_K = 0.42;
   const flatQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
   S.table = { list: tableSlabs,
     /* place(slab, x, z, yaw, { drop:true }) → the slab object; drop lets it fall onto the table */
     place(slab, x, z, yaw, o = {}) { return S.table.adopt(S.objFor(slab), x, z, yaw, o); },
     /* an object made elsewhere (the rail's print) becomes a table object at x, z */
-    adopt(obj, x, z, yaw, o = {}) { const slab = obj.slab, g = obj.group, y = (obj.th || SM.SLAB.th) / 2 + 0.004; g.position.set(x, y, z); g.quaternion.copy(flatQ).premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw || 0));
-      const sh = S.shadow(3.6, 4.4); sh.position.set(x + 0.1, 0.0035, z + 0.15); sh.rotation.z = -(yaw || 0); ctx.scene.add(sh); obj.tableShadow = sh; ctx.scene.add(g); obj.where = 'table'; if (!tableSlabs.includes(obj)) tableSlabs.push(obj);
+    adopt(obj, x, z, yaw, o = {}) { const slab = obj.slab, g = obj.group, K = S.TABLE_K, y = (obj.th || SM.SLAB.th) * K / 2 + 0.004; if (g.parent !== ctx.scene) ctx.scene.attach(g); g.scale.setScalar(K); g.position.set(x, y, z); g.quaternion.copy(flatQ).premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw || 0));
+      obj.yaw = yaw || 0; const sh = S.shadow(3.6 * K, 4.4 * K); sh.position.set(x + 0.05, 0.0035, z + 0.07); sh.rotation.z = -(yaw || 0); ctx.scene.add(sh); obj.tableShadow = sh; ctx.scene.add(g); obj.where = 'table'; if (!tableSlabs.includes(obj)) tableSlabs.push(obj);
       if (!o.quiet) store.toTable(slab.id, x, z, yaw);
-      if (o.drop) { g.position.y = 1.6; sh.material.opacity = 0.1; T.to(g.position, new THREE.Vector3(x, y, z), { dur: 0.55, ease: T.E.outBounce }); T.to(sh.material, { opacity: 0.55 }, { dur: 0.5 }); setTimeout(() => S.sfx('ltPutDown'), 420); }
+      if (o.drop) { g.position.y = 1.2; sh.material.opacity = 0.1; T.to(g.position, new THREE.Vector3(x, y, z), { dur: 0.55, ease: T.E.outBounce }); T.to(sh.material, { opacity: 0.55 }, { dur: 0.5 }); setTimeout(() => S.sfx('ltPutDown'), 420); }
       return obj; },
     remove(obj, keepStore) { const i = tableSlabs.indexOf(obj); if (i >= 0) tableSlabs.splice(i, 1); if (obj.tableShadow) ctx.scene.remove(obj.tableShadow); if (!keepStore) store.detach(obj.slab.id); S.slabs.drop(obj); },
     /* a free patch of table for a new slab, left of the board and clear of the other slabs */
@@ -167,10 +176,15 @@ export function installSecret(ctx) {
     P.dissolve(g, { mode: dev.opt('dissolve'), centre: target, spread: 2.4, dur: 1.2 }); S.table.remove(obj); hud(); if (S.parcel) S.parcel.check();
     const ms = S.gradingWait(); S.toast(ms >= 3600000 ? 'Away for grading. It comes back as a parcel in a day, real time.' : ms ? 'Away for grading. Back in a minute, as a parcel.' : 'Away for grading. The parcel is already on its way.');
   };
+  /* gone for good: it dissolves where it lies and leaves the collection */
+  function binSlab(obj) { S.sfx('shred'); P.dissolve(obj.group, { mode: dev.opt('dissolve'), dur: 1.0, spread: 1.2 }); const id = obj.slab.id; S.table.remove(obj, true); store.discard(id); hud(); S.toast('Gone. The points it earned stay with you.'); }
   async function inspectTableSlab(obj) {
-    const raw = !obj.slab.graded;
-    const r = await inspect.open(obj, { actions: raw ? [{ id: 'back', label: 'Put back' }, { id: 'grade', label: 'Send for grading', primary: true }] : [{ id: 'back', label: 'Put back' }, { id: 'vault', label: 'Into the vault', primary: true }] });
-    if (r === 'grade') { await T.wait(0.3); S.sendForGrading(obj); }
+    const raw = !obj.slab.graded, g = obj.group, K = S.TABLE_K;
+    T.to(g.scale, { x: 1, y: 1, z: 1 }, { dur: 0.5, ease: T.E.outCubic, tag: 'tslab' });
+    const r = await inspect.open(obj, { actions: raw ? [{ id: 'bin', label: 'Bin it' }, { id: 'back', label: 'Put back' }, { id: 'grade', label: 'Send for grading', primary: true }] : [{ id: 'bin', label: 'Bin it' }, { id: 'back', label: 'Put back' }, { id: 'vault', label: 'Into the vault', primary: true }], hint: 'Drag to turn it, scroll to zoom. Click the room to put it back. Back on the table, drag it anywhere.' });
+    T.to(g.scale, { x: K, y: K, z: K }, { dur: 0.45, ease: T.E.inOutSine, tag: 'tslab' });
+    if (r === 'bin') { await T.wait(0.45); binSlab(obj); return; }
+    if (r === 'grade') { await T.wait(0.45); S.sendForGrading(obj); }
     if (r === 'vault') { await T.wait(0.3); S.sfx('detent'); const target = btnVault.getWorldPosition(new THREE.Vector3()); target.y += 0.3;
       P.dissolve(obj.group, { mode: dev.opt('dissolve'), centre: target, spread: 2.2, dur: 1.3 }); S.table.remove(obj, true); store.toVault(obj.slab.id); hud(); S.toast('Into the vault. Open the little case by the binder to see it.'); }
   }
@@ -179,6 +193,7 @@ export function installSecret(ctx) {
   M.define('locked', { pointer: () => false, key: () => false });
   M.define('*', { on: { CLOSE: (p, M) => 'idle' } });
   M.define('idle', {
+    exit() { sd = null; setHot(null); },
     on: { VAULT: (p, M) => M.defined('vault.open') ? 'vault.open' : (S.toast('The vault is still being built. Soon.'), undefined),
           LOOT: (p, M) => M.defined('loot.open') ? 'loot.open' : (S.toast('The loot board is still being built. Soon.'), undefined),
           ROOM: 'room.knock' },
@@ -186,13 +201,28 @@ export function installSecret(ctx) {
       /* a print, wall group or string being dragged keeps the table's own handling; the buttons only take a free pointer */
       if (ctx.drag.p || ctx.drag.pending || ctx.drag.wall || ctx.isBusy()) { setHot(null); return false; }
       if (S.parcel && S.parcel.pointer(kind, e)) { setHot(null); return true; }
+      if (sd) return slabDrag(kind, e);
       if (kind === 'move') { const h = S.hitAny(e, hittable()); setHot(h ? h.root : null); if (h) { ctx.canvas.style.cursor = 'pointer'; ctx.hideActs(); return true; } return false; }
-      if (kind === 'down') { if (e.button !== 0) return false; const h = S.hitAny(e, hittable()); if (!h) return false; S.sfx('detent');
-        if (h.root === btnLoot) M.send('LOOT'); else if (h.root === btnVault) M.send('VAULT'); else if (h.root === btnKey) M.send('ROOM');
-        else { const o = tableSlabs.find(o => o.group === h.root); if (o) inspectTableSlab(o); } return true; }
+      if (kind === 'down') { if (e.button !== 0) return false; const h = S.hitAny(e, hittable()); if (!h) return false;
+        if (h.root === btnLoot) { S.sfx('detent'); M.send('LOOT'); } else if (h.root === btnVault) { S.sfx('detent'); M.send('VAULT'); } else if (h.root === btnKey) { S.sfx('detent'); M.send('ROOM'); }
+        else { const o = tableSlabs.find(o => o.group === h.root); if (o) { const t = S.tableHit(e, 0) || h.point; sd = { o, x0: e.clientX, y0: e.clientY, moved: 0, dx: o.group.position.x - t.x, dz: o.group.position.z - t.z, lifted: false }; } } return true; }
       return false; },
   });
   M.define('room.knock', { busy: true, async enter(d, run) { S.sfx('ltMenu'); const r0 = btnKey.rotation.z; await T.tween({ dur: 0.7, ease: T.E.linear, update: (e, r) => { btnKey.rotation.z = r0 + Math.sin(r * Math.PI * 6) * 0.22 * (1 - r); } }); btnKey.rotation.z = r0; S.toast('The secret room is still being dug out. Coming soon.'); if (run.alive()) M.go('idle'); } });
+  /* a slab on the table drags like a print; a click without movement inspects it */
+  let sd = null;
+  function slabDrag(kind, e) {
+    const o = sd.o, g = o.group;
+    if (kind === 'move') { sd.moved += Math.abs(e.clientX - sd.x0) + Math.abs(e.clientY - sd.y0); sd.x0 = e.clientX; sd.y0 = e.clientY;
+      if (sd.moved > 6) { if (!sd.lifted) { sd.lifted = true; S.sfx('lift'); ctx.hideActs(); T.to(g.position, { y: 0.5 }, { dur: 0.18, ease: T.E.outCubic, tag: 'tslab' }); if (o.tableShadow) o.tableShadow.material.opacity = 0.3; }
+        const t = S.tableHit(e, 0); if (t) { const W = ctx.W_T / 2 - 0.6, H = ctx.H_T / 2 - 0.6; g.position.x = T.clamp(t.x + sd.dx, -W, W); g.position.z = T.clamp(t.z + sd.dz, -H, H); if (o.tableShadow) { o.tableShadow.position.x = g.position.x + 0.05; o.tableShadow.position.z = g.position.z + 0.07; } } ctx.canvas.style.cursor = 'grabbing'; }
+      return true; }
+    if (kind === 'up') { const d = sd; sd = null; ctx.canvas.style.cursor = 'pointer';
+      if (!d.lifted) { S.sfx('detent'); inspectTableSlab(o); return true; }
+      const y = (o.th || SM.SLAB.th) * S.TABLE_K / 2 + 0.004; T.to(g.position, { y }, { dur: 0.22, ease: T.E.outCubic, tag: 'tslab' }); if (o.tableShadow) T.to(o.tableShadow.material, { opacity: 0.55 }, { dur: 0.25 });
+      S.sfx('ltPutDown'); store.toTable(o.slab.id, g.position.x, g.position.z, o.yaw || 0); return true; }
+    return true;
+  }
   function hittable() { const wall = ctx.cam.view === 'wall'; return wall ? [btnKey] : [btnLoot, btnVault, ...tableSlabs.map(o => o.group)]; }
   let hot = null; function setHot(o) { if (hot === o) return; if (hot) hot.userData.hotT = 0; hot = o; if (hot) hot.userData.hotT = 1; }
 
@@ -265,4 +295,6 @@ const BASE_CSS = `
 #sk.shake{ animation:skshake .4s; } @keyframes skshake{ 0%,100%{ transform:translate(-50%,-50%); } 25%{ transform:translate(calc(-50% - 6px),-50%); } 75%{ transform:translate(calc(-50% + 6px),-50%); } }
 #skPts{ position:fixed; right:max(16px, env(safe-area-inset-right,0px)); bottom:calc(18px + env(safe-area-inset-bottom,0px)); font:500 10px/1 var(--f-mono); letter-spacing:.16em; color:var(--faint); opacity:0; transition:opacity .4s; pointer-events:none; z-index:3; }
 #skPts.on{ opacity:1; }
+#skSkip{ position:fixed; right:max(16px, env(safe-area-inset-right,0px)); bottom:calc(36px + env(safe-area-inset-bottom,0px)); font:500 10px/1 var(--f-mono); letter-spacing:.14em; text-transform:uppercase; color:var(--text); background:rgba(20,18,16,.78); border:1px solid rgba(244,241,234,.25); border-radius:999px; padding:7px 12px; cursor:pointer; z-index:4; }
+#skSkip:hover{ border-color:rgba(244,241,234,.6); }
 `;

@@ -262,13 +262,14 @@ export function install(S) {
       const mesh = typeof binder.binderMesh === 'function' ? binder.binderMesh(S) : null;
       if (!mesh || !M.defined('vault.binder')) { S.toast('The binder is still being built.'); M.go(V.lidOpen ? 'vault.lid' : 'vault.case', { quiet: true }); return; }
       if (V.lidOpen) { await closeLid(run); if (!run.alive()) return; }
-      S.cam.pop(); V.pushed = false; S.sfx('binder');
+      /* the camera stays pushed: the binder frames itself, and caseBack brings the case framing back before the vault lowers it */
+      S.sfx('binder');
       await P.morph(V.group, mesh, { mode: S.dev.opt('dissolve'), tag: 'vault' }); if (!run.alive()) return;
       M.go('vault.binder', { from: 'vault', mesh });
     },
   });
   /* the way back for binder.js: the binder becomes the case again */
-  async function caseBack(mesh) { if (!V.pushed) { S.cam.push(FRAME()); V.pushed = true; } await P.morph(mesh, V.group, { mode: S.dev.opt('dissolve') }); V.group.visible = true; }
+  async function caseBack(mesh) { if (!V.pushed) { S.cam.push(FRAME()); V.pushed = true; } else S.cam.set(FRAME()); await P.morph(mesh, V.group, { mode: S.dev.opt('dissolve') }); V.group.visible = true; }
   async function closeLid(run) {
     if (!V.lidOpen && V.lidA <= 0) return;
     V.slabs.forEach(s => { if (!s.off) T.to(s.pivot.position, { y: s.y - 0.35 }, { dur: 0.3, ease: E.inCubic, tag: 'vault' }); });

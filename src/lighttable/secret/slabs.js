@@ -57,6 +57,8 @@ export const store = {
   where(id) { const d = store.get(); if (d.vault.includes(id)) return 'vault'; if (d.binder.some(pg => pg && pg.includes(id))) return 'binder'; if (d.table.some(t => t.id === id)) return 'table'; return 'loose'; },
   /* take a slab out of wherever it is */
   detach(id) { const d = store.get(); d.vault = d.vault.filter(x => x !== id); d.binder.forEach(pg => { if (pg) for (let i = 0; i < pg.length; i++) if (pg[i] === id) pg[i] = null; }); d.table = d.table.filter(t => t.id !== id); store.save(); },
+  /* a pull gone for good: out of the pulls and everywhere it was filed (the points it earned stay) */
+  discard(id) { store.detach(id); const d = store.get(); d.pulls = d.pulls.filter(p => p.id !== id); delete d.finishes[id]; store.save(); },
   toVault(id) { store.detach(id); store.get().vault.push(id); store.save(); },
   toTable(id, x, z, yaw) { store.detach(id); store.get().table.push({ id, x: +x.toFixed(3), z: +z.toFixed(3), yaw: +(yaw || 0).toFixed(3) }); store.save(); },
   /* binder pages hold 9 pockets each; the first free pocket, adding a page when every one is full */

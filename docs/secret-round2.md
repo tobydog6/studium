@@ -44,6 +44,11 @@ the meshes exist (`built` true). The group's local +Z is the face; the caller ro
 table = `quaternion` from `-PI/2` about X; face down = a further PI about the group's Y). Prints add:
 `setGlow(amount 0..1)` (the rim light in the finish colour, off at 0) and `parts.back`.
 
+Objects are built at slab scale (a portrait slab is about 2.9 wide); Sam found that massive on the table, so
+`S.table.adopt` shows every table object at `S.TABLE_K` (0.42, a card beside the 3.3 wide prints) and inspect scales it
+back to 1 while it floats. The rail and the parcel can show theirs at whatever scale reads best; the table rescales
+what it is handed. The vault shows slabs at its own 0.28 inside the case.
+
 `S.objFor(slab)` makes the right one (`slab.graded` → slab, else print) and registers it so `update` runs each frame;
 `S.slabs.drop(obj)` disposes either. `S.table.place(slab, x, z, yaw, {drop})` lays either kind on the table and
 `S.table.remove(obj)` takes it off. `S.sendForGrading(obj)` (index.js) sends a raw table print away.

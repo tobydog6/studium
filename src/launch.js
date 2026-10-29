@@ -345,9 +345,11 @@
        credited on screen and in licenses/) as the world, under the camera: it dims as the camera comes up, the focus ring,
        the shutter, and it opens out again as the name lands. No music */
     22:{ bed:function(c,t){ sdWorldReal(c,t); }, scan:function(){}, lens:sdNarrow, rack:sdRing, spin:function(b,t){ sdRise(b,t); } },
-    /* 23 · Bush and drone: the real dawn chorus, softer, with the first opening's low drone breathing under it; both dim as the
-       camera comes up; the original circle and title chord as they open out again */
-    23:{ bed:function(c,t){ sdWorldReal(c,t,0.42); sdDroneIn(c,t); }, scan:function(){}, lens:sdNarrow, rack:sdRing, spin:function(b,t,q){ sdOpen(t); sdSpinPlain(b,t,q); } } };
+    /* 23 · Bush and drone: the real dawn chorus, softer, the first opening's low drone breathing under it, and 20's air. As the
+       camera comes up it all muffles right down (20's photo moment), so the hands, the focus ring and the shutter are close;
+       through the circle the birds stay away and the original circle and title chord carry it */
+    23:{ bed:function(c,t){ sdWorldReal(c,t,0.42); SD.bedNF=650; SD.bedNG=0.39; var k=1/SD.bedG; SD.ambSrc=SD.ambSrc.concat(sdAir(c,SD.bedPre,t,0.09*k,800),sdAir(c,SD.bedPre,t,0.047*k,2800)); sdDroneIn(c,t); },
+        scan:function(){}, lens:sdNarrow, rack:sdRing, spin:function(b,t,q){ if(SD.bedPre){ SD.bedPre.gain.cancelScheduledValues(t); SD.bedPre.gain.setTargetAtTime(SD.bedG*0.22,t+0.3,0.8); } sdSpinPlain(b,t,q); } } };
   // ---- Attention's parts ----
   /* the place: wind through the canopy and the leaves, fading in, through a filter the camera can close */
   function sdWorld(c,t){ var bus=sdBedBus(c,t), lp=c.createBiquadFilter(), pre=c.createGain(); lp.type="lowpass"; lp.frequency.value=9000; lp.Q.value=0.5; pre.gain.value=SD.bedG=1.8; SD.bedNF=650; SD.bedNG=0.39; pre.connect(lp); lp.connect(bus); SD.bedLP=lp; SD.bedPre=pre;

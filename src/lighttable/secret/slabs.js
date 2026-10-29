@@ -33,7 +33,7 @@ export const FINISHES = [
   { id: 'glitter', name: 'Glitter', tier: 'epic' }, { id: 'gold', name: 'Gold repoussé', tier: 'legendary' }, { id: 'prism', name: 'Prism black', tier: 'mythic' },
   { id: 'chrome', name: 'Liquid chrome' }, { id: 'lenticular', name: 'Lenticular' }, { id: 'latent', name: 'Latent' }, { id: 'thermal', name: 'Thermal' },
   { id: 'cyanotype', name: 'Cyanotype' }, { id: 'eclipse', name: 'Eclipse' }, { id: 'steel', name: 'Steel' }, { id: 'glass', name: 'Glass' },
-  { id: 'porcelain', name: 'Blue and white porcelain' }, { id: 'kintsugi', name: 'Kintsugi' }, { id: 'raku', name: 'Raku' }, { id: 'stone', name: 'Carved stone' },
+  { id: 'porcelain', name: 'Painted porcelain' }, { id: 'kintsugi', name: 'Kintsugi' }, { id: 'raku', name: 'Raku' }, { id: 'stone', name: 'Carved stone' },
   { id: 'polychrome', name: 'Polychrome' }, { id: 'keywarm', name: 'Colour key · warm' }, { id: 'keyblue', name: 'Colour key · blue' }, { id: 'leaf', name: 'Highlight leaf' }, { id: 'silver', name: 'Silver gelatin' },
   { id: 'selective', name: 'Selective colour' }, { id: 'split', name: 'Split tone' }, { id: 'solar', name: 'Solarised' }, { id: 'infrared', name: 'Infrared' }, { id: 'poster', name: 'Posterised' }, { id: 'xpro', name: 'Cross processed' },
   { id: 'duoRose', name: 'Duotone · rose' }, { id: 'duoMoss', name: 'Duotone · moss' }, { id: 'duoInk', name: 'Duotone · ink' }, { id: 'duoEmber', name: 'Duotone · ember' }, { id: 'tritone', name: 'Tritone' }, { id: 'vignette', name: 'Vignette' },

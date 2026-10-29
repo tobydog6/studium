@@ -110,7 +110,7 @@ const FX = {
       g.add(new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ map, roughnessMap: orm, metalnessMap: orm, aoMap: orm, roughness: 1, metalness: 1, normalMap: normalOf(det, P.W, P.H, 22), envMapIntensity: 1.2 })));
       return { relief: k => setRelief(geo, k * 0.17) };
     } },
-  porcelain: { name: 'Blue and white porcelain', amt: [0.8, 1.2],
+  porcelain: { name: 'Painted porcelain', amt: [0.8, 1.2],
     build(P, g, w, h, api) { const driver = api.driver, renderer = api.renderer, camera = api.camera, ENV2 = api.env2, RK = RELIEF.k;
       const rr = api.rng(), ink0 = pick(rr, INKS), cells = 18 + Math.floor(rr() * 34), rimk = pick(rr, [['gold rim', [1, 0.83, 0.5]], ['platinum rim', [0.92, 0.92, 0.94]], ['no rim', null]]); api.label([ink0[0], cells > 38 ? 'fine crackle' : cells < 26 ? 'wide crackle' : 'crackle', rimk[0]]);
       const N = P.W * P.H, Hf = smoothHeight(P, heightOf(P, 0.6, 0.12, 0), 2.2), cav = cavityOf(P, Hf, 6), crack = crackle(P.W, P.H, cells, 1.1), IC = ink0[1];

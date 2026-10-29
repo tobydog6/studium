@@ -151,7 +151,7 @@
   function coLearn(media,row,key,line,sub){ var s=coDial(row,key,"",sub); s.media=media; s.dwell=1800; s.line=function(){ return line; }; return s; }
   var CO_TOURS={
     basics:{where:function(){ return loaded&&!App.is("hub")&&!(typeof st!=="undefined"&&st.open); }, steps:[
-      {ch:"MOVE", line:function(){ return FL.orbit?'<kbd class="co-drag">DRAG</kbd> to go round '+chSubjectName().replace(/^The /,"the "):'Click, then move the mouse to look around'; },
+      {ch:"MOVE", line:function(){ return FL.orbit?'<kbd class="co-drag">DRAG</kbd> to go round '+coSubj():'Click, then move the mouse to look around'; },
         sub:function(){ return FL.orbit?"Side to side takes you round it, up and down raises and lowers you. If you lose it, a gold ring points the way back.":"Esc lets go of the mouse. The sharp thing in front of you is the subject; if you lose it, a gold ring points the way back."; },
         start:function(){ CO.s.o0=FLX.orb; }, done:function(){ return CO.look+FLX.orb-CO.s.o0>1.6; }, bar:function(){ return (CO.look+FLX.orb-CO.s.o0)/1.6; }},
       {ch:"MOVE", line:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return isFinite(d)&&d>4.5?'Head for the gold ring: that\'s '+(typeof chSubjectName==="function"?chSubjectName():"the subject")+', your subject':coK("W")+coK("A")+coK("S")+coK("D")+' to walk'; },
@@ -476,6 +476,8 @@
   var CO_MOUSE='<svg viewBox="0 0 16 22" aria-hidden="true"><path class="l" d="M8 1.5A6.5 6.5 0 0 0 1.5 8V9.5H8z"/><path class="r" d="M8 1.5A6.5 6.5 0 0 1 14.5 8V9.5H8z"/><rect class="b" x="1.5" y="1.5" width="13" height="19" rx="6.5"/><path class="s" d="M8 1.5v8M1.5 9.5h13"/></svg>';
   function coMouse(h){ return String(h).replace(/<kbd( class="co-drag")?>DRAG<\/kbd>/g,'<kbd class="co-mouse m-drag">'+CO_MOUSE+'DRAG</kbd>')
       .replace(/<kbd>RIGHT CLICK<\/kbd>/g,'<kbd class="co-mouse m-r">'+CO_MOUSE+'RIGHT CLICK</kbd>').replace(/<kbd>CLICK<\/kbd>/g,'<kbd class="co-mouse m-l">'+CO_MOUSE+'CLICK</kbd>'); }
+  /* the subject in a sentence: "The Stump" reads "the stump" */
+  function coSubj(){ var n=chSubjectName(); return /^The /.test(n)?"the "+n.slice(4).toLowerCase():n; }
   function coSub(s){ return typeof s.sub==="function"?s.sub():s.sub; }
   function coRender(s){ var e=coEl(), ring=$("coRing"), steps=coSteps(); if(CO.sndStep!==s){ CO.sndStep=s; sfx("tour"); }
     var chs=[], prev=null; steps.forEach(function(x,i){ if(x.ch!==prev){ chs.push({ch:x.ch, first:i}); prev=x.ch; } });

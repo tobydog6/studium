@@ -583,7 +583,23 @@
     renderer.render(fsScene,fsCam);
     if(viewer){ try{ chRender(dt); }catch(e){} }   /* the gold frames draw after the last pass, at the screen's full resolution, so they're crisp however low the scene is drawing */
   }
-  function animate(){ requestAnimationFrame(animate); var dt=Math.min(clock.getDelta(),0.1);
+  /* the performance readout: F9 (or ?perf) shows frame rate, how much of the screen the scene draws at, splats drawn and
+     main-thread stalls, so a slow machine can be measured rather than guessed at */
+  var PF={on:/[?&]perf/.test(location.search), el:null, n:0, t:0, worst:0, last:0, stalls:0};
+  try{ new PerformanceObserver(function(l){ l.getEntries().forEach(function(e){ if(e.duration>100) PF.stalls++; }); }).observe({entryTypes:["longtask"]}); }catch(e){}
+  addEventListener("keydown",function(e){ if(e.code==="F9"){ PF.on=!PF.on; if(PF.el) PF.el.style.display=PF.on?"":"none"; }
+    /* with the readout up, F10 switches the light's shadows off and on: a quick way to see what they cost on this machine */
+    if(e.code==="F10"&&PF.on&&typeof RLB!=="undefined"&&RLB&&RLB.gpu){ e.preventDefault(); var U=RLB.gpu.U; U.shad.value=U.shad.value>0.5?0:1; PF.noShad=U.shad.value<0.5; try{ RLB.gpu.mesh.updateVersion(); if(viewer&&viewer.detail) viewer.detail.updateVersion(); }catch(er){} } });
+  function pfTick(){ if(!PF.on) return; var now=performance.now(), d=PF.last?now-PF.last:0; PF.last=now; PF.n++; PF.t+=d; if(d>PF.worst) PF.worst=d; if(PF.t<500) return;
+    if(!PF.el){ PF.el=document.createElement("div"); PF.el.style.cssText="position:fixed;left:8px;bottom:8px;z-index:99999;font:11px/1.45 ui-monospace,monospace;color:#f4f1ea;background:rgba(12,11,10,.78);padding:6px 9px;border-radius:6px;pointer-events:none;white-space:pre"; document.body.appendChild(PF.el); }
+    var sp=viewer&&viewer.spark, cv=renderer.domElement, rt=sceneRT;
+    PF.el.textContent=Math.round(PF.n*1000/PF.t)+" fps   worst "+Math.round(PF.worst)+" ms   stalls "+PF.stalls+"\nscene "+rt.width+"×"+rt.height+" of "+cv.width+"×"+cv.height+"   detail "+sceneDetail+
+      (sp?"\nsplats "+((sp.activeSplats||0)/1e6).toFixed(2)+"M   budget ×"+(sp.lodSplatScale||1).toFixed(2)+(sp.lodSplatCount?" of "+(sp.lodSplatCount/1e6).toFixed(2)+"M":""):"")+
+      (typeof WE!=="undefined"?"\nwind "+(WE.wind||0)+"  fog "+(WE.fog||0)+"  rain "+(WE.rain||0):"")+(PF.noShad?"\nshadows OFF (F10)":"\nF10: shadows on/off");
+    PF.n=0; PF.t=0; PF.worst=0; }
+  (function pfCount(){ var n=0, t0=performance.now(); (function f(){ requestAnimationFrame(f); n++; var t=performance.now(); if(t-t0>=1000){ PF.fps=n*1000/(t-t0); n=0; t0=t; } })(); })();
+  if(/[?&]dev/.test(location.search)) window.__pf={ spin:function(v){ PF.spin=v; }, fps:function(){ return PF.fps||0; }, sorting:function(){ var sp=viewer&&viewer.spark; return sp?{active:sp.activeSplats, sorting:sp.sorting}:null; } };
+  function animate(){ requestAnimationFrame(animate); pfTick(); if(PF.spin&&loaded) yaw+=PF.spin; var dt=Math.min(clock.getDelta(),0.1);
     if((typeof cbOpen!=="undefined" && cbOpen) || (typeof bg!=="undefined" && bg.open) || (typeof st!=="undefined" && st.open)) return;   // the camera back covers the scene: stop drawing it (big win on school PCs)
     if(typeof RF!=="undefined"&&RF.on){ if(!loaded&&(RF.bg=(RF.bg||0)+1)%3===0) renderFrame(dt); return; }   /* the launch page is a still with its own lens; Spark only finishes building the scan while it's being drawn, so it's drawn now and then, small, under the still, until it's in */
     if(!(typeof LA!=="undefined"&&LA.on)&&(App.is("hub")||App.is("signin")||document.body.classList.contains("la-wel-on"))){ if(!loaded&&viewer&&(animate.bg=(animate.bg||0)+1)%3===0) renderFrame(dt); return; }   /* the hub, sign-in and the welcome card cover the scene: don't draw it (a scan still loading is drawn now and then so Spark finishes building it) */
@@ -674,19 +690,24 @@
          to save budget, and the merged copy of it in the big scan is hidden (the lighting modifier keeps hiding it) */
       var DT=keepCol&&CH.spec&&CH.spec.detail;
       if(DT){ viewer.cut=DT.cut; mesh.worldModifier=dtCutModifier(DT.cut); mesh.updateGenerator();
-        assetBytes(DT.data).then(function(b2){ if(DT.ext!=="stm") return b2; return new Response(new Blob([b2]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer().then(function(raw){ return stmUnpack(raw,"full"); }); }).then(function(b2){ if(!viewer||viewer.mesh!==mesh) return; var dm=new SPARK.SplatMesh({fileBytes:new Uint8Array(b2), fileType:DT.ext==="stm"?FMT.splat:FMT[DT.ext||"sog"], lod:false});   /* stm pieces: every splat, never thinned by the detail setting */
+        assetBytes(DT.data).then(function(b2){ if(DT.ext!=="stm") return b2; return new Response(new Blob([b2]).stream().pipeThrough(new DecompressionStream("deflate"))).arrayBuffer().then(function(raw){ return pwCall({op:"stm", buf:raw, level:"full"}).catch(function(){ return stmUnpack(raw,"full"); }); }); }).then(function(b2){ if(!viewer||viewer.mesh!==mesh) return; var dm=new SPARK.SplatMesh({fileBytes:new Uint8Array(b2), fileType:DT.ext==="stm"?FMT.splat:FMT[DT.ext||"sog"], lod:false});   /* stm pieces: every splat, never thinned by the detail setting */
           dm.quaternion.copy(q); dm.scale.setScalar(SC); scene.add(dm); viewer.detail=dm; if(typeof RL!=="undefined"&&RL.gpu&&RL.gpu.U.on.value>0&&typeof rlDetail==="function") rlDetail(); }).catch(function(e){ console.warn("detail piece", e); if(viewer&&viewer.mesh===mesh){ viewer.cut=null; if(typeof RL!=="undefined"&&RL.gpu&&RL.gpu.U.dcut){ RL.gpu.U.dcut.value.set(0,0,-1,0); mesh.updateVersion(); } else { mesh.worldModifier=null; mesh.updateGenerator(); } } }); }   /* no piece: show the subject from the main scan */
       // Spark says "initialized" before its level-of-detail build has the splats ready: wait for them. Then, because
       // the LoD splats live in a streaming pager that can't be read back, parse the same bytes once more without LoD to
       // get every splat's centre (world space) and opacity: framing, autofocus and lighting read those.
       return mesh.initialized.then(function(){ live(); return new Promise(function(res,rej){ var t0=performance.now(); (function poll(){ if(tok!==loadTok) return rej(LOAD_STALE); if(mesh.numSplats>0) return res(); if(performance.now()-t0>180000) return rej(new Error("the scan never finished loading")); setTimeout(poll,100); })(); }); })
-        .then(function(){ live(); var ps=new SPARK.PackedSplats({fileBytes:new Uint8Array(ab), fileType:format}); return ps.initialized; })
-        .then(function(ps){ if(tok!==loadTok){ try{ ps.dispose(); }catch(e){} throw LOAD_STALE; } mesh.updateMatrixWorld(true); var n=ps.numSplats, P=new Float32Array(n*3), A=new Float32Array(n), Gr=new Uint8Array(n), v=new THREE.Vector3();
+        .then(function(){ live(); if(format===FMT.splat&&!PW.dead) return pwCall({op:"pts", buf:ab, q:[q.x,q.y,q.z,q.w], s:SC}).then(function(r){ live(); viewer.P=r.P; viewer.A=r.A; viewer.Gr=r.Gr; viewer.q=q.clone(); return "pts"; }, function(e){ if(e===LOAD_STALE) throw e; console.warn("points in the background failed", e); return null; });   /* .splat: read the points straight from the bytes, off the page's thread */ return null; })
+        .then(function(got){ live(); if(got==="pts") return "pts"; var ps=new SPARK.PackedSplats({fileBytes:new Uint8Array(ab), fileType:format}); return ps.initialized; })
+        .then(function(ps){ if(ps==="pts") return; if(tok!==loadTok){ try{ ps.dispose(); }catch(e){} throw LOAD_STALE; } mesh.updateMatrixWorld(true); var n=ps.numSplats, P=new Float32Array(n*3), A=new Float32Array(n), Gr=new Uint8Array(n), v=new THREE.Vector3();
           ps.forEachSplat(function(i,c,sc,qq,op,co){ v.copy(c).applyQuaternion(q).multiplyScalar(SC); P[i*3]=v.x; P[i*3+1]=v.y; P[i*3+2]=v.z; A[i]=op;
             if(co){ var gd=co.g-Math.max(co.r,co.b); Gr[i]=Math.max(0,Math.min(255,Math.round((gd*5+(co.g>=co.r&&co.g>=co.b?0.12:0))*255))); } });   /* how leafy each splat looks: the wind reads it */
           try{ ps.dispose(); }catch(e){} viewer.P=P; viewer.A=A; viewer.Gr=Gr; viewer.q=q.clone(); });
     }).then(function(){ live();
       frameScene(); if(typeof wxArrival==="function"&&wxArrival()){} else if(keepCol&&CH.spec&&CH.spec.spawn){ var sp=CH.spec.spawn; if(sp[4]&&WK.mode==="walk") WK.eye=sp[4]; camPos.set(sp[0], WK.col?wkGround(sp[0],sp[1])+WK.eye:camPos.y, sp[1]); yaw=sp[2]||0; pitch=sp[3]||-0.1; }   // a scene can say where to stand first
+      /* Spark's splat budget defaults to 2.5 million, far more than this scan has, so trimming it when the frame rate dips
+         did nothing until it fell below half. Set it so the base scale draws what it did before (same look),
+         and every step down really draws fewer splats */
+      try{ var nSp=viewer.P?viewer.P.length/3:0; if(nSp>0&&viewer.spark){ var dflt=viewer.spark.defaultSplatTarget?viewer.spark.defaultSplatTarget():2.5e6; viewer.spark.lodSplatCount=Math.max(2e5, Math.min(dflt, nSp/Math.max(0.1,dynLodBase())));   /* at the base scale: the scan's own size or the device cap, whichever is less, exactly as before */ } }catch(e){}
       chAttach(); loaded=true; if(!(typeof RF!=="undefined"&&RF.on)&&!(typeof LA!=="undefined"&&LA.on)) sfx("arrive"); updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       /* no toast on arrival: the coach's first prompt and the look-around pill already say it (ux-scene) */
@@ -731,6 +752,46 @@
     else if(fps>55){ if(++dyn.hi>=3){ dyn.hi=0; if(dyn.scale<mx) setScale(Math.min(mx,Math.round((dyn.scale+0.1)*100)/100)); else if(sp&&sp.lodSplatScale<dynLodBase()) sp.lodSplatScale=Math.min(dynLodBase(), sp.lodSplatScale/0.85); } } else dyn.hi=0; }
   // Keep the splats that show most: rank by opacity and keep the top share. Faint haze goes first and the small,
   // solid splats that carry texture stay, so the lighter levels thin out without going soft or muddy.
+  /* ---- the background worker: heavy one-off sums (unpacking the scan, its points, the light grids) run off the page's
+     own thread, so the launch page and the opening never freeze while a scan comes in. Built from the same functions
+     the page uses (they're pure), so there's one copy of each; if a worker can't start, everything runs here as before */
+  function f2h(v){ var F=f2h.F||(f2h.F=new Float32Array(1)), I=f2h.I||(f2h.I=new Uint32Array(F.buffer)); F[0]=v>65504?65504:v<-65504?-65504:v; var x=I[0], sg=(x>>>16)&0x8000, e=(x>>>23)&0xff, m=x&0x7fffff;
+    if(e===255) return sg|0x7c00|(m?0x200:0); e=e-112; if(e>=31) return sg|0x7c00; if(e<=0){ if(e<-10) return sg; m=(m|0x800000)>>>(1-e); return sg|((m+0x1000)>>>13); } return sg|((e<<10)+((m+0x1000)>>>13)); }
+  /* every splat's centre (in the world), opacity and leafiness, straight from .splat bytes: no second parse of the scan */
+  function splatPts(buf, q, sc){ var n=Math.floor(buf.byteLength/32), F=new Float32Array(buf, 0, n*8), U=new Uint8Array(buf), P=new Float32Array(n*3), A=new Float32Array(n), Gr=new Uint8Array(n), qx=q[0], qy=q[1], qz=q[2], qw=q[3], i;
+    for(i=0;i<n;i++){ var vx=F[i*8], vy=F[i*8+1], vz=F[i*8+2], tx=2*(qy*vz-qz*vy), ty=2*(qz*vx-qx*vz), tz=2*(qx*vy-qy*vx);
+      P[i*3]=(vx+qw*tx+(qy*tz-qz*ty))*sc; P[i*3+1]=(vy+qw*ty+(qz*tx-qx*tz))*sc; P[i*3+2]=(vz+qw*tz+(qx*ty-qy*tx))*sc;
+      var o=i*32+24, r=U[o]/255, g=U[o+1]/255, b=U[o+2]/255; A[i]=U[o+3]/255; var gd=g-Math.max(r,b); Gr[i]=Math.max(0,Math.min(255,Math.round((gd*5+(g>=r&&g>=b?0.12:0))*255))); }
+    return {P:P, A:A, Gr:Gr}; }
+  var PW={w:null, id:0, cb:{}, dead:!(typeof Worker!=="undefined"&&typeof Blob!=="undefined"&&typeof URL!=="undefined")};
+  function pwCall(msg){ return new Promise(function(res,rej){
+    if(PW.dead){ rej(new Error("no worker")); return; }
+    if(!PW.w){ try{ var src="var DETAIL="+JSON.stringify(DETAIL)+";\n"+[f2h, stmUnpack, splatPts, rlGridCalc, rbGridCalc].map(String).join("\n")+
+        "\nonmessage=function(e){ var m=e.data, r, tr=[]; try{"+
+        " if(m.op==='stm'){ r=stmUnpack(m.buf,m.level); tr=[r]; }"+
+        " else if(m.op==='pts'){ r=splatPts(m.buf,m.q,m.s); tr=[r.P.buffer,r.A.buffer,r.Gr.buffer]; }"+
+        " else if(m.op==='grids'){ var g=rlGridCalc(m.P,m.A,m.N,m.mn,m.mx,m.pad,m.S,m.shK), sh=null; if(m.sharp) sh=rbGridCalc(m.P,m.A,m.N,{x0:g.x0,y0:g.y0,z0:g.z0,nx:g.nx,ny:g.ny,nz:g.nz,cell:g.cell},m.tx,m.tz,m.gy,m.S,m.prm); r={g:g,s:sh}; tr=[g.h.buffer]; if(sh) tr.push(sh.h.buffer, sh.a.buffer); }"+
+        " postMessage({id:m.id, r:r}, tr); }catch(err){ postMessage({id:m.id, err:String(err&&err.message||err)}); } };";
+        PW.w=new Worker(URL.createObjectURL(new Blob([src],{type:"text/javascript"})));
+        PW.w.onmessage=function(e){ var c=PW.cb[e.data.id]; delete PW.cb[e.data.id]; if(!c) return; if(e.data.err) c[1](new Error(e.data.err)); else c[0](e.data.r); };
+        PW.w.onerror=function(){ PW.dead=true; PW.w=null; var cb=PW.cb; PW.cb={}; for(var k in cb) cb[k][1](new Error("worker failed")); };
+      }catch(e){ PW.dead=true; rej(e); return; } }
+    var id=++PW.id; PW.cb[id]=[res,rej]; msg.id=id; var tr=msg.tr||[]; delete msg.tr; PW.w.postMessage(msg, tr); }); }
+  /* the light grids, built in the background as soon as a scan's points are in: Lighting and the default look find them ready.
+     cb(true) when they're in (or were already), cb(false) if this scan went away meanwhile */
+  var GA={jobs:[]};   /* one job per scan's points; waiters only hear about their own scan */
+  function gridsAsync(cb){ var P=viewer&&viewer.P;
+    if(!P||typeof RL==="undefined"||typeof RLB==="undefined"||!RL.ready||RL.P!==P||!RL.target){ cb&&cb(false); return; }   /* the caller sets up RL and picks the target, as before */
+    if(RL.grid&&RLB.gridS){ RLB.built=true; cb&&cb(true); return; }
+    var job=GA.jobs.filter(function(j){ return j.P===P; })[0]; if(job){ if(cb) job.cbs.push(cb); return; }
+    job={P:P, cbs:cb?[cb]:[]}; GA.jobs.push(job);
+    var done=function(ok){ GA.jobs=GA.jobs.filter(function(j){ return j!==job; }); job.cbs.forEach(function(f){ try{ f(ok); }catch(e){ console.warn(e); } }); };
+    var T=RL.target;
+    pwCall({op:"grids", P:P, A:viewer.A, N:P.length/3, mn:[boxMin.x,boxMin.y,boxMin.z], mx:[boxMax.x,boxMax.y,boxMax.z], pad:0.05*(sceneMaxDim||8), S:RL.S, shK:RL.shK||0.35,
+      sharp:true, tx:T.x, tz:T.z, gy:rlGround(T.x,T.z), prm:{keep:RLB.keep, qLo:RLB.qLo, qHi:RLB.qHi, kS:RLB.kS}}).then(function(r){
+      if(!(viewer&&viewer.P===P&&RL.P===P)){ done(false); return; }
+      if(!RL.grid) rlGridSet(r.g); if(!RLB.gridS&&r.s) rbGridSet(r.s); RLB.built=true; done(true);
+    }).catch(function(e){ console.warn("grids in the background failed, building here", e); if(!(viewer&&viewer.P===P&&RL.P===P)){ done(false); return; } try{ rlGrid(); rbGridSharp(); RLB.built=true; done(true); }catch(e2){ console.warn(e2); done(false); } }); }
   function stmUnpack(buf, level){ var keepFrac=(DETAIL[level]||DETAIL.full).keep; var dv=new DataView(buf), n=dv.getUint32(4,true), f=new Float32Array(buf.slice(8,40)), b=new Uint8Array(buf,40), N=n;
     var keep=null; if(keepFrac<1){ var A=12*n+3*n, ss0=(f[7]-f[6])/65535, sc=new Float32Array(n), lo=Infinity, hi=-Infinity, j, ch;
       for(j=0;j<n;j++){ var al=b[A+j]; if(al<5){ sc[j]=-Infinity; continue; }
@@ -755,7 +816,7 @@
     assetBytes(sc.data, function(d,n){ if(d<n) showLoader("Downloading "+(sc.name||"the scan")+" · "+Math.round(d/n*100)+"%"); else showLoader("Opening "+(sc.name||"the scan")+"…"); }).then(function(ab){
       if(sc.ext!=="stm") return {buf:ab, ext:sc.ext||"splat"};
       var ds=new Response(new Blob([ab]).stream().pipeThrough(new DecompressionStream("deflate")));
-      return ds.arrayBuffer().then(function(raw){ detailDpr(); return {buf:stmUnpack(raw, sceneDetail), ext:"splat"}; }); })
+      return ds.arrayBuffer().then(function(raw){ detailDpr(); return pwCall({op:"stm", buf:raw, level:sceneDetail}).catch(function(){ return stmUnpack(raw, sceneDetail); }).then(function(b){ return {buf:b, ext:"splat"}; }); }); })
     .then(function(r){ if(bt!==bundTok) return null; skySet(sc.sky||null); CH.spec=sc; return wkLoad(sc.collide).then(function(){ return r; }); })
     .then(function(r){ if(!r||bt!==bundTok) return; var f=new File([r.buf],(sc.id||"scene")+"."+r.ext,{type:"application/octet-stream"}); loadSplat(f, sc.up||"ydown", true); })
     .catch(function(e){ if(bt!==bundTok) return; console.warn(e); hideLoader(); if(typeof rfClose==="function"&&RF.on){ rfClose(); RF.failed=true; siShow(); }   /* the scan wouldn't load: fall back to the plain sign-in card */ toast("Couldn't open that scene."); }); }
@@ -1645,7 +1706,11 @@
   if(typeof siGoogleBack==="function"&&siGoogleBack()){ /* back from Google: it routes itself */ } else if(!lsWho()||(typeof SI_DEMO_ONLY!=="undefined"&&SI_DEMO_ONLY)) siShow(); else if(lsRole()==="teacher")   /* the playtest build always opens on the title page, even for someone who has been before */ openTeacher("plan"); else { if(lsWho().name) studentName=lsWho().name; hubShow("hub"); hubRender(); }   /* the hub starts hidden in the page so it never flashes before the launch page */
   window.addEventListener("beforeunload", saveSessionNow);
   document.addEventListener("visibilitychange", function(){ if(document.hidden) saveSessionNow(); });
-  setInterval(function(){ if(photos.length||(typeof foItems!=="undefined"&&foItems&&foItems.length)) saveSessionNow(); }, 9000);
+  /* the safety-net save: only when something actually changed. It used to write every photo (full-size images) to the
+     browser's database every 9 seconds whatever happened, a freeze that got longer with every photo taken */
+  function sessPrint(){ try{ return JSON.stringify(sessionData(), function(k,v){ if(k==="savedAt") return 0; return (typeof v==="string"&&v.length>256)?v.length+":"+v.slice(0,32)+v.substr(v.length>>1,32)+v.slice(-48):v; }); }catch(e){ return String(Math.random()); } }
+  var _sessPrint=null;
+  setInterval(function(){ if(!(photos.length||(typeof foItems!=="undefined"&&foItems&&foItems.length))) return; var fp=sessPrint(); if(fp===_sessPrint&&!_sessEdit) return; _sessPrint=fp; saveSessionNow(); }, 9000);
   if(/[?&]dev/.test(location.search)){ try{ window.__ed={openEditor:openEditor,eglInit:eglInit,photos:photos,defEd:defEd,editRender:editRender,selectBody:selectBody,BODIES:BODIES,openFolio:openFolio,openPhotobook:openPhotobook,openGalleryShow:openGalleryShow,
     foPack:foPack,foShuffle:foShuffle,foSeed:foSeed,importPhotoFiles:importPhotoFiles,pbExportPDF:pbExportPDF,pbBuildPDF:pbBuildPDF,pbInit:pbInit,updateCamArt:updateCamArt,switchCamTab:switchCamTab,camArtSVG:camArtSVG,gxRender:gxRender,gxBuildLayouts:gxBuildLayouts,gxBindDrag:gxBindDrag,loadSplat:loadSplat,showHub:showHub,openSplatViewer:openSplatViewer,openStudioHome:openStudioHome,openPunctum:openPunctum,photoTip:photoTip,saveSessionNow:saveSessionNow,loadSession:loadSession,clearSession:clearSession,showTutorial:showTutorial,cycleComp:cycleComp,drawComp:drawComp,raiseCamera:raiseCamera,shutter:shutter,get foItems(){return foItems;},get pbPages(){return pbPages;},get foBW(){return foBW;},get foBH(){return foBH;}}; }catch(e){} }
   if(/[?&]dev/.test(location.search)){ window.__ls={db:function(){ return lsDB; }, setClock:function(hm){ var m=/^(\d+):(\d+)$/.exec(hm), d=new Date(); d.setHours(+m[1],+m[2],0,0); lsClockOff=d.getTime()-Date.now(); lsTick(); }, tick:lsTick, who:lsWho, plan:lsPlan, cur:function(){ var p=lsPlan(); return p?lsCur(p):null; }, count:lsCount, moveOpen:lsMoveOpen, pill:function(){ return ls.pill; }, tc:tc, tcPlan:tcPlan, roster:function(){ return tcRoster(tcPlan()); }}; }

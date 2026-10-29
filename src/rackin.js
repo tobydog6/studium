@@ -49,12 +49,12 @@
     "  col*=mix(.62,1.,smoothstep(1.25,.35,length((v-.5)*vec2(1.2,1.)))); col=pow(col,vec3(1.04));\n"+
     "  gl_FragColor=vec4(col*(1.-fade),1.); }";
   var RF_WR=[0.14,0.12,0.86,0.44];   /* the part of the still the name and its line sit in (u0, v0, u1, v1) */
-  function rfWordCanvas(Wp){ var W=Math.max(256,Math.min(4096,Math.round(Wp||3600))), Hh=Math.round(W*(RF_WR[3]-RF_WR[1])/((RF_WR[2]-RF_WR[0])*RF_IA)), c=document.createElement("canvas"); c.width=W; c.height=Hh; var x=c.getContext("2d");
+  function rfWordCanvas(Wp){ var W=Math.max(256,Math.min(4096,Math.round(Wp||3600))), Hh=Math.round(W*(RF_WR[3]-RF_WR[1])/((RF_WR[2]-RF_WR[0])*RF_IA)), c=document.createElement("canvas"); c.width=W; c.height=Hh; var x=c.getContext("2d",{willReadFrequently:true});   /* kept in memory, not on the GPU: reading it back for the focus box and uploading it as a texture are both instant */
     var k=W/((RF_WR[2]-RF_WR[0])*2048); x.setTransform(k,0,0,k,-RF_WR[0]*2048*k,-RF_WR[1]*1280*k);   /* drawn in the still's 2048 x 1280 space, at much higher resolution */
     x.fillStyle="#fff"; x.textAlign="center"; x.textBaseline="alphabetic"; x.font="400 300px 'Fraunces', Georgia, serif"; x.fillText("Studium",1024,1280*0.35);
     x.font="500 22px 'Geist Mono', ui-monospace, monospace"; if(x.letterSpacing!==undefined) x.letterSpacing="6px"; x.fillText(RF_SUB.toUpperCase(),1024,1280*0.35+78); return c; }
   /* the name and its line, padded, in the still's own coordinates: pointing anywhere near it focuses on it */
-  function rfBox(c){ var m=document.createElement("canvas"); m.width=256; m.height=160; var mx=m.getContext("2d"); mx.drawImage(c,0,0,256,160); var B=rfBoxRaw(mx); if(!B) return null; var sx=RF_WR[2]-RF_WR[0], sy=RF_WR[3]-RF_WR[1]; return [RF_WR[0]+B[0]*sx, RF_WR[1]+B[1]*sy, RF_WR[0]+B[2]*sx, RF_WR[1]+B[3]*sy]; }
+  function rfBox(c){ var m=document.createElement("canvas"); m.width=256; m.height=160; var mx=m.getContext("2d",{willReadFrequently:true}); mx.drawImage(c,0,0,256,160); var B=rfBoxRaw(mx); if(!B) return null; var sx=RF_WR[2]-RF_WR[0], sy=RF_WR[3]-RF_WR[1]; return [RF_WR[0]+B[0]*sx, RF_WR[1]+B[1]*sy, RF_WR[0]+B[2]*sx, RF_WR[1]+B[3]*sy]; }
   function rfBoxRaw(mx){ var d=mx.getImageData(0,0,256,160).data, x0=256,y0=160,x1=-1,y1=-1;
     for(var y=0;y<160;y++) for(var x=0;x<256;x++) if(d[(y*256+x)*4+3]>20){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
     return x1<0?null:[x0/256-0.06,y0/160-0.14,(x1+1)/256+0.06,(y1+1)/160+0.14]; }

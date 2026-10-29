@@ -126,6 +126,65 @@
         items.push({t:"text", role:"caption", x:15, y:274, w:390, h:14, text:"Photographs: "+packs.join(", ")});
         wsEnsure(); wsB.applyTemplate({id:"moodboard", name:"Moodboard", build:function(){ return {bg:"white", items:items}; }}); rs.moods=(rs.moods||0)+1; rs.mood=[]; stRoom("workshop"); }); }
 
+  // ---- watch: Sam's DVD shelf, photographers talking about their work, played in the room (YouTube's no-cookie player) ----
+  // Each entry is [YouTube id, title, start in seconds]. A playing video is left alone on re-render (resize, full screen) so it never restarts.
+  var RS_VIDS=[
+    {a:"Gregory Halpern", v:[["UoHzS5CzHiY","Quick-fire questions with Martin Parr · Magnum Photos"],["NopALbRxZ6Y","Artist talk"],["3kwcealoHgY","Fellowship lecture"],
+      ["M7_giEBdiHg","On sequence, with Stanley Wolukau-Wanambwa"],["mauzW11xjL0","A tour of my bookshelf"],["FFY0aH3EATo","What we choose not to see"]]},
+    {a:"Alec Soth", v:[["7TRO_k7rreg","A tour of my bookshelf"],["-Z_mdZ8uJX8","With C. Fausto Cabrera: the power of human connection"],["fUyzwFJe2-s","Sofa Sessions: conversations with Martin Parr"],
+      ["DVQ1u25C48c","Photography, dreams and chance · Aperture Conversations"],["w9aSFMVpi-w","10 favourite photobooks from 2022"],["b2T6ANvKpoo","Somewhere to Disappear (2010)"]]},
+    {a:"Paul Graham", v:[["H7H5LP_u81Y","“Photography lacks intentionality” · Louisiana Channel"],["dAVq7VoIb0U","On time, with Rebecca Bengal",1201],["O-lUMc5-S8g","A Shimmer of Possibility · Off the Shelf"]]},
+    {a:"Wolfgang Tillmans", v:[["aYIXGdoTwWA","What art does in me is beyond words · TateShots"],["f9RrmzUXnhA","Interview"],["29tzEZersvk","Are all photographs equal?"]]},
+    {a:"Sally Mann", v:[["T-fbu6b9LOE","Her intricate photographic techniques · Art21"]]},
+    {a:"Alessandra Sanguinetti", v:[["bp7a4qEISPY","The Adventures of Guille and Belinda, the exhibition"]]},
+    {a:"Stephen Gill", v:[["_LILn3WAJTs","“I want to lose control” · Louisiana Channel"]]},
+    {a:"Ideas", v:[["ON9pkhJaSPI","Real time vs. storytime"],["76I1Btwi5XY","Camera Lucida: Roland Barthes explained"],["zBxbnMcjGiM","I photograph to remember"]]}];
+  var RS_DVDC=["#2f4a3a","#5a2b22","#1f3350","#6b2235","#4a3d2a","#43305a","#1f4a4c","#3a3a3a"];   /* one spine colour per photographer */
+  function rsVid(id){ var hit=null; RS_VIDS.forEach(function(g,gi){ g.v.forEach(function(v,k){ if(v[0]===id) hit={id:v[0], t:v[1], s:v[2]||0, a:g.a, c:RS_DVDC[gi%RS_DVDC.length], n:k}; }); }); return hit; }
+  function rsVidCount(){ var n=0; RS_VIDS.forEach(function(g){ n+=g.v.length; }); return n; }
+  function rsThumb(id){ return "https://i.ytimg.com/vi/"+encodeURIComponent(id)+"/hqdefault.jpg"; }
+  function rsVidSrc(v,auto){ return "https://www.youtube-nocookie.com/embed/"+encodeURIComponent(v.id)+"?rel=0&playsinline=1"+(v.s?"&start="+v.s:"")+(auto?"&autoplay=1":""); }
+  function rsVidUrl(v){ return "https://www.youtube.com/watch?v="+encodeURIComponent(v.id)+(v.s?"&t="+v.s+"s":""); }
+  function rsWatchCard(){ var first=[]; RS_VIDS.slice(0,4).forEach(function(g){ first.push(g.v[0][0]); });
+    return '<section class="rs-hero rs-whero"><div class="rs-hero-t"><span class="eb">WATCH</span><h2>The DVD shelf</h2><p>'+rsVidCount()+' talks and short films picked by your teacher: Gregory Halpern, Alec Soth, Paul Graham, Wolfgang Tillmans and more. Pull one off the shelf and put it on.</p><button class="rs-go2" data-rs-act="watch">Browse the shelf ›</button></div>'
+      +'<button class="rs-wthumbs" data-rs-act="watch" aria-label="Open the DVD shelf">'+first.map(function(id){ var v=rsVid(id); return '<span class="rs-spine" style="--c:'+v.c+'"><i>'+rsEsc(v.a)+'</i></span>'; }).join("")+RS_VIDS.slice(4).map(function(g,gi){ return '<span class="rs-spine" style="--c:'+RS_DVDC[(gi+4)%RS_DVDC.length]+'"><i>'+rsEsc(g.a)+'</i></span>'; }).join("")+'</button></section>'; }
+  /* the shelf: one spine per video, grouped by photographer, on wooden shelves */
+  function rsWatchHTML(top){ var d=rs.dvd;
+    return top+'<span class="rs-count">WATCH · '+rsVidCount()+' DVDS</span></div><div class="rs-dvdw"><p class="rs-q">Pull a DVD off the shelf to have a look, then put it on. Watch with a question in mind: what does this photographer care about, and how could you try that in your own shoot?</p>'
+      +'<div class="rs-shelves">'+RS_VIDS.map(function(g){ return '<div class="rs-sgroup"><span class="rs-slabel">'+rsEsc(g.a)+'</span><div class="rs-srow">'+g.v.map(function(x){ var v=rsVid(x[0]);
+        return '<button class="rs-spine rs-sp'+(d&&d.id===v.id?' out':'')+'" style="--c:'+v.c+';--h:'+(232+((v.id.charCodeAt(0)+v.id.charCodeAt(1))%5)*6)+'px" data-rs-act="dvd" data-rs-vid="'+rsEsc(v.id)+'" aria-label="'+rsEsc(v.a+": "+v.t)+'"><b>S</b><i>'+rsEsc(v.a)+'</i><em>'+rsEsc(v.t)+'</em></button>'; }).join("")+'</div></div>'; }).join("")+'</div></div>'
+      +(d?rsDvdHTML(rsVid(d.id), d.st):''); }
+  /* one DVD case, front cover designed from the video's thumbnail */
+  function rsCover(v){ return '<div class="rs-cov"><div class="rs-covt"><span>STUDIUM</span><span>PHOTOGRAPHERS ON PHOTOGRAPHY</span></div><div class="rs-covi"><img src="'+rsEsc(rsThumb(v.id))+'" alt="" draggable="false"></div>'
+    +'<div class="rs-covb"><b>'+rsEsc(v.a)+'</b><span>'+rsEsc(v.t)+'</span></div><div class="rs-covf"><span>DISC '+("0"+(v.n+1)).slice(-2)+'</span><span>A STUDIUM EDITION</span><i>E</i></div></div>'; }
+  function rsDisc(v){ return '<div class="rs-disc"><img src="'+rsEsc(rsThumb(v.id))+'" alt="" draggable="false"><span>'+rsEsc(v.a)+'</span><i></i></div>'; }
+  function rsDvdHTML(v,stg){ var play=stg==="play";
+    return '<div class="rs-dvdx'+(play?' big still':'')+'" data-rs-dvdx><div class="rs-dvdbg" data-rs-act="dvdback"></div>'
+      +'<div class="rs-case3"><div class="rs-case" data-rs-act="dvdplay" style="--c:'+v.c+'"><div class="rs-cback"><div class="rs-tray">'+rsDisc(v)+'</div></div><div class="rs-cspine"><i>'+rsEsc(v.a)+'</i></div><div class="rs-cfront">'+rsCover(v)+'<div class="rs-cin"></div></div></div></div>'
+      +'<div class="rs-look"><span class="eb">'+rsEsc(v.a.toUpperCase())+'</span><h3>'+rsEsc(v.t)+'</h3><div class="rs-yn"><button class="rs-go" data-rs-act="dvdplay">Put it on ›</button><button class="rs-go2" data-rs-act="dvdback">Back on the shelf</button></div></div>'
+      +'<div class="rs-deck"><div class="rs-scr"><div class="rs-vbox">'+(play?rsWatchFrame(v,rs.vidAuto):'')+'</div></div>'
+      +'<div class="rs-chin"><span class="rs-slot"><i></i></span><span class="rs-led"></span><span class="rs-dt">'+rsEsc(v.a)+' · '+rsEsc(v.t)+'</span><a class="rs-dbtn" href="'+rsEsc(rsVidUrl(v))+'" target="_blank" rel="noopener">YouTube ›</a><button class="rs-dbtn" data-rs-act="dvdback">⏏ Eject</button></div></div></div>'; }
+  function rsWatchFrame(v,auto){ return '<iframe data-rs-vid="'+rsEsc(v.id)+'" src="'+rsEsc(rsVidSrc(v,auto))+'" title="'+rsEsc(v.t)+'" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>'; }
+  function rsDvdTimers(){ (rs.dvdT||[]).forEach(clearTimeout); rs.dvdT=[]; }
+  function rsDvdLater(ms,f){ (rs.dvdT||(rs.dvdT=[])).push(setTimeout(f,rsCalm()?0:ms)); }
+  function rsCalm(){ try{ return matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(e){ return false; } }
+  /* pull it off the shelf: the case swings round to face you */
+  function rsDvdPull(id,box){ var v=rsVid(id); if(!v) return; rsDvdTimers(); sfx("cullPick"); rs.dvd={id:id, st:"look"}; rs.vid=id; rs.vidAuto=false; rsRender();
+    var x=box.querySelector("[data-rs-dvdx]"), sp=box.querySelector('.rs-sp[data-rs-vid="'+id+'"]'), cs=x&&x.querySelector(".rs-case3");
+    if(cs&&sp){ var a=sp.getBoundingClientRect(), b=cs.getBoundingClientRect(); cs.style.setProperty("--fx",(a.left+a.width/2-(b.left+b.width/2))+"px"); cs.style.setProperty("--fy",(a.top+a.height/2-(b.top+b.height/2))+"px"); }
+    requestAnimationFrame(function(){ requestAnimationFrame(function(){ if(x) x.classList.add("in"); }); }); }
+  /* put it on: the case opens, the disc drops into the player, the player glides up to almost full screen and plays */
+  function rsDvdPlay(box){ var d=rs.dvd, x=box.querySelector("[data-rs-dvdx]"); if(!d||!x||d.st!=="look") return; d.st="play"; rs.vidAuto=true; rsDvdTimers(); sfx("cullEnd");
+    x.classList.add("open"); rsDvdLater(650,function(){ x.classList.add("deck"); }); rsDvdLater(900,function(){ x.classList.add("disc"); }); rsDvdLater(1700,function(){ x.classList.add("load"); });
+    rsDvdLater(2150,function(){ x.classList.add("big"); }); rsDvdLater(2900,function(){ var vb=x.querySelector(".rs-vbox"), v=rsVid(d.id); if(vb&&v&&!vb.querySelector("iframe")) vb.innerHTML=rsWatchFrame(v,true); x.classList.add("on"); }); }
+  function rsDvdBack(box){ rsDvdTimers(); var x=box.querySelector("[data-rs-dvdx]"), vb=x&&x.querySelector(".rs-vbox"); if(vb) vb.innerHTML=""; rs.vidAuto=false;
+    if(!x||rsCalm()){ rs.dvd=null; if(x) x.remove(); return rsRender(); } x.classList.add("bye"); rsDvdLater(420,function(){ rs.dvd=null; x.remove(); rsRender(); }); }
+  /* tilt the case with the mouse, like holding it */
+  function rsDvdTilt(e,box){ var x=box.querySelector("[data-rs-dvdx].in:not(.open)"), cs=x&&x.querySelector(".rs-case"); if(!cs) return; var w=innerWidth, h=innerHeight;
+    cs.style.setProperty("--ry",(-16+(e.clientX/w-0.5)*26).toFixed(1)+"deg"); cs.style.setProperty("--rx",((0.5-e.clientY/h)*14).toFixed(1)+"deg"); }
+  /* leaving the room or the studio: take the player out so nothing keeps playing behind the scenes */
+  function rsVidStop(){ rsDvdTimers(); if(!rs.dvd) return; rs.dvd=null; rs.vidAuto=false; var box=$("st-research"), x=box&&box.querySelector("[data-rs-dvdx]"); if(x) x.remove();
+    Array.prototype.forEach.call(box?box.querySelectorAll(".rs-sp.out"):[],function(b){ b.classList.remove("out"); }); }
   // ---- drawing ----
   function rsEsc(s){ return cbEsc(String(s==null?"":s)); }
   function rsDot(t){ return t?'<i class="rs-dot" style="left:'+(t.x*100).toFixed(2)+'%;top:'+(t.y*100).toFixed(2)+'%"></i>':''; }
@@ -143,7 +202,7 @@
       return '<div class="rs-pack" data-rs-pack="'+rsEsc(p.id)+'"><div class="rs-cover">'+p.imgs.slice(0,3).map(function(im){ return '<img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'; }).join("")+'</div>'
         +'<div class="rs-meta"><b>'+rsEsc(p.name)+'</b><span>'+p.imgs.length+' photographs'+(ln.length?' · '+ln.map(function(l){ return '<a href="'+rsEsc(l.url)+'" target="_blank" rel="noopener">'+rsEsc(l.label)+'</a>'; }).join(' · '):'')+'</span></div>'
         +'<div class="rs-acts"><button class="'+(d2?'rs-go2':'rs-go')+'" data-rs-act="cull" data-rs-id="'+rsEsc(p.id)+'">'+(d2?'✓ PLAY AGAIN':'CULLING GAME')+'</button>'+(d2?'<button class="rs-go" data-rs-act="all" data-rs-id="'+rsEsc(p.id)+'">See all the photos ›</button>':'')+'</div></div>'; }).join("")+'</div>'
-      +(rs.offline?'<p class="rs-off">Couldn\'t reach your class packs right now, so here\'s what this computer has saved, and a sample pack.</p>':'')+'</div><div class="rs-sr">'+rsWall()+'</div></div>'; }
+      +(rs.offline?'<p class="rs-off">Couldn\'t reach your class packs right now, so here\'s what this computer has saved, and a sample pack.</p>':'')+'</div><div class="rs-sr">'+rsWall()+rsWatchCard()+'</div></div>'; }
   function rsRound(top){ var r=rs.round, im=r.imgs[r.k], tp=r.tap[im.id], n=r.notes[im.id]||{}, h=top+'<span class="rs-count">'+(r.k+1)+' / '+r.imgs.length+'</span></div><div class="rs-play"><div class="rs-stage'+(r.step==="tap"&&!tp?' tapping':'')+'"><div class="rs-imgw"><img class="rs-img" src="'+rsEsc(im.url)+'" alt="" draggable="false">'+rsDot(tp)+'</div></div><aside class="rs-side">';
     if(r.step==="ask") h+='<span class="eb">PUNCTUM</span><h3>Does anything in this photograph prick you?</h3><p class="rs-q">Barthes called it the punctum, a small detail that catches your eye and stays with you.</p>'
       +'<div class="rs-yn"><button class="rs-go" data-rs-act="yes">Yes, something</button><button class="rs-go2" data-rs-act="no">Not this one</button></div>';
@@ -217,9 +276,10 @@
     var fa=document.activeElement, fk=fa&&box.contains(fa)&&fa.getAttribute&&(fa.getAttribute("data-rs-why")||(fa.hasAttribute("data-rs-amwhy")?"*am":null)), fs=fk?fa.selectionStart:0;
     if(rs.view==="mood"&&!rs.pack) rs.pack={name:"Every pack", imgs:[]};
     if(rs.view==="all"&&!rs.pack) rs.pack={name:"All artists", imgs:[], id:"*"};
+    if(rs.view==="watch"){ if(!rs.pack) rs.pack={name:"The DVD shelf", imgs:[]}; if(box.querySelector("[data-rs-dvdx].in,[data-rs-dvdx].still")) return; }   /* a re-render (resize, full screen) must not restart the video */
     if(rs.view==="shelf"||!rs.pack){ if(!rs.packs&&!rs.loading) return rsLoad(); box.innerHTML=rsShelf(); return; }
     var top='<div class="rs-bar"><button class="rs-back" data-rs-act="shelf">‹ All packs</button><span class="rs-pn">'+rsEsc(rs.view==="all"?"The archive":rs.pack.name)+'</span>';
-    box.innerHTML=rs.view==="round"?rsRound(top):rs.view==="cull"?rsCullHTML(top):rs.view==="mood"?rsMoodHTML(top):rs.view==="all"?rsAllHTML(top):rsResults(top);
+    box.innerHTML=rs.view==="round"?rsRound(top):rs.view==="cull"?rsCullHTML(top):rs.view==="mood"?rsMoodHTML(top):rs.view==="all"?rsAllHTML(top):rs.view==="watch"?rsWatchHTML(top):rsResults(top);
     if(rs.view==="round") rsWireNotes(box);
     if(fk){ var re=box.querySelector(fk==="*am"?'[data-rs-amwhy]':'[data-rs-why="'+fk+'"]'); if(re){ re.focus(); try{ re.setSelectionRange(fs,fs); }catch(e){} } } }
   function rsWireNotes(box){ Array.prototype.forEach.call(box.querySelectorAll("[data-rs-note]"),function(t){ t.addEventListener("input",function(){ var r=rs.round, im=r.imgs[r.k]; (r.notes[im.id]||(r.notes[im.id]={}))[t.getAttribute("data-rs-note")]=t.value; }); t.addEventListener("keydown",function(e){ e.stopPropagation(); }); }); }
@@ -236,12 +296,16 @@
       var items=rsLibItems(), am=rs.am||[], ranked=(rs.res&&rs.res.kind==="cull"&&rs.res.top)?rs.res.top.map(function(x){ return String(x.id); }):[], grid=m.querySelector(".rs-mgrid"), none=m.querySelector(".rs-none");
       var h=items.map(function(e2){ var im=e2.im, k=am.indexOf(String(im.id)), r=(rs.pack&&e2.pack===rs.pack)?ranked.indexOf(String(im.id)):-1; return '<button class="rs-mt rs-at'+(k>=0?' on':'')+'" data-rs-act="ampick" data-rs-img="'+rsEsc(im.id)+'"><img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'+(k>=0?'<b>'+(k+1)+'</b>':'')+'<span>'+(r>=0?'YOUR #'+(r+1)+' · ':'')+rsEsc(e2.pack.name)+'</span></button>'; }).join("");
       if(grid){ grid.innerHTML=h; grid.style.display=items.length?"":"none"; } if(none) none.style.display=items.length?"none":""; });
+    box.addEventListener("mousemove",function(e){ if(rs.dvd) rsDvdTilt(e,box); });
+    window.addEventListener("keydown",function(e){ if(e.key==="Escape"&&rs.dvd&&st.open&&st.room==="research"){ e.stopPropagation(); e.preventDefault(); rsDvdBack(box); } },true);
     box.addEventListener("keydown",function(e){ if(e.target.closest&&e.target.closest("[data-rs-q],[data-rs-why],[data-rs-amwhy]")) e.stopPropagation(); },true);
     box.addEventListener("click",function(e){ var r=rs.round;
       if(rs.view==="round"&&r&&r.step==="tap"&&!r.tap[r.imgs[r.k].id]){ var w=e.target.closest(".rs-imgw"); if(w){ var b=w.getBoundingClientRect(); r.tap[r.imgs[r.k].id]={x:Math.max(0,Math.min(1,(e.clientX-b.left)/b.width)), y:Math.max(0,Math.min(1,(e.clientY-b.top)/b.height))}; rs.taps=(rs.taps||0)+1; rsRender(); var t0=box.querySelector("[data-rs-note]"); if(t0) t0.focus(); return; } }
       var lb=e.target.closest("[data-rs-lib]"); if(lb){ rs.lib=lb.getAttribute("data-rs-lib"); var m=box.querySelector(".rs-libm"); if(m) m.scrollTop=0; return rsRender(); }
       var t=e.target.closest("[data-rs-act]"); if(!t) return; var a=t.getAttribute("data-rs-act"), id=t.getAttribute("data-rs-id");
-      if(a==="shelf"){ rs.view="shelf"; rs.pack=null; return rsRender(); }
+      if(a==="shelf"){ rsVidStop(); rs.view="shelf"; rs.pack=null; return rsRender(); }
+      if(a==="watch"){ rsVidStop(); rs.view="watch"; rs.pack=null; box.scrollTop=0; return rsRender(); }
+      if(a==="dvd") return rsDvdPull(t.getAttribute("data-rs-vid"), box); if(a==="dvdplay") return rsDvdPlay(box); if(a==="dvdback") return rsDvdBack(box);
       if(a==="mood"){ rs.view="mood"; rs.pack=null; rs.moodOrder=null; box.scrollTop=0; return rsRender(); }
       if(a==="all"){ var pk=rsPack(id)||rs.pack; rs.pack=pk||rs.pack||null; rs.lib="*"; rs.q=""; rs.view="all"; box.scrollTop=0; return rsRender(); }
       if(a==="ampick") return rsAmToggle(t.getAttribute("data-rs-img")); if(a==="amclear"){ rs.am=[]; return rsRender(); } if(a==="amake") return rsAmMake(); if(a==="mpick") return rsMoodToggle(t.getAttribute("data-rs-url"));

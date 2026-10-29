@@ -31,10 +31,10 @@
     ["hub","studio","gallery","landing","prompt"].forEach(hubHide);
     st.open=true; if(st.cur<0||st.cur>photos.length-1) st.cur=photos.length-1;
     el.classList.remove("hidden"); stRoom(room||st.room||"select"); updatePrompt(); }
-  function closeStudio(){ if(!st.open) return; if(st.zoom) stZoom(false); ltPause(); stHideLegacy(); st.open=false; $("studioX").classList.add("hidden");
+  function closeStudio(){ if(!st.open) return; if(st.zoom) stZoom(false); ltPause(); if(typeof rsVidStop==="function") rsVidStop(); stHideLegacy(); st.open=false; $("studioX").classList.add("hidden");
     if(loaded){ hubShow("hud"); App.go("scene"); updatePrompt(); } else showHub(); }
   function stHideLegacy(){ var ed=$("editor"); if(ed&&!ed.classList.contains("hidden")&&typeof devCommit==="function") devCommit(); Object.keys(ST_LEGACY).forEach(function(k){ var e=$(ST_LEGACY[k]); if(e) e.classList.add("hidden"); }); document.body.classList.remove("st-legacy"); }
-  function stRoom(r){ if(r!=="edit"&&typeof devScope!=="undefined") devScope=null; if(st.zoom) stZoom(false); if(st.room==="table"&&r!=="table") ltPause(); st.room=r; App.go("studio."+r); stHideLegacy();
+  function stRoom(r){ if(r!=="edit"&&typeof devScope!=="undefined") devScope=null; if(st.zoom) stZoom(false); if(st.room==="table"&&r!=="table") ltPause(); if(st.room==="research"&&r!=="research"&&typeof rsVidStop==="function") rsVidStop(); st.room=r; App.go("studio."+r); stHideLegacy();
     ["research","select","table","workshop","folio","book","gallery"].forEach(function(k){ var c=$("st-"+k); if(c) c.classList.toggle("hidden", k!==r); });
     var empty=!photos.length;
     if(ST_LEGACY[r]){ document.body.classList.add("st-legacy");

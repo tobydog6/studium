@@ -1,4 +1,4 @@
-// The opening: demo start → glow → detail → shoot → film → spin → lock → scene, then the short version. Needs `node build.mjs --web`.
+// The opening: demo start → dark → glide → shoot → spin → scene, then the short version. Needs `node build.mjs --web`.
 //   node tests/launch.mjs      screenshots to tests/out/launch-*.png
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
@@ -25,14 +25,13 @@ const ev = (f, ...a) => page.evaluate(f, ...a);
 const until = (ph, ms) => page.waitForFunction((p) => window.__la && (__la.state().phase === p || (!__la.state().on && p === 'end')), ph, { timeout: ms, polling: 100 });
 let fail = '';
 try {
-  await page.goto(BASE + '?dev&noauto&lahold'); await page.waitForSelector('#signin [data-si="demo"]', { state: 'visible', timeout: 90000 });
-  const t0 = Date.now(); await page.click('#signin [data-si="demo"]');
-  await until('dark', 20000); await page.waitForTimeout(1500); await shot('1-dark');
-  await until('detail', 400000); console.log('in at', Date.now() - t0, 'ms'); await page.waitForTimeout(700); await shot('2-scan'); console.log('scan:', await ev(() => !!__la.state().scan)); await page.waitForTimeout(2600); await shot('2-detail');
+  const t0 = Date.now(); await page.goto(BASE + '?dev&noauto&lahold&demo');   /* ?demo starts the demo, and its opening, straight away */
+  await until('dark', 120000); await page.waitForTimeout(1500); await shot('1-dark');
+  await until('glide', 400000); console.log('in at', Date.now() - t0, 'ms', JSON.stringify(await ev(() => __la.state()))); await page.waitForTimeout(700); await shot('2-glide'); await page.waitForTimeout(2600); await shot('2-glide-b');
   await ev(() => __la.go()); await until('shoot', 20000); await page.waitForTimeout(350); await shot('3-iris');
-  await page.waitForTimeout(2800); const still = await ev(() => { const c = document.querySelector('.la-fr.still canvas'); return c && c.width > 2 ? c.toDataURL('image/jpeg', 0.85) : 'none'; }); if (still.startsWith('data:')) writeFileSync(join(OUT, 'launch-still.jpg'), Buffer.from(still.split(',')[1], 'base64')); console.log('still:', still.length);
-  await ev(() => __la.go()); await until(process.env.FILM ? 'film' : 'spin', 20000); console.log('film at', Date.now() - t0, 'ms'); await page.waitForTimeout(1200); await shot('4-film');
-  await ev(() => __la.go()); await until('spin', 60000); await page.waitForTimeout(1800); await shot('5-spin');
+  await ev(() => __la.go()); await until('spin', 30000); console.log('spin at', Date.now() - t0, 'ms');
+  const still = await ev(() => { const c = document.querySelector('.la-still canvas'); return c && c.width > 2 ? c.toDataURL('image/jpeg', 0.85) : 'none'; }); if (still.startsWith('data:')) writeFileSync(join(OUT, 'launch-still.jpg'), Buffer.from(still.split(',')[1], 'base64')); console.log('still:', still.length);
+  await page.waitForTimeout(1800); await shot('5-spin');
   await ev(() => __la.go()); await until('end', 30000); await page.waitForTimeout(400); await shot('6-scene');
   await page.waitForTimeout(2800); await shot('7-welcome'); console.log('welcome card:', await ev(() => __la.wel()));
   console.log('pose', JSON.stringify(await ev(() => __cb.pose())), 'spawn', JSON.stringify(await ev(() => SPLAT_SCENES[0].spawn)));

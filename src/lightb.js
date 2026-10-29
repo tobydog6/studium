@@ -644,7 +644,7 @@
     rbViewTick(); rbFrameStep(dt); rbSpotTick();
     if(RLB.fadeT&&RLB.gpu){ var fk=Math.min(1,(performance.now()-RLB.fadeT)/1100); RLB.onK=fk*fk*(3-2*fk); RLB.gpu.U.on.value=RLB.onK; try{ RLB.gpu.mesh.updateVersion(); if(viewer&&viewer.detail) viewer.detail.updateVersion(); }catch(e){} if(fk>=1){ RLB.fadeT=0; RLB.onK=null; } }   /* the default look fading in as the opening lands */
     if(RLB.dirty&&RLB.built) rbApply();
-    else if(RLB.gpu&&RLB.gpu.U.on.value>0){ var cm=RLB.camP; if(!cm||Math.hypot(camPos.x-cm.x,camPos.y-cm.y,camPos.z-cm.z)>1.5*RL.S)   /* each recolour rebuilds the whole scan: only every metre and a half you walk */{ RLB.camP={x:camPos.x,y:camPos.y,z:camPos.z}; if(cm) rbDirty(); } }
+    else if(RLB.gpu&&RLB.gpu.U.on.value>0&&!(typeof laHolds==="function"&&laHolds())){ var cm=RLB.camP; if(!cm||Math.hypot(camPos.x-cm.x,camPos.y-cm.y,camPos.z-cm.z)>1.5*RL.S)   /* each recolour rebuilds the whole scan: only every metre and a half you walk */{ RLB.camP={x:camPos.x,y:camPos.y,z:camPos.z}; if(cm) rbDirty(); } }
     if(RLB.open&&!viewfinderOn) rbDiagDraw(); })();
 
   /* ---- for the lighting tour: where things are, in words the tour can check ---- */
@@ -740,8 +740,6 @@
     rbDefaultPrep(); try{ rbInstall();   /* the grids may still be on their way from the background: the light applies the moment they land (rbTick waits for RLB.built) */ }catch(e){ console.warn("default look install",e); return; } if(fade){ RLB.onK=0; RLB.fadeT=performance.now(); }
     try{ var sp=CH.spec.spawn; if(sp&&RLB.north==null){ var yw=sp[2]||0, view=Math.atan2(-Math.sin(yw),-Math.cos(yw))*180/Math.PI, M=rbMarks(), sa=rbSolar(M.goldPm||19*60+30).az; RLB.north=((view+140-sa)%360+360)%360; }   /* the sun is set from the starting view, wherever the camera happens to be */
       RLB.day="today"; if(start!=null){ RLB.look0=start; RLB.mins=start; RLB.boost=1.15; RLB.sat=1.08; } else { RLB.mins=13*60+35; RLB.boost=1.3; RLB.sat=1.2; } rbSunOn(); rbDirty(); }catch(e){ console.warn("default look",e); } }
-  /* the opening: the default look phased in, from early morning to 13:35, brighter and richer as it goes */
-  function rbLookEase(k){ if(!RLB.sunMode||RLB.look0==null) return; RLB.mins=RLB.look0+(13*60+35-RLB.look0)*k; RLB.boost=1.15+0.15*k; RLB.sat=1.08+0.12*k; rbDirty(); if(k>=1) RLB.look0=null; }
   if(/[?&]dev/.test(location.search)) window.__rlb={ RLB:RLB, RL:RL, deflook:rbDefaultLook, why:function(){ return {loaded:loaded, P:!!(viewer&&viewer.P), id:CH.spec&&CH.spec.id, sun:RLB.sunMode, lights:RL.lights.length}; }, deflook:rbDefaultLook, why:function(){ return {loaded:loaded, P:!!(viewer&&viewer.P), id:CH.spec&&CH.spec.id, sun:RLB.sunMode, lights:RL.lights.length}; }, open:rlOpen, close:rlClose, add:rbAdd, sel:function(i){ RLB.sel=i; rbStands(); rbPanel(true); },
     time:function(m){ RLB.mins=m; rbSunOn(); rbDirty(); rbTimeline(); }, scan:function(){ RLB.sunMode=false; rbDirty(); rbTimeline(); }, day:function(d){ RLB.day=d; rbDirty(); rbTimeline(); },
     light:function(o){ var L=rbCur(); if(!L) return; for(var k in o) L[k]=o[k]; if(o.stops!=null) L.power=L.base*Math.pow(2,o.stops); if(o.x!=null||o.z!=null||o.h!=null) rbPlace(L,L.x,L.z); if(o.aim) rbAim(L,rbTarget()); rbStands(); rbDirty(); rbPanel(true); },

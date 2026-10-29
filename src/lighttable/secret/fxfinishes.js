@@ -15,10 +15,10 @@ const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced
 
 /* ---------- the window: a parallax occlusion shader, so the scene sits deep behind the card without leaving the case ---------- */
 FR.window = `uniform vec2 uSize; uniform float uDepth; varying vec3 vVo;
-  void main(){ vec3 V=normalize(vVo); V.z=min(V.z,-0.12); V=normalize(V); vec2 st=(V.xy/-V.z)/uSize*uDepth; const int N=56; float layer=1.0/float(N);
+  void main(){ vec3 V=normalize(vVo); V.z=min(V.z,-0.2); V=normalize(V); vec2 st=clamp(V.xy/-V.z,vec2(-2.0),vec2(2.0))/uSize*uDepth; const int N=56; float layer=1.0/float(N);
     vec2 uv=vUv; float cur=0.0; float sd=1.0-Dp(uv); vec2 dUV=st*layer;
     for(int i=0;i<N;i++){ if(cur>=sd) break; uv+=dUV; cur+=layer; sd=1.0-Dp(clamp(uv,0.0,1.0)); }
-    vec2 pv=uv-dUV; float after=sd-cur, before=(1.0-Dp(clamp(pv,0.0,1.0)))-(cur-layer); float wgt=after/(after-before+1e-5); uv=mix(uv,pv,clamp(wgt,0.0,1.0));
+    vec2 pv=uv-dUV; float after=sd-cur, before=(1.0-Dp(clamp(pv,0.0,1.0)))-(cur-layer); float den=after-before; float wgt=abs(den)>1e-4?after/den:0.0; uv=mix(uv,pv,clamp(wgt,0.0,1.0));
     vec3 c=texture2D(uTex,clamp(uv,0.0,1.0)).rgb; vec2 o=max(-uv,uv-1.0); float out_=max(o.x,o.y);
     c=mix(c,vec3(0.035,0.03,0.025)*(1.2-cur*0.6),smoothstep(0.0,0.004,out_)); c*=mix(1.0,0.78,cur);
     vec2 e=min(vUv,1.0-vUv)*vec2(uAsp,1.0); c*=0.55+0.45*smoothstep(0.0,0.05,min(e.x,e.y)); gl_FragColor=vec4(c,1.0);`;
@@ -141,10 +141,10 @@ const FX = {
     build(P, g, w, h, api) { const driver = api.driver, renderer = api.renderer, camera = api.camera, ENV2 = api.env2, RK = RELIEF.k;
       const N = P.W * P.H, th = new Float32Array(N); for (let i = 0; i < N; i++) th[i] = 1 - P.L[i];
       const Hf = smoothHeight(P, th, 1.2);
-      const map = texOf(P.W, P.H, true, () => [0.5, 0.49, 0.47]);
+      const map = texOf(P.W, P.H, true, () => [0.3, 0.29, 0.28]);
       const em = texOf(P.W, P.H, true, i => { const T = Math.exp(-3.6 * (0.15 + 0.85 * Hf[i])); const k = Math.pow(clamp(T * 1.8, 0, 1), 1.1); return [k, Math.pow(k, 1.3) * 0.8, Math.pow(k, 2.0) * 0.5]; });
       const geo = reliefGeo(P, w, h, Hf);
-      const mat = new THREE.MeshPhysicalMaterial({ map, roughness: 0.82, metalness: 0, emissive: 0xffffff, emissiveMap: em, emissiveIntensity: 1, sheen: 0.3, sheenColor: new THREE.Color(0xfff2e0), envMapIntensity: 0.4 });
+      const mat = new THREE.MeshPhysicalMaterial({ map, roughness: 0.82, metalness: 0, emissive: 0xffffff, emissiveMap: em, emissiveIntensity: 1, sheen: 0.2, sheenColor: new THREE.Color(0xfff2e0), envMapIntensity: 0.25 });
       g.add(new THREE.Mesh(geo, mat));
       return { relief: k => setRelief(geo, k * 0.06), update: (t) => { const lamp = api.lamp * 2.2; const f = 0.86 + 0.08 * Math.sin(t * 7.1) + 0.05 * Math.sin(t * 13.7 + 1) + 0.04 * Math.sin(t * 2.3); mat.emissiveIntensity = lamp * f; } };
     } },
@@ -159,7 +159,7 @@ const FX = {
         vertexShader: `attribute float aR; attribute vec3 aDir; uniform float uTime; uniform float uPx; uniform float uZ; varying float vA;
           void main(){ vec3 p=position; p.z=(p.z-0.5)*uZ; vec4 wp=modelMatrix*vec4(p,1.0); vec4 mv=viewMatrix*wp; gl_Position=projectionMatrix*mv;
             vec3 V=normalize(cameraPosition-wp.xyz); float gl=pow(max(0.0,dot(V,normalize(mat3(modelMatrix)*aDir))),220.0);
-            float tw=pow(0.5+0.5*sin(uTime*0.9+aR*80.0),30.0); vA=0.26+0.24*aR+gl*2.4+tw*0.6; gl_PointSize=uPx*(1.3+gl*2.2)*(9.0/-mv.z); }`,
+            float tw=pow(0.5+0.5*sin(uTime*0.9+aR*80.0),30.0); vA=0.26+0.24*aR+gl*2.4+tw*0.6; gl_PointSize=uPx*(1.3+gl*2.2)*(9.0/-mv.z)*length(modelViewMatrix[0].xyz); }`,
         fragmentShader: `varying float vA; void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.0,d); gl_FragColor=vec4(vec3(0.82,0.9,1.0)*vA*a,1.0); }` });
       const pts = new THREE.Points(geo, mat); g.add(pts);
       /* an LED glow along the bottom edge, as if it sits on a light base */
@@ -198,7 +198,7 @@ const FX = {
       const M = 160, pos = new Float32Array(M * 3), seed = [], pg = new THREE.BufferGeometry(); for (let i = 0; i < M; i++) seed.push([hash(i * 1.3), hash(i * 2.9), hash(i * 4.1), hash(i * 7.7)]);
       pg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); const br = new Float32Array(M); pg.setAttribute('aB', new THREE.BufferAttribute(br, 1));
       const pm = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { uPx: { value: renderer.getPixelRatio() } },
-        vertexShader: 'attribute float aB; uniform float uPx; varying float vB; void main(){ vB=aB; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mv; gl_PointSize=uPx*(6.0+aB*14.0)*(9.0/-mv.z); }',
+        vertexShader: 'attribute float aB; uniform float uPx; varying float vB; void main(){ vB=aB; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mv; gl_PointSize=uPx*(6.0+aB*14.0)*(9.0/-mv.z)*length(modelViewMatrix[0].xyz); }',
         fragmentShader: 'varying float vB; void main(){ float d=length(gl_PointCoord-0.5); float core=smoothstep(0.18,0.0,d); float halo=exp(-d*d*28.0); gl_FragColor=vec4(vec3(1.0,0.82,0.36)*(core*1.4+halo*0.6)*vB,1.0); }' });
       const pts = new THREE.Points(pg, pm); g.add(pts);
       let K = 1;
@@ -245,7 +245,7 @@ const FX = {
       const M = 900, pos = new Float32Array(M * 3), seed = []; for (let i = 0; i < M; i++) seed.push([hash(i * 1.1), hash(i * 2.3), hash(i * 3.7), hash(i * 5.9)]);
       const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); const sz = new Float32Array(M).map((_, i) => 0.4 + seed[i][3]); pg.setAttribute('aS', new THREE.BufferAttribute(sz, 1));
       const pm = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uPx: { value: renderer.getPixelRatio() } },
-        vertexShader: 'attribute float aS; uniform float uPx; varying float vS; void main(){ vS=aS; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mv; gl_PointSize=uPx*(2.0+aS*4.0)*(9.0/-mv.z); }',
+        vertexShader: 'attribute float aS; uniform float uPx; varying float vS; void main(){ vS=aS; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mv; gl_PointSize=uPx*(1.0+aS*2.5)*(9.0/-mv.z)*length(modelViewMatrix[0].xyz); }',
         fragmentShader: 'varying float vS; void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*0.9; gl_FragColor=vec4(vec3(0.95,0.97,1.0),a); }' });
       g.add(new THREE.Points(pg, pm)); let K = 1;
       const drv = driver([m], mesh, t => { for (let i = 0; i < M; i++) { const s = seed[i], fall = (s[1] - t * (0.035 + s[3] * 0.03)) % 1, v = fall < 0 ? fall + 1 : fall;
@@ -380,7 +380,7 @@ export const META = {
   gold: { tier: 'legendary', metal: [0xe6b24a, 0.16] }, gilt: { tier: 'legendary', glow: [0xe9b54a, 0xfff0c0, 'steady'], metal: [0xe6b24a, 0.16] },
   dag: { tier: 'mythic', glow: [0xcfd8e6, 0xffffff, 'cold'], metal: [0xdfe3ea, 0.1] }, bronze: { tier: 'epic', glow: [0xc9874a, 0x5fb39a, 'steady'], metal: [0xb07a45, 0.3] },
   porcelain: { tier: 'epic', glow: [0x3a6fe0, 0xffffff, 'steady'], metal: [0xf0ede6, 0.3, 0, 0.05] }, kintsugi: { tier: 'legendary', glow: [0xf0c060, 0xbfe0d0, 'steady'], metal: [0x1f1e22, 0.28] },
-  litho: { tier: 'epic', glow: [0xffb060, 0xffe8c8, 'pulse'], metal: [0xf2ede4, 0.5, 0, 0.05] }, crystal: { tier: 'mythic', sealed: true, glow: [0x9fd0ff, 0xffffff, 'sparkle'], metal: [0xd8f0ff, 0.04, 0, 0.1, 1] },
+  litho: { tier: 'epic', glow: [0xffb060, 0xffe8c8, 'pulse'], metal: [0xf2ede4, 0.5, 0, 0.05] }, crystal: { tier: 'mythic', sealed: true, cover: 0x050608, glow: [0x9fd0ff, 0xffffff, 'sparkle'], metal: [0xd8f0ff, 0.04, 0, 0.1, 1] },
   focus: { tier: 'uncommon', glow: [0xffe6b0, 0xffffff, 'steady'], metal: [0x9aa2ac, 0.25] }, fireflies: { tier: 'epic', glow: [0xffc85a, 0x9cff6a, 'sparkle'], metal: [0x6a7a40, 0.3] },
   depthscan: { tier: 'rare', glow: [0x40f0ff, 0x0a6070, 'cycle'], metal: [0x2a8a9a, 0.2] }, sun: { tier: 'legendary', glow: [0xffa040, 0xffe0a0, 'steady'], metal: [0xe0904a, 0.2] },
   rain: { tier: 'rare', glow: [0x9fc8e8, 0xffffff, 'cold'], metal: [0x9ab0c0, 0.15] }, snow: { tier: 'epic', glow: [0xe8f4ff, 0xffffff, 'cold'], metal: [0xeef4fa, 0.3, 0, 0.05] },
@@ -392,14 +392,14 @@ export const META = {
   kaleido: { tier: 'uncommon', glow: [0xff60c0, 0x60e0ff, 'cycle'], metal: [0xd040a0, 0.12, 1], rest: 0.3 }, riso: { tier: 'common', glow: [0xff4a8a, 0x2060c0, 'cycle'], metal: [0xff4a8a, 0.35, 0, 0.1] },
   terminal: { tier: 'uncommon', glow: [0x30ff70, 0x0a4020, 'steady'], metal: [0x1a6a30, 0.25] }, mist: { tier: 'uncommon', glow: [0xe8e8e0, 0xffe8c0, 'steady'], metal: [0xc8ccd0, 0.3] },
   sunken: { tier: 'rare', glow: [0x30a0c0, 0x80ffe0, 'cycle'], metal: [0x1a7a8a, 0.2] }, lava: { tier: 'epic', glow: [0xff5010, 0xffc040, 'hot'], metal: [0xd04010, 0.3] },
-  aurora: { tier: 'legendary', glow: [0x40ff90, 0xd040ff, 'cycle'], metal: [0x30c070, 0.15, 1] }, coin: { tier: 'legendary', sealed: true, glow: [0xe0b050, 0xfff0c0, 'steady'], metal: [0xe0b050, 0.14] },
+  aurora: { tier: 'legendary', glow: [0x40ff90, 0xd040ff, 'cycle'], metal: [0x30c070, 0.15, 1] }, coin: { tier: 'legendary', sealed: true, cover: 0x0c0b0a, glow: [0xe0b050, 0xfff0c0, 'steady'], metal: [0xe0b050, 0.14] },
   pyro: { tier: 'rare', glow: [0xc07030, 0x401808, 'hot'], metal: [0x8a5a30, 0.4, 0, 0.1] }, jade: { tier: 'epic', glow: [0x40c070, 0xc0ffd0, 'steady'], metal: [0x2a8a50, 0.15, 0, 0.1] },
   vertigo: { tier: 'rare', glow: [0xc0a0ff, 0x40a0ff, 'cycle'], metal: [0x7a60d0, 0.2] }, tiltshift: { tier: 'common', glow: [0xffd060, 0x60c0ff, 'steady'], metal: [0xd0a040, 0.2] },
   camcorder: { tier: 'uncommon', glow: [0xff3040, 0x40a0ff, 'cycle'], metal: [0x303038, 0.3] }, seasons: { tier: 'rare', glow: [0xff9ec0, 0x9bd060, 'cycle'], metal: [0xd07a8a, 0.2] },
   puddles: { tier: 'uncommon', glow: [0x8ab0d0, 0xffffff, 'cold'], metal: [0x6a8098, 0.12] }, aero: { tier: 'uncommon', glow: [0xff3080, 0x30a0ff, 'cycle'], metal: [0xd03070, 0.2, 1] },
   storm: { tier: 'epic', glow: [0xc0d0ff, 0x3040a0, 'sparkle'], metal: [0x404a70, 0.2], rest: 0.3 }, fireworks: { tier: 'epic', glow: [0xff4060, 0x40e0ff, 'sparkle'], metal: [0xd03050, 0.15, 1], rest: 0.3 },
   lightpaint: { tier: 'mythic', glow: [0xff40c0, 0x40ffff, 'cycle'], metal: [0xa040d0, 0.1, 1] }, lensball: { tier: 'rare', glow: [0xffffff, 0xa0c8ff, 'steady'], metal: [0xe0e8f0, 0.04, 0, 0.1, 1] },
-  scan3d: { tier: 'mythic', sealed: true, glow: [0x9fe07a, 0xffffff, 'pulse'], metal: [0x6a8a50, 0.3] },
+  scan3d: { tier: 'mythic', sealed: true, cover: 0x070806, glow: [0x9fe07a, 0xffffff, 'pulse'], metal: [0x6a8a50, 0.3] },
 };
 /* a word for the roll where the finish has no label of its own (the spec line under an inspected slab) */
 const BAND = (lo, mid, hi) => a => a < 0.85 ? lo : a > 1.25 ? hi : mid;
@@ -446,6 +446,8 @@ function makeFx(S, id, d, ctx) {
     RELIEF.k = (raw ? 0.2 : 0.72) * (slab.variant === 'breakout' ? 0.45 : 1); RELIEF.cap = raw ? 0.03 : slab.variant === 'breakout' ? 0.04 : 0.115;
     let ctl = {}; try { ctl = d.build(P, g, ctx.w, ctx.h, api) || {}; if (ctl.relief) ctl.relief(amt); } finally { RELIEF.k = 1; RELIEF.cap = Infinity; }
     if (!label && LABELS[id]) label = LABELS[id](amt); LAST.set(slab.id + ':' + id, label);
+    /* the finishes that are not a photo at all (a crystal block, a coin, the scan) sit on a dark card over the photo */
+    if (META[id] && META[id].cover != null) { const bk = new THREE.Mesh(new THREE.PlaneGeometry(ctx.w, ctx.h), new THREE.MeshStandardMaterial({ color: META[id].cover, roughness: 0.6, metalness: 0 })); bk.position.z = 0.001; bk.userData.order = 3; g.add(bk); }
     /* not pickable: the table's hover test should stop at the slab's own card, not walk a few hundred thousand relief triangles */
     g.traverse(o => { if (o !== g) o.raycast = NO_RAY; [].concat(o.material || []).forEach(m => { if ((m.isMeshStandardMaterial || m.isMeshPhysicalMaterial) && !m.envMap) m.envMap = envs.studio; }); });
     const keep = new Set([ctx.photoTex, envs.studio, envs.bright]), rest = (META[id] && META[id].rest) || 0.45;

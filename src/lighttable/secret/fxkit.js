@@ -96,7 +96,7 @@ export const FR = {
     #ifdef REAL
     vec3 S=normalize(uSunL); vec2 sun=vec2(S.x*1.3,S.y*2.2); float elev=S.y*1.6; vec3 L=normalize(vec3(S.x,S.y*0.7,max(abs(S.z)*0.5,0.2)));
     #else
-    vec2 sun=mix(vec2(-cos(ph)*1.1, sin(ph)*0.85+0.05), (uPtr-0.5)*2.2, uHov); float elev=sun.y;
+    vec2 sun=mix(vec2(-cos(ph)*1.1, 0.12+0.6*abs(sin(ph))), (uPtr-0.5)*2.2, uHov); float elev=sun.y;
     vec3 L=normalize(vec3(sun.x, sun.y*0.7, 0.28+0.25*max(elev,0.0)));
     #endif
     float H=0.22*max(uK,0.15); vec3 n=nrm(vUv,H*1.4); n=normalize(n+vec3((texture2D(uTex,vUv+vec2(0.002,0.0)).g-texture2D(uTex,vUv-vec2(0.002,0.0)).g)*-0.6,(texture2D(uTex,vUv+vec2(0.0,0.003)).g-texture2D(uTex,vUv-vec2(0.0,0.003)).g)*-0.6,0.0));
@@ -120,12 +120,12 @@ export const FR = {
     off+=q*dr*0.02; m=max(m,dr); nn+=q*dr*2.0; tr=trail;
     float w=texture2D(uWipe,vUv).r; float fog=(1.0-clamp(w*1.6,0.0,1.0))*(1.0-max(m,tr*0.9));
     vec3 sharp=texture2D(uTex,vUv-off*1.4).rgb; vec3 blurry=texture2D(uTex,vUv,5.5).rgb;
-    vec3 fogC=blurry*0.62+vec3(0.17,0.19,0.21); vec3 c=mix(sharp,fogC,fog*0.92);
+    vec3 fogC=blurry*0.62+vec3(0.17,0.19,0.21); vec3 c=mix(sharp,fogC,fog*0.6);
     c+=pow(max(0.0,dot(normalize(vec3(nn,1.0)),normalize(vec3(-0.4,0.6,0.7)))),24.0)*m*0.55;
     c*=vec3(0.9,0.96,1.04); gl_FragColor=vec4(c,1.0);`,
   snow: `void main(){ vec3 alb=texture2D(uTex,vUv).rgb; float l=luma(alb); vec3 n=nrm(vUv,0.35);
     float acc=clamp(uT*0.045,0.0,1.0)*uK; float up=n.y*1.6+ (1.0-abs(n.x))*0.1;
-    float s=up+0.25*l+0.45*fbm(vUv*vec2(uAsp,1.0)*40.0)-1.25+acc*0.85; float cov=smoothstep(0.0,0.18,s);
+    float s=up+0.25*l+0.45*fbm(vUv*vec2(uAsp,1.0)*40.0)-1.3+acc*0.6; float cov=smoothstep(0.0,0.18,s);
     vec3 base=mix(vec3(l),alb,0.45)*vec3(0.62,0.7,0.82); vec3 snowC=vec3(0.86,0.9,0.97)*(0.75+0.3*n.y);
     float sp=step(0.996,h1(floor(vUv*vec2(uAsp,1.0)*700.0)))*(0.5+0.5*sin(uT*3.0+h1(floor(vUv*900.0))*30.0+uTilt.x*20.0));
     vec3 c=mix(base,snowC,cov)+sp*cov*0.9; gl_FragColor=vec4(c,1.0);`,

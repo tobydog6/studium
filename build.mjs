@@ -42,7 +42,14 @@ function resolveAssets(text) {
   return text.replace(/\b(asset|asset-b64):([A-Za-z0-9_./-]+)/g, (_, kind, rel) => {
     if (SWAP[rel]) rel = SWAP[rel];
     if (ONLY && /^assets\/scenes\//.test(rel) && !ONLY.includes(basename(rel).split(/[-.]/)[0])) return '';   // a scene left out of this build
-    if (WEB && kind === 'asset-b64' && assetBuf(rel).length > BIG) {   // "@parts:a.0,a.1,…": fetched and joined at runtime
+    /* web build: anything sizeable ships as its own file, not base64 inside the page. The page parses in a fraction of the
+       time (it was ~20 MB), files load in parallel and cache, and an image used twice downloads once */
+    if (WEB && kind === 'asset' && assetBuf(rel).length > 48 * 1024 && MIME[extname(rel).toLowerCase()]) {
+      const n = 'assets/' + rel.replace(/^assets\//, '').replace(/\//g, '-');
+      if (!existsSync(join(WEBDIR, n))) writeFileSync(join(WEBDIR, n), assetBuf(rel));
+      return n;
+    }
+    if (WEB && kind === 'asset-b64' && assetBuf(rel).length > (rel.endsWith('.html') ? BIG : 512 * 1024)) {   /* punctum.html is decoded straight from base64: it stays in */   // "@parts:a.0,a.1,…": fetched and joined at runtime
       const buf = assetBuf(rel), names = [];
       for (let i = 0; i * PART < buf.length; i++) { const n = `assets/${basename(rel)}.${i}`; writeFileSync(join(WEBDIR, n), buf.subarray(i * PART, (i + 1) * PART)); names.push(n); }
       return '@parts:' + names.join(',');

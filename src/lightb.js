@@ -61,7 +61,10 @@
     return {amb:[sky*skyCol[0],sky*skyCol[1],sky*skyCol[2]], sun:[sunP*sunCol[0],sunP*sunCol[1],sunP*sunCol[2]], sunP:sunP, skyDim:Math.max(0.04,Math.min(1,0.08+0.92*rbSmooth(-10,10,el))), skyTint:el>-1&&el<10?[1,0.86+0.14*rbSmooth(-1,10,el),0.72+0.28*rbSmooth(-1,10,el)]:el<=-1&&el>-10?[0.72,0.82,1]:[1,1,1]}; }
 
   /* ---- shadow grids: the blurred one relight.js builds (also normals and sky occlusion) and a sharp one, finer cells, barely blurred ---- */
-  function rbGridSharp(){ if(RLB.gridS) return RLB.gridS; var G0=rlGrid(), N=RL.N, P=RL.P, A=RL.A, T=rbTarget(), S=RL.S, gy=rlGround(T.x,T.z);
+  function rbGridSharp(){ if(RLB.gridS) return RLB.gridS; var G0=rlGrid(), T=rbTarget();
+    return rbGridSet(rbGridCalc(RL.P, RL.A, RL.N, {x0:G0.x0,y0:G0.y0,z0:G0.z0,nx:G0.nx,ny:G0.ny,nz:G0.nz,cell:G0.cell}, T.x, T.z, rlGround(T.x,T.z), RL.S, {keep:RLB.keep, qLo:RLB.qLo, qHi:RLB.qHi, kS:RLB.kS})); }
+  /* pure, like rlGridCalc: runs in the background worker too */
+  function rbGridCalc(P, A, N, G0, tx, tz, gy, S, RLB){ var T={x:tx, z:tz};
     /* a box round the subject, where shadows need to be crisp: 7 m each way, a metre below the ground to 5 m above */
     var x0=Math.max(G0.x0,T.x-7*S), z0=Math.max(G0.z0,T.z-7*S), y0=Math.max(G0.y0,gy-1*S), x1=Math.min(G0.x0+G0.nx*G0.cell,T.x+7*S), z1=Math.min(G0.z0+G0.nz*G0.cell,T.z+7*S), y1=Math.min(G0.y0+G0.ny*G0.cell,gy+5*S);
     var ex=x1-x0, ey=y1-y0, ez=z1-z0, cell=Math.max(Math.cbrt(ex*ey*ez/7e6), 0.035*S);
@@ -90,10 +93,11 @@
     /* scale: stray floaters in the air (the bulk of non-empty cells) count for nothing, the densest surfaces block fully */
     var nzv=[]; for(i=0;i<n;i+=7) if(a[i]>0) nzv.push(a[i]); nzv.sort(function(p,q){ return p-q; });
     var lo=nzv.length?nzv[Math.floor(nzv.length*(RLB.qLo||0.85))]:0, hi=nzv.length?nzv[Math.floor(nzv.length*(RLB.qHi||0.995))]:1, k=(RLB.kS||2)/Math.max(hi-lo,1e-6);
-    var h=new Uint16Array(n), HF=THREE.DataUtils.toHalfFloat; for(i=0;i<n;i++){ var v=Math.max(a[i]-lo,0)*k; a[i]=Math.min(v,8); h[i]=HF(a[i]); }
-    var tex=new THREE.Data3DTexture(h,nx,ny,nz); tex.format=THREE.RedFormat; tex.type=THREE.HalfFloatType; tex.minFilter=tex.magFilter=THREE.LinearFilter;
+    var h=new Uint16Array(n), HF=f2h; for(i=0;i<n;i++){ var v=Math.max(a[i]-lo,0)*k; a[i]=Math.min(v,8); h[i]=HF(a[i]); }
+    return {cell:cell, nx:nx, ny:ny, nz:nz, x0:x0, y0:y0, z0:z0, h:h, a:a}; }
+  function rbGridSet(r){ var tex=new THREE.Data3DTexture(r.h,r.nx,r.ny,r.nz); tex.format=THREE.RedFormat; tex.type=THREE.HalfFloatType; tex.minFilter=tex.magFilter=THREE.LinearFilter;
     tex.wrapS=tex.wrapT=tex.wrapR=THREE.ClampToEdgeWrapping; tex.unpackAlignment=1; tex.needsUpdate=true;
-    RLB.gridS={cell:cell, tex:tex, nx:nx, ny:ny, nz:nz, x0:x0, y0:y0, z0:z0, cpu:/[?&]dev/.test(location.search)?a:null}; return RLB.gridS; }
+    RLB.gridS={cell:r.cell, tex:tex, nx:r.nx, ny:r.ny, nz:r.nz, x0:r.x0, y0:r.y0, z0:r.z0, cpu:/[?&]dev/.test(location.search)?r.a:null}; return RLB.gridS; }
 
   /* ---- the GPU side ---- */
   var RLB_GLSL=[
@@ -612,7 +616,8 @@
     if(!RL.ready){ if(!viewer||!viewer.P||!viewer.mesh){ toast("Lighting: the scan isn't ready yet"); return; } RL.P=viewer.P; RL.A=viewer.A; RL.N=RL.P.length/3; RL.S=rlScale(); RL.ready=true; }
 
     RLB.open=true; RL.ui=true; RL.view="eye"; RL.plan=false; if(!Q.flags.rlOpened) qFlag("rlOpened"); document.body.classList.add("rl-open");
-    var go=function(){ if(!RL.target) RL.target=rlTarget(); rbInstall(); if(!RLB.built){ var bz=$("rbBusy"); bz.classList.add("show"); setTimeout(function(){ try{ rlGrid(); rbGridSharp(); }catch(e){ console.warn("lightb grid",e); } RLB.built=true; bz.classList.remove("show"); rbDirty(); },60); } else rbDirty();
+    var go=function(){ if(!RL.target) RL.target=rlTarget(); rbInstall(); if(!RLB.built){ var bz=$("rbBusy"); bz.classList.add("show"); if(typeof gridsAsync==="function"&&!PW.dead) gridsAsync(function(){ bz.classList.remove("show"); rbDirty(); });   /* in the background, so the page keeps moving */
+        else setTimeout(function(){ try{ rlGrid(); rbGridSharp(); }catch(e){ console.warn("lightb grid",e); } RLB.built=true; bz.classList.remove("show"); rbDirty(); },60); } else rbDirty();
       rbShow(true); rbPanel(true); rbTimeline(); rbStands();
       /* the first time anyone opens Lighting, the tour starts */
       if(typeof coStart==="function"&&!(typeof CO!=="undefined"&&CO.on)&&!(Q.tours&&Q.tours.lightrig)){ var seen="1"; try{ seen=localStorage.getItem("studium_lighttourB"); }catch(e){} if(seen!=="1") setTimeout(function(){ if(RLB.open&&!(typeof CO!=="undefined"&&CO.on)){ try{ localStorage.setItem("studium_lighttourB","1"); }catch(e){} coStart("lightrig"); } },500); } };
@@ -730,8 +735,10 @@
   function rbDefaultOk(){ return loaded&&viewer&&viewer.P&&viewer.mesh&&CH.spec&&CH.spec.id==="stump"&&!RLB.sunMode&&!RL.lights.length; }
   /* the slow part (the light grid) built ahead, behind the opening's dark */
   function rbDefaultPrep(){ if(!(loaded&&viewer&&viewer.P&&viewer.mesh&&CH.spec&&CH.spec.id==="stump")||RLB.built) return;   /* the opening's own rig may be up: the grid doesn't mind */ try{ if(!RL.ready){ RL.P=viewer.P; RL.A=viewer.A; RL.N=RL.P.length/3; RL.S=rlScale(); RL.ready=true; } if(!RL.target) RL.target=rlTarget();
-      if(!RLB.built){ rlGrid(); rbGridSharp(); RLB.built=true; } }catch(e){ console.warn("default look prep",e); } }   /* grids only: installing the daylight shader here would take the scan away from the opening's rig */
-  function rbDefaultLook(fade,start){ if(!rbDefaultOk()) return; rbDefaultPrep(); try{ rbInstall(); }catch(e){ console.warn("default look install",e); return; } if(fade){ RLB.onK=0; RLB.fadeT=performance.now(); }
+      if(!RLB.built){ if(typeof gridsAsync==="function"&&!PW.dead) gridsAsync(null); else { rlGrid(); rbGridSharp(); RLB.built=true; } } }catch(e){ console.warn("default look prep",e); } }   /* in the background: no freeze */   /* grids only: installing the daylight shader here would take the scan away from the opening's rig */
+  function rbDefaultLook(fade,start){ if(!rbDefaultOk()) return;
+    if(!RLB.built&&typeof gridsAsync==="function"&&!PW.dead){ rbDefaultPrep(); gridsAsync(function(ok){ if(ok&&RLB.built) rbDefaultLook(fade,start); }); return; }   /* the grids are still being built in the background: the look comes in the moment they're ready */
+    rbDefaultPrep(); try{ rbInstall(); }catch(e){ console.warn("default look install",e); return; } if(fade){ RLB.onK=0; RLB.fadeT=performance.now(); }
     try{ var sp=CH.spec.spawn; if(sp&&RLB.north==null){ var yw=sp[2]||0, view=Math.atan2(-Math.sin(yw),-Math.cos(yw))*180/Math.PI, M=rbMarks(), sa=rbSolar(M.goldPm||19*60+30).az; RLB.north=((view+140-sa)%360+360)%360; }   /* the sun is set from the starting view, wherever the camera happens to be */
       RLB.day="today"; if(start!=null){ RLB.look0=start; RLB.mins=start; RLB.boost=1.15; RLB.sat=1.08; } else { RLB.mins=13*60+35; RLB.boost=1.3; RLB.sat=1.2; } rbSunOn(); rbDirty(); }catch(e){ console.warn("default look",e); } }
   /* the opening: the default look phased in, from early morning to 13:35, brighter and richer as it goes */

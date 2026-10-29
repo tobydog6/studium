@@ -30,7 +30,10 @@
   // ---- shadows: a density grid of the scan, uploaded as a 3D texture ----
   // Opacity per cell, normalised so only the densest cells (solid things) come out near-opaque, blurred twice so shadows
   // are soft. On the GPU each lit splat marches toward its light through it: solid things block, leaves let light through.
-  function rlGrid(){ if(RL.grid) return RL.grid; var N=RL.N, P=RL.P, A=RL.A, mn=boxMin, mx=boxMax, pad=0.05*(sceneMaxDim||8);
+  function rlGrid(){ if(RL.grid) return RL.grid; return rlGridSet(rlGridCalc(RL.P, RL.A, RL.N, [boxMin.x,boxMin.y,boxMin.z], [boxMax.x,boxMax.y,boxMax.z], 0.05*(sceneMaxDim||8), RL.S, RL.shK||0.35)); }
+  /* the grid's sums, pure (no globals, no THREE): it also runs in the background worker (gridsAsync in app.js), so the build never freezes the page */
+  function rlGridCalc(P, A, N, mn, mx, pad, S, shK){
+    mn={x:mn[0],y:mn[1],z:mn[2]}; mx={x:mx[0],y:mx[1],z:mx[2]}; var RL={S:S, shK:shK};
     var x0=mn.x-pad, y0=mn.y-pad, z0=mn.z-pad, ex=mx.x-x0+pad, ey=mx.y-y0+pad, ez=mx.z-z0+pad;
     /* sized by volume, not the longest side: about 4 million cells, so a church or a car park gets 15 to 20 cm cells instead of 25 to 50 */
     var cell=Math.max(Math.cbrt(ex*ey*ez/4e6), Math.max(ex,ey,ez)/1024, 0.04*RL.S);
@@ -51,13 +54,14 @@
       var t=a; a=b; b=t; }
     /* each cell carries the density and, worked out once here, which way is out of the solid (its downhill slope):
        one texture read on the GPU gives a splat both its shadowing and its surface direction */
-    var h=new Uint16Array(a.length*4), HF=THREE.DataUtils.toHalfFloat, sy=nx, sz=nx*ny;
+    var h=new Uint16Array(a.length*4), HF=f2h, sy=nx, sz=nx*ny;
     for(z=0;z<nz;z++) for(y=0;y<ny;y++) for(x=0;x<nx;x++){ var ci=(z*ny+y)*nx+x, o4=ci*4;
       var gxv=(x>0?a[ci-1]:0)-(x<nx-1?a[ci+1]:0), gyv=(y>0?a[ci-sy]:0)-(y<ny-1?a[ci+sy]:0), gzv=(z>0?a[ci-sz]:0)-(z<nz-1?a[ci+sz]:0);
       h[o4]=HF(Math.min(a[ci]*k,6)); h[o4+1]=HF(gxv*k); h[o4+2]=HF(gyv*k); h[o4+3]=HF(gzv*k); }
-    var tex=new THREE.Data3DTexture(h,nx,ny,nz); tex.format=THREE.RGBAFormat; tex.type=THREE.HalfFloatType; tex.minFilter=tex.magFilter=THREE.LinearFilter;
+    return {x0:x0,y0:y0,z0:z0,cell:cell,nx:nx,ny:ny,nz:nz,h:h}; }
+  function rlGridSet(r){ var tex=new THREE.Data3DTexture(r.h,r.nx,r.ny,r.nz); tex.format=THREE.RGBAFormat; tex.type=THREE.HalfFloatType; tex.minFilter=tex.magFilter=THREE.LinearFilter;
     tex.wrapS=tex.wrapT=tex.wrapR=THREE.ClampToEdgeWrapping; tex.unpackAlignment=1; tex.needsUpdate=true;
-    RL.grid={x0:x0,y0:y0,z0:z0,cell:cell,nx:nx,ny:ny,nz:nz,tex:tex}; return RL.grid; }
+    RL.grid={x0:r.x0,y0:r.y0,z0:r.z0,cell:r.cell,nx:r.nx,ny:r.ny,nz:r.nz,tex:tex}; return RL.grid; }
 
   // ---- the GPU side: one Spark modifier for the whole scan ----
   var RL_GLSL=[

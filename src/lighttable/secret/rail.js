@@ -217,7 +217,7 @@ export function install(S) {
     const r = R; if (!r) return Promise.resolve(); if (r.closing) return r.closing;
     r.closing = (async () => {
       r.prompt = false; r.rumbleOn = false; if (r.hum) { try { r.hum.stop(); } catch (e) {} r.hum = null; } if (r.reelDone) { const f = r.reelDone; r.reelDone = null; f(); }
-      ctx.canvas.style.cursor = 'default'; T.cancelAll('rail');
+      ctx.canvas.style.cursor = 'default'; T.cancelAll('rail'); if (S.holo && S.holo.cancel) S.holo.cancel();   /* the reveal's effects stop with it, nothing left hanging in the room */
       if (!r.done) { r.alive = false; r.done = true; if (r.resolve) r.resolve(null); }
       S.snd && S.snd.play('sink'); r.sinking = true; r.phase = 'sink';
       await T.to(r.rg.rig.position, { y: SUNK }, { dur: 1.3, ease: E.inCubic, tag: 'railsink' });

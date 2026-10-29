@@ -38,7 +38,7 @@ const SCAN = `{ vec2 P = (vMapUv - 0.5) * uSize; float s = dot(P, uUp);
   s += (rvN(vec2(s * 90.0, uTime * 30.0)) - 0.5) * 0.06 * uGl;
   float f = s - uP;
   if (f > 0.0) discard;
-  float line = exp(-pow(f / 0.02, 2.0)), wake = exp(f * 9.0);
+  float q = f / 0.02, line = exp(-q * q), wake = exp(f * 9.0);   /* no pow on a negative base: NaN on ANGLE/D3D */
   vec2 g = fract(P * 9.0); float grid = max(step(0.93, g.x), step(0.93, g.y));
   diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.4 + uEdge * 0.2, wake * 0.6);
   totalEmissiveRadiance += uEdge * (line * 3.0 + wake * 0.25 + grid * wake * 0.9); }
@@ -88,9 +88,12 @@ export function install(S) {
   const step = (dur, fn, ease) => T.tween({ dur, ease: ease || E.linear, tag: 'rail', update: (e, raw) => { if (fn) fn(e, raw); } }).then(ok => { if (!ok) throw STOP; });
   const check = c => { if (!c.alive()) throw STOP; };
   /* the hanger trembling round its rest; amp() is read every frame */
-  function tremble(c, amp) { const h = c.slot.h, rest = h.position.clone(); let on = true; c.undo.push(() => { on = false; h.position.copy(rest); });
-    const f = () => { if (!on || !c.alive()) return; const a = amp(); h.position.set(rest.x + (Math.random() - 0.5) * a, rest.y + (Math.random() - 0.5) * a * 0.6, rest.z); requestAnimationFrame(f); }; requestAnimationFrame(f);
-    return () => { on = false; h.position.copy(rest); }; }
+  /* (with: groups in the scene that must shake with it, like the glass over the print) */
+  function tremble(c, amp, with_) { const h = c.slot.h, rest = h.position.clone(), more = (with_ || []).map(g => ({ g, rest: g.position.clone() })), d = new THREE.Vector3(), wd = new THREE.Vector3();
+    const put = () => { h.position.copy(rest).add(d); if (more.length) { h.parent.updateMatrixWorld(true); wd.copy(d).transformDirection(h.parent.matrixWorld).multiplyScalar(d.length()); more.forEach(m => m.g.position.copy(m.rest).add(wd)); } };
+    let on = true; const stop = () => { on = false; d.set(0, 0, 0); put(); }; c.undo.push(stop);
+    const f = () => { if (!on || !c.alive()) return; const a = amp(); d.set((Math.random() - 0.5) * a, (Math.random() - 0.5) * a * 0.6, 0); put(); requestAnimationFrame(f); }; requestAnimationFrame(f);
+    return stop; }
   /* the flip without the drama: a plain turn to face up (develop), or at once (under a cover) */
   /* a holo rig for a style's own particles while it plays (its clock runs for dur); disposed when the reveal ends */
   function side(c, kind, dur) { const R = S.holo.rig(c.obj, kind); R.fx.updateMatrixWorld(true); R.run(dur).catch(() => {}); c.junk.push({ dispose: () => R.dispose() }); return R; }
@@ -172,14 +175,14 @@ export function install(S) {
     const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3)); lg.setDrawRange(0, 0);
     const crackCol = idx >= 2 ? col.clone().lerp(white, 0.35) : new THREE.Color(0xfff6e8), lines = new THREE.LineSegments(lg, new THREE.LineBasicMaterial(additive({ color: crackCol, opacity: 1 }))); lines.renderOrder = 30; g.add(lines);
     const leak = new THREE.Mesh(new THREE.PlaneGeometry(w * 1.2, w * 1.2), new THREE.MeshBasicMaterial(additive({ map: S.holo.tex.soft(), color: crackCol, opacity: 0 }))); leak.position.set(hit.x, hit.y, 0.01); leak.renderOrder = 31; g.add(leak);
-    const amp = { a: 0 }; tremble(c, () => amp.a);
+    const amp = { a: 0 }; const still = tremble(c, () => amp.a, [g]);
     /* one crack per beat: two for rare and up, three for legendary and up; each runs further and leaks more light */
     const beats = idx >= 4 ? 3 : idx >= 2 ? 2 : 1, total = segs.length * 2;
     for (let b = 0; b < beats; b++) { snd('crack', { k: 0.6 + 0.2 * b }); const from = Math.round(total * (b / beats) * 0.9), to = Math.round(total * ((b + 1) / beats) * 0.9);
       await step(0.16 + 0.04 * b, e => { lg.setDrawRange(0, Math.round(from + (to - from) * e) & ~1); amp.a = 0.03 * (b + 1); leak.material.opacity = (0.25 + 0.3 * b / Math.max(1, beats - 1)) * (0.6 + 0.4 * e); leak.scale.setScalar(0.4 + 0.5 * (b + e) / beats); }, E.outCubic); check(c);
       await step(b === beats - 1 ? 0.18 + 0.05 * idx : 0.32); check(c); }
     /* the break */
-    amp.a = 0; lines.visible = false; leak.visible = false; snd('shatter', { k: 0.6 + 0.1 * idx });
+    still(); lines.visible = false; leak.visible = false; snd('shatter', { k: 0.6 + 0.1 * idx });
     const grav = new THREE.Vector3(0, -9, 0).applyQuaternion(sn.q.clone().invert()), kk = 0.6 + 0.25 * idx;
     shards.forEach(s => { const dir = s.ctr.clone().sub(hit); const dl = dir.length() || 1; dir.multiplyScalar(1 / dl);
       s.v = new THREE.Vector3(dir.x * (1.2 + 2.2 * kk) * (1.25 - 0.6 * dl / maxD), dir.y * (1.2 + 2.2 * kk) * (1.25 - 0.6 * dl / maxD), (1.5 + Math.random() * 2.5) * kk); s.av = new THREE.Vector3((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 8); s.t0 = (dl / maxD) * 0.1; });

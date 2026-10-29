@@ -16,6 +16,10 @@ import * as binder from './binder.js';
 import * as holo from './holo.js';
 import * as loot from './loot.js';
 import * as arm from './arm.js';
+import * as print from './print.js';
+import * as rail from './rail.js';
+import * as parcel from './parcel.js';
+import * as sound from './sound.js';
 
 const stdM = (c, r, m, o) => new THREE.MeshStandardMaterial({ color: c, roughness: r ?? 0.5, metalness: m ?? 0, ...(o || {}) });
 const BRASS = () => stdM(0xb8903e, 0.32, 0.75);
@@ -131,16 +135,22 @@ export function installSecret(ctx) {
   const slabObjs = new Set();
   S.slabs = { all: () => [...slabObjs],
     make(slab) { const o = SM.makeSlab(slab, S); slabObjs.add(o); return o; },
+    /* a print object that lives outside the table (the rail's) still gets its per-frame update */
+    adopt(o) { slabObjs.add(o); return o; },
     drop(o) { slabObjs.delete(o); o.dispose(); },
     refreshFinish() { const t = dev.opt('finish'); slabObjs.forEach(o => { if (o.built) o.setFinish(SL.finishOf(o.slab, t)); }); } };
+  /* graded pulls are slabs; raw ones are prints (print.js), falling back to a slab until that file is built */
+  S.objFor = function (slab) { if (!slab.graded && S.print && S.print.make) { const o = S.print.make(slab); if (o) { slabObjs.add(o); return o; } } return S.slabs.make(slab); };
   const tableSlabs = [];
   const flatQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
   S.table = { list: tableSlabs,
     /* place(slab, x, z, yaw, { drop:true }) → the slab object; drop lets it fall onto the table */
-    place(slab, x, z, yaw, o = {}) { const obj = S.slabs.make(slab); const g = obj.group; g.position.set(x, SM.SLAB.th / 2 + 0.004, z); g.quaternion.copy(flatQ).premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw || 0));
-      const sh = S.shadow(3.6, 4.4); sh.position.set(x + 0.1, 0.0035, z + 0.15); sh.rotation.z = -(yaw || 0); ctx.scene.add(sh); obj.tableShadow = sh; ctx.scene.add(g); obj.where = 'table'; tableSlabs.push(obj);
+    place(slab, x, z, yaw, o = {}) { return S.table.adopt(S.objFor(slab), x, z, yaw, o); },
+    /* an object made elsewhere (the rail's print) becomes a table object at x, z */
+    adopt(obj, x, z, yaw, o = {}) { const slab = obj.slab, g = obj.group, y = (obj.th || SM.SLAB.th) / 2 + 0.004; g.position.set(x, y, z); g.quaternion.copy(flatQ).premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw || 0));
+      const sh = S.shadow(3.6, 4.4); sh.position.set(x + 0.1, 0.0035, z + 0.15); sh.rotation.z = -(yaw || 0); ctx.scene.add(sh); obj.tableShadow = sh; ctx.scene.add(g); obj.where = 'table'; if (!tableSlabs.includes(obj)) tableSlabs.push(obj);
       if (!o.quiet) store.toTable(slab.id, x, z, yaw);
-      if (o.drop) { g.position.y = 1.6; sh.material.opacity = 0.1; T.to(g.position, new THREE.Vector3(x, SM.SLAB.th / 2 + 0.004, z), { dur: 0.55, ease: T.E.outBounce }); T.to(sh.material, { opacity: 0.55 }, { dur: 0.5 }); setTimeout(() => S.sfx('ltPutDown'), 420); }
+      if (o.drop) { g.position.y = 1.6; sh.material.opacity = 0.1; T.to(g.position, new THREE.Vector3(x, y, z), { dur: 0.55, ease: T.E.outBounce }); T.to(sh.material, { opacity: 0.55 }, { dur: 0.5 }); setTimeout(() => S.sfx('ltPutDown'), 420); }
       return obj; },
     remove(obj, keepStore) { const i = tableSlabs.indexOf(obj); if (i >= 0) tableSlabs.splice(i, 1); if (obj.tableShadow) ctx.scene.remove(obj.tableShadow); if (!keepStore) store.detach(obj.slab.id); S.slabs.drop(obj); },
     /* a free patch of table for a new slab, left of the board and clear of the other slabs */
@@ -149,9 +159,18 @@ export function installSecret(ctx) {
   };
   /* a pull straight onto the table (the dev panel's Roll; loot.js lays its slab down the long way) */
   S.rollToTable = function (o) { const slab = SL.roll({ graded: true, ...(o || {}) }); store.addPull(slab); const sp = S.table.freeSpot(); const obj = S.table.place(slab, sp.x, sp.z, (Math.random() - 0.5) * 0.5, { drop: true }); hud();
-    const t = SL.tierOf(slab); S.toast(t.name + ' · grade ' + slab.grade + (slab.variant ? ' · ' + SL.VARIANT[slab.variant].name : '') + ' · ' + slab.title); return obj; };
+    const t = SL.tierOf(slab); S.toast(t.name + (slab.graded ? ' · grade ' + slab.grade : ' · raw') + (slab.variant ? ' · ' + SL.VARIANT[slab.variant].name : '') + ' · ' + slab.title); return obj; };
+  /* a raw print goes away for grading: it dissolves off the near edge of the table and comes back as a parcel (parcel.js) */
+  S.sendForGrading = async function (obj) {
+    const slab = obj.slab; if (slab.graded || slab.sentAt) return; SL.sendForGrading(slab, S.gradingWait()); S.sfx('binder');
+    const g = obj.group, target = new THREE.Vector3(g.position.x, 0.6, ctx.H_T / 2 + 2.5); await T.to(g.position, new THREE.Vector3(g.position.x, 1.2, g.position.z + 0.6), { dur: 0.4, ease: T.E.outCubic });
+    P.dissolve(g, { mode: dev.opt('dissolve'), centre: target, spread: 2.4, dur: 1.2 }); S.table.remove(obj); hud(); if (S.parcel) S.parcel.check();
+    const ms = S.gradingWait(); S.toast(ms >= 3600000 ? 'Away for grading. It comes back as a parcel in a day, real time.' : ms ? 'Away for grading. Back in a minute, as a parcel.' : 'Away for grading. The parcel is already on its way.');
+  };
   async function inspectTableSlab(obj) {
-    const r = await inspect.open(obj, { actions: [{ id: 'back', label: 'Put back' }, { id: 'vault', label: 'Into the vault', primary: true }] });
+    const raw = !obj.slab.graded;
+    const r = await inspect.open(obj, { actions: raw ? [{ id: 'back', label: 'Put back' }, { id: 'grade', label: 'Send for grading', primary: true }] : [{ id: 'back', label: 'Put back' }, { id: 'vault', label: 'Into the vault', primary: true }] });
+    if (r === 'grade') { await T.wait(0.3); S.sendForGrading(obj); }
     if (r === 'vault') { await T.wait(0.3); S.sfx('detent'); const target = btnVault.getWorldPosition(new THREE.Vector3()); target.y += 0.3;
       P.dissolve(obj.group, { mode: dev.opt('dissolve'), centre: target, spread: 2.2, dur: 1.3 }); S.table.remove(obj, true); store.toVault(obj.slab.id); hud(); S.toast('Into the vault. Open the little case by the binder to see it.'); }
   }
@@ -166,6 +185,7 @@ export function installSecret(ctx) {
     pointer(kind, e, M) {
       /* a print, wall group or string being dragged keeps the table's own handling; the buttons only take a free pointer */
       if (ctx.drag.p || ctx.drag.pending || ctx.drag.wall || ctx.isBusy()) { setHot(null); return false; }
+      if (S.parcel && S.parcel.pointer(kind, e)) { setHot(null); return true; }
       if (kind === 'move') { const h = S.hitAny(e, hittable()); setHot(h ? h.root : null); if (h) { ctx.canvas.style.cursor = 'pointer'; ctx.hideActs(); return true; } return false; }
       if (kind === 'down') { if (e.button !== 0) return false; const h = S.hitAny(e, hittable()); if (!h) return false; S.sfx('detent');
         if (h.root === btnLoot) M.send('LOOT'); else if (h.root === btnVault) M.send('VAULT'); else if (h.root === btnKey) M.send('ROOM');
@@ -192,17 +212,17 @@ export function installSecret(ctx) {
   const dev = createDev(S); S.dev = dev;
   const inspect = createInspect(S); S.inspect = inspect;
   dev.on('finish', () => S.slabs.refreshFinish()); dev.on('speed', v => T.setTimeScale(+v || 1)); T.setTimeScale(+dev.opt('speed') || 1);
-  dev.action('Roll a slab', () => S.rollToTable(), 'Try'); dev.action('Roll a Mythic', () => S.rollToTable({ tier: 'mythic' }), 'Try'); dev.action('Roll a variant', () => S.rollToTable({ variant: SL.VARIANTS[Math.floor(Math.random() * SL.VARIANTS.length)].id }), 'Try');
+  dev.action('Roll a raw print', () => S.rollToTable({ graded: false }), 'Try'); dev.action('Roll a slab', () => S.rollToTable(), 'Try'); dev.action('Roll a Mythic', () => S.rollToTable({ tier: 'mythic' }), 'Try'); dev.action('Roll a variant', () => S.rollToTable({ variant: SL.VARIANTS[Math.floor(Math.random() * SL.VARIANTS.length)].id }), 'Try');
   dev.action('Open vault', () => M.is('idle') && M.send('VAULT'), 'Try'); dev.action('Open loot', () => M.is('idle') && M.send('LOOT'), 'Try');
   /* grading wait per the dev panel: a real day, a minute, or none */
   S.gradingWait = () => ({ day: SL.GRADING_MS, minute: 60000, instant: 0 }[dev.opt('grading')] ?? SL.GRADING_MS);
-  dev.action('Skip the wait', () => { let n = 0; store.get().pulls.forEach(p => { if (p.sentAt && !p.graded && Date.now() < p.readyAt) { SL.skipGrading(p); n++; } }); S.toast(n ? n + ' parcel' + (n === 1 ? '' : 's') + ' back on the table.' : 'Nothing is away for grading.'); hud(); }, 'Try');
+  dev.action('Skip the wait', () => { let n = 0; store.get().pulls.forEach(p => { if (p.sentAt && !p.graded && Date.now() < p.readyAt) { SL.skipGrading(p); n++; } }); S.toast(n ? n + ' parcel' + (n === 1 ? '' : 's') + ' back on the table.' : 'Nothing is away for grading.'); hud(); if (S.parcel) S.parcel.check(); }, 'Try');
   dev.action('Lock again', () => lock(), 'Reset'); dev.action('Reset secret data', () => resetAll(), 'Reset');
   dev.info(() => { const d = store.get(); return d.pulls.length + ' pulls · ' + d.vault.length + ' in vault'; });
   S.css(BASE_CSS + DEV_CSS + INSPECT_CSS);
 
   /* ---------- the modules (each owns one file) ---------- */
-  [holo, vault, binder, loot, arm].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  [sound, print, holo, rail, arm, vault, binder, parcel, loot].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
 
   /* ---------- boot ---------- */
   if (S.unlocked()) { buttons.forEach(b => { b.visible = true; }); M.go('idle'); S.table.restore(); } else M.go('locked');
@@ -229,7 +249,7 @@ export function installSecret(ctx) {
       T.tick(dt); P.particleFrame(dt); placeLoot();
       if (S.unlocked()) { const pulse = 0.35 + 0.25 * Math.sin(now / 420);
         buttons.forEach(b => { const cap = b.userData.cap; if (!cap) return; const want = b.userData.hotT ? 1.4 : M.is('idle') ? pulse : 0.15; cap.material.emissiveIntensity += (want - cap.material.emissiveIntensity) * (1 - Math.exp(-dt * 10)); }); }
-      M.frame(dt); inspect.frame(dt);
+      M.frame(dt); inspect.frame(dt); if (S.parcel) S.parcel.frame(dt);
       slabObjs.forEach(o => { if (o.built) o.update(dt); });
     },
     pause(on) { if (on && inspect.active()) inspect.close('back'); },

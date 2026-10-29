@@ -118,7 +118,8 @@ export function install(S) {
         g.fillStyle = t.color; g.fillRect(0, cv.height - 28, 512, 28); });
       const back = new THREE.Mesh(new THREE.PlaneGeometry(o.w * K - 0.02, o.h * K - 0.02), lam(0xffffff, { map: c })); back.position.z = (o.th || 0.19) * K / 2 + 0.004; if (side) back.rotation.z = Math.PI / 2; s.spin.add(back); s.back = back; }
   }
-  function mk(slab) { const o = S.print && S.print.make ? S.print.make(slab) : null; return o ? S.slabs.adopt(o) : S.slabs.make(slab); }
+  /* a sealed pull (a finish that only exists graded) comes off the rail already in its slab */
+  function mk(slab) { const o = (!slab.graded || slab.decoy) && S.print && S.print.make ? S.print.make(slab) : null; return o ? S.slabs.adopt(o) : S.slabs.make(slab); }
 
   /* ---------- the camera ---------- */
   const FRAME = rm => ({ tx: rm.cx, ty: UP - 0.35, tz: rm.cz + 0.2, pitch: 24, dT: Math.max(9, ctx.fitDist(rm.W + 1.2, 4.5, 24)) });

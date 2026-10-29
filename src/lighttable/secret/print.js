@@ -6,6 +6,8 @@
 // setGlow(amount) is the hover rim in the finish colour (S.holo.glowOf, read each frame so holo can change its mind).
 // Built with the face along +z and the top up +y, like a slab: the caller lays it flat or turns it face down.
 import * as THREE from 'three';
+import { mountFinish, dropFinish, clickFinish, topWalk } from './fxmount.js';
+import { variantFx } from './fxvariants.js';
 
 export const PRINT = { border: 0.03, th: 0.03 };
 const Z_STOCK = 0.003, Z_PHOTO = 0.008, Z_OVER = 0.004, Z_FINISH = 0.01;
@@ -15,15 +17,7 @@ const FILTERS = { gold: 'sepia(1) saturate(1.6) contrast(1.05) brightness(1.04)'
 let SMref = null;   /* slabmesh, once a print has been made; the treatments live there */
 function processPhoto(base, finish, variant, grade, seed) { return SMref.processPhoto(base, finish, variant, grade, seed); }
 
-/* ---------- the finish registry, read through a slab: slabmesh keeps its registry private, so the first print with a
-   given finish builds a throwaway slab for the same photo, keeps the def it resolved (the registered shader, or
-   slabmesh's own stand-in for one holo.js has not built), and every print after that reuses it ---------- */
-const DEFS = {};
-function finishDefFor(id, slab, S) {
-  if (DEFS[id]) return Promise.resolve(DEFS[id]);
-  let probe = null; try { probe = S.SM.makeSlab(slab, S); } catch (e) { console.error(e); return Promise.resolve(null); }
-  return probe.ready.then(() => { try { probe.setFinish(id); } catch (e) { console.error(e); } const def = probe.finish && probe.finish.def || null; try { probe.dispose(); } catch (e) {} if (def) DEFS[id] = def; return def; }).catch(e => { console.error(e); return null; });
-}
+/* the finish registry is slabmesh's (S.SM.finishDef); fxmount.js lays the finish over the photo for prints and slabs alike */
 
 /* ---------- the back: the roundel from Sam's card-backs page, embossed ---------- */
 function arcText(g, text, cx, cy, r, font, color, centreAngle, flip) { g.save(); g.font = font; g.fillStyle = color; g.textAlign = 'center'; g.textBaseline = 'middle'; const ws = [...text].map(ch => g.measureText(ch).width); const total = ws.reduce((a, b) => a + b, 0) / r; let a = centreAngle - total / 2 * (flip ? -1 : 1);
@@ -95,8 +89,9 @@ export function makePrint(slab, S) {
     if (obj.finish && obj.finish.mesh && obj.finish.def.update) try { obj.finish.def.update(obj.finish.mesh, { THREE, dt, time: obj.time, tilt: obj.tilt, pointer: obj.pointer, slab, obj }); } catch (e) { console.error(e); }
     if (obj.glow > 0 && obj.parts.halo) animateGlow(obj, S); };
   /* while inspected the print draws over everything, like an inspected slab */
-  obj.setTop = on => { obj.top = on; group.traverse(m => { if (!m.isMesh) return; [].concat(m.material).forEach(mt => { if (mt.userData.t0 === undefined) mt.userData.t0 = mt.transparent; mt.depthTest = !on; mt.transparent = on || mt.userData.t0; }); m.renderOrder = on ? 20 + (m.userData.order || 0) : (m.userData.order || 0); }); };
-  obj.dispose = () => { obj.disposed = true; group.traverse(m => { if (m.isMesh) { m.geometry.dispose(); [].concat(m.material).forEach(mt => { ['map', 'emissiveMap', 'normalMap'].forEach(k => { if (mt[k] && mt[k] !== obj.parts.photoTex) mt[k].dispose(); }); mt.dispose(); }); } }); if (obj.parts.photoTex) obj.parts.photoTex.dispose(); if (group.parent) group.parent.remove(group); };
+  obj.setTop = on => { obj.top = on; topWalk(group, on); };
+  obj.click = uv => clickFinish(obj, uv);
+  obj.dispose = () => { obj.disposed = true; dropFinish(obj); group.traverse(m => { if (m.isMesh) { m.geometry.dispose(); [].concat(m.material).forEach(mt => { ['map', 'emissiveMap', 'normalMap'].forEach(k => { if (mt[k] && mt[k] !== obj.parts.photoTex) mt[k].dispose(); }); mt.dispose(); }); } }); if (obj.parts.photoTex) obj.parts.photoTex.dispose(); if (group.parent) group.parent.remove(group); };
   return obj;
 }
 const GLOSS = { roughness: 0.4, clearcoat: 0.45, clearcoatRoughness: 0.2, envMapIntensity: 0.18 };   /* the room env map washed the photo out at full strength */
@@ -133,20 +128,11 @@ function build(obj, S, env) {
   return applyFinish(obj, S, env, S.SL.finishOf(slab, S.testFinish ? S.testFinish() : null));
 }
 function applyFinish(obj, S, env, id) {
-  const { slab, inner, base } = obj; obj.finishId = id;
+  const { slab, base } = obj; obj.finishId = id;
   const shown = processPhoto(base, id, slab.variant, slab.grade, slab.seed);
   if (obj.parts.photoTex) obj.parts.photoTex.dispose(); const t = S.SM.tex(shown); obj.parts.photoTex = t;
   obj.parts.photo.material.emissiveMap = t; obj.parts.photo.material.needsUpdate = true; if (obj.parts.ghost) { obj.parts.ghost.material.map = t; obj.parts.ghost.material.needsUpdate = true; }
-  if (obj.finish) { if (obj.finish.mesh) { inner.remove(obj.finish.mesh); obj.finish.mesh.geometry.dispose(); [].concat(obj.finish.mesh.material).forEach(m => m.dispose()); } obj.finish = null; }
-  const seq = ++obj.finishSeq;
-  return finishDefFor(id, slab, S).then(def => {
-    if (seq !== obj.finishSeq || obj.disposed || !def) return;
-    const ctx = { THREE, slab, obj, w: obj.photoW, h: obj.photoH, photoTex: t, photoCanvas: shown, tier: S.SL.tierOf(slab), renderer: S.renderer, envMap: env, finish: id };
-    let mesh = null; try { mesh = def.make ? def.make(ctx) : null; } catch (e) { console.error(e); mesh = null; }
-    if (mesh) { mesh.position.copy(obj.parts.photo.position); mesh.position.z += Z_FINISH; mesh.userData.order = 6; inner.add(mesh); }
-    obj.finish = { id, def, mesh };
-    if (obj.top) obj.setTop(true);
-  });
+  return mountFinish(obj, S, { id, def: S.SM.finishDef(id), shown, tex: t, texFn: S.SM.tex, w: obj.photoW, h: obj.photoH, at: obj.parts.photo.position, dz: Z_FINISH, order: 6, full: false, tier: S.SL.tierOf(slab), env, variantFx });
 }
 /* the rim in the finish colour: a cycle drifts through the hues, sparkle flickers, pulse breathes, cold and hot sit still */
 const gC = new THREE.Color(), gC2 = new THREE.Color();

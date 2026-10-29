@@ -7,6 +7,8 @@ import { backCanvases } from './print.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { TIER, GRADES, VARIANT, finishOf, pad } from './slabs.js';
+import { mountFinish, dropFinish, clickFinish, topWalk } from './fxmount.js';
+import { variantFx } from './fxvariants.js';
 
 let ENV = null;
 export function envMap(renderer) { if (!ENV) { const p = new THREE.PMREMGenerator(renderer); ENV = p.fromScene(new RoomEnvironment(), 0.04).texture; p.dispose(); } return ENV; }
@@ -48,10 +50,10 @@ export function photoCanvas(slab, S) {
   });
   PHOTOS.set(slab.id, p); return p;
 }
-const FILTERS = { gold: 'sepia(1) saturate(1.6) contrast(1.05) brightness(1.04)', prism: 'grayscale(1) contrast(1.45) brightness(0.82)', cyanotype: 'grayscale(1) sepia(1) hue-rotate(165deg) saturate(2.4) brightness(0.9)', chrome: 'grayscale(0.6) contrast(1.25)', steel: 'grayscale(1) contrast(1.1) brightness(0.9)',
+const FILTERS = { prism: 'grayscale(1) contrast(1.45) brightness(0.82)', cyanotype: 'grayscale(1) sepia(1) hue-rotate(165deg) saturate(2.4) brightness(0.9)', steel: 'grayscale(1) contrast(1.1) brightness(0.9)',
   silver: 'grayscale(1) sepia(0.22) contrast(1.14) brightness(1.02)', polychrome: 'saturate(2.3) contrast(1.25)', eclipse: 'invert(1) hue-rotate(180deg) contrast(1.1)', raku: 'sepia(0.8) contrast(1.45) brightness(0.88) saturate(0.6)', glass: 'contrast(0.85) brightness(1.18) saturate(0.75)' };
 /* two colour gradient maps: the photo's tones mapped from the first colour (shadows) to the second (highlights) */
-const MAPS = { keywarm: ['#1b0f08', '#f3dcb5'], keyblue: ['#071a33', '#dff1ff'], kintsugi: ['#0b0906', '#e8c26a'], porcelain: ['#1e2229', '#f7f7f3'], duoRose: ['#2a0a1e', '#ffd9e4'], duoMoss: ['#0c1a0f', '#e9f2c9'], duoInk: ['#070b1a', '#e6ecff'], duoEmber: ['#1a0600', '#ffc66b'], tritone: ['#101424', '#c0392b', '#fff1c1'] };
+const MAPS = { keywarm: ['#1b0f08', '#f3dcb5'], keyblue: ['#071a33', '#dff1ff'], duoRose: ['#2a0a1e', '#ffd9e4'], duoMoss: ['#0c1a0f', '#e9f2c9'], duoInk: ['#070b1a', '#e6ecff'], duoEmber: ['#1a0600', '#ffc66b'], tritone: ['#101424', '#c0392b', '#fff1c1'] };
 const FILTERS2 = { xpro: 'contrast(1.3) saturate(1.5) hue-rotate(-12deg) brightness(1.05)', infrared: 'grayscale(0.3) contrast(1.25) brightness(1.1) hue-rotate(150deg) saturate(1.3)' };
 /* per pixel looks: a selective colour keeps the photo's main hue and greys the rest, solarise folds the highlights, posterise steps the tones, a vignette darkens the corners */
 function pixels(c, fn) { const g = c.getContext('2d'), img = g.getImageData(0, 0, c.width, c.height); fn(img.data, c.width, c.height); g.putImageData(img, 0, 0); }
@@ -152,8 +154,9 @@ export function makeSlab(slab, S) {
   obj.refresh = () => { if (obj.built) applyFinish(obj, S, env, obj.finishId); };
   obj.update = (dt, pointer) => { obj.time += dt; if (pointer) obj.pointer.copy(pointer); if (obj.parts.sticker) { const u = obj.parts.sticker.userData.foil.material.uniforms; u.uTilt.value.copy(obj.tilt); u.uTime.value = obj.time; } if (obj.finish && obj.finish.def.update) try { obj.finish.def.update(obj.finish.mesh, { THREE, dt, time: obj.time, tilt: obj.tilt, pointer: obj.pointer, slab, obj }); } catch (e) { console.error(e); } };
   /* while inspected the slab draws over everything, like an inspected print */
-  obj.setTop = on => { obj.top = on; group.traverse(m => { if (!m.isMesh) return; [].concat(m.material).forEach(mt => { if (mt.userData.t0 === undefined) mt.userData.t0 = mt.transparent; mt.depthTest = !on; mt.transparent = on || mt.userData.t0; }); m.renderOrder = on ? 20 + (m.userData.order || 0) : (m.userData.order || 0); }); };
-  obj.dispose = () => { group.traverse(m => { if (m.isMesh) { m.geometry.dispose(); [].concat(m.material).forEach(mt => { if (mt.map && mt.map !== obj.parts.photoTex) mt.map.dispose(); mt.dispose(); }); } }); if (obj.parts.photoTex) obj.parts.photoTex.dispose(); if (group.parent) group.parent.remove(group); };
+  obj.setTop = on => { obj.top = on; topWalk(group, on); };
+  obj.click = uv => clickFinish(obj, uv);
+  obj.dispose = () => { obj.disposed = true; dropFinish(obj); group.traverse(m => { if (m.isMesh) { m.geometry.dispose(); [].concat(m.material).forEach(mt => { if (mt.map && mt.map !== obj.parts.photoTex) mt.map.dispose(); mt.dispose(); }); } }); if (obj.parts.photoTex) obj.parts.photoTex.dispose(); if (group.parent) group.parent.remove(group); };
   return obj;
 }
 function build(obj, S, env) {
@@ -191,21 +194,20 @@ function build(obj, S, env) {
   label.userData.order = full ? 5 : 2; inner.add(label); obj.parts.label = label;
   const stk = sticker(slab, lab * 0.52); if (land) stk.position.set(label.position.x, ph / 2 - 0.112 * ph, lz + 0.002); else stk.position.set(-pw / 2 + 0.112 * pw, label.position.y, lz + 0.002); inner.add(stk); obj.parts.sticker = stk;
   /* the acrylic */
-  const acr = new THREE.Mesh(new RoundedBoxGeometry(obj.w, obj.h, th, 3, 0.05), new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: clear ? 0.3 : 0.2, roughness: 0.05, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04, envMap: env, envMapIntensity: 1.1, depthWrite: false }));
+  /* clear acrylic (Sam, Slab Lab: "the case is wayyy better"): a black dielectric drawn additively, so the case adds only its
+     reflections (sharp highlights, bright bevels at grazing angles) and never a white haze over the photo */
+  const caseGeo = new RoundedBoxGeometry(obj.w, obj.h, th, 8, 0.05);
+  const acr = new THREE.Mesh(caseGeo, new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.02, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, ior: 1.49, envMap: env, envMapIntensity: clear ? 1.6 : 1.25, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   acr.userData.order = 6; acr.userData.noParticles = true; inner.add(acr); obj.parts.acrylic = acr;
-  const edge = new THREE.Mesh(new RoundedBoxGeometry(obj.w, obj.h, th, 3, 0.05), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.08, side: THREE.BackSide, depthWrite: false })); edge.userData.order = 5; edge.userData.noParticles = true; inner.add(edge);
+  const edge = new THREE.Mesh(caseGeo, new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.03, metalness: 0, ior: 1.49, envMap: env, envMapIntensity: 0.6, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide })); edge.userData.order = 5; edge.userData.noParticles = true; inner.add(edge);
   obj.built = true; applyFinish(obj, S, env, finishOf(slab, S.testFinish ? S.testFinish() : null));
 }
 function applyFinish(obj, S, env, id) {
-  const { slab, inner, base } = obj; obj.finishId = id;
+  const { slab, base } = obj; obj.finishId = id;
   const shown = processPhoto(base, id, slab.variant, slab.grade, slab.seed);
   if (obj.parts.photoTex) obj.parts.photoTex.dispose(); const t = tex(shown); obj.parts.photoTex = t;
   obj.parts.photo.material.map = t; obj.parts.photo.material.needsUpdate = true; if (obj.parts.ghost) { obj.parts.ghost.material.map = t; obj.parts.ghost.material.needsUpdate = true; }
-  if (obj.finish) { if (obj.finish.mesh) { inner.remove(obj.finish.mesh); obj.finish.mesh.geometry.dispose(); [].concat(obj.finish.mesh.material).forEach(m => m.dispose()); } obj.finish = null; }
   const def = finishDef(id), full = slab.variant === 'full';
-  const ctx = { THREE, slab, obj, w: full ? obj.w - 0.1 : obj.photoW, h: full ? obj.h - 0.1 : obj.photoH, photoTex: t, photoCanvas: shown, tier: TIER[slab.tier], renderer: S.renderer, envMap: env, finish: id };
-  let mesh = null; try { mesh = def.make ? def.make(ctx) : null; } catch (e) { console.error(e); mesh = null; }
-  if (mesh) { mesh.position.copy(obj.parts.photo.position); mesh.position.z += 0.01; mesh.userData.order = 4; if (full) { mesh.geometry.setAttribute('uv', obj.parts.photo.geometry.attributes.uv); } inner.add(mesh); }
-  obj.finish = { id, def, mesh };
-  if (obj.top) obj.setTop(true);
+  mountFinish(obj, S, { id, def, shown, tex: t, texFn: tex, w: full ? obj.w - 0.1 : obj.photoW, h: full ? obj.h - 0.1 : obj.photoH, at: obj.parts.photo.position, dz: 0.01, order: 4, full,
+    fullUV: obj.parts.photo.geometry.attributes.uv, tier: TIER[slab.tier], env, variantFx });
 }

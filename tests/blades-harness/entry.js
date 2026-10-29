@@ -29,6 +29,7 @@ const S = { THREE, ctx, M, T, P, SL, SM, store: SL.store, RoundedBoxGeometry, sc
   el(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html) e.innerHTML = html; return e; },
   css(text) { const s = document.createElement('style'); s.textContent = text; document.head.appendChild(s); },
   sfx() {}, toast(t) { console.log('toast: ' + t); }, snd: null,
+  hitAny(e, list) { ctx.setNDC(e); ray.setFromCamera(ndc, camera); let best = null; list.forEach(o => { if (!o) return; const h = ray.intersectObject(o, true)[0]; if (h && (!best || h.distance < best.distance)) best = { ...h, root: o }; }); return best; },
   tableHit(e, y) { ctx.setNDC(e); ray.setFromCamera(ndc, camera); const pl = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(y || 0)), v = new THREE.Vector3(); return ray.ray.intersectPlane(pl, v) ? v : null; },
   shadow(w, d) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.y = 0.004; return m; },
   cam: { st: [], push(t) { S.cam.st.push({ ...cam }); Object.assign(cam, t); }, pop() { const s = S.cam.st.pop(); if (s) Object.assign(cam, { tx: s.tx, ty: s.ty, tz: s.tz, dT: s.dT, pitch: s.pitch }); }, set(t) { Object.assign(cam, t); } },

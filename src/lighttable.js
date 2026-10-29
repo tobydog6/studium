@@ -8,6 +8,7 @@
       out.push({id:stId(i), url:p.url, name:pl+" "+String(n[pl]).padStart(2,"0"), place:pl, pick:!!p.pick}); });
     return out; }
   function ltData(){ var want=ltWant; ltWant=false; return {photos:ltPhotos(), projects:(st.projects||[]).map(function(p){ return {id:p.id, name:p.name, ids:(p.ids||[]).slice()}; }), state:st.lightTable||null, startTour:want}; }
+  var LT_SPARK="asset-b64:dist/lt-spark.js";
   window.LT_BRIDGE={
     data:ltData,
     /* the artist packs for the secret layer's pulls: live if Research has loaded them, else the cache, else the sample pack. URLs absolute, the table is a srcdoc iframe. */
@@ -15,6 +16,9 @@
       if(!list){ try{ list=JSON.parse(localStorage.getItem("studium_rs")||"null"); }catch(e){ list=null; } }
       if((!list||!list.length)&&typeof RS_SAMPLE!=="undefined") list=[RS_SAMPLE];
       return (list||[]).map(function(p){ return {id:p.id, name:p.name, imgs:(p.imgs||[]).map(function(im){ var u=im.url; try{ u=new URL(u, document.baseURI).href; }catch(e){} return {id:im.id, url:u}; })}; }); },
+    /* the secret layer's scan slab: Spark built for the table (fetched only when one is on screen) and a scene's subject scan */
+    spark:function(){ return LT_SPARK; },
+    scan:function(id){ var s=null; try{ s=SPLAT_SCENES.filter(function(x){ return x.id===id; })[0]; }catch(e){} return s&&s.detail?s.detail.data:null; },
     sfx:function(id,o){ return sfx(id,o); },
     shutter:function(){ try{ if(typeof shutterSound==="function") shutterSound(); else sfx("capture"); }catch(e){} },
     save:function(s){ st.lightTable=s; saveSession(); },

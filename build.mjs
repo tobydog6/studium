@@ -81,6 +81,16 @@ async function buildLightTable() {
   return Buffer.from(page, 'utf8').toString('base64');
 }
 const lightTable = await buildLightTable();
+// the secret layer's splat renderer (Spark) for the scan slab, built on its own against the light table's three.js
+// (window.LT_THREE, set by secret/fxscan.js) so nobody downloads it until a scan slab is on screen; src/lighttable.js
+// serves it to the table through LT_BRIDGE.spark as asset-b64:dist/lt-spark.js (pieces in the web build)
+async function buildLtSpark() {
+  const three = { name: 'lt-three', setup(b) { b.onResolve({ filter: /^three$/ }, () => ({ path: 'three', namespace: 'ltthree' })); b.onLoad({ filter: /.*/, namespace: 'ltthree' }, () => ({ contents: 'module.exports = window.LT_THREE;', loader: 'js' })); } };
+  const r = await esbuild.build({ stdin: { contents: "import { SparkRenderer, SplatMesh } from '@sparkjsdev/spark'; window.LT_SPARK = { SparkRenderer, SplatMesh };", resolveDir: ROOT, loader: 'js' },
+    bundle: true, minify: true, format: 'iife', write: false, logLevel: 'error', plugins: [three] });
+  mkdirSync(join(ROOT, 'dist'), { recursive: true }); writeFileSync(join(ROOT, 'dist', 'lt-spark.js'), r.outputFiles[0].text);
+}
+await buildLtSpark();
 const shell = resolveAssets(readFileSync(join(ROOT, 'src', 'index.html'), 'utf8'));   // the page's own head (site icon) can use asset: too
 // Included files may themselves contain @@include lines (e.g. app.js pulls in back.js inside its closure).
 const readSrc = (p) => stripNl(readFileSync(join(ROOT, 'src', p), 'utf8'))

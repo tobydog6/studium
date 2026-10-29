@@ -18,15 +18,15 @@ const smooth = t => t * t * (3 - 2 * t);
 /* crisp: every edge of the section gets its own strip of vertices, so normals stay smooth along the sweep but break sharply
    across the section's corners (the chamfers of die-cast metal), instead of the whole thing shading like a pillow */
 function sweep(n, sec, angle) {
-  const s0 = sec(0), m = s0.length, pos = [], idx = [], rows = [];
+  const s0 = sec(0), m = s0.length, pos = [], idx = [], rows = [], uv = [];
   for (let i = 0; i <= n; i++) { const t = i / n, a = angle(t), c = Math.cos(a), s = Math.sin(a); rows.push(sec(t).map(([r, y]) => [c * r, y, -s * r])); }
-  for (let j = 0; j < m; j++) { const base = pos.length / 3; for (let i = 0; i <= n; i++) { const p = rows[i][j], q = rows[i][(j + 1) % m]; pos.push(p[0], p[1], p[2], q[0], q[1], q[2]); }
+  for (let j = 0; j < m; j++) { const base = pos.length / 3; for (let i = 0; i <= n; i++) { const p = rows[i][j], q = rows[i][(j + 1) % m]; pos.push(p[0], p[1], p[2], q[0], q[1], q[2]); uv.push(i / n * 4, j / m, i / n * 4, (j + 1) / m); }
     for (let i = 0; i < n; i++) { const a = base + i * 2, b = a + 1, c = a + 2, d = a + 3; idx.push(a, c, b, b, c, d); } }
-  const capBase = pos.length / 3; rows.forEach(r => r.forEach(p => pos.push(p[0], p[1], p[2])));
+  const capBase = pos.length / 3; rows.forEach((r, i) => r.forEach((p, j) => { pos.push(p[0], p[1], p[2]); uv.push(i / n * 4, j / m); }));
   /* end caps: a fan from the section's centre */
   [0, n].forEach((i, k) => { const base = pos.length / 3, sec0 = sec(i / n), a = angle(i / n); let cr = 0, cy = 0; sec0.forEach(([r, y]) => { cr += r / m; cy += y / m; });
-    pos.push(Math.cos(a) * cr, cy, -Math.sin(a) * cr); for (let j = 0; j < m; j++) { const p = capBase + i * m + j, q = capBase + i * m + (j + 1) % m; if (k) idx.push(base, p, q); else idx.push(base, q, p); } });
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g;
+    pos.push(Math.cos(a) * cr, cy, -Math.sin(a) * cr); uv.push(0, 0); for (let j = 0; j < m; j++) { const p = capBase + i * m + j, q = capBase + i * m + (j + 1) % m; if (k) idx.push(base, p, q); else idx.push(base, q, p); } });
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); return g;
 }
 
 /* a rounded wedge in r-y: inner wall, a top sloping down outwards, a rounded outer lip */
@@ -188,3 +188,39 @@ export function hexSticker(photo, accent) {
   if (photo) { const s = Math.max(420 / photo.width, 420 / photo.height); try { g.filter = 'contrast(1.45) saturate(1.7) brightness(0.92)'; } catch (e) {} g.drawImage(photo, 256 - photo.width * s / 2, 256 - photo.height * s / 2, photo.width * s, photo.height * s); g.filter = 'none'; }
   g.restore(); g.lineWidth = 8; g.strokeStyle = '#fff'; hex(204); g.stroke(); g.lineWidth = 14; g.strokeStyle = accent; hex(228); g.stroke(); return c;
 }
+
+/* a dark photo studio for reflections: black, with a big softbox overhead and two strip lights (what product renders use),
+   so metal goes dark with bright streaks along its chamfers instead of an even grey */
+export function studioEnv(renderer) {
+  const sc = new THREE.Scene(); sc.background = new THREE.Color(0x050506);
+  const panel = (w, h, x, y, z, ry, rx, k, col) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col || 0xffffff).multiplyScalar(k), side: THREE.DoubleSide })); m.position.set(x, y, z); m.rotation.set(rx || 0, ry || 0, 0); sc.add(m); };
+  panel(6, 6, 0, 6, 0, 0, Math.PI / 2, 5);               /* overhead softbox */
+  panel(1.2, 7, -6, 2, 1, Math.PI / 2, 0, 7);            /* left strip */
+  panel(1.2, 7, 6, 2, -1, -Math.PI / 2, 0, 5, 0xdfe8ff); /* right strip, a touch cool */
+  panel(8, 1.2, 0, 1.5, -6, 0, 0, 2.5, 0xffe6cc);         /* a low warm kicker behind */
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshBasicMaterial({ color: 0x0c0c0e })); floor.rotation.x = -Math.PI / 2; floor.position.y = -2; sc.add(floor);
+  const pm = new THREE.PMREMGenerator(renderer), t = pm.fromScene(sc, 0.02).texture; pm.dispose(); return t;
+}
+/* the plastic's printed graphics: a solid colour with stripes or flames along the wings in the accent colour (no photo: it's on the sticker) */
+export function decalCanvas(style, base, accent, rng) {
+  const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d'); g.fillStyle = base; g.fillRect(0, 0, 512, 512);
+  /* a soft darkening towards the middle, like thick translucent plastic */
+  const v = g.createRadialGradient(256, 256, 40, 256, 256, 256); v.addColorStop(0, 'rgba(0,0,0,0.35)'); v.addColorStop(0.6, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(255,255,255,0.12)'); g.fillStyle = v; g.fillRect(0, 0, 512, 512);
+  g.save(); g.translate(256, 256); g.fillStyle = accent; g.strokeStyle = accent;
+  if (style === 'stripes' || style === 'speed') { const n = 3 + Math.floor(rng() * 3); for (let k = 0; k < n; k++) { const a = k / n * TAU + rng() * 0.3; g.lineWidth = style === 'speed' ? 5 : 11; g.beginPath(); g.arc(0, 0, 175 + rng() * 50, a, a + 0.5 + rng() * 0.5); g.stroke(); g.lineWidth = 4; g.strokeStyle = '#ffffff'; g.beginPath(); g.arc(0, 0, 160 + rng() * 40, a + 0.1, a + 0.45); g.stroke(); g.strokeStyle = accent; } }
+  else if (style === 'flames') { for (let k = 0; k < 6; k++) { g.save(); g.rotate(k / 6 * TAU); g.beginPath(); g.moveTo(120, -14); g.quadraticCurveTo(190, -30, 250, -70); g.quadraticCurveTo(205, -4, 248, 16); g.quadraticCurveTo(180, 12, 120, 14); g.closePath(); g.fill(); g.restore(); } }
+  else if (style === 'burst') { for (let k = 0; k < 12; k++) { g.save(); g.rotate(k / 12 * TAU); g.beginPath(); g.moveTo(130, -6); g.lineTo(250, 0); g.lineTo(130, 6); g.fill(); g.restore(); } }
+  else if (style === 'dots') { for (let k = 0; k < 60; k++) { const a = rng() * TAU, r = 150 + rng() * 100; g.beginPath(); g.arc(Math.cos(a) * r, Math.sin(a) * r, 3 + rng() * 6, 0, TAU); g.fill(); } }
+  g.restore(); return c;
+}
+/* a soft dark ring texture: contact shadow where one layer sits on another */
+let AO = null;
+export function aoTex() { if (AO) return AO; const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'), gr = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.5, 'rgba(0,0,0,0)'); gr.addColorStop(0.62, 'rgba(0,0,0,0.75)'); gr.addColorStop(0.8, 'rgba(0,0,0,0.25)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+  AO = new THREE.CanvasTexture(c); return AO; }
+
+/* brushed metal: fine streaks along the sweep (u), for a bump and roughness map */
+let BR = null;
+export function brushed() { if (BR) return BR; const c = document.createElement('canvas'); c.width = 1024; c.height = 64; const g = c.getContext('2d'); g.fillStyle = '#808080'; g.fillRect(0, 0, 1024, 64);
+  for (let k = 0; k < 900; k++) { const y = Math.random() * 64, l = 40 + Math.random() * 300, x = Math.random() * 1024, v = 100 + Math.random() * 80; g.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')'; g.fillRect(x, y, l, 0.6 + Math.random()); }
+  BR = new THREE.CanvasTexture(c); BR.wrapS = BR.wrapT = THREE.RepeatWrapping; return BR; }

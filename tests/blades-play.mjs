@@ -36,8 +36,8 @@ try {
   let rounds = 0;
   for (let guard = 0; guard < 12; guard++) {
     const st = await page.evaluate(() => H.M.state); if (st === 'blades.result') break;
-    if (st === 'blades.ready') { await page.evaluate(() => { H.pointer('move', 600, 400); H.pointer('down', 640, 300); }); for (let k = 1; k <= 6; k++) { await page.evaluate(k => H.pointer('move', 640 + k * 40, 300 + k * 5), k); await page.waitForTimeout(12); if (k === 4) { await step(1); if (!rounds) await shot('6-pull'); } }
-      await page.evaluate(() => H.pointer('up', 880, 330)); const rip = await page.evaluate(() => document.getElementById('skBlBan').textContent); console.log('  rip:', rip); }
+    if (st === 'blades.ready') { await page.evaluate(() => { H.pointer('move', 600, 400); H.pointer('down', 1000, 640); }); for (let k = 1; k <= 6; k++) { await page.evaluate(k => H.pointer('move', 1000 + k * 40, 640 + k * 5), k); await page.waitForTimeout(12); if (k === 4) { await step(1); if (!rounds) await shot('6-pull'); } }
+      await page.evaluate(() => H.pointer('up', 1240, 670)); const rip = await page.evaluate(() => document.getElementById('skBlBan').textContent); console.log('  rip:', rip); }
     let frames = 0; while ((await page.evaluate(() => H.M.state)) === 'blades.battle' && frames < 3000) { await step(15); frames += 15; if (!rounds && frames === 60) await shot('7-battle'); if (!rounds && frames === 240) await shot('8-battle-later'); }
     const s2 = await page.evaluate(() => ({ st: H.M.state, t: H.S.blades.sim() && H.S.blades.sim().t, tops: H.S.blades.sim() && H.S.blades.sim().tops.map(t => t.done || 'alive'), score: H.S.blades.state.score }));
     console.log('  round ' + (rounds + 1) + ':', JSON.stringify(s2)); if (frames >= 3000) { fail = 'a round did not finish'; break; }
@@ -46,7 +46,7 @@ try {
   }
   await step(10); await shot('10-result'); const fin = await page.evaluate(() => ({ st: H.M.state, score: H.S.blades.state.score })); console.log('  result:', JSON.stringify(fin));
   if (fin.st !== 'blades.result') fail = fail || 'no result: ' + fin.st;
-  await page.click('#skBlBar [data-a="done"]'); for (let i = 0; i < 40 && (await step(10)) !== 'under'; i++);
+  await page.evaluate(() => document.querySelector('#skBlBar [data-a="done"]').click()); for (let i = 0; i < 40 && (await step(10)) !== 'under'; i++);
   const gone = await page.evaluate(() => ({ st: H.M.state, stadium: H.S.blades.stadium.visible, y: H.S.blades.stadium.position.y, bar: document.getElementById('skBlBar').classList.contains('on') })); console.log('  after Done:', JSON.stringify(gone));
   if (gone.st !== 'under' || gone.stadium) fail = fail || 'Done did not put the stadium away: ' + JSON.stringify(gone);
 } catch (e) { fail = fail || e.message; }

@@ -156,6 +156,18 @@ export function install(S) {
     gr.addColorStop(0.76, 'rgba(' + [mc.r, mc.g, mc.b].map(v => Math.round(v * 255)).join(',') + ',1)'); gr.addColorStop(0.97, 'rgba(' + [mc.r, mc.g, mc.b].map(v => Math.round(v * 200)).join(',') + ',0.9)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = gr; g.fillRect(0, 0, 256, 256); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
   const FACE = 0.74, TAU_ = Math.PI * 2;
+  /* every blade's design, from its slab's seed (the same slab always looks the same) nudged by its photo:
+     busy photos lean spiky, symmetrical ones lean to rings and shields, colourful ones get bright plastic */
+  function designOf(slab, dna) {
+    const r = T.rng(((slab.seed >>> 0) ^ 0x2f6b9a1) >>> 0), pick = (opts) => { const tot = opts.reduce((s, o) => s + o[1], 0); let v = r() * tot; for (const o of opts) { v -= o[1]; if (v <= 0) return o[0]; } return opts[0][0]; }, rk = rank(slab);
+    const metal = pick([['claws', 3], ['ring', 1 + dna.sym * 2], ['swirl', 1.5 + (1 - dna.sym)], ['spikes', 0.5 + dna.edge * 2 + (rk >= 4 ? 1 : 0)], ['double', 1 + (rk >= 3 ? 1 : 0)], ['shield', 0.5 + dna.sym * 1.5]]);
+    return { metal, wings: BSH.wingCount(dna, rk), bosses: 4 + Math.floor(r() * 4),
+      body: pick([['fins', 2], ['swirl', 1.5], ['dome', 1], ['wheel', 1 + dna.sym], ['petals', 0.7]]), spokes: 5 + Math.floor(r() * 4),
+      print: pick([['none', 2 - rk * 0.25], ['stripes', 1], ['flames', 1 + (dna.sat > 0.3 ? 1 : 0)], ['dots', 0.7], ['speed', 1], ['burst', 0.6 + rk * 0.15]]),
+      hub: pick([['tabs', 2], ['gear', 1], ['lobes', 1.2], ['hex', 0.8]]), hubCol: pick([['body', 2], ['second', 1.5], ['white', 0.6], ['tier', 0.8]]),
+      sticker: pick([['round', 3], ['hex', 1]]), tone: pick([['finish', 2], ['silver', 2.5], ['gunmetal', 1], ['black', 0.8 + (rk >= 5 ? 1 : 0)], ['gold', 0.4 + (rk >= 5 ? 1 : 0)], ['anodised', 0.8]]),
+      plastic: pick([['trans', 3], ['opaque', 1.5], ['clear', 0.7]]), h2: (dna.hue + [0.5, 0.33, 0.12, 0.6, 0.85][Math.floor(r() * 5)]) % 1 };
+  }
   function makeBlade(parts, st, who) {
     const [a, b, c] = parts, [da, db, dc] = parts.map(dnaOf), sp = BSH.tipSpec(dc), lift = sp.len - 0.36, root = new THREE.Group(), tilt = new THREE.Group(), spin = new THREE.Group(), gRing = new THREE.Group(), gDisc = new THREE.Group(), gTip = new THREE.Group();
     root.add(tilt); tilt.add(spin); spin.add(gTip, gDisc, gRing); root.scale.setScalar(st.radius); const mats = [], geos = [], fins = [], myTex = texs = [];
@@ -178,33 +190,52 @@ export function install(S) {
     const ratM = keep(new THREE.Mesh(BP.ratchet({ teeth: [3, 4, 5, 6, 7, 9][Math.floor(T.clamp(db.edge, 0, 0.99) * 6)], h: RH, dir }), new THREE.MeshPhysicalMaterial({ map: dtex, color: dHue.clone().lerp(new THREE.Color(0xffffff), 0.2), roughness: 0.22, clearcoat: 0.7, clearcoatRoughness: 0.12, envMap: ENV, envMapIntensity: 0.4, transmission: 0.3, thickness: 0.3, side: D2 })));
     ratM.position.y = y0; gDisc.add(ratM);
     finishOver(b, dtex, BP.ratchet({ teeth: 6, rOut: 0.685, h: RH, dir }), gDisc, y0);
-    /* the blade */
+    /* the blade: a design picked from families for every part (designOf), so no two blades look alike */
     const ry = y0 + RH, clear = a.variant === 'clear', amet = metalOf(a); mats.push(amet); amet.side = D2;
-    /* real frames are mostly bright silver, the finish shows as a tint and in the plastic */
-    amet.color.lerp(new THREE.Color(0xaab1bb), 0.45); amet.roughness = Math.min(amet.roughness, 0.24); amet.envMapIntensity = 1.0;
-    const sat = da.sat > 0.12, hue = new THREE.Color().setHSL(da.hue, sat ? 1 : 0.04, sat ? 0.42 : 0.14), acc = sat ? new THREE.Color().setHSL((da.hue + (da.sym > 0.6 ? 0.04 : -0.04) + 1) % 1, 1, 0.3) : new THREE.Color(tierCol(a)).multiplyScalar(0.7), ptex = photoTex(a);
-    const W = BSH.wingCount(da, rank(a)), lean = da.lean * 0.3;
-    /* the body: moulded translucent plastic in the photo's colour, fins sweeping with the spin, the photo printed faintly through it */
-    const bodyM = keep(new THREE.Mesh(BP.body({ fins: W * (1 + Math.round(da.edge * 2)), dir, reach: 0.8, base: 0.7, sweepK: 1.4 + da.contrast * 3, hIn: 0.1, hOut: 0.06 }),
-      new THREE.MeshPhysicalMaterial({ map: ptex, color: hue.clone().lerp(new THREE.Color(0xffffff), 0.12), emissive: hue, emissiveIntensity: 0.18, roughness: 0.14, clearcoat: 0.8, clearcoatRoughness: 0.08, transmission: clear ? 0.9 : 0.45, thickness: 0.35, ior: 1.5, attenuationColor: hue, attenuationDistance: 0.4, envMap: ENV, envMapIntensity: 0.45, side: D2 })));
-    bodyM.position.y = ry; gRing.add(bodyM);
-    finishOver(a, ptex, BP.body({ fins: W * (1 + Math.round(da.edge * 2)), dir, reach: 0.805, base: 0.705, sweepK: 1.4 + da.contrast * 3, hIn: 0.102, hOut: 0.062 }), gRing, ry + 0.002);
-    /* the metal: a frame ring and its crescents sweeping round the rim (hooked at the leading end), bolts where they meet the ring */
-    const frameM = keep(new THREE.Mesh(BP.frameRing(0.58, 0.7, 0.05), amet)); frameM.position.y = ry + 0.035; gRing.add(frameM);
-    const span = (TAU_ / W) * T.clamp(0.6 + da.contrast * 0.8, 0.6, 0.9), hookK = 0.2 + 0.5 * (1 - da.sym), thick = 0.045 + 0.03 * T.clamp(da.contrast * 3, 0, 1);
-    for (let w = 0; w < W; w++) { const a0 = w / W * TAU_ + lean; const cm = keep(new THREE.Mesh(BP.crescent({ a0, span, dir, rIn: 0.62, reach: 1, thick, hook: hookK }), amet)); cm.position.y = ry + 0.035; gRing.add(cm);
-      const bb = keep(new THREE.Mesh(BP.bolt(), amet)), ba = a0 + dir * span * 0.25; bb.position.set(Math.cos(ba) * 0.64, ry + 0.085, -Math.sin(ba) * 0.64); gRing.add(bb);
-      /* the top tiers get a cut gem set in each crescent */
-      if (rank(a) >= 4) { const gm = keep(new THREE.Mesh(BP.gem(0.06), new THREE.MeshPhysicalMaterial({ color: tierCol(a), emissive: tierCol(a), emissiveIntensity: 0.5, roughness: 0.05, transmission: 0.5, thickness: 0.2, envMap: ENV })));
-        const ga = a0 + dir * span * 0.62; gm.position.set(Math.cos(ga) * 0.84, ry + 0.11, -Math.sin(ga) * 0.84); gm.rotation.y = ga; gRing.add(gm); } }
-    /* the lock ring: an accent colour that answers the photo's, tabs between the wings */
+    const Dz = designOf(a, da), rr = T.rng((a.seed >>> 0) ^ 0x51ed), W = Dz.wings, lean = da.lean * 0.3;
+    /* the metal's tone: the finish's own metal pulled towards the design's tone */
+    const TONE = { silver: 0xb8bec8, gunmetal: 0x5b6068, black: 0x26262c, gold: 0xd8a64a }; if (Dz.tone !== 'finish' && TONE[Dz.tone] != null) amet.color.lerp(new THREE.Color(TONE[Dz.tone]), 0.7);
+    if (Dz.tone === 'anodised') { amet.color.setHSL(Dz.h2, 0.75, 0.42); amet.iridescence = 0.6; }
+    amet.roughness = Math.min(amet.roughness, 0.26); amet.envMapIntensity = 1.0;
+    const sat = da.sat > 0.12, hue = new THREE.Color().setHSL(da.hue, sat ? 1 : 0.04, sat ? 0.42 : 0.14), hue2 = new THREE.Color().setHSL(Dz.h2, 0.95, 0.45), ptex = photoTex(a);
+    const acc = Dz.hubCol === 'body' ? new THREE.Color().setHSL(da.hue, sat ? 1 : 0.05, 0.3) : Dz.hubCol === 'second' ? hue2.clone() : Dz.hubCol === 'white' ? new THREE.Color(0xe8e8ec) : new THREE.Color(tierCol(a)).multiplyScalar(0.8);
+    /* the plastic: printed with the photo and the design's graphics, clear, translucent or opaque */
+    const prtex = new THREE.CanvasTexture(BP.printCanvas(null, Dz.print, '#' + hue2.getHexString(), T.rng(a.seed >>> 0))); prtex.colorSpace = THREE.SRGBColorSpace; myTex.push(prtex);
+    SM.photoCanvas(a, S).then(cv => { prtex.image = BP.printCanvas(cv, Dz.print, '#' + hue2.getHexString(), T.rng(a.seed >>> 0)); prtex.needsUpdate = true; });
+    const plasticMat = (col, o) => new THREE.MeshPhysicalMaterial({ map: prtex, color: col.clone().lerp(new THREE.Color(0xffffff), 0.12), emissive: col, emissiveIntensity: 0.16, roughness: 0.14, clearcoat: 0.8, clearcoatRoughness: 0.08,
+      transmission: clear || Dz.plastic === 'clear' ? 0.85 : Dz.plastic === 'trans' ? 0.5 : 0, thickness: 0.35, ior: 1.5, attenuationColor: col, attenuationDistance: 0.4, envMap: ENV, envMapIntensity: 0.45, side: D2, ...(o || {}) });
+    const pm = plasticMat(hue); mats.push(pm);
+    const nFins = W * (1 + Math.round(da.edge * 2));
+    if (Dz.body === 'fins' || Dz.body === 'swirl') { const k = Dz.body === 'swirl', m = keep(new THREE.Mesh(BP.body({ fins: k ? nFins * 2 : nFins, dir, reach: k ? 0.86 : 0.8, base: k ? 0.6 : 0.7, sweepK: k ? 3.2 : 1.4 + da.contrast * 3, hIn: 0.1, hOut: 0.06 }), pm)); m.position.y = ry; gRing.add(m); }
+    else if (Dz.body === 'dome') { const prof = [[0.27, 0.11], [0.45, 0.115], [0.62, 0.095], [0.76, 0.065], [0.8, 0.03], [0.8, 0], [0.27, 0]].map(([r, y]) => new THREE.Vector2(r, y)); const m = keep(new THREE.Mesh(new THREE.LatheGeometry(prof, 64), pm)); m.position.y = ry; gRing.add(m);
+      for (let k = 0; k < nFins * 2; k++) { const rib = keep(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.025, 0.03), pm)); const ra = k / (nFins * 2) * TAU_; rib.position.set(Math.cos(ra) * 0.55, ry + 0.11, -Math.sin(ra) * 0.55); rib.rotation.y = ra; gRing.add(rib); } }
+    else if (Dz.body === 'wheel') { const m = keep(new THREE.Mesh(BP.plate(BP.wheelShape(0.27, 0.8, Dz.spokes, 0.1), 0.07, 0.02), pm)); m.position.y = ry; gRing.add(m); }
+    else { const p2 = plasticMat(hue2); mats.push(p2); const m1 = keep(new THREE.Mesh(BP.plate(BP.petalShape(0.27, 0.82, nFins, 0, 2.2), 0.05, 0.015), pm)); m1.position.y = ry; gRing.add(m1);
+      const m2 = keep(new THREE.Mesh(BP.plate(BP.petalShape(0.27, 0.72, nFins, Math.PI / nFins, 2.6), 0.04, 0.012), p2)); m2.position.y = ry + 0.06; gRing.add(m2); }
+    /* the metal, by family */
+    const M0 = ry + 0.035, add = g => { const m = keep(new THREE.Mesh(g, amet)); m.position.y = M0; gRing.add(m); return m; }, thick = 0.045 + 0.03 * T.clamp(da.contrast * 3, 0, 1), hookK = 0.2 + 0.5 * (1 - da.sym);
+    const boltAt = (ang, r) => { const bb = keep(new THREE.Mesh(BP.bolt(), amet)); bb.position.set(Math.cos(ang) * r, M0 + 0.05, -Math.sin(ang) * r); gRing.add(bb); };
+    const gemAt = (ang, r) => { const gm = keep(new THREE.Mesh(BP.gem(0.06), new THREE.MeshPhysicalMaterial({ color: tierCol(a), emissive: tierCol(a), emissiveIntensity: 0.5, roughness: 0.05, transmission: 0.5, thickness: 0.2, envMap: ENV }))); gm.position.set(Math.cos(ang) * r, M0 + 0.075, -Math.sin(ang) * r); gm.rotation.y = ang; gRing.add(gm); };
+    if (Dz.metal !== 'ring') add(BP.frameRing(0.58, 0.7, 0.05));
+    if (Dz.metal === 'claws' || Dz.metal === 'double') { const span = (TAU_ / W) * T.clamp(0.6 + da.contrast * 0.8, 0.6, 0.9);
+      for (let w = 0; w < W; w++) { const a0 = w / W * TAU_ + lean; add(BP.crescent({ a0, span, dir, rIn: 0.62, reach: 1, thick, hook: hookK })); boltAt(a0 + dir * span * 0.25, 0.64);
+        if (Dz.metal === 'double') add(BP.crescent({ a0: a0 + dir * span * 0.45, span: span * 0.55, dir, rIn: 0.6, reach: 0.86, thick: thick * 1.3, hook: 0.1 }));
+        if (rank(a) >= 4) gemAt(a0 + dir * span * 0.62, 0.84); } }
+    else if (Dz.metal === 'ring') { const nb = Dz.bosses; add(BP.metalRing({ bosses: nb, rIn: 0.66, reach: 1, thick: thick * 1.2, notch: 0.5 })); for (let k = 0; k < nb; k++) { const ba = (k + 0.5) / nb * TAU_; boltAt(ba, 0.86); if (rank(a) >= 4 && k % 2 === 0) gemAt(ba + 0.3, 0.78); } }
+    else if (Dz.metal === 'swirl') { const n = Math.max(2, Math.min(4, W)); for (let w = 0; w < n; w++) add(BP.swirl({ a0: w / n * TAU_ + lean, span: TAU_ / n * 1.25, dir, thick })); for (let w = 0; w < n; w++) boltAt(w / n * TAU_ + lean + 0.2 * dir, 0.62); }
+    else if (Dz.metal === 'spikes') { const n = W * 3; for (let w = 0; w < n; w++) { const a0 = w / n * TAU_ + lean; add(BP.crescent({ a0, span: TAU_ / n * 0.75, dir, rIn: 0.66, reach: w % 3 === 0 ? 1 : 0.9, thick: thick * 0.85, hook: 0.6 })); if (w % 3 === 0 && rank(a) >= 3) gemAt(a0 + dir * 0.15, 0.78); } }
+    else if (Dz.metal === 'shield') { const n = Math.max(2, Math.min(3, W)); for (let w = 0; w < n; w++) { const a0 = w / n * TAU_ + lean, span = TAU_ / n * 0.82; add(BP.crescent({ a0, span, dir, rIn: 0.66, reach: 0.98, thick: thick * 1.4, hook: 0.05 })); boltAt(a0 + dir * span * 0.3, 0.8); boltAt(a0 + dir * span * 0.7, 0.8); } }
+    /* the lock ring, by family */
     const hubMat = new THREE.MeshPhysicalMaterial({ color: acc, roughness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.15, envMap: ENV, envMapIntensity: 0.35, side: D2 }); mats.push(hubMat);
-    const hubM = keep(new THREE.Mesh(BP.hub(0.27, 0.36, 0.07), hubMat)); hubM.position.y = ry + 0.045; gRing.add(hubM);
-    for (let w = 0; w < W; w++) { const ta = (w + 0.5) / W * TAU_ + lean, tb = keep(new THREE.Mesh(BP.tab(0.1, 0.07, 0.04), hubMat)); tb.position.set(Math.cos(ta) * 0.38, ry + 0.07, -Math.sin(ta) * 0.38); tb.rotation.y = ta; gRing.add(tb); }
-    /* the emblem: the photo as a printed sticker with a black border, white keyline and the accent colour */
-    const stex = new THREE.CanvasTexture(BP.stickerCanvas(null, '#' + acc.getHexString())); stex.colorSpace = THREE.SRGBColorSpace; myTex.push(stex);
-    SM.photoCanvas(a, S).then(cv => { stex.image = BP.stickerCanvas(cv, '#' + acc.getHexString()); stex.needsUpdate = true; });
-    const embM = keep(new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.012, 64), [new THREE.MeshStandardMaterial({ color: 0x111111 }), new THREE.MeshPhysicalMaterial({ map: stex, roughness: 0.4, clearcoat: 0.7, clearcoatRoughness: 0.05, envMap: ENV, envMapIntensity: 0.25, emissive: 0xffffff, emissiveMap: stex, emissiveIntensity: 0.22 }), new THREE.MeshStandardMaterial({ color: 0x111111 })]));
+    if (Dz.hub === 'tabs') { const hubM = keep(new THREE.Mesh(BP.hub(0.27, 0.36, 0.07), hubMat)); hubM.position.y = ry + 0.045; gRing.add(hubM);
+      for (let w = 0; w < W; w++) { const ta = (w + 0.5) / W * TAU_ + lean, tb = keep(new THREE.Mesh(BP.tab(0.1, 0.07, 0.04), hubMat)); tb.position.set(Math.cos(ta) * 0.38, ry + 0.07, -Math.sin(ta) * 0.38); tb.rotation.y = ta; gRing.add(tb); } }
+    else { const sh = Dz.hub === 'gear' ? BP.gearRingShape(0.27, 0.42, 14 + W * 2) : Dz.hub === 'lobes' ? BP.lobeRingShape(0.27, 0.44, 3) : BP.polyRingShape(0.27, 0.42, 6, lean); const hm = keep(new THREE.Mesh(BP.plate(sh, 0.06, 0.012), hubMat)); hm.position.y = ry + 0.045; gRing.add(hm); }
+    /* the emblem: the photo as a printed sticker, round or hex */
+    const accHex = '#' + hue2.getHexString(), mk = cv => Dz.sticker === 'hex' ? BP.hexSticker(cv, accHex) : BP.stickerCanvas(cv, accHex);
+    const stex = new THREE.CanvasTexture(mk(null)); stex.colorSpace = THREE.SRGBColorSpace; myTex.push(stex);
+    SM.photoCanvas(a, S).then(cv => { stex.image = mk(cv); stex.needsUpdate = true; });
+    const embM = keep(new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.012, Dz.sticker === 'hex' ? 6 : 64), [new THREE.MeshStandardMaterial({ color: 0x111111 }), new THREE.MeshPhysicalMaterial({ map: stex, roughness: 0.4, clearcoat: 0.7, clearcoatRoughness: 0.05, envMap: ENV, envMapIntensity: 0.25, emissive: 0xffffff, emissiveMap: stex, emissiveIntensity: 0.22 }), new THREE.MeshStandardMaterial({ color: 0x111111 })]));
+    if (Dz.sticker === 'hex') embM.rotation.y = Math.PI / 6;
     { const uv = embM.geometry.attributes.uv, pp = embM.geometry.attributes.position; for (let k = 0; k < pp.count; k++) if (pp.getY(k) > 0.005) uv.setXY(k, pp.getX(k) / 0.54 + 0.5, -pp.getZ(k) / 0.54 + 0.5); }
     embM.position.y = ry + 0.1; gRing.add(embM);
     /* the spin: a blur of the face's own colours over the top as it gets fast (not on the spin group, so it doesn't strobe) */

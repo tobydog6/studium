@@ -123,3 +123,68 @@ export function gear(n = 14, rIn = 0.18, rRoot = 0.25, rTip = 0.285, h = 0.045) 
   const hole = new THREE.Path(); hole.absarc(0, 0, rIn, 0, TAU, true); s.holes.push(hole);
   return new THREE.ExtrudeGeometry(s, { depth: h, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.005, bevelSegments: 1 }).rotateX(-Math.PI / 2);
 }
+
+/* ======== more families, so no two blades look alike (Sam: every real one is its own) ======== */
+/* a heavy sculpted metal ring all the way round, with bosses (bolt mounts) standing proud and notches cut between */
+export function metalRing({ bosses = 5, rIn = 0.7, reach = 1, thick = 0.07, notch = 0.4 }) {
+  const n = 240;
+  return sweep(n, t => { const a = t * TAU, u = ((a * bosses / TAU) % 1 + 1) % 1, boss = Math.exp(-Math.pow((u - 0.5) * 7, 2)), cut = notch * Math.exp(-Math.pow((u - 0.02) * 22, 2)) + notch * Math.exp(-Math.pow((u - 0.98) * 22, 2));
+    const rOut = reach - 0.06 + 0.06 * boss - 0.07 * cut, h = thick * (0.75 + 0.35 * boss - 0.4 * cut);
+    return wedge(rIn - 0.02 * boss, rOut, h, h * 0.55, 0.02); }, t => t * TAU);
+}
+/* a long thin swirl blade that spirals outwards over most of a half turn */
+export function swirl({ a0, span = 2.4, dir = 1, rIn0 = 0.5, rIn1 = 0.82, reach0 = 0.68, reach1 = 1.0, thick = 0.05 }) {
+  return sweep(60, t => { const e = smooth(t), rIn = rIn0 + (rIn1 - rIn0) * e, tip = Math.max(0, (t - 0.85) / 0.15), rOut = reach0 + (reach1 - reach0) * e - 0.06 * tip * tip;
+    return wedge(rIn, Math.max(rIn + 0.04, rOut), thick * (0.6 + 0.6 * e) * (1 - 0.5 * tip), thick * 0.35, 0.015); }, t => a0 + dir * t * span);
+}
+/* a flat moulded plate from an outline (with holes), bevelled, sloping top faked by a second slightly smaller step */
+export function plate(shape, depth = 0.05, bevel = 0.015) {
+  return new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: 24 }).rotateX(-Math.PI / 2);
+}
+/* a spoked wheel body: a disc with round windows between spokes */
+export function wheelShape(rIn, rOut, spokes, hole) {
+  const s = new THREE.Shape(); s.absarc(0, 0, rOut, 0, TAU, false); const h0 = new THREE.Path(); h0.absarc(0, 0, rIn, 0, TAU, true); s.holes.push(h0);
+  for (let k = 0; k < spokes; k++) { const a = (k + 0.5) / spokes * TAU, r = (rIn + rOut) / 2, p = new THREE.Path(); p.absarc(Math.cos(a) * r, Math.sin(a) * r, Math.min(hole, (rOut - rIn) * 0.42), 0, TAU, true); s.holes.push(p); }
+  return s;
+}
+/* petals: a ring of rounded lobes */
+export function petalShape(rIn, rOut, n, rot = 0, lobe = 0.6) {
+  const s = new THREE.Shape(), N = n * 24;
+  for (let i = 0; i <= N; i++) { const a = i / N * TAU + rot, u = (a * n / TAU) % 1, r = rIn + 0.05 + (rOut - rIn - 0.05) * Math.pow(Math.max(0, Math.sin(u * Math.PI)), lobe); if (i) s.lineTo(Math.cos(a) * r, Math.sin(a) * r); else s.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+  const h = new THREE.Path(); h.absarc(0, 0, rIn, 0, TAU, true); s.holes.push(h); return s;
+}
+/* lock rings: three-lobed, hex and gear-toothed */
+export function lobeRingShape(rIn, rOut, lobes = 3) {
+  const s = new THREE.Shape(), N = 180;
+  for (let i = 0; i <= N; i++) { const a = i / N * TAU, r = rOut - (rOut - rIn - 0.06) * 0.55 * (1 - Math.pow(Math.cos(a * lobes / 2), 2)); if (i) s.lineTo(Math.cos(a) * r, Math.sin(a) * r); else s.moveTo(r, 0); }
+  const h = new THREE.Path(); h.absarc(0, 0, rIn, 0, TAU, true); s.holes.push(h); return s;
+}
+export function polyRingShape(rIn, rOut, sides = 6, rot = 0) {
+  const s = new THREE.Shape(); for (let k = 0; k <= sides; k++) { const a = k / sides * TAU + rot; if (k) s.lineTo(Math.cos(a) * rOut, Math.sin(a) * rOut); else s.moveTo(Math.cos(a) * rOut, Math.sin(a) * rOut); }
+  const h = new THREE.Path(); h.absarc(0, 0, rIn, 0, TAU, true); s.holes.push(h); return s;
+}
+export function gearRingShape(rIn, rOut, teeth = 16) {
+  const s = new THREE.Shape(); for (let k = 0; k <= teeth * 4; k++) { const a = k / (teeth * 4) * TAU, r = (k % 4 === 1 || k % 4 === 2) ? rOut : rOut - 0.035; if (k) s.lineTo(Math.cos(a) * r, Math.sin(a) * r); else s.moveTo(r, 0); }
+  const h = new THREE.Path(); h.absarc(0, 0, rIn, 0, TAU, true); s.holes.push(h); return s;
+}
+
+/* printed graphics for the plastic: the photo with a pattern laid over it in the accent colour */
+export function printCanvas(photo, style, accent, rng) {
+  const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d');
+  if (photo) { const s = Math.max(512 / photo.width, 512 / photo.height); try { g.filter = 'saturate(1.5) contrast(1.2)'; } catch (e) {} g.drawImage(photo, 256 - photo.width * s / 2, 256 - photo.height * s / 2, photo.width * s, photo.height * s); g.filter = 'none'; }
+  else { g.fillStyle = '#888'; g.fillRect(0, 0, 512, 512); }
+  g.save(); g.translate(256, 256); g.globalAlpha = 0.85; g.fillStyle = accent; g.strokeStyle = accent;
+  if (style === 'stripes') { g.rotate(rng() * Math.PI); for (let x = -400; x < 400; x += 46) g.fillRect(x, -400, 14 + rng() * 10, 800); }
+  else if (style === 'flames') { for (let k = 0; k < 9; k++) { const a = k / 9 * TAU; g.save(); g.rotate(a); g.beginPath(); g.moveTo(90, -20); g.quadraticCurveTo(170, -40, 250, -90 - rng() * 40); g.quadraticCurveTo(190, -10, 240, 20); g.quadraticCurveTo(160, 10, 90, 20); g.closePath(); g.fill(); g.restore(); } }
+  else if (style === 'dots') { for (let y = -256; y < 256; y += 18) for (let x = -256; x < 256; x += 18) { const r = 7 * (0.3 + 0.7 * ((x + y + 512) / 1024)); g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); } }
+  else if (style === 'speed') { g.lineWidth = 6; for (let k = 0; k < 40; k++) { const a = rng() * TAU, r0 = 80 + rng() * 80; g.beginPath(); g.arc(0, 0, r0 + rng() * 120, a, a + 0.3 + rng() * 0.6); g.stroke(); } }
+  else if (style === 'burst') { for (let k = 0; k < 24; k++) { g.save(); g.rotate(k / 24 * TAU); g.beginPath(); g.moveTo(60, -8); g.lineTo(256, 0); g.lineTo(60, 8); g.fill(); g.restore(); } }
+  g.restore(); return c;
+}
+/* a hexagonal sticker variant (the photo clipped to a hex) */
+export function hexSticker(photo, accent) {
+  const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d'), hex = (r) => { g.beginPath(); for (let k = 0; k < 6; k++) { const a = k / 6 * TAU + Math.PI / 6; g[k ? 'lineTo' : 'moveTo'](256 + Math.cos(a) * r, 256 + Math.sin(a) * r); } g.closePath(); };
+  g.fillStyle = '#121216'; g.fillRect(0, 0, 512, 512); g.save(); hex(200); g.clip();
+  if (photo) { const s = Math.max(420 / photo.width, 420 / photo.height); try { g.filter = 'contrast(1.45) saturate(1.7) brightness(0.92)'; } catch (e) {} g.drawImage(photo, 256 - photo.width * s / 2, 256 - photo.height * s / 2, photo.width * s, photo.height * s); g.filter = 'none'; }
+  g.restore(); g.lineWidth = 8; g.strokeStyle = '#fff'; hex(204); g.stroke(); g.lineWidth = 14; g.strokeStyle = accent; hex(228); g.stroke(); return c;
+}

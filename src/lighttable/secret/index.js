@@ -22,7 +22,7 @@ import * as parcel from './parcel.js';
 import * as sound from './sound.js';
 import * as under from './under.js';
 import * as casebox from './casebox.js';
-import * as vitrine from './vitrine.js';
+import * as shelf from './shelf.js';
 import * as blades from './blades.js';
 
 const stdM = (c, r, m, o) => new THREE.MeshStandardMaterial({ color: c, roughness: r ?? 0.5, metalness: m ?? 0, ...(o || {}) });
@@ -114,7 +114,7 @@ export function installSecret(ctx) {
   setInterval(() => { if (S.unlocked()) hud(); }, 5000);
   S.hud = hud;
   /* where a dragged slab can be dropped: the open case or binder register here; a one line read of what a card is */
-  S.dropTargets = { vault: null, binder: null };
+  S.dropTargets = { vault: null, binder: null }; S.dropPreviews = {};
   S.specLine = slab => { const f = SL.FINISH[SL.finishOf(slab, S.testFinish())]; return [SL.tierOf(slab).name, f ? f.name : '', slab.variant ? (SL.VARIANT[slab.variant] || {}).name : '', slab.graded ? 'Grade ' + slab.grade + ' ' + SL.gradeText(slab.grade) : 'Raw, ungraded', slab.title, slab.photo && (slab.photo.artist || slab.photo.by)].filter(Boolean).join('  ·  '); };
   /* a small bar while the vault or binder is open: the way back to the case, and out */
   const nav = S.el('div', 'sk-nav', ''); nav.id = 'skNav'; document.body.appendChild(nav); nav.addEventListener('pointerdown', e => e.stopPropagation());
@@ -238,10 +238,12 @@ export function installSecret(ctx) {
     const o = sd.o, g = o.group;
     if (kind === 'move') { sd.moved += Math.abs(e.clientX - sd.x0) + Math.abs(e.clientY - sd.y0); sd.x0 = e.clientX; sd.y0 = e.clientY;
       if (sd.moved > 6) { if (!sd.lifted) { sd.lifted = true; S.sfx('lift'); ctx.hideActs(); T.to(g.position, { y: 0.5 }, { dur: 0.18, ease: T.E.outCubic, tag: 'tslab' }); if (o.tableShadow) o.tableShadow.material.opacity = 0.3; }
-        const t = S.tableHit(e, 0); if (t) { const W = ctx.W_T / 2 - 0.6, H = ctx.H_T / 2 - 0.6; g.position.x = T.clamp(t.x + sd.dx, -W, W); g.position.z = T.clamp(t.z + sd.dz, -H, H); if (o.tableShadow) { o.tableShadow.position.x = g.position.x + 0.05; o.tableShadow.position.z = g.position.z + 0.07; } } ctx.canvas.style.cursor = 'grabbing'; }
+        const t = S.tableHit(e, 0); if (t) { const W = ctx.W_T / 2 - 0.6, H = ctx.H_T / 2 - 0.6; g.position.x = T.clamp(t.x + sd.dx, -W, W); g.position.z = T.clamp(t.z + sd.dz, -H, H); if (o.tableShadow) { o.tableShadow.position.x = g.position.x + 0.05; o.tableShadow.position.z = g.position.z + 0.07; } } ctx.canvas.style.cursor = 'grabbing';
+        for (const k in S.dropPreviews) { try { S.dropPreviews[k](o, e); } catch (err) { console.error(err); } } }
       return true; }
     if (kind === 'up') { const d = sd; sd = null; ctx.canvas.style.cursor = 'pointer';
       if (!d.lifted) { S.sfx('detent'); inspectTableSlab(o); return true; }
+      for (const k in S.dropPreviews) { try { S.dropPreviews[k](null, e); } catch (err) { console.error(err); } }
       for (const k in S.dropTargets) { const f = S.dropTargets[k]; if (f) { let ok = false; try { ok = f(o, e); } catch (err) { console.error(err); } if (ok && ok !== false) return true; } }
       const y = (o.th || SM.SLAB.th) * S.TABLE_K / 2 + 0.004; T.to(g.position, { y }, { dur: 0.22, ease: T.E.outCubic, tag: 'tslab' }); if (o.tableShadow) T.to(o.tableShadow.material, { opacity: 0.55 }, { dur: 0.25 });
       S.sfx('ltPutDown'); store.toTable(o.slab.id, g.position.x, g.position.z, o.yaw || 0); return true; }
@@ -277,7 +279,7 @@ export function installSecret(ctx) {
 
   /* ---------- the modules (each owns one file) ---------- */
   const secretTop = new Set();
-  [sound, print, holo, rail, arm, binder, parcel, loot, under, casebox, vitrine, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  [sound, print, holo, rail, arm, binder, parcel, loot, under, casebox, shelf, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
   ctx.scene.children.forEach(c => { if (!lightSide.has(c)) secretTop.add(c); });   /* the rigs the modules just added */
 
   /* ---------- boot ---------- */

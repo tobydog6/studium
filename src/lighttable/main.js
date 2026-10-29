@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { paintPhoto, KINDS, mulberry } from './photos.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { installSecret } from './secret/index.js';
+let SECRET=null;   /* the secret collector layer, installed at the end of this file; it sees pointer/key/frame first */
 
 /* ================= open design options (everything else is locked to Sam's picks) ================= */
 const OPTS = { board:{ A:'Magnetic rows', B:'Free layout' }, marker:{ A:'Mat', B:'Corner number', C:'Nothing' } };
@@ -48,16 +50,21 @@ function blobShadow(w,d,parent,ox,oz){ const m=new THREE.Mesh(new THREE.PlaneGeo
 const floor=new THREE.Mesh(new THREE.PlaneGeometry(400,400), new THREE.MeshBasicMaterial({ color:0x1b1a19 })); floor.rotation.x=-Math.PI/2; floor.position.y=-4.6;   /* deep enough for the shredder's glass bin under the table edge */ scene.add(floor);
 const spill=new THREE.Mesh(new THREE.PlaneGeometry(W_T*2.6,H_T*3.2), new THREE.MeshBasicMaterial({ map:radTex([10,[[0,'rgba(255,255,255,1)'],[0.45,'rgba(255,255,255,0.35)'],[1,'rgba(255,255,255,0)']]]), transparent:true, opacity:0.1, depthWrite:false, blending:THREE.AdditiveBlending }));
 spill.rotation.x=-Math.PI/2; spill.position.y=-1.19; scene.add(spill);
+const HOLE={ uHole:{ value:new THREE.Vector4(0,0,0,0) }, uHoleOn:{ value:0 } };   /* the secret vault's hole: a rect of table (x0,z0,x1,z1) the surface and body stop drawing */
 const bodyMat=new THREE.MeshLambertMaterial({ color:0x1b1a19 });
+bodyMat.onBeforeCompile=sh=>{ sh.uniforms.uHole=HOLE.uHole; sh.uniforms.uHoleOn=HOLE.uHoleOn;
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWp;').replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvWp=(modelMatrix*vec4(transformed,1.0)).xyz;');
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform vec4 uHole; uniform float uHoleOn; varying vec3 vWp;').replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>\nif(uHoleOn>0.5&&vWp.y>-0.3&&vWp.x>uHole.x&&vWp.x<uHole.z&&vWp.z>uHole.y&&vWp.z<uHole.w) discard;'); };
 const tableBody=new THREE.Mesh(new THREE.BoxGeometry(W_T+0.9, 1.15, H_T+0.9), bodyMat); tableBody.position.y=-0.6; scene.add(tableBody);
 const rimMat=new THREE.MeshLambertMaterial({ color:0x2e2d2b });
 [[0,-(H_T/2+0.2),W_T+0.9,0.4],[0,(H_T/2+0.2),W_T+0.9,0.4],[-(W_T/2+0.2),0,0.4,H_T],[(W_T/2+0.2),0,0.4,H_T]].forEach(([x,z,w,d])=>{ const m=new THREE.Mesh(new THREE.BoxGeometry(w,0.06,d), rimMat); m.position.set(x,0,z); scene.add(m); });
 const surfMat=new THREE.ShaderMaterial({
-  uniforms:{ uCol:{value:new THREE.Vector3(0.95,0.95,0.94)}, uSize:{value:new THREE.Vector2(W_T,H_T)} },
+  uniforms:{ uCol:{value:new THREE.Vector3(0.95,0.95,0.94)}, uSize:{value:new THREE.Vector2(W_T,H_T)}, uHole:HOLE.uHole, uHoleOn:HOLE.uHoleOn },
   vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-  fragmentShader:`uniform vec3 uCol; uniform vec2 uSize; varying vec2 vUv;
+  fragmentShader:`uniform vec3 uCol; uniform vec2 uSize; uniform vec4 uHole; uniform float uHoleOn; varying vec2 vUv;
     float h(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
-    void main(){ vec2 e=(0.5-abs(vUv-0.5))*uSize; float d=min(e.x,e.y);
+    void main(){ if(uHoleOn>0.5){ vec2 w=vec2((vUv.x-0.5)*uSize.x, -(vUv.y-0.5)*uSize.y); if(w.x>uHole.x&&w.x<uHole.z&&w.y>uHole.y&&w.y<uHole.w) discard; }
+      vec2 e=(0.5-abs(vUv-0.5))*uSize; float d=min(e.x,e.y);
       float g=mix(0.74,1.0,smoothstep(0.0,1.6,d)); g*=0.97+0.03*smoothstep(1.0,0.0,length((vUv-0.5)*vec2(1.0,1.6)));
       vec3 c=uCol*g + (h(floor(vUv*uSize*90.0))-0.5)*0.012;
       gl_FragColor=vec4(c,1.0);
@@ -509,6 +516,7 @@ function hitPrint(e){ setNDC(e); ray.setFromCamera(ndc,camera); const hits=ray.i
 canvas.addEventListener('pointerdown', e=>{
   if(e.button!==0 && e.button!==2) return; canvas.setPointerCapture(e.pointerId); setNDC(e); closeNote(); closeCtx();
   if(inspected){ closeInspect(); return; }
+  if(SECRET&&SECRET.pointer('down',e)) return;
   if(loupe.on&&e.button===2){ setLoupe(false); return; }
   if(cam.view==='wall'&&histIdx<0&&stringPointer(e)) return;
   if(e.button===0 && loupeHit(e)){ setLoupe(!loupe.on); return; }
@@ -525,7 +533,7 @@ canvas.addEventListener('pointerdown', e=>{
   else { pan.on=true; zoomAnchor=null; pan.start=viewHit(camera,ndc); canvas.style.cursor='grabbing'; }
 });
 canvas.addEventListener('pointermove', e=>{
-  setNDC(e); mouse.x=e.clientX; mouse.y=e.clientY; mouse.in=true; mouse.n.copy(ndc); mouse.t=performance.now(); if(SD.n){ moveSticky(e); return; }
+  setNDC(e); mouse.x=e.clientX; mouse.y=e.clientY; mouse.in=true; mouse.n.copy(ndc); mouse.t=performance.now(); if(SD.n){ moveSticky(e); return; } if(SECRET&&SECRET.pointer('move',e)) return;
   if(drag.ctx&&Math.hypot(e.clientX-drag.ctx.x,e.clientY-drag.ctx.y)>6) drag.ctx=null;
   if(drag.pending && !drag.p && !drag.wall && Math.hypot(e.clientX-drag.sx,e.clientY-drag.sy)>5){ if(drag.pending.wg){ pushUndo(); drag.wall=drag.pending.wg; hideActs(); canvas.style.cursor='grabbing'; } else startDrag(drag.pending); }
   if(drag.wall){ const h=wallHit(camera,ndc); if(h){ const g=drag.wall; g.x=h.x+drag.ox; g.y=h.y+drag.oz; layoutGroup(g); } }
@@ -537,6 +545,7 @@ canvas.addEventListener('pointermove', e=>{
   else if(!inspected){ const p=hitPrint(e); const hs=(cam.view==='wall'&&!p&&stringsOn)?hitString():null; STR.hov=hs?hs.s:null; STAND.hov=cam.view==='table'&&camHit(e); const SK=!p&&(stickyHit(e)||padHit(e)); setHover(STAND.hov||SK?null:p); canvas.style.cursor=loupe.on?'none':(p||SK||loupeHit(e))?'grab':(binderHit(e)||STAND.hov||(cam.view==='table'&&!p&&(kitHit(e)||trayHit(e)||shredBtnHit(e)))||(cam.view==='wall'&&(hitSpool()!=null||STR.hov||hitSwatch())))?'pointer':'default'; }
 });
 window.addEventListener('pointerup', e=>{
+  if(SECRET&&SECRET.pointer('up',e)){ drag.pending=null; pan.on=false; return; }
   if(SD.n){ dropSticky(); drag.pending=null; pan.on=false; return; }
   if(drag.ctx){ const c=drag.ctx; drag.ctx=null; openCtx(c.p,c.x,c.y); }
   else if(drag.wall){ saveAll(); drag.wall=null; tourEv('wallmove'); }
@@ -546,7 +555,7 @@ window.addEventListener('pointerup', e=>{
 });
 canvas.addEventListener('pointerleave', ()=>{ mouse.in=false; setHover(null); });
 canvas.addEventListener('contextmenu', e=>e.preventDefault());
-canvas.addEventListener('wheel', e=>{ e.preventDefault(); setNDC(e); closeCtx();
+canvas.addEventListener('wheel', e=>{ e.preventDefault(); setNDC(e); closeCtx(); if(SECRET&&SECRET.pointer('wheel',e)) return;
   if(drag.p){ if(!drag.preview){ drag.pileYaw-=e.deltaY*0.0022; drag.p.yawT=drag.pileYaw; } return; }
   if(inspected){ inspZoom=THREE.MathUtils.clamp(inspZoom*Math.exp(-e.deltaY*0.0012),0.7,2.6); return; }
   cam.dT=THREE.MathUtils.clamp(cam.dT*Math.exp(e.deltaY*0.0011),3.2,cam.view==='wall'?72:48);
@@ -1190,6 +1199,7 @@ window.addEventListener('keydown', e=>{ if(e.target.tagName==='TEXTAREA'||e.targ
   if((e.ctrlKey||e.metaKey)&&(e.key==='z'||e.key==='Z')){ e.preventDefault(); undo(); return; }
   if(TRV.el.classList.contains('on')){ if(e.key==='Escape') closeTray(); else if(e.key==='ArrowRight'&&TRV.i<SHOTS.length-1){ TRV.i++; trRender(); } else if(e.key==='ArrowLeft'&&TRV.i>0){ TRV.i--; trRender(); } return; }
   if(BD.el.classList.contains('on')){ if(e.key==='Escape') closeBinder(); else if(e.key==='ArrowRight') bdTurn(1); else if(e.key==='ArrowLeft') bdTurn(-1); return; }
+  if(SECRET&&SECRET.key(e)) return;
   if(e.key==='Escape'&&STR.hold){ dropString(); return; }
   if(e.key==='Escape'){ closeCtx(); if(pop.classList.contains('on')) closeNote(); else if(inspected) closeInspect(); else if(loupe.on) setLoupe(false); else if(histIdx>=0) setHist(-1); else if(HOST&&!CTX.classList.contains('on')) HOST.key('Escape'); return; }
   const k=e.key.toLowerCase(), p=HOV.p;
@@ -1250,6 +1260,7 @@ function frame(now){
   binder.scale.setScalar(1+binderBump); binderBump*=Math.exp(-dt*9);
   scanner.userData.led.material.color.setHex(SCAN.busy?((now%500<250)?0xe3ad57:0x7a5a22):0x63c27a);
   scanFrame(dt); shredFrame(dt); standFrame(dt); trayFrame(dt); stickyFrame(dt); shredBtn.userData.cap.position.y=0.45-0.06*shredPress; shredPress*=Math.exp(-dt*8); { const hot=tourHot()==='shred', want=SH.busy?0:hot?0.75+0.25*Math.sin(now/200):boxHas()?0.45+0.3*Math.sin(now/320):0; const cm=shredBtn.userData.cap.material; cm.emissiveIntensity+=(want-cm.emissiveIntensity)*0.2; } updateStrings(); holdFrame(); edgeFrame(dt);
+  if(SECRET) SECRET.frame(dt,now);
   threads.children.forEach(m=>{ if(m.userData.fade!==undefined) m.material.opacity+=(m.userData.fade-m.material.opacity)*(1-Math.exp(-dt*5)); });
   const past=histIdx>=0;
   for(const p of prints){
@@ -1393,14 +1404,14 @@ function poseStand(u){ /* u: 0 folded away off the table, 1 clamped and aimed */
   placeSpring(springs[0], yawJ.localToWorld(_sp1.set(0.3,-0.55,0.2)), j1.localToWorld(V(L1*0.5,-0.1,0.2)));
   placeSpring(springs[1], j1.localToWorld(_sp1.set(L1-0.7,0.18,-0.2)), j2.localToWorld(V(L2*0.45,0.12,-0.2)));
   springs.forEach(m=>m.visible=u>0.4); }
-function setStand(on, instant){ if(SH.busy) return; STAND.up=on; STAND.dir=on?1:-1; stand.visible=true;
+function setStand(on, instant){ if(SH.busy||STAND.lock) return; STAND.up=on; STAND.dir=on?1:-1; stand.visible=true;
   if(instant){ STAND.t=on?STAND.dur+1:0; STAND.dir=0; poseStand(on?1:0); stand.visible=on; springs.forEach(m=>m.visible=on); aim.visible=on; return; }
   if(on){ STAND.t=0; SFX('kitOpen'); setTimeout(()=>SFX('grab'),420); setTimeout(()=>SFX('detent'),700); setTimeout(()=>SFX('raise'),1100); setTimeout(()=>SFX('detent'),2350); }
   else { STAND.t=Math.min(STAND.t,STAND.dur); SFX('kitClose'); }
   saveAll(); }
 const boardFlash=new THREE.Mesh(new THREE.PlaneGeometry(BW+0.6,BH+0.6), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0, depthWrite:false, blending:THREE.AdditiveBlending }));
 boardFlash.rotation.x=-Math.PI/2; boardFlash.position.set(BX,BOARD_Y+0.12,BZ); boardFlash.renderOrder=12; boardFlash.visible=false; scene.add(boardFlash);
-function standFrame(dt){ if(STAND.boardF>0.003){ boardFlash.visible=true; boardFlash.material.opacity=0.8*STAND.boardF; STAND.boardF*=Math.exp(-dt*(STAND.boardF>0.9?2:9)); } else if(boardFlash.visible){ boardFlash.visible=false; STAND.boardF=0; } kitLid.rotation.x+=(((STAND.up||STAND.dir)?-1.9:0)-kitLid.rotation.x)*(1-Math.exp(-dt*7)); if(!stand.visible&&STAND.dir===0) return;
+function standFrame(dt){ if(STAND.lock) return; if(STAND.boardF>0.003){ boardFlash.visible=true; boardFlash.material.opacity=0.8*STAND.boardF; STAND.boardF*=Math.exp(-dt*(STAND.boardF>0.9?2:9)); } else if(boardFlash.visible){ boardFlash.visible=false; STAND.boardF=0; } kitLid.rotation.x+=(((STAND.up||STAND.dir)?-1.9:0)-kitLid.rotation.x)*(1-Math.exp(-dt*7)); if(!stand.visible&&STAND.dir===0) return;
   if(STAND.dir>0){ STAND.t+=dt; poseStand(Math.min(1,STAND.t/STAND.dur)); if(STAND.t>STAND.dur+1.2){ STAND.dir=0; tourEv('stand'); toast('The copy stand is up. Click the camera to photograph the board.'); } }
   else if(STAND.dir<0){ STAND.t-=dt*1.6; const u=Math.max(0,STAND.t/STAND.dur); poseStand(u); if(u<=0){ STAND.dir=0; stand.visible=false; springs.forEach(m=>m.visible=false); aim.visible=false; } }
   const hot=tourHot()==='shutter', want=STAND.up&&!STAND.dir?(hot?0.55+0.35*Math.sin(performance.now()/220):STAND.hov?0.5:0):0;
@@ -1726,7 +1737,7 @@ function finishBoot(){ restack(); updateChains(false); drawBoxBtn(); applyOpts()
 let WANT_TOUR=false;
 window.LTapp={ tour(){ if(READY){ if(!TOUR.on) tourStart(); } else WANT_TOUR=true; }, kill(){ READY=false; PAUSED=true; clearTimeout(saveT); },
   sync(d){ if(!READY||LOADING) return; hostLibrary(d); },
-  pause(on){ on=!!on; if(on===PAUSED) return; PAUSED=on; if(on){ clearTimeout(saveT); saveNow(); recordHist(); closeBinder(); dropString(); }
+  pause(on){ on=!!on; if(on===PAUSED) return; PAUSED=on; if(SECRET) SECRET.pause(on); if(on){ clearTimeout(saveT); saveNow(); recordHist(); closeBinder(); dropString(); }
     else if(READY&&!looping){ last=performance.now(); looping=true; requestAnimationFrame(frame); } } };
 drawBoxLabel(0); buildPanel(); buildSwatches(); buildWallPick(); setStringsOn(stringsOn);
 if(HOST){ $('bBook').textContent='Open workbook'; $('bBook').title='Go to the Workbook room'; }
@@ -1747,5 +1758,13 @@ requestAnimationFrame(()=>{
     finishBoot();
   });
 }); }
+/* ================= the secret collector layer (src/lighttable/secret/): hidden until = and "secret" ================= */
+try{ SECRET=installSecret({ scene, camera, renderer, canvas, cam, placeCam, focus, fitDist, clampCam, prints, drag, restack, saveAll, toast, hint, SFX, HOST, HOLE,
+  kit, kitLid, KIT, stand, clampG, poleG, yawJ, j1, j2, aim, STAND, setStand, poseStand, solveArm, CL, POLE, L1, L2, FOLD, springs, placeSpring,
+  binder, BINDER, board, BX, BZ, BW, BH, BOARD_Y, tray, TR, padW, PAD_W, WALL_Z, SHELF, surfMat, bodyMat, tableBody, W_T, H_T, LAYER, PILE,
+  ray, ndc, setNDC, planeHit, wallHit, mouse, hideActs, closeCtx, closeInspect, closeBinder, openBinder, library, libById, paintPhoto, KINDS, mulberry, $,
+  isBusy:()=>!!(drag.p||inspected||SH.busy||SCAN.busy||BD.el.classList.contains('on')||TRV.el.classList.contains('on')), tourOn:()=>TOUR.on }); }
+catch(e){ console.error('secret layer', e); }
 let DEV=/[?&]dev/.test(location.search); try{ if(HOST) DEV=/[?&]dev/.test(window.parent.location.search); }catch(e){}
 if(DEV) window.__lt={ STICKY, tearSticky, editSticky, closeEdit, setStand, shoot, openTray, closeTray, sendShot, STAND, shots:()=>SHOTS, TRV, prints, pick, applyOpts, openInspect, mouse, cam, rows, placeOnBoard, layoutBoard, restack, updateChains, chains:()=>chains, captureBoard, workbook, notes, chainKey, focus, pinGroup, setSize, placeFree, freeTarget, startGroupDrag, unlink, wallTile, wallGroups, reject, rejects, openBinder, library, BD, fileBack, copyPrint, undo, setHist, hist, setHover, openCtx, SCAN, BOOK, sendToBook, emptyBox, shredAll, SH, pullOut, TOUR, tourStart, tourEnd, tourEv, serialize, applyState, hostPage, saveNow };
+if(DEV&&window.__lt) window.__lt.secret=SECRET;

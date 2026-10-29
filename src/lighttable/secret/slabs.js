@@ -48,7 +48,7 @@ export const pad = (n, w) => String(n).padStart(w, '0');
 
 /* ---------- the store ---------- */
 const KEY = 'studium_secret_v1';
-const fresh = () => ({ v: 1, unlocked: false, code: '1234', pulls: [], vault: [], binder: [], table: [], display: [], points: 0, certN: 0, finishes: {} });
+const fresh = () => ({ v: 1, unlocked: false, code: '1234', pulls: [], vault: [], binder: [], table: [], display: [], caseCols: [[], [], [], []], points: 0, certN: 0, finishes: {} });
 export const store = {
   d: null, t: 0,
   get() { if (store.d) return store.d; let d = null; try { d = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { d = null; }
@@ -61,7 +61,7 @@ export const store = {
   /* where a slab is: 'vault' | 'binder' | 'table' | 'loose' (pulled, not placed anywhere yet) */
   where(id) { const d = store.get(); if (d.vault.includes(id)) return 'vault'; if (d.display && d.display.includes(id)) return 'display'; if (d.binder.some(pg => pg && pg.includes(id))) return 'binder'; if (d.table.some(t => t.id === id)) return 'table'; return 'loose'; },
   /* take a slab out of wherever it is */
-  detach(id) { const d = store.get(); d.vault = d.vault.filter(x => x !== id); if (d.display) d.display = d.display.filter(x => x !== id); d.binder.forEach(pg => { if (pg) for (let i = 0; i < pg.length; i++) if (pg[i] === id) pg[i] = null; }); d.table = d.table.filter(t => t.id !== id); store.save(); },
+  detach(id) { const d = store.get(); d.vault = d.vault.filter(x => x !== id); if (d.display) d.display = d.display.filter(x => x !== id); if (d.caseCols) d.caseCols = d.caseCols.map(c => c.filter(x => x !== id)); d.binder.forEach(pg => { if (pg) for (let i = 0; i < pg.length; i++) if (pg[i] === id) pg[i] = null; }); d.table = d.table.filter(t => t.id !== id); store.save(); },
   /* a pull gone for good: out of the pulls and everywhere it was filed (the points it earned stay) */
   discard(id) { store.detach(id); const d = store.get(); d.pulls = d.pulls.filter(p => p.id !== id); delete d.finishes[id]; store.save(); },
   toVault(id) { store.detach(id); store.get().vault.push(id); store.save(); },

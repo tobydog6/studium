@@ -12,7 +12,7 @@ body{ margin:0; background:var(--bg); color:var(--text); font-family:var(--f-ui)
 .mast p{ margin:0 0 10px; font:500 10px/1 var(--f-mono); letter-spacing:.24em; color:var(--accent); }
 .mast h1{ margin:0; font:300 40px/1 var(--f-display); letter-spacing:-.01em; }
 .mast span{ display:block; margin-top:10px; font:400 14px/1.5 var(--f-ui); color:var(--faint); }
-#hint{ position:fixed; left:50%; bottom:122px; transform:translateX(-50%); text-align:center; pointer-events:none; opacity:0; transition:opacity .25s; text-shadow:0 1px 10px rgba(0,0,0,.7); }
+#hint{ position:fixed; left:50%; bottom:40px; transform:translateX(-50%); text-align:center; pointer-events:none; opacity:0; transition:opacity .25s; text-shadow:0 1px 10px rgba(0,0,0,.7); }
 #hint b{ display:block; font:300 24px/1.1 var(--f-display); }
 #hint i{ display:block; margin-top:8px; font:500 10px/1 var(--f-mono); font-style:normal; letter-spacing:.2em; color:var(--faint); text-transform:uppercase; }
 #nav{ position:fixed; left:50%; bottom:28px; transform:translateX(-50%); display:flex; gap:6px; flex-wrap:wrap; justify-content:center; width:max-content; max-width:94vw; transition:opacity .4s; }
@@ -60,7 +60,6 @@ body.modal #looks{ opacity:0; pointer-events:none; }
 <div class="vig"></div>
 <div class="mast"><p>WATCH</p><h1>The DVD shelf</h1><span>Photographers on photography, picked by your teacher.</span></div>
 <div id="hint"><b></b><i></i></div>
-<nav id="nav"></nav>
 <div id="look"><span class="eb"></span><h2></h2><p>Watch with a question in mind: what does this photographer care about, and how could you try that in your own shoot?</p>
   <div class="btns"><button class="go" data-act="play">Put it on ›</button><button class="go2" data-act="back">Back on the shelf</button></div></div>
 <div id="screen"><div class="scr"></div><div class="bar"><span class="led"></span><span class="tt"></span><a class="bt yt" target="_blank" rel="noopener">YouTube ›</a><button class="bt" data-act="eject">⏏ Eject</button></div></div>

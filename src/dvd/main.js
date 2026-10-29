@@ -62,16 +62,17 @@ const wallMid = rowY(0) / 2 + .9;
 /* Sam picks from these; with the switcher on (?dev, or the standalone page) they can be mixed live */
 const LIGHTS = {
   night: { name: 'Night gallery', bg: 0x070605, wall: 0x4a4038, wallN: 2, wood: 0x8a6a52, lacquer: false, exposure: 1.0, env: .12, spot: [0xffd29a, 55, .3, .55], wash: [0xffcf8f, 3], key: 85, fill: [0x6f86ff, .08], beams: .085, dust: .55, bloom: .32, fog: [0x070605, 26, 50] },
-  cinema: { name: 'Cinema', bg: 0x04060a, wall: 0x22303f, wallN: 1.6, wood: 0x111114, lacquer: true, exposure: 1.05, env: .2, spot: [0xffb35a, 85, .32, .5], wash: [0xff9a3c, 7], key: 90, fill: [0x4f7cff, .55], beams: .07, dust: .45, bloom: .55, fog: [0x04060a, 26, 50] },
+  cinema: { name: 'Cinema', bg: 0x04060a, wall: 0x22303f, wallN: 1.6, wood: 0x111114, lacquer: true, exposure: .92, env: .25, spot: [0xffc27a, 34, .38, .7], wash: [0xff9a3c, 2.5], key: 55, fill: [0x5a82ff, .35], beams: .035, dust: .3, bloom: .32, fog: [0x04060a, 26, 50] },
   gallery: { name: 'White gallery', bg: 0xe7e3dc, wall: 0xf4f1eb, wallN: .7, wood: 0xffffff, lacquer: false, exposure: .82, env: .55, spot: [0xfff3e6, 30, .62, 1], wash: [0xfff2e0, 1.5], key: 150, fill: [0xdfe8ff, .35], beams: 0, dust: 0, bloom: .12, fog: [0xe7e3dc, 30, 60] } };
 const COVERS = { collection: 'Collection', poster: 'Poster', swiss: 'Swiss' };
-const CASES = { black: 'Black case', clear: 'Clear case' };
+const CASES = { black: 'Black', clear: 'Clear', colour: 'Colour' };
 const saved = (() => { try { return JSON.parse(localStorage.getItem('dvd_look') || 'null'); } catch (e) { return null; } })();
-const look = Object.assign({ light: 'night', cover: 'collection', body: 'black' }, DATA.look || {}, DATA.styles ? saved || {} : {});
+const look = Object.assign({ light: 'cinema', cover: 'poster', body: 'clear' }, DATA.look || {}, DATA.styles ? saved || {} : {});
 /* one colour per photographer, for spines, poster tints and the disc */
-const HUES = ['#2f6b4f', '#9c3b22', '#21477d', '#8a1f45', '#6b5634', '#5b3a80', '#16706f', '#7a5c1e', '#4b4b55', '#8a5a2b'];
+const HUES = ['#1f9a62', '#e0482a', '#2a6ae0', '#d41f6b', '#d99a1e', '#8a46e0', '#0fb0a2', '#f07d1a', '#3b55e6', '#c23a8a'];
 const hueOf = (() => { const m = {}; let n = 0; VIDS.forEach((v) => { if (!(v.a in m)) m[v.a] = HUES[n++ % HUES.length]; }); return (a) => m[a]; })();
 const num = (i) => String(i + 1).padStart(2, '0');
+const shade = (hex, f) => { const n = parseInt(hex.slice(1), 16), c = (x) => Math.max(0, Math.min(255, Math.round(x * f))); return 'rgb(' + c(n >> 16) + ',' + c((n >> 8) & 255) + ',' + c(n & 255) + ')'; };
 
 /* ---------------- the room ---------------- */
 const wallMat = new THREE.MeshStandardMaterial({ map: rep(T.wallCol, 10, 4.3), normalMap: rep(T.wallNrm, 10, 4.3), normalScale: new THREE.Vector2(1.4, 1.4), roughness: .93 });
@@ -97,6 +98,10 @@ key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -.0
 const rim = new THREE.DirectionalLight(0x8fa6ff, .18); rim.position.set(8, 4, 5); scene.add(rim);
 /* a soft key that rides with the camera, so whatever's in your hands is lit */
 const handLight = new THREE.PointLight(0xfff2e0, 9, 14, 1.6); handLight.position.set(-2.5, 2.2, 1); camera.add(handLight);
+/* a studio light for the case in your hands: only on while you hold one, and it falls off before the shelf */
+const holdKey = new THREE.SpotLight(0xfff4e6, 0, 11, .55, .8, 1.2); holdKey.position.set(-3.2, 2.6, 1.5); camera.add(holdKey); camera.add(holdKey.target); holdKey.target.position.set(-1.4, -.6, -5.6);
+const holdFill = new THREE.PointLight(0xbfd4ff, 0, 9, 1.5); holdFill.position.set(3, -.5, -2); camera.add(holdFill);
+const holdOn = (on, d) => { const a = holdKey.intensity, b = holdFill.intensity; return tw(d, (t) => { holdKey.intensity = a + ((on ? 42 : 0) - a) * t; holdFill.intensity = b + ((on ? 6 : 0) - b) * t; }); };
 /* dust drifting through the light */
 const DUST = 900, dustPos = new Float32Array(DUST * 3), dustSeed = new Float32Array(DUST);
 for (let k = 0; k < DUST; k++) { dustPos[k * 3] = (Math.random() - .5) * (SL + 2); dustPos[k * 3 + 1] = -1 + Math.random() * (rowY(0) + 5); dustPos[k * 3 + 2] = -.9 + Math.random() * 3.6; dustSeed[k] = Math.random() * 100; }
@@ -132,20 +137,29 @@ const COVER = {
     g.fillStyle = '#141210'; g.fillRect(64, Hc - 132, Wc - 128, 2);
     g.letterSpacing = '5px'; g.font = '500 17px "Geist Mono"'; g.fillStyle = '#4a443b'; g.fillText('PHOTOGRAPHERS ON PHOTOGRAPHY', 64, Hc - 86); g.letterSpacing = '0px';
     g.beginPath(); g.arc(Wc - 96, Hc - 94, 26, 0, 7); g.fillStyle = '#c8933f'; g.fill(); g.fillStyle = '#141210'; g.font = '400 30px Fraunces'; g.textAlign = 'center'; g.fillText('S', Wc - 96, Hc - 84); g.textAlign = 'left'; },
-  /* the still full bleed, toned in the photographer's colour, big type and a credit block */
-  poster(g, v, i, im) { const Wc = 900, Hc = 1266, hue = hueOf(v.a); g.fillStyle = '#0c0b0a'; g.fillRect(0, 0, Wc, Hc);
-    if (im) { g.save(); g.filter = 'grayscale(1) contrast(1.25) brightness(1.05)'; crop(g, im, 0, 0, Wc, Hc); g.restore(); g.globalCompositeOperation = 'multiply'; g.fillStyle = hue; g.fillRect(0, 0, Wc, Hc);
-      g.globalCompositeOperation = 'screen'; g.fillStyle = 'rgba(40,30,20,.35)'; g.fillRect(0, 0, Wc, Hc); g.globalCompositeOperation = 'source-over'; } else photoOrNone(g, null, v, 0, 0, Wc, Hc, true);
-    let gr = g.createLinearGradient(0, Hc * .42, 0, Hc); gr.addColorStop(0, 'rgba(8,7,6,0)'); gr.addColorStop(.55, 'rgba(8,7,6,.82)'); gr.addColorStop(1, 'rgba(8,7,6,.97)'); g.fillStyle = gr; g.fillRect(0, 0, Wc, Hc);
-    gr = g.createLinearGradient(0, 0, 0, 220); gr.addColorStop(0, 'rgba(8,7,6,.7)'); gr.addColorStop(1, 'rgba(8,7,6,0)'); g.fillStyle = gr; g.fillRect(0, 0, Wc, 220);
-    g.textAlign = 'center'; g.letterSpacing = '9px'; g.font = '500 20px "Geist Mono"'; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillText('A STUDIUM SCREENING', Wc / 2, 78); g.letterSpacing = '0px';
-    const parts = v.a.toUpperCase().split(' '), lines = parts.length > 1 ? [parts.slice(0, -1).join(' '), parts[parts.length - 1]] : parts;
-    let y = 780; g.fillStyle = '#fff'; g.letterSpacing = '-2px'; lines.forEach((l) => { const fs = fit(g, l, Wc - 100, '800', 150, 'Geist'); g.fillText(l, Wc / 2, y + fs * .82); y += fs * .9; }); g.letterSpacing = '0px';
-    g.font = '300 36px Fraunces'; g.fillStyle = 'rgba(255,255,255,.9)'; wrap(g, v.t, Wc / 2, y + 52, Wc - 140, 44, 2);
-    g.letterSpacing = '2px'; g.font = '500 15px Geist'; g.fillStyle = 'rgba(255,255,255,.55)';
-    g.fillText('STUDIUM PRESENTS  ' + v.a.toUpperCase() + '  IN CONVERSATION  ·  PHOTOGRAPHERS ON PHOTOGRAPHY  ·  NO. ' + num(i), Wc / 2, Hc - 100);
-    g.fillText('A RESEARCH ROOM SCREENING  ·  WATCH WITH A QUESTION IN MIND  ·  STUDIUM.NZ', Wc / 2, Hc - 74); g.letterSpacing = '0px'; g.textAlign = 'left';
-    g.strokeStyle = 'rgba(255,255,255,.6)'; g.lineWidth = 2; g.strokeRect(Wc - 92, 40, 44, 44); g.font = '600 22px Geist'; g.fillStyle = 'rgba(255,255,255,.8)'; g.textAlign = 'center'; g.fillText('E', Wc - 70, 71); g.textAlign = 'left'; },
+  /* the still full bleed in rich colour, a bold header band, a huge outlined name and a credit block */
+  poster(g, v, i, im) { const Wc = 900, Hc = 1266, hue = hueOf(v.a); g.fillStyle = hue; g.fillRect(0, 0, Wc, Hc);
+    if (im) { g.save(); g.filter = 'saturate(1.45) contrast(1.12) brightness(1.06)'; crop(g, im, 0, 110, Wc, Hc - 110); g.restore(); } else photoOrNone(g, null, v, 0, 110, Wc, Hc - 110, true);
+    let gr = g.createLinearGradient(0, Hc * .5, 0, Hc); gr.addColorStop(0, 'rgba(6,6,10,0)'); gr.addColorStop(.6, 'rgba(6,6,10,.7)'); gr.addColorStop(1, 'rgba(6,6,10,.94)'); g.fillStyle = gr; g.fillRect(0, 0, Wc, Hc);
+    /* the header band */
+    gr = g.createLinearGradient(0, 0, Wc, 0); gr.addColorStop(0, hue); gr.addColorStop(1, shade(hue, 1.35)); g.fillStyle = gr; g.fillRect(0, 0, Wc, 110);
+    g.fillStyle = 'rgba(255,255,255,.9)'; g.fillRect(0, 108, Wc, 5);
+    g.textBaseline = 'middle'; g.textAlign = 'left'; g.letterSpacing = '6px'; g.font = '800 30px Geist'; g.fillStyle = '#fff'; g.fillText('STUDIUM', 46, 57);
+    g.letterSpacing = '4px'; g.font = '500 19px "Geist Mono"'; g.fillStyle = 'rgba(255,255,255,.85)'; g.fillText('PHOTOGRAPHERS ON PHOTOGRAPHY', 250, 58);
+    g.textAlign = 'right'; g.font = '800 30px Geist'; g.fillStyle = '#fff'; g.letterSpacing = '1px'; g.fillText('No.' + num(i), Wc - 44, 57); g.letterSpacing = '0px';
+    /* the name: big, white, outlined in the photographer's colour */
+    g.textAlign = 'center'; g.textBaseline = 'alphabetic'; const parts = v.a.toUpperCase().split(' '), lines = parts.length > 1 ? [parts.slice(0, -1).join(' '), parts[parts.length - 1]] : parts;
+    let y = Hc - 470 + (lines.length === 1 ? 110 : 0); g.lineJoin = 'round';
+    lines.forEach((l) => { const fs = fit(g, l, Wc - 90, '900', 168, 'Geist'); g.letterSpacing = '-3px';
+      g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 24; g.shadowOffsetY = 8; g.lineWidth = fs * .16; g.strokeStyle = shade(hue, .55); g.strokeText(l, Wc / 2, y + fs * .82); g.shadowColor = 'transparent';
+      g.lineWidth = fs * .07; g.strokeStyle = hue; g.strokeText(l, Wc / 2, y + fs * .82); g.fillStyle = '#fff'; g.fillText(l, Wc / 2, y + fs * .82); y += fs * .92; }); g.letterSpacing = '0px';
+    /* the title in a coloured pill */
+    g.font = '600 32px Geist'; const tt = v.t.length > 44 ? v.t.slice(0, 42) + '…' : v.t, tw2 = Math.min(Wc - 80, g.measureText(tt).width + 56);
+    g.fillStyle = hue; g.beginPath(); g.roundRect((Wc - tw2) / 2, y + 22, tw2, 58, 29); g.fill(); g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.fillText(tt, Wc / 2, y + 52, Wc - 120);
+    /* credits and the rating */
+    g.textBaseline = 'alphabetic'; g.letterSpacing = '2px'; g.font = '500 15px Geist'; g.fillStyle = 'rgba(255,255,255,.6)';
+    g.fillText('STUDIUM PRESENTS  ' + v.a.toUpperCase() + '  IN CONVERSATION  ·  A RESEARCH ROOM SCREENING', Wc / 2, Hc - 64); g.letterSpacing = '0px'; g.textAlign = 'left';
+    g.beginPath(); g.arc(70, Hc - 150, 32, 0, 7); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 5; g.strokeStyle = hue; g.stroke(); g.fillStyle = shade(hue, .6); g.font = '900 34px Geist'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('E', 70, Hc - 148); g.textAlign = 'left'; },
   /* white, a strict grid, a big number */
   swiss(g, v, i, im) { const Wc = 900, Hc = 1266; paper(g, Wc, Hc, '#f4f3ef');
     g.fillStyle = '#141414'; g.textBaseline = 'alphabetic'; g.letterSpacing = '-8px'; g.font = '800 300px Geist'; g.fillText(num(i), 48, 300); g.letterSpacing = '0px';
@@ -161,7 +175,7 @@ const SPINE = {
     g.save(); g.translate(50, 0); g.rotate(Math.PI / 2); g.textAlign = 'left'; g.fillStyle = '#141210'; g.font = '300 40px Fraunces'; g.fillText(v.a, 130, 3); const aw = g.measureText(v.a).width;
     g.fillStyle = '#6a6358'; g.font = '400 23px Geist'; g.fillText(v.t, 158 + aw, 3); g.restore();
     g.beginPath(); g.arc(50, 1210, 20, 0, 7); g.fillStyle = '#c8933f'; g.fill(); },
-  poster(g, v, i) { g.fillStyle = '#0d0c0b'; g.fillRect(0, 0, 100, 1266); g.fillStyle = hueOf(v.a); g.fillRect(0, 0, 100, 120);
+  poster(g, v, i) { const hue = hueOf(v.a), gr = g.createLinearGradient(0, 0, 100, 0); gr.addColorStop(0, shade(hue, .8)); gr.addColorStop(.5, hue); gr.addColorStop(1, shade(hue, .8)); g.fillStyle = gr; g.fillRect(0, 0, 100, 1266); g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, 100, 120);
     g.fillStyle = '#fff'; g.font = '700 30px Geist'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(num(i), 50, 62);
     g.save(); g.translate(50, 0); g.rotate(Math.PI / 2); g.textAlign = 'left'; g.font = '800 40px Geist'; g.fillStyle = '#fff'; g.letterSpacing = '1px'; g.fillText(v.a.toUpperCase(), 150, 2); const aw = g.measureText(v.a.toUpperCase()).width;
     g.letterSpacing = '0px'; g.font = '300 26px Fraunces'; g.fillStyle = 'rgba(255,255,255,.7)'; g.fillText(v.t, 180 + aw, 3); g.restore(); },
@@ -191,14 +205,16 @@ function trayTex() { const c = document.createElement('canvas'); c.width = 512; 
 
 /* ---------------- the cases: a real DVD build. Plastic body, a printed paper insert, a clear sleeve over it ---------------- */
 const blackPlastic = new THREE.MeshPhysicalMaterial({ color: 0x0b0b0c, roughness: .42, roughnessMap: wear, clearcoat: .9, clearcoatRoughness: .3, clearcoatRoughnessMap: wear });
-const clearPlastic = new THREE.MeshPhysicalMaterial({ color: 0xf3f6f8, roughness: .14, roughnessMap: wear, transmission: 1, thickness: .12, ior: 1.46, attenuationColor: new THREE.Color(0xdbe8ee), attenuationDistance: 1.2, clearcoat: 1, clearcoatRoughness: .08 });
+const clearPlastic = new THREE.MeshPhysicalMaterial({ color: 0xeaf4fb, roughness: .06, roughnessMap: wear, transmission: .92, thickness: .35, ior: 1.5, attenuationColor: new THREE.Color(0x8fc3e6), attenuationDistance: .35, clearcoat: 1, clearcoatRoughness: .03, specularIntensity: 1, envMapIntensity: 1.8 });
+/* glossy coloured plastic, one per photographer */
+const tintCache = {}; const tinted = (hex) => tintCache[hex] || (tintCache[hex] = new THREE.MeshPhysicalMaterial({ color: hex, roughness: .28, roughnessMap: wear, clearcoat: 1, clearcoatRoughness: .08, envMapIntensity: 1.4 }));
 const blackInner = new THREE.MeshPhysicalMaterial({ map: trayTex(), roughness: .6, clearcoat: .4, clearcoatRoughness: .6 });
 const blackEdge = new THREE.MeshStandardMaterial({ map: edgeTex(), roughness: .5 });
 /* the sleeve: thin clear film over the insert, smudged and scuffed */
 /* black and additive, so it adds only its reflections: gloss over the print without blurring it */
-const sleeveFilm = new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: .08, roughnessMap: wear, clearcoat: 1, clearcoatRoughness: .05, clearcoatRoughnessMap: wear, envMapIntensity: 2.2, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+const sleeveFilm = new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: .08, roughnessMap: wear, clearcoat: 1, clearcoatRoughness: .1, clearcoatRoughnessMap: wear, envMapIntensity: 2.2, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
 const halfGeo = new RoundedBoxGeometry(W, H, D / 2, 2, .016);
-const IW = W - .045, IH = H - .05, insertGeo = new THREE.PlaneGeometry(IW, IH), filmGeo = new RoundedBoxGeometry(W - .02, H - .02, .006, 1, .003);
+const IW = W - .07, IH = H - .08, insertGeo = new THREE.PlaneGeometry(IW, IH), filmGeo = new RoundedBoxGeometry(W - .02, H - .02, .006, 1, .003);
 const discGeo = new THREE.CylinderGeometry(.6, .6, .012, 96); discGeo.rotateX(Math.PI / 2);
 const hubGeo = new THREE.CylinderGeometry(.068, .075, .028, 40); hubGeo.rotateX(Math.PI / 2);
 const discUnder = new THREE.MeshPhysicalMaterial({ color: 0xd8dbe0, metalness: 1, roughness: .12, iridescence: 1, iridescenceIOR: 1.6, iridescenceThicknessRange: [150, 900] });
@@ -253,8 +269,7 @@ function applyLook() { const L = LIGHTS[look.light];
   key.intensity = L.key; rim.color.set(L.fill[0]); rim.intensity = L.fill[1];
   buildBeams(); beamMat.uniforms.col.value.set(L.spot[0]); beamMat.uniforms.k.value = L.beams; beams.forEach((b) => { b.visible = L.beams > 0; });
   dust.visible = L.dust > 0; dust.material.opacity = L.dust; if (bloomPass) bloomPass.strength = L.bloom;
-  const body = look.body === 'clear' ? clearPlastic : blackPlastic, edge = look.body === 'clear' ? clearPlastic : blackEdge, inner = look.body === 'clear' ? clearPlastic : blackInner;
-  cases.forEach((cs) => { cs.tray.material[0] = edge; cs.tray.material[2] = cs.tray.material[3] = cs.tray.material[5] = body; cs.tray.material[4] = inner;
+  cases.forEach((cs) => { const body = look.body === 'clear' ? clearPlastic : look.body === 'colour' ? tinted(hueOf(cs.v.a)) : blackPlastic, edge = look.body === 'black' ? blackEdge : body, inner = look.body === 'black' ? blackInner : body; cs.tray.material[0] = edge; cs.tray.material[2] = cs.tray.material[3] = cs.tray.material[5] = body; cs.tray.material[4] = inner;
     cs.lid.material[0] = edge; [2, 3, 4, 5].forEach((k) => { cs.lid.material[k] = body; }); cs.hub.material = body; });
   reprint(); try { if (DATA.styles) localStorage.setItem('dvd_look', JSON.stringify(look)); } catch (e) {} }
 /* ---------------- the DVD player ---------------- */
@@ -307,11 +322,8 @@ if (DATA.styles) { const box = document.createElement('div'); box.id = 'looks';
 addEventListener('resize', size); size(); view.x = view.tx; view.y = view.ty; view.z = view.tz;
 
 /* ---------------- the photographers along the bottom ---------------- */
-const nav = $('#nav');
-nav.innerHTML = '<button data-g="-1">All</button>' + labels.map((l, k) => '<button data-g="' + k + '">' + l.a + '</button>').join('');
 function focusGroup(k) { if (k < 0) { view.tx = 0; view.ty = wallMid; view.tz = zOver; } else { const l = labels[k]; view.tx = l.x + l.w / 2; view.ty = l.y + H / 2 + .1; view.tz = Math.max(zNear, Math.min(zOver, 9)); } clampView(); navOn = k; }
 let navOn = -1;
-nav.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && !modal) { sfx('cullPick'); focusGroup(+b.dataset.g); } });
 
 /* ---------------- input: drag, wheel, hover, click ---------------- */
 const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(9, 9), pickables = [];
@@ -319,7 +331,8 @@ cases.forEach((cs) => pickables.push(cs.tray, cs.lid));
 let drag = null, hot = null, modal = null, busy = false;
 function pickAt(e) { const m = new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(m, camera); const h = ray.intersectObjects(pickables, false)[0]; return h ? h.object.userData.caseIdx : null; }
 canvas.addEventListener('pointerdown', (e) => { if (modal) return; mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); drag = { x: e.clientX, y: e.clientY, vx: view.tx, vy: view.ty, moved: false }; canvas.setPointerCapture(e.pointerId); });
-canvas.addEventListener('pointermove', (e) => { mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+addEventListener('pointermove', (e) => { mouse.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); });
+canvas.addEventListener('pointermove', (e) => {
   if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.hypot(dx, dy) > 5) { drag.moved = true; canvas.classList.add('drag'); }
   if (drag.moved) { const k = view.z * 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / innerHeight; view.tx = drag.vx - dx * k; view.ty = drag.vy + dy * k; clampView(); } });
 canvas.addEventListener('pointerup', (e) => { const was = drag; drag = null; canvas.classList.remove('drag'); if (was && !was.moved && !modal) { const k = pickAt(e); if (k != null) pull(k); } });   /* raycast on the tap itself: a touch has no hover */
@@ -357,11 +370,11 @@ function lift(cs, on) { cs.grp.traverse((o) => { if (o.isMesh) o.renderOrder = o
 /* pull it off the shelf: it floats in front of you */
 async function pull(idx) { if (busy || modal) return; busy = true; const cs = cases[idx]; cs.hov = 0; setModal({ cs, st: 'look' }); sfx('cullPick'); lift(cs, true);
   lookEl.querySelector('.eb').textContent = cs.v.a; lookEl.querySelector('h2').textContent = cs.v.t;
-  veilTo(.9, .6); await arcTo(cs.grp, holdPose(), .85, .25); lookEl.classList.add('on'); busy = false; }
+  veilTo(.9, .6); holdOn(true, .7); await arcTo(cs.grp, holdPose(), .85, .25); lookEl.classList.add('on'); busy = false; }
 function openPose() { const narrow = innerWidth < 760; return camPose(narrow ? -W / 2 : -2.35, narrow ? -.25 : -.55, 6.9, .1, .04); }
 function holdPose() { const narrow = innerWidth < 760; return camPose(narrow ? -W / 2 : -1.45, narrow ? -.35 : -.95, 5.4, -.18); }
 async function putBack() { if (busy || !modal) return; busy = true; const cs = modal.cs; lookEl.classList.remove('on'); sfx('cullPick');
-  veilTo(0, .6); await arcTo(cs.grp, cs.base, .75, .2); lift(cs, false); setModal(null); busy = false; }
+  veilTo(0, .6); holdOn(false, .6); await arcTo(cs.grp, cs.base, .75, .2); lift(cs, false); setModal(null); busy = false; }
 
 /* put it on: open the case, the player slides up, the disc goes in, the screen grows out of the player */
 async function putOn() { if (busy || !modal || modal.st !== 'look') return; busy = true; const cs = modal.cs; modal.st = 'loading'; lookEl.classList.remove('on'); sfx('cullEnd');
@@ -423,7 +436,7 @@ async function eject() { if (busy || !modal || modal.st !== 'play') return; busy
   await tw(.45, (t) => { cs.hinge.rotation.y = -2.55 * (1 - t); });
   const pp = { p: player.position.clone().add(new THREE.Vector3(0, -3, 0)), q: player.quaternion.clone() };
   moveTo(player, pp, .5).then(() => { player.visible = false; drawFace(false, 'NO DISC'); faceT.needsUpdate = true; });
-  veilTo(0, .7); await arcTo(cs.grp, cs.base, .8, .2); lift(cs, false); setModal(null); busy = false; }
+  veilTo(0, .7); holdOn(false, .6); await arcTo(cs.grp, cs.base, .8, .2); lift(cs, false); setModal(null); busy = false; }
 function esc() { if (!modal) return; if (modal.st === 'look') putBack(); else if (modal.st === 'play') eject(); }
 
 /* ---------------- each frame ---------------- */
@@ -443,10 +456,12 @@ function frame() { raf = 0; if (paused) return; const real = Math.min(.5, clock.
     const u = cs.hov; if (u < .0005 && want === 0) { cs.hov = 0; } cs.grp.position.set(cs.base.p.x - .2 * u, cs.base.p.y + .08 * u, cs.base.p.z + .75 * u);
     cs.grp.rotation.set(-.03 + .03 * u, .95 * (1 - .7 * u), 0); });
   /* the case in your hands follows the mouse a little */
-  if (modal && modal.st === 'look' && !busy) { const h = holdPose(), mx0 = mouse.x > 5 ? 0 : mouse.x, my0 = mouse.y > 5 ? 0 : mouse.y, tq = h.q.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(-my0 * .12, mx0 * .3, 0)));
-    modal.cs.grp.quaternion.slerp(tq, 1 - Math.exp(-dt * 6)); modal.cs.grp.position.lerp(h.p, 1 - Math.exp(-dt * 6)); }
+  /* the case in your hands turns towards the mouse, around its own centre */
+  if (modal && modal.st === 'look' && !busy) { const h = holdPose(), mx0 = mouse.x > 5 ? 0 : mouse.x, my0 = mouse.y > 5 ? 0 : mouse.y, tq = h.q.clone().multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(my0 * .22, -mx0 * .4, 0)));
+    const mid = new THREE.Vector3(W / 2, H / 2, 0), c = mid.clone().applyQuaternion(h.q).add(h.p), k = 1 - Math.exp(-dt * 6);
+    modal.cs.grp.quaternion.slerp(tq, k); modal.cs.grp.position.lerp(c.sub(mid.applyQuaternion(modal.cs.grp.quaternion)), k); }
   if (modal && modal.st === 'play') { const d = modal.cs.disc; if (d.parent === pTray) d.rotateZ(dt * 8); }
-  const on = view.tz >= zOver - .3 ? -1 : nearestGroup(); if (on !== frame.on) { frame.on = on; nav.querySelectorAll('button').forEach((b, k) => b.classList.toggle('on', k - 1 === on)); }
+  if (view.tz < zOver - .3) nearestGroup();
   composer.render(); raf = requestAnimationFrame(frame); }
 function nearestGroup() { let best = 0, bd = 1e9; labels.forEach((l, k) => { const d = Math.hypot(l.x + l.w / 2 - view.x, l.y + H / 2 - view.y); if (d < bd) { bd = d; best = k; } }); navOn = best; return best; }
 frame();

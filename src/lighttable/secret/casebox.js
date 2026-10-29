@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { makeRack } from './rack.js';
 
-export const CASE = { x: -13.5, z: -3.8, w: 8.4, d: 4.2, h: 2.7, lid: 1.5, well: 0.9, yaw: 0.42 };   /* on the table, wider than deep, turned to face the middle */   /* the vault's case (3.3 × 2.3 × 1.45) doubled: higher, not wider */
+export const CASE = { x: -16.2, z: -5.6, w: 7.6, d: 4.2, h: 2.7, lid: 1.5, well: 0.9, yaw: 0.42 };   /* clear of the pit in the middle */   /* on the table, wider than deep, turned to face the middle */   /* the vault's case (3.3 × 2.3 × 1.45) doubled: higher, not wider */
 export function install(S) {
   if (!S.under) return;
   const { T } = S, ENV = S.SM.envMap(S.renderer), parent = S.under.group;

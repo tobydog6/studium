@@ -209,7 +209,6 @@
      slowing down or raising the ISO brings it back to a normal exposure */
   function sceneLightLin(){ var lv=1;
     try{
-      if(typeof LA!=="undefined"&&LA&&LA.tod) return 1;   /* the opening's film of a night into day is a title sequence, not a light to meter */
       if(typeof RLB!=="undefined"&&RLB&&RLB.gpu&&RL.gpu===RLB.gpu){   /* lightb.js: light is linear, and the same level it judges your eyes by */
         if(RLB.gpu.U.on.value<0.5) return 1;
         lv=rbLum(RLB.sunMode?RLB.amb:[1,1,1]); if(RLB.sunMode&&RL.sunPow>0) lv+=rbLum(RLB.sunLin)*0.55;
@@ -709,7 +708,7 @@
          did nothing until it fell below half. Set it so the base scale draws what it did before (same look),
          and every step down really draws fewer splats */
       try{ var nSp=viewer.P?viewer.P.length/3:0; if(nSp>0&&viewer.spark){ var dflt=viewer.spark.defaultSplatTarget?viewer.spark.defaultSplatTarget():2.5e6; viewer.spark.lodSplatCount=Math.max(2e5, Math.min(dflt, nSp/Math.max(0.1,dynLodBase())));   /* at the base scale: the scan's own size or the device cap, whichever is less, exactly as before */ } }catch(e){}
-      chAttach(); loaded=true; if(!(typeof RF!=="undefined"&&RF.on)&&!(typeof LA!=="undefined"&&LA.on)) sfx("arrive"); updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
+      chAttach(); loaded=true; if(!(typeof RF!=="undefined"&&RF.on)&&!(typeof LA!=="undefined"&&LA.on)) sfx("arrive"); updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(function wxLater(){ if(typeof LA!=="undefined"&&(LA.on||Date.now()-(LA.welcome||0)<LA_T.word*1000+600)){ setTimeout(wxLater,1000); return; } wxLoadOthers(); },1500);   /* the other scans wait until the opening is over */ hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       /* no toast on arrival: the coach's first prompt and the look-around pill already say it (ux-scene) */
     }).catch(function(err){ if(err===LOAD_STALE||tok!==loadTok) return;   /* a newer load took over: it owns the loader and the scene now */
@@ -745,7 +744,7 @@
   // resolution first (down to 60%); if that's not enough, trim Spark's splat budget a little too. Both come back with headroom.
   function dynLod(){ var sp=viewer&&viewer.spark; return sp?sp.lodSplatScale:1; }
   function dynLodBase(){ var b=(DETAIL[sceneDetail]||DETAIL.balanced).lod||1; return CH.spec&&CH.spec.fullRes?Math.max(b,1.3):b; }
-  function dynTick(dt){ if(!loaded||!(dt>0)) return; if(typeof CH!=="undefined"&&CH.intro) return;   /* no resolution steps mid-spin: each one reallocates the scene target and hitches the glide */ dyn.ema=dyn.ema*0.9+dt*100; dyn.t+=dt; var mx=dynTop(), sp=viewer&&viewer.spark; if(dyn.scale>mx+0.001){ setScale(mx); return; }
+  function dynTick(dt){ if(!loaded||!(dt>0)) return; if(typeof CH!=="undefined"&&CH.intro) return;   /* no resolution steps mid-spin: each one reallocates the scene target and hitches the glide */ if(typeof laHolds==="function"&&laHolds()) return;   /* nor in the opening: it finds its level in the dark */ dyn.ema=dyn.ema*0.9+dt*100; dyn.t+=dt; var mx=dynTop(), sp=viewer&&viewer.spark; if(dyn.scale>mx+0.001){ setScale(mx); return; }
     if(dyn.t<0.6) return; dyn.t=0; var fps=1000/dyn.ema;
     /* when it's slow, thin the distant splats first (barely visible), and only then drop resolution, never below 0.85:
        a blurry picture looks far worse than a little less far-off detail */

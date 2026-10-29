@@ -128,7 +128,8 @@ export function install(S) {
     const laps = Math.max(2, Math.round(34 / n)), target = win + laps * n, rollback = Math.random() < ROLLBACK, back = 1 + Math.floor(Math.random() * BACK_MAX);
     const A = rollback ? target + 0.78 : target - 0.42, B = rollback ? target - 0.1 : target + 0.07;
     const PAUSE = rollback ? 0.35 : 0.3, BD = rollback ? 1.9 : 1.2;
-    return { target, rollback, back, RUN: 7.0, PAUSE, BD, CD: 0.5, A, B, total: 7.0 + PAUSE + BD + 0.5 };
+    const RUN = S.dev && S.dev.opt && S.dev.opt('reelLen') === 'short' ? 2.2 : 7.0;   /* dev panel: a short reel for trying the reveals over and over */
+    return { target, rollback, back, RUN, PAUSE, BD, CD: 0.5, A, B, total: RUN + PAUSE + BD + 0.5 };
   }
   function reelPos(p, u) {
     if (u <= 0) return 0;
@@ -191,15 +192,18 @@ export function install(S) {
     r.prompt = true; r.phase = 'prompt'; S.toast('Face down. Hover it, then click to turn it over.');
     await new Promise(res => { r.flipNow = res; }); if (!alive()) return;
     /* the flip: a turn on the vertical axis, the burst at the edge-on moment, then the tier-scaled landing */
-    r.prompt = false; r.phase = 'flip'; r.hover = false; ctx.canvas.style.cursor = 'default'; S.snd && S.snd.play('flip');
-    const sp = winner.spin, y0 = sp.rotation.y;
-    await T.tween({ dur: 0.42, ease: E.inCubic, tag: 'rail', update: e => { sp.rotation.y = y0 + Math.PI / 2 * e; sp.position.z = 0.5 * Math.sin(e * Math.PI / 2); } }); if (!alive()) return;
-    r.burstT = T.time(); r.ring.scale.setScalar(0.55); r.keyFlash = 1;
-    const holoBurst = S.holo && S.holo.burst ? S.holo.burst(winner.obj, {}).catch(() => null) : (S.snd && S.snd.play('burst'), null);
-    await T.par([T.tween({ dur: 0.42, ease: E.outCubic, tag: 'rail', update: e => { sp.rotation.y = y0 + Math.PI / 2 + Math.PI / 2 * e; sp.position.z = 0.5 * Math.cos(e * Math.PI / 2); } }), holoBurst]); if (!alive()) return;
-    sp.rotation.y = y0 + Math.PI; sp.position.z = 0; r.phase = 'reveal'; r.wobble = T.time();
-    if (S.holo && S.holo.reveal) await S.holo.reveal(winner.obj, {}).catch(() => null); else await T.wait(0.4, 'rail');
-    if (!alive()) return;
+    r.prompt = false; r.phase = 'flip'; r.hover = false; ctx.canvas.style.cursor = 'default';
+    const sp = winner.spin, y0 = sp.rotation.y, style = S.reveals ? S.reveals.style() : 'flip';
+    /* the other reveal styles (dev panel: Reveal style) bring their own moment and payoff; they leave the print face up */
+    if (style !== 'flip') { await S.reveals.run(style, { r, slot: winner, obj: winner.obj, spin: sp, y0, alive, hit: r.hitPoint || null }); if (!alive()) return; }
+    else { S.snd && S.snd.play('flip');
+      await T.tween({ dur: 0.42, ease: E.inCubic, tag: 'rail', update: e => { sp.rotation.y = y0 + Math.PI / 2 * e; sp.position.z = 0.5 * Math.sin(e * Math.PI / 2); } }); if (!alive()) return;
+      r.burstT = T.time(); r.ring.scale.setScalar(0.55); r.keyFlash = 1;
+      const holoBurst = S.holo && S.holo.burst ? S.holo.burst(winner.obj, {}).catch(() => null) : (S.snd && S.snd.play('burst'), null);
+      await T.par([T.tween({ dur: 0.42, ease: E.outCubic, tag: 'rail', update: e => { sp.rotation.y = y0 + Math.PI / 2 + Math.PI / 2 * e; sp.position.z = 0.5 * Math.cos(e * Math.PI / 2); } }), holoBurst]); if (!alive()) return;
+      sp.rotation.y = y0 + Math.PI; sp.position.z = 0; r.phase = 'reveal'; r.wobble = T.time();
+      if (S.holo && S.holo.reveal) await S.holo.reveal(winner.obj, {}).catch(() => null); else await T.wait(0.4, 'rail');
+      if (!alive()) return; }
     /* the hand-off: the print slides to the right end of the pit and lies face up above the table top, where the arm
        can reach it (its hand only gets to about x 9 and up; loot keeps the rect's right end in reach) */
     r.phase = 'done'; const g = winner.obj.group; ctx.scene.attach(g); r.handed = true; winner.h.visible = false;
@@ -279,7 +283,7 @@ export function install(S) {
   function pointer(kind, e) {
     const r = R; if (!r || !r.prompt) return false;
     if (kind === 'move') { const was = r.hover; r.hover = !!S.hit(e, r.winner.spin); if (r.hover && !was) S.snd && S.snd.play('glow'); ctx.canvas.style.cursor = r.hover ? 'pointer' : 'default'; return r.hover; }
-    if (kind === 'down') { if (e.button !== 0) return false; if (S.hit(e, r.winner.spin)) { flip(); return true; } return false; }
+    if (kind === 'down') { if (e.button !== 0) return false; const h = S.hit(e, r.winner.spin); if (h) { r.hitPoint = h.point.clone(); flip(); return true; } return false; }   /* where you clicked: the shatter and burn reveals start there */
     return false;
   }
   function key(e) { if (R && R.prompt && (e.key === ' ' || e.key === 'Enter')) { flip(); return true; } return false; }

@@ -18,6 +18,7 @@ import * as loot from './loot.js';
 import * as arm from './arm.js';
 import * as print from './print.js';
 import * as rail from './rail.js';
+import * as reveals from './reveals.js';
 import * as parcel from './parcel.js';
 import * as sound from './sound.js';
 import * as under from './under.js';
@@ -277,7 +278,7 @@ export function installSecret(ctx) {
 
   /* ---------- the modules (each owns one file) ---------- */
   const secretTop = new Set();
-  [sound, print, holo, rail, arm, binder, parcel, loot, under, casebox, vitrine, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  [sound, print, holo, reveals, rail, arm, binder, parcel, loot, under, casebox, vitrine, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
   ctx.scene.children.forEach(c => { if (!lightSide.has(c)) secretTop.add(c); });   /* the rigs the modules just added */
 
   /* ---------- boot ---------- */

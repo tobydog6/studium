@@ -405,6 +405,9 @@ export function install(S) {
     async reveal(obj, o = {}) { if (!obj || !obj.group) return; const tier = o.tier || (obj.slab || {}).tier || 'common', land = LAND[tier] || LAND.common, col = (TIER[tier] || TIER.common).color;
       const R = makeRig(S, obj, 'reveal'); R.S = S; R.tier = tier; S.holo.now = { kind: 'reveal', tier, t: 0, rig: R };
       try { await land(R, obj, col, snd); } catch (e) { if (e !== CANCEL) console.error(e); } finally { R.dispose(); } },
+    /* a bare rig on a print for other modules' effects (reveals.js): run, tick, at, cloud, shock, flash, jolt, sheen, roll, dim, dispose */
+    rig(obj, kind) { const R = makeRig(S, obj, kind || 'fx'); R.S = S; R.tier = (obj.slab || {}).tier; return R; },
+    tex: { soft: SOFT, spot: SPOT, rays: raysTex, stamp: stampTex }, CANCEL,
     /* stop every holo effect now (the rail closing): the tweens resolve false and each rig cleans itself up */
     cancel() { S.T.cancelAll('holo'); },
     active() { return S.T.running('holo'); },

@@ -8,6 +8,7 @@ import { depthFor } from './depth.js';
 import { photoMaps, blur, sstep, texOf, reliefGeo, setRelief, smoothHeight, cavityOf, normalOf, ALLOYS, GOLD_D, GOLD_L, mix, rngOf, studioEnvs } from './fxkit.js';
 import { depthKey } from './fxfinishes.js';
 
+const NO_RAY = () => {};
 const METAL = { gold: 1, gilt: 1, coin: 1, kintsugi: 1, bronze: [[0.28, 0.15, 0.08], [0.82, 0.55, 0.33]], dag: [[0.3, 0.3, 0.32], [0.95, 0.95, 0.92]] };
 function metalTone(id, label) { const m = METAL[id]; if (!m) return null; if (m !== 1) return m; const a = ALLOYS.find(x => label && label.indexOf(x[0]) === 0); return a ? [a[1], a[2]] : [GOLD_D, GOLD_L]; }
 function disposeAll(g, keep) { g.traverse(o => { if (o.geometry) o.geometry.dispose(); [].concat(o.material || []).forEach(m => { for (const k in m) { const v = m[k]; if (v && v.isTexture && !keep.has(v)) v.dispose(); } if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k] && m.uniforms[k].value; if (v && v.isTexture && !keep.has(v)) v.dispose(); } m.dispose(); }); }); }
@@ -15,10 +16,10 @@ function disposeAll(g, keep) { g.traverse(o => { if (o.geometry) o.geometry.disp
 export function variantFx(obj, S, rec, ctx) {
   const v = obj.slab.variant; if (v !== 'breakout' && v !== 'liquid') return null;
   if (v === 'liquid' && !obj.slab.graded) return null;
-  const holder = new THREE.Group(); let gone = false, ownP = null; const keep = new Set([ctx.photoTex, obj.parts.photoTex]);
+  const envs = studioEnvs(S.renderer), holder = new THREE.Group(); let gone = false, ownP = null; const keep = new Set([ctx.photoTex, obj.parts.photoTex, envs.studio, envs.bright]);
   if (v === 'liquid') { holder.add(liquid(obj)); obj.inner.add(holder); }
   else { holder.position.copy(obj.parts.photo.position); obj.inner.add(holder);
-    const go = P => { if (gone) return; breakout(obj, S, holder, P, ctx, rec); holder.traverse(m => { if (m.isMesh) { m.userData.keepDepth = true; if (m.userData.order == null) m.userData.order = 5; } }); if (obj.top) obj.setTop(true); };
+    const go = P => { if (gone) return; breakout(obj, S, holder, P, ctx, rec); holder.traverse(m => { if (m.isMesh) { m.userData.keepDepth = true; m.raycast = NO_RAY; if (m.userData.order == null) m.userData.order = 5; } }); if (obj.top) obj.setTop(true); };
     const fxP = rec.mesh && rec.mesh.userData.fx && rec.mesh.userData.fx.P;
     if (fxP) go(fxP); else depthFor(depthKey(obj.slab), obj.base).then(d => { if (gone) return; ownP = photoMaps(ctx.photoCanvas, d, ctx.photoTex, ctx.crop); go(ownP); }).catch(e => console.error(e)); }
   return { dispose() { gone = true; if (holder.parent) holder.parent.remove(holder); disposeAll(holder, keep); if (ownP) ownP.mapTex.dispose(); } };

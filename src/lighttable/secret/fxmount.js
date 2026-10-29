@@ -32,7 +32,8 @@ export function mountFinish(obj, S, o) {
     if (obj.top) obj.setTop(true);
   };
   let made = null; try { made = def.make ? def.make(ctx) : null; } catch (e) { console.error(e); made = null; }
-  if (made && typeof made.then === 'function') made.then(place, e => { console.error(e); place(null); }); else place(made);
+  if (made && typeof made.then === 'function') return made.then(place, e => { console.error(e); place(null); });
+  place(made); return Promise.resolve();
 }
 /* a still click on an inspected object: the finish gets it if it does something with clicks */
 export function clickFinish(obj, uv) { const m = obj.finish && obj.finish.mesh; return !!(m && m.userData.fx && m.userData.fx.click(uv)); }

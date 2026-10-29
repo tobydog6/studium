@@ -91,7 +91,7 @@ export function depthFor(key, canvas, onBetter) {
   if (PEND.has(key)) return PEND.get(key);
   const p = cacheGet(key).then(c => {
     if (c && c.d) { const D = new Float32Array(c.d.length); for (let i = 0; i < D.length; i++) D[i] = c.d[i] / 255; const m = { w: c.w, h: c.h, D, ai: true }; MEM.set(key, m); WAIT.delete(key); return m; }
-    const q = quickDepth(canvas); MEM.set(key, q);
+    const q = quickDepth(canvas); MEM.set(key, q); if (MEM.size > 160) MEM.delete(MEM.keys().next().value);
     if (mode === 'ai' && !broken && typeof Worker !== 'undefined' && (typeof navigator === 'undefined' || navigator.onLine !== false))
       aiDepth(canvas).then(m => { MEM.set(key, m); cachePut(key, m); const ws = WAIT.get(key); WAIT.delete(key); if (ws) ws.forEach(f => { try { f(m); } catch (e) { console.error(e); } }); })
         .catch(e => { console.warn('AI depth unavailable, keeping the quick map:', e && e.message || e); });

@@ -132,8 +132,7 @@ function applyFinish(obj, S, env, id) {
   const shown = processPhoto(base, id, slab.variant, slab.grade, slab.seed);
   if (obj.parts.photoTex) obj.parts.photoTex.dispose(); const t = S.SM.tex(shown); obj.parts.photoTex = t;
   obj.parts.photo.material.emissiveMap = t; obj.parts.photo.material.needsUpdate = true; if (obj.parts.ghost) { obj.parts.ghost.material.map = t; obj.parts.ghost.material.needsUpdate = true; }
-  mountFinish(obj, S, { id, def: S.SM.finishDef(id), shown, tex: t, texFn: S.SM.tex, w: obj.photoW, h: obj.photoH, at: obj.parts.photo.position, dz: Z_FINISH, order: 6, full: false, tier: S.SL.tierOf(slab), env, variantFx });
-  return Promise.resolve();
+  return mountFinish(obj, S, { id, def: S.SM.finishDef(id), shown, tex: t, texFn: S.SM.tex, w: obj.photoW, h: obj.photoH, at: obj.parts.photo.position, dz: Z_FINISH, order: 6, full: false, tier: S.SL.tierOf(slab), env, variantFx });
 }
 /* the rim in the finish colour: a cycle drifts through the hues, sparkle flickers, pulse breathes, cold and hot sit still */
 const gC = new THREE.Color(), gC2 = new THREE.Color();

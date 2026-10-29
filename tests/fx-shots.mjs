@@ -26,7 +26,7 @@ const server = createServer((q, r) => { const u = decodeURIComponent(q.url.split
   r.writeHead(200, { 'content-type': TYPES[extname(f)] || 'application/octet-stream' }); createReadStream(f).pipe(r); });
 await new Promise(ok => server.listen(0, ok));
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-const page = await browser.newPage({ viewport: { width: 1060, height: 680 } });
+const page = await browser.newPage({ viewport: { width: 860, height: 560 } });
 /* real photos for the pulls: a test pack of stump frames served below as /fxphotos/ */
 const PHOTOS = ['coach/ap-3.jpg', 'research/sample-6.jpg', 'coach/ap-0.jpg', 'launch/rack-stump.jpg'];
 await page.addInitScript(list => { try { localStorage.setItem('splat_tut_v1', '1'); localStorage.setItem('lt_tour_done', '1'); localStorage.removeItem('studium_secret_v1');
@@ -67,7 +67,7 @@ try {
     await fr.waitForFunction(() => __lt.secret.S.table.list.every(o => o.built && o.finish && (o.finish.mesh || !__lt.secret.S.fx.isFx(o.finishId))), null, { timeout: 120000, polling: 300 }).catch(() => console.log('  ' + id + ': finish did not land in time'));
     await page.waitForTimeout(1500); await shot(id + '-table');
     await fr.evaluate(() => { const S = __lt.secret.S, o = S.table.list.find(o => o.slab.graded) || S.table.list[0]; S.inspect.open(o, { actions: [{ id: 'back', label: 'Put back', primary: true }], hint: S.specLine(o.slab) }); });
-    await fr.waitForFunction(() => __lt.secret.S.inspect.t > 0.97, null, { timeout: 60000, polling: 200 }).catch(() => {}); await page.mouse.move(530, 300); await page.waitForTimeout(1600); await shot(id + '-inspect');
+    await fr.waitForFunction(() => __lt.secret.S.inspect.t > 0.97, null, { timeout: 60000, polling: 200 }).catch(() => {}); await page.mouse.move(430, 250); await page.waitForTimeout(1600); await shot(id + '-inspect');
     if (flag('--tools')) for (const t of ['loupe', 'uv', 'compose']) { await page.click('#skTools [data-tool="' + t + '"]').catch(() => {}); await page.mouse.move(560, 320); await page.waitForTimeout(1800); await shot(id + '-tool-' + t); }
     const spec = await fr.evaluate(() => __lt.secret.S.specLine(__lt.secret.S.inspect.obj.slab));
     await page.keyboard.press('Escape'); await page.waitForTimeout(1200);

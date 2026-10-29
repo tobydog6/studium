@@ -43,7 +43,7 @@ function coin(P, g, w, h, api) {
     const map = texOf(S, S, true, i => { const t = Math.pow(f.L[i], 0.8); return [mix(A0[0], A1[0], t), mix(A0[1], A1[1], t), mix(A0[2], A1[2], t)]; }), alpha = texOf(S, S, false, i => [f.mask[i], f.mask[i], f.mask[i]]);
     const orm = texOf(S, S, false, (i, x, y) => { const rr = Math.hypot(x - S / 2, y - S / 2) / (S / 2); return [1, rr > 0.95 ? 0.08 : rr > 0.82 ? 0.14 : 0.3 - f.L[i] * 0.12, 1]; });
     const mesh = new THREE.Mesh(geo, new THREE.MeshPhysicalMaterial({ map, roughnessMap: orm, metalnessMap: orm, roughness: 1, metalness: 1, alphaMap: alpha, alphaTest: 0.5, normalMap: normalOf(f.Hh, S, S, 8), envMapIntensity: 1.6 })); return mesh; };
-  const coinG = new THREE.Group(); coinG.position.z = 0.075; g.add(coinG); const front = mk(false), back = mk(true); back.rotation.y = Math.PI; front.position.z = th / 2; back.position.z = -th / 2; coinG.add(front, back);
+  const coinG = new THREE.Group(); coinG.position.z = 0.06; g.add(coinG); const front = mk(false), back = mk(true); back.rotation.y = Math.PI; front.position.z = th / 2; back.position.z = -th / 2; coinG.add(front, back);
   const reed = texOf(256, 8, false, (i, x) => { const s = Math.sin(x / 256 * Math.PI * 2 * 24); return [0.5 + s * 0.45, 0.5, 0.9]; }); reed.wrapS = THREE.RepeatWrapping; reed.repeat.set(6, 1);
   const edge = new THREE.Mesh(new THREE.CylinderGeometry(R, R, th, 240, 1, true), new THREE.MeshPhysicalMaterial({ color: new THREE.Color().setRGB(A1[0], A1[1], A1[2], THREE.SRGBColorSpace), metalness: 1, roughness: 0.18, normalMap: reed, envMapIntensity: 1.6 })); edge.rotation.x = Math.PI / 2; coinG.add(edge);
   let turns = 0, a = 0;
@@ -201,14 +201,12 @@ const FX = {
         vertexShader: 'attribute float aB; uniform float uPx; varying float vB; void main(){ vB=aB; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mv; gl_PointSize=uPx*(6.0+aB*14.0)*(9.0/-mv.z); }',
         fragmentShader: 'varying float vB; void main(){ float d=length(gl_PointCoord-0.5); float core=smoothstep(0.18,0.0,d); float halo=exp(-d*d*28.0); gl_FragColor=vec4(vec3(1.0,0.82,0.36)*(core*1.4+halo*0.6)*vB,1.0); }' });
       const pts = new THREE.Points(pg, pm); g.add(pts);
-      const lights = [0, 1, 2, 3].map(() => { const l = new THREE.PointLight(0xffc860, 0, 1.6, 2); g.add(l); return l; });
       let K = 1;
       return { relief: k => { K = k; setRelief(geo, k * 0.16); }, update: t => {
         for (let i = 0; i < M; i++) { const s = seed[i], u = (s[0] + 0.05 * Math.sin(t * (0.2 + s[2] * 0.3) + s[3] * 9)) % 1, v = 0.08 + s[1] * 0.75 + 0.04 * Math.sin(t * (0.3 + s[3] * 0.4) + s[0] * 7);
-          pos[i * 3] = (u - 0.5) * w; pos[i * 3 + 1] = (v - 0.5) * h; pos[i * 3 + 2] = (0.02 + s[2] * 1.15) * 0.16 * K * RK + 0.01;
+          pos[i * 3] = (u - 0.5) * w; pos[i * 3 + 1] = (v - 0.5) * h; pos[i * 3 + 2] = (0.02 + s[2] * 1.15) * 0.1 * K * RK + 0.01;
           const ph = (t * (0.25 + s[3] * 0.35) + s[0] * 10) % 1; br[i] = Math.pow(Math.max(0, Math.sin(ph * Math.PI)), 6) * (0.6 + s[2] * 0.4); }
-        pg.attributes.position.needsUpdate = true; pg.attributes.aB.needsUpdate = true;
-        const order = [...br.keys()].sort((a, b) => br[b] - br[a]); lights.forEach((l, k) => { const i = order[k]; l.position.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2] + 0.02); l.intensity = br[i] * 1.6; }); } };
+        pg.attributes.position.needsUpdate = true; pg.attributes.aB.needsUpdate = true; } };
     } },
   depthscan: { name: 'Depth scan', amt: [0.8, 1.2],
     build(P, g, w, h, api) { const driver = api.driver, renderer = api.renderer, camera = api.camera, ENV2 = api.env2, RK = RELIEF.k;
@@ -251,7 +249,7 @@ const FX = {
         fragmentShader: 'varying float vS; void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*0.9; gl_FragColor=vec4(vec3(0.95,0.97,1.0),a); }' });
       g.add(new THREE.Points(pg, pm)); let K = 1;
       const drv = driver([m], mesh, t => { for (let i = 0; i < M; i++) { const s = seed[i], fall = (s[1] - t * (0.035 + s[3] * 0.03)) % 1, v = fall < 0 ? fall + 1 : fall;
-        pos[i * 3] = (s[0] - 0.5) * w + Math.sin(t * (0.6 + s[2]) + s[3] * 9) * 0.06; pos[i * 3 + 1] = (v - 0.5) * h * 1.1; pos[i * 3 + 2] = (0.01 + s[2] * 1.1) * 0.16 * K * RK + 0.01; }
+        pos[i * 3] = (s[0] - 0.5) * w + Math.sin(t * (0.6 + s[2]) + s[3] * 9) * 0.06; pos[i * 3 + 1] = (v - 0.5) * h * 1.1; pos[i * 3 + 2] = (0.01 + s[2] * 1.1) * 0.1 * K * RK + 0.01; }
         pg.attributes.position.needsUpdate = true; });
       return { relief: k => { K = Math.max(0.3, k); setRelief(geo, K * 0.16); m.uniforms.uK.value = k; }, update: drv.update };
     } },
@@ -420,6 +418,7 @@ export const isSealed = id => !!(META[id] && META[id].sealed);
 
 /* ---------- the adapter ---------- */
 function seedOf(slab, id) { let h = ((slab.seed >>> 0) ^ 0x9e3779b9) >>> 0; for (const ch of id) h = Math.imul(h ^ ch.charCodeAt(0), 2654435761) >>> 0; return h || 1; }
+const NO_RAY = () => {};
 const Q = []; let busy = false;
 function queued(fn) { return new Promise((res, rej) => { Q.push({ fn, res, rej }); pump(); }); }
 function pump() { if (busy || !Q.length) return; busy = true; const j = Q.shift(); setTimeout(() => { try { j.res(j.fn()); } catch (e) { j.rej(e); } busy = false; pump(); }, 16); }
@@ -429,6 +428,7 @@ function disposeGroup(g, keep) { g.traverse(o => { if (o.geometry && !o.isSplatM
 
 function makeFx(S, id, d, ctx) {
   const obj = ctx.obj; if (!obj || !obj.base || !ctx.photoCanvas) return null;   /* Blades and other bare uses keep the plain photo (and their metal) */
+  if (ctx.slab.decoy) return null;   /* the reel's decoys go by face down: no point building what nobody sees */
   const slab = ctx.slab, raw = !slab.graded, key = depthKey(slab), better = () => { if (!obj.disposed && obj.finishId === id && obj.refresh) obj.refresh(); };
   if (obj.fxDepthCb) forgetDepth(obj.fxDepthKey, obj.fxDepthCb); obj.fxDepthCb = better; obj.fxDepthKey = key;
   return depthFor(key, obj.base, better).then(depth => queued(() => {
@@ -442,15 +442,17 @@ function makeFx(S, id, d, ctx) {
         mats.forEach(m => { const u = m.uniforms; u.uT.value = tt; u.uTilt.value.set(api.tilt.y, api.tilt.x); if (hit) u.uPtr.value.lerp(hit, Math.min(1, dt * 10)); u.uHov.value += ((hit ? 1 : 0) - u.uHov.value) * Math.min(1, dt * 3); });
         if (extra) extra(tt, dt, hit); } }; } };
     /* the variants that sit over the finish keep the relief low so it stays under them */
-    RELIEF.k = (raw ? 0.2 : 0.72) * (slab.variant === 'breakout' ? 0.45 : 1);
-    let ctl = {}; try { ctl = d.build(P, g, ctx.w, ctx.h, api) || {}; if (ctl.relief) ctl.relief(amt); } finally { RELIEF.k = 1; }
+    /* the tallest relief stays inside the case (graded) or a shallow emboss (raw) */
+    RELIEF.k = (raw ? 0.2 : 0.72) * (slab.variant === 'breakout' ? 0.45 : 1); RELIEF.cap = raw ? 0.03 : slab.variant === 'breakout' ? 0.04 : 0.115;
+    let ctl = {}; try { ctl = d.build(P, g, ctx.w, ctx.h, api) || {}; if (ctl.relief) ctl.relief(amt); } finally { RELIEF.k = 1; RELIEF.cap = Infinity; }
     if (!label && LABELS[id]) label = LABELS[id](amt); LAST.set(slab.id + ':' + id, label);
-    g.traverse(o => { [].concat(o.material || []).forEach(m => { if ((m.isMeshStandardMaterial || m.isMeshPhysicalMaterial) && !m.envMap) m.envMap = envs.studio; }); });
+    /* not pickable: the table's hover test should stop at the slab's own card, not walk a few hundred thousand relief triangles */
+    g.traverse(o => { if (o !== g) o.raycast = NO_RAY; [].concat(o.material || []).forEach(m => { if ((m.isMeshStandardMaterial || m.isMeshPhysicalMaterial) && !m.envMap) m.envMap = envs.studio; }); });
     const keep = new Set([ctx.photoTex, envs.studio, envs.bright]), rest = (META[id] && META[id].rest) || 0.45;
     g.userData.fx = { id, label, P,
       update(c) { const sp = obj.top ? 1 : rest; t += c.dt * sp; api.tilt.set(-c.tilt.y * 0.45, c.tilt.x * 0.6); if (ctl.update) ctl.update(t, c.dt * sp); },
       click(uv) { if (ctl.click) { ctl.click(uv); return true; } return false; },
-      dispose() { try { if (ctl.dispose) ctl.dispose(); } catch (e) {} disposeGroup(g, keep); P.mapTex.dispose(); } };
+      dispose() { try { if (ctl.dispose) ctl.dispose(); } catch (e) {} if (obj.fxDepthCb === better) { forgetDepth(key, better); obj.fxDepthCb = null; } disposeGroup(g, keep); P.mapTex.dispose(); } };
     return g;
   }));
 }
@@ -458,9 +460,10 @@ function makeFx(S, id, d, ctx) {
 function captionOf(slab) { const t = String(slab.title || 'untitled').replace(/\s*·\s*Plate\s*\d+$/i, '').toLowerCase(); return t.length > 26 ? t.slice(0, 25) + '…' : t; }
 
 export function install(S) {
-  Object.entries(FX).forEach(([id, d]) => S.SM.registerFinish(id, { kind: 'fx', sealed: isSealed(id),
-    make: ctx => makeFx(S, id, d, ctx),
-    update: (g, c) => { if (g && g.userData.fx) g.userData.fx.update(c); } }));
+  Object.entries(FX).forEach(([id, d]) => { const prev = S.SM.hasFinish(id) ? S.SM.finishDef(id) : null;   /* holo.js's old gold, chrome, porcelain, kintsugi: Blades still wear them */
+    S.SM.registerFinish(id, { kind: 'fx', sealed: isSealed(id),
+      make: ctx => (!ctx.obj && prev && prev.make ? prev.make(ctx) : makeFx(S, id, d, ctx)),
+      update: (g, c) => { if (!g) return; if (g.userData.fx) g.userData.fx.update(c); else if (prev && prev.update) prev.update(g, c); } }); });
   /* the hover glows on the rail and the Blades metals, for the new finishes */
   if (S.holo && S.holo.GLOWS) Object.entries(META).forEach(([id, m]) => { if (m.glow) S.holo.GLOWS[id] = { color: m.glow[0], color2: m.glow[1], kind: m.glow[2], flicker: 0 }; });
   S.fx = { META, fxLabel, isFx, isSealed, depthKey };

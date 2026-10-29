@@ -47,7 +47,7 @@ function scanData() {
 export async function loadScan(S) {
   try {
     const [K, sc] = await Promise.all([spark(), scanData()]);
-    if (!RENDER) { RENDER = new K.SparkRenderer({ renderer: S.renderer }); RENDER.userData.secret = true; S.ctx.scene.add(RENDER); }
+    if (!RENDER) { RENDER = new K.SparkRenderer({ renderer: S.renderer }); RENDER.userData.secret = true; RENDER.renderOrder = 40; S.ctx.scene.add(RENDER); }
     const mesh = new K.SplatMesh({ fileBytes: new Uint8Array(sc.buf.slice(0)), fileType: 'splat' }); mesh.quaternion.setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI); mesh.userData.noParticles = true;
     await mesh.initialized;
     return { mesh, c: sc.c, size: sc.size, face: sc.face, n: sc.n, release() { if (mesh.parent) mesh.parent.remove(mesh); try { mesh.dispose && mesh.dispose(); } catch (e) {} } };

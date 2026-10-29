@@ -46,8 +46,8 @@ export function reliefGeo(P, w, h, Hf, seg = 340) {
   g.userData.base = base; return g;
 }
 /* relief heights are scaled to fit where the finish lives: the slab's case (graded) or a shallow emboss (a raw print) */
-export const RELIEF = { k: 1 };
-export function setRelief(g, k) { k *= RELIEF.k; const p = g.attributes.position, b = g.userData.base; for (let i = 0; i < b.length; i++) p.setZ(i, b[i] * k); p.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); }
+export const RELIEF = { k: 1, cap: Infinity };
+export function setRelief(g, k) { k *= RELIEF.k; if (RELIEF.cap < Infinity) { if (g.userData.maxB == null) { let mx = 1e-6; for (const v of g.userData.base) mx = Math.max(mx, v); g.userData.maxB = mx; } k = Math.min(k, RELIEF.cap / g.userData.maxB); } const p = g.attributes.position, b = g.userData.base; for (let i = 0; i < b.length; i++) p.setZ(i, b[i] * k); p.needsUpdate = true; g.computeVertexNormals(); g.computeBoundingSphere(); }
 export function cavityOf(P, Hf, r = 5) { const b = blur(Hf, P.W, P.H, r), c = new Float32Array(Hf.length); for (let i = 0; i < c.length; i++) c[i] = clamp((b[i] - Hf[i]) * 6, 0, 1); return c; }
 export function heightOf(P, kR, kD, kQ) { const N = P.W * P.H, h = new Float32Array(N); for (let i = 0; i < N; i++) h[i] = P.R[i] * kR + P.D[i] * kD + P.Q[i] * kQ; return h; }
 export function smoothHeight(P, h, r = 1.5) { return blur(h, P.W, P.H, r); }

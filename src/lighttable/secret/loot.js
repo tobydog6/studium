@@ -198,7 +198,7 @@ export function install(S) {
     async enter(d, run) {
       const packs = S.packs(), pk = packs.length ? packs[Math.floor(Math.random() * packs.length)] : null;
       const slab = rollFor(pk && pk.id != null ? { pack: pk.id } : {}); store.addPull(slab); S.hud(); L.slab = slab;
-      const decoys = Array.from({ length: 14 }, () => rollFor({}));
+      const decoys = Array.from({ length: 14 }, () => Object.assign(rollFor({}), { decoy: true }));
       L.railLive = true; L.railUp = true;
       const obj = await S.rail.run(slab, { rect: RECT.slice(), decoys }); if (!run.alive()) return;
       M.go('loot.lay', { obj });

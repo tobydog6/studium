@@ -43,7 +43,7 @@
     cancelAnimationFrame(LA.raf); LA.raf=requestAnimationFrame(laTick); }
   function laSkip(){ if(!LA.on||LA.phase==="live") return; var v=LA.el.querySelector("video");
     if(LA.phase==="hold"){ if(loaded&&LA.placed) laLive(); else laEnd(); return; }   /* a tap while it waits: go now, or if the scan never came, out to the hub rather than stuck here */
-    if(LA.skipped){ if(LA.phase==="dark") laEnd(); return; } LA.skipped=true; sdSeqCut(); sdBigCut(); if(SD.shB&&SD.ctx){ SD.shB.gain.setTargetAtTime(0,SD.ctx.currentTime,0.03); SD.shB=null; }
+    if(LA.skipped){ if(LA.phase==="dark") laEnd(); return; } LA.skipped=true; sdSeqCut(); sdBigCut(); if(SD.bedLP&&SD.ctx){ var nw=SD.ctx.currentTime; SD.bedLP.frequency.cancelScheduledValues(nw); SD.bedLP.frequency.setTargetAtTime(9000,nw,0.3); SD.bedPre.gain.cancelScheduledValues(nw); SD.bedPre.gain.setTargetAtTime(1.8,nw,0.3); } if(SD.shB&&SD.ctx){ SD.shB.gain.setTargetAtTime(0,SD.ctx.currentTime,0.03); SD.shB=null; }
     if(LA.phase==="film"){ sdSpin(null,true); try{ v.pause(); v.currentTime=Math.max(0,(v.duration||LA_F.len)-0.02); }catch(e){} laCls("vf",false); laCls("af-hunt",false); laCls("af-ok",false); laCls("word",true); laPhase("hold"); } }   /* straight to the film's last frame and the wordmark; in the dark, it waits there for the scan */
   // ---- behind the film: the scan comes in on the starting spot, gets its light, and is drawn steadily for the last stretch ----
   function laBack(now){ if(!loaded) return false; if(!LA.placed){ LA.placed=true; LA.placeT=now; laSpawn(); if(typeof updateCamera==="function") updateCamera(0); }
@@ -155,7 +155,7 @@
       o.type=v[1]; o.frequency.setValueAtTime(v[0],t); o.detune.value=(i-1)*5; og.gain.value=v[2]; lfo.frequency.value=0.07+i*0.045; lg.gain.value=v[3]; lfo.connect(lg); lg.connect(og.gain); o.connect(og); og.connect(bus); o.start(t); lfo.start(t); return o; });
     SD.ambSrc=[s].concat(SD.drone); }
   function sdDroneTo(k,t,tc){ if(!SD.drone) return; SD.drone.forEach(function(o,i){ o.frequency.setTargetAtTime([55,82.41,110][i]*k,t,tc); }); }
-  function sdAmbStop(t,tc){ if(!SD.amb||!SD.ctx) return; var b=SD.amb, src=SD.ambSrc||[]; SD.amb=null; SD.drone=null; t=t==null?sdNow():t; b.gain.setTargetAtTime(0.0001,t,tc||1.2); src.forEach(function(o){ try{ o.stop(t+(tc||1.2)*6); }catch(e){} }); }
+  function sdAmbStop(t,tc){ SD.bedLP=null; SD.bedPre=null; if(!SD.amb||!SD.ctx) return; var b=SD.amb, src=SD.ambSrc||[]; SD.amb=null; SD.drone=null; t=t==null?sdNow():t; b.gain.setTargetAtTime(0.0001,t,tc||1.2); src.forEach(function(o){ try{ o.stop(t+(tc||1.2)*6); }catch(e){} }); }
   // the point cloud: a shimmer rising with the line, a pad lifting a fifth, points settling as ticks, a glint when it resolves
   function sdScan(t){ var b=sdSeq(); if(!b) return; t=t==null?sdNow():t; if(sdVar("scan")) return sdVar("scan")(b,t,LA_T.scan); var D=LA_T.scan;
     sdNoise(b,t,"bandpass",420,3.5,0.7,0.065,D-1.0,1.0,5400);
@@ -186,14 +186,14 @@
         am.frequency.value=34; ag.gain.value=0.45; am.connect(ag); ag.connect(g.gain); g.gain.setValueAtTime(0.0001,w); g.gain.exponentialRampToValueAtTime(0.05,w+0.03); g.gain.setValueAtTime(0.05,w+D-0.06); g.gain.exponentialRampToValueAtTime(0.0001,w+D);
         o.connect(fl); fl.connect(g); g.connect(b); o.start(w); am.start(w); o.stop(w+D+0.02); am.stop(w+D+0.02); sdClk(b,w+D-0.01,2600,1.6,0.12,0.012); },
     4:function(b,t){ sdClk(b,t,4800,1.4,0.12,0.009); sdClk(b,t+0.011,4200,1.4,0.07,0.009); sdBody(b,t,1800,0.012,0.02); },   /* a rangefinder's quiet tsk */
-    5:function(b,t){ var buf=SD.shBuf; if(!buf){ SD_SHUT[2](b,t); return; } var s=SD.ctx.createBufferSource(), g=SD.ctx.createGain(); s.buffer=buf; g.gain.value=0.75; s.connect(g); g.connect(b); s.start(t); } };   /* the recording the camera itself uses */
+    5:function(b,t){ var buf=SD.shBuf; if(!buf){ SD_SHUT[2](b,t); return; } var s=SD.ctx.createBufferSource(), g=SD.ctx.createGain(); s.buffer=buf; g.gain.value=0.5; s.connect(g); g.connect(b); s.start(t); } };   /* the recording the camera itself uses */
   function sdShutLoad(c){ if(SD.shBuf||!c||SD.shGet) return SD.shGet; SD.shGet=fetch(SHUTTER_SRC[0]).then(function(r){ return r.arrayBuffer(); }).then(function(ab){ return new Promise(function(ok,no){ c.decodeAudioData(ab,ok,no); }); }).then(function(bf){ SD.shBuf=bf; }).catch(function(){}); return SD.shGet; }
   function sdShutter(t){ var c=sdCtx(); if(!c) return; t=t==null?sdNow():t; var b=SD.shB&&SD.shB.context===c?SD.shB:(SD.shB=sdBus(0.22)); (SD_SHUT[SD_SH]||SD_SHUT[2])(b,t);   /* its own bus: a little room, not the music's big one */
     if(SD.drone){ sdDroneTo(1,t,0.05); } if(SD.vb){ SD.vb.gain.setTargetAtTime(0.0001,t+0.01,0.06); SD.vb=null; } if(sdVar("shot")) sdVar("shot")(sdSeq()||b,t); }
-  // ---- the soundtrack options (?snd=0..17, or localStorage studium_open_snd): each brings its bed, the film's start, the lens,
+  // ---- the soundtrack options (?snd=0..20, or localStorage studium_open_snd): each brings its bed, the film's start, the lens,
   //      the focus and the shot; 6 to 11 also their own title moment. tools/openingsound.mjs lays each under the film to compare ----
-  var SD_V=(function(){ var m=/[?&]snd=(\d+)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_snd"); if(v!=null) return +v; }catch(e){} return 12; })();   /* the drone is the default; ?snd=0..17 to compare */
-  var SD_VN=["As it is","Felt","Air","Strings","Pulse","Glass","Cinematic","Lo-fi","Deep drone","Electronic","Bush","Piano and cello","Drone","Drone carried through","Dark drone","Rising drone","Drone and choir","Drone in the bush"];
+  var SD_V=(function(){ var m=/[?&]snd=(\d+)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_snd"); if(v!=null) return +v; }catch(e){} return 18; })();   /* Attention, piano is the default; ?snd=0..20 to compare */
+  var SD_VN=["As it is","Felt","Air","Strings","Pulse","Glass","Cinematic","Lo-fi","Deep drone","Electronic","Bush","Piano and cello","Drone","Drone carried through","Dark drone","Rising drone","Drone and choir","Drone in the bush","Attention: piano","Attention: guitar","Attention: no music"];
   function sdVar(k){ var v=SDV[SD_V]; return v&&v[k]||null; }
   function sdVBus(c,t,send){ var b=c.createGain(); b.gain.value=1; b.connect(SD.out); if(send){ var s=c.createGain(); s.gain.value=send; b.connect(s); s.connect(SD.verb); } SD.vb=b; return b; }   /* the beginning's own music: the shutter cuts it */
   function sdAir(c,bus,t,g0,lpf){ var s=c.createBufferSource(); s.buffer=SD.nb; s.loop=true; var lp=c.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=lpf||500; var hp=c.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=120; var g=c.createGain(); g.gain.value=g0;
@@ -330,7 +330,47 @@
     /* 17 · Drone in the bush: the drone low under the birds and the stream; the drone stops for the shot, the bush goes on */
     17:{ bed:function(c,t){ SDV[10].bed(c,t); },
         scan:function(b,t,D){ var c=SD.ctx, F=LA_F, vb=sdVBus(c,t,1.1); sdDrone(vb,t,[55,82.41,110,164.81],F.fire+1,0.007,150,1200); SDV[10].scan(b,t,D); },
-        lens:function(b,t){ SDV[10].lens(b,t); }, rack:function(b,t,D){ SDV[8].rack(b,t,D); } } };
+        lens:function(b,t){ SDV[10].lens(b,t); }, rack:function(b,t,D){ SDV[8].rack(b,t,D); } },
+    /* 18 to 20 · Attention: the sound follows what a photographer hears. The place in the morning and a sparse, warm melody
+       through the glide; as the camera comes up the world dims and muffles and only the camera is close; the shutter, a beat
+       of quiet; then the world opens out again and the melody resolves as the name lands. Restrained on purpose: it should
+       sound like a good gallery or documentary, on a laptop's own speakers. The three differ only in the voice */
+    18:{ bed:function(c,t){ sdWorld(c,t); }, scan:function(b,t){ sdBirds(t,false); sdScore(b,t,"piano"); }, lens:sdNarrow, rack:sdRing, spin:function(b,t){ sdRise(b,t); sdResolve(b,t+0.7,"piano"); } },
+    19:{ bed:function(c,t){ sdWorld(c,t); }, scan:function(b,t){ sdBirds(t,false); sdScore(b,t,"guitar"); }, lens:sdNarrow, rack:sdRing, spin:function(b,t){ sdRise(b,t); sdResolve(b,t+0.7,"guitar"); } },
+    20:{ bed:function(c,t){ sdWorld(c,t); }, scan:function(b,t){ sdBirds(t,true); }, lens:sdNarrow, rack:sdRing, spin:function(b,t){ sdRise(b,t); var w=t+0.7; sdBellbird(SD.bedPre||b,w+0.1,0.2); sdBellbird(SD.bedPre||b,w+1.3,-0.3); } } };
+  // ---- Attention's parts ----
+  /* the place: wind through the canopy and the leaves, fading in, through a filter the camera can close */
+  function sdWorld(c,t){ var bus=sdBedBus(c,t), lp=c.createBiquadFilter(), pre=c.createGain(); lp.type="lowpass"; lp.frequency.value=9000; lp.Q.value=0.5; pre.gain.value=1.8; pre.connect(lp); lp.connect(bus); SD.bedLP=lp; SD.bedPre=pre;
+    SD.ambSrc=sdAir(c,pre,t,0.05,800).concat(sdAir(c,pre,t,0.026,2800)); }
+  /* a few birds, far off and sparse: bellbird, tūī, a fantail close by; in the world, so they dim with it */
+  function sdBirds(t,more){ var w=SD.bedPre; if(!w) return; sdBellbird(w,t+2.2,-0.5); sdTui(w,t+4.6,0.6); sdBellbird(w,t+6.9,0.3); sdFantail(w,t+7.7,-0.2); if(more){ sdTui(w,t+1.0,-0.7); sdBellbird(w,t+4.0,0.6); sdFantail(w,t+5.6,0.5); } }
+  /* the camera comes up: the world dims and muffles; close by, the camera in the hands, and it seats */
+  function sdNarrow(b,t){ if(SD.bedLP){ SD.bedLP.frequency.setTargetAtTime(650,t,0.22); SD.bedPre.gain.setTargetAtTime(0.7,t,0.3); }
+    sdNoise(b,t,"bandpass",500,0.8,0.1,0.06,0.12,0.35,1400,-0.3,0.2); sdNoise(b,t+0.3,"bandpass",1200,1.2,0.02,0.02,0.05,0.12,null,0.2); sdTick(b,t+0.52,1400,0.05); sdTick(b,t+0.56,2900,0.03); }
+  /* the focus ring turning under a finger: soft detents, slowing as it lands. No beep */
+  function sdRing(b,t,D){ for(var i=0;i<18;i++){ var u=i/18; sdTick(b,t+D*0.9*(1-Math.pow(1-u,1.8)),3300+u*500,0.012+0.006*Math.sin(u*Math.PI),(u-0.5)*0.2); } }
+  /* the rise: the world opens out again, a soft movement of air, nothing louder */
+  function sdRise(b,t){ if(SD.bedLP){ SD.bedLP.frequency.cancelScheduledValues(t); SD.bedLP.frequency.setTargetAtTime(9000,t+0.15,0.5); SD.bedPre.gain.cancelScheduledValues(t); SD.bedPre.gain.setTargetAtTime(2,t+0.15,0.5); }
+    sdNoise(b,t,"bandpass",320,0.8,1.3,0.045,0.3,1.8,2000,-0.4,0.4); }
+  /* the tune, in A: three notes falling, then rising to look up into the shot; it goes quiet for the camera */
+  var SD_SCORE=[[1.4,[45,52],0.05,1],[1.9,[73],0.07],[2.9,[71],0.06],[3.9,[69],0.065],[4.2,[57,64],0.03,1],[5.6,[42,49],0.05,1],[6.1,[73],0.065],[7.0,[74],0.06],[7.9,[76],0.07],[8.0,[54,61],0.028,1]];
+  function sdScore(b,t,voice){ SD_SCORE.forEach(function(n){ var at=t+n[0]; if(voice==="guitar"){ if(n[3]&&n[1][0]<50){ var ch=n[1][0]===45?[45,52,57,61,64]:[42,49,54,57,61]; sdStrum(b,at,ch,n[2]*3.6,0.075); } else if(!n[3]) n[1].forEach(function(m){ sdGuitar(b,at,sdMidi(m),n[2]*5,0.15); }); }
+      else n[1].forEach(function(m,j){ sdPiano(b,at+j*0.012,sdMidi(m),n[2]*2.4,(m-60)*0.02,m<55?6:4.5); }); }); }
+  /* as the name lands: A with an added ninth, opening upward, the tune coming home */
+  function sdResolve(b,w,voice){ if(voice==="guitar"){ sdStrum(b,w,[45,52,59,61,64,69],0.24,0.085); sdGuitar(b,w+0.75,sdMidi(73),0.34,0.15); sdGuitar(b,w+1.7,sdMidi(69),0.27,0.1); return; }
+    [[0,33,0.04],[0,45,0.05],[0.02,52,0.04],[0.1,57,0.035],[0.18,61,0.035],[0.26,64,0.035],[0.34,71,0.03],[0.65,73,0.07],[1.65,69,0.05]].forEach(function(n){ sdPiano(b,w+n[0],sdMidi(n[1]),n[2]*2.4,(n[1]-60)*0.02,n[1]<55?7:5.5); }); }
+  /* a piano note: inharmonic partials on two slightly detuned strings, the upper ones dying first, and the hammer */
+  function sdPiano(b,t,f,peak,pan,dur){ var c=SD.ctx, out=c.createGain(), lp=c.createBiquadFilter(), n, fn, a, tau; dur=dur||5; lp.type="lowpass"; lp.frequency.setValueAtTime(Math.min(12000,f*9),t); lp.frequency.exponentialRampToValueAtTime(Math.max(500,f*2.4),t+dur*0.6);
+    out.gain.value=peak; lp.connect(out); sdOut(out,b,pan,null,t,dur);
+    for(n=1;n<=8;n++){ fn=n*f*Math.sqrt(1+0.00035*n*n); if(fn>14000) break; a=Math.pow(n,-1.5)*(n===2?1.2:1); tau=dur/(1+0.45*(n-1));
+      for(var s2=-1;s2<=1;s2+=2){ var o=c.createOscillator(), g=c.createGain(); o.frequency.value=fn; o.detune.value=s2*0.9; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(a*0.5,t+0.004); g.gain.exponentialRampToValueAtTime(a*0.17,t+0.3); g.gain.exponentialRampToValueAtTime(0.0001,t+tau); o.connect(g); g.connect(lp); o.start(t); o.stop(t+tau+0.05); } }
+    sdNoise(b,t,"lowpass",Math.min(3000,f*4),0.7,0.001,peak*0.12,0.004,0.03,null,pan); }
+  /* a plucked string (Karplus-Strong): a burst of softened noise round a short loop, losing a little each pass; a body under it */
+  function sdKS(c,f,len){ var sr=c.sampleRate, n=Math.floor(sr*len), N=Math.max(2,Math.round(sr/f)), buf=c.createBuffer(1,n,sr), d=buf.getChannelData(0), y=new Float32Array(N), lp=0, i, k=0;
+    for(i=0;i<N;i++){ lp+=((Math.random()*2-1)-lp)*0.45; y[i]=lp*1.6; } for(i=0;i<n;i++){ var j=(k+1)%N, v=y[k]; d[i]=v; y[k]=0.9965*0.5*(v+y[j]); k=j; } return buf; }
+  function sdGuitar(b,t,f,peak,pan){ var c=SD.ctx, key=c.sampleRate+":"+f.toFixed(2), C=SD.ksC||(SD.ksC={}), s=c.createBufferSource(), bd=c.createBiquadFilter(), g=c.createGain(); s.buffer=C[key]||(C[key]=sdKS(c,f,4));
+    bd.type="peaking"; bd.frequency.value=200; bd.Q.value=1.1; bd.gain.value=4; g.gain.value=peak; s.connect(bd); bd.connect(g); sdOut(g,b,pan,null,t,4); s.start(t); }
+  function sdStrum(b,t,ms,peak,gap){ ms.forEach(function(m,i){ sdGuitar(b,t+i*gap,sdMidi(m),peak*(1-i*0.06),(i-2)*0.15); }); }
   function sdChoir(b,t,fs,dur,peak){ var c=SD.ctx, g=c.createGain(); sdEnv(g,t,dur*0.3,peak,dur*0.45,dur*0.25+1); g.connect(b);   /* "ah": saws through the vowel's three formants */
     fs.forEach(function(f,i){ [-8,0,8].forEach(function(dt){ var o=c.createOscillator(), v=c.createOscillator(), vg=c.createGain(); o.type="sawtooth"; o.frequency.value=f; o.detune.value=dt; v.frequency.value=4.8+i*0.3+dt*0.02; vg.gain.value=f*0.004; v.connect(vg); vg.connect(o.frequency);
       [[800,8,1],[1150,10,0.55],[2900,12,0.22]].forEach(function(F){ var bp=c.createBiquadFilter(), fg=c.createGain(); bp.type="bandpass"; bp.frequency.value=F[0]; bp.Q.value=F[1]; fg.gain.value=F[2]; o.connect(bp); bp.connect(fg); fg.connect(g); });

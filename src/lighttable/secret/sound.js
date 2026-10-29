@@ -12,7 +12,7 @@
 // Setup > Sound (studium_sound_lv, shared localStorage): master about 0.5 into a compressor, so nothing clips.
 const LV = [0, 0.35, 0.65, 1];
 const N = { A3: 220, E4: 329.63, A4: 440, Cs5: 554.37, E5: 659.25, A5: 880, Cs6: 1108.73, E6: 1318.51, A6: 1760, Cs7: 2217.46, E7: 2637.02, A7: 3520 };
-const SEND = { land: 0.1, slam: 0.3, flip: 0.08, burst: 0.25, chime: 0.4, pop: 0.15, countFinal: 0.35, blind: 0.1, rise: 0.12, sink: 0.12, servo: 0.05, glow: 0.5, crack: 0.2, shatter: 0.35, ignite: 0.15, charge: 0.2, step: 0.4, scan: 0.15, develop: 0.3 };
+const SEND = { land: 0.1, slam: 0.3, flip: 0.08, burst: 0.25, chime: 0.4, pop: 0.15, countFinal: 0.35, blind: 0.1, rise: 0.12, sink: 0.12, servo: 0.05, glow: 0.5, ignite: 0.15, charge: 0.2 };
 const EVS = ['pointerdown', 'keydown', 'click'];
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -151,27 +151,12 @@ export function install(S) {
     servo: (b, t, o) => { const d = o.dur || 0.2; tone(b, t, 180, 'sawtooth', 0.02, 0.05, Math.max(0, d - 0.08), 0.06, 250); noise(b, t, 'bandpass', 1200, 2, 0.02, 0.04, Math.max(0, d - 0.08), 0.06, 1800); noise(b, t + d, 'bandpass', 2600, 3, 0.001, 0.06, 0.002, 0.02); },
     /* the hover rim brightening: three faint high glints */
     glow: (b, t) => { [N.E7, N.A7, N.Cs7 * 2].forEach((f, i) => glint(b, t + i * 0.045, f * rnd(0.997, 1.003), 0.03, 0.55)); },
-    /* the reveal styles (reveals.js) */
-    /* a crack running through glass: a sharp snap, a glassy ping and a short splinter */
-    crack: (b, t, o) => { const k = o.k == null ? 1 : o.k; noise(b, t, 'highpass', 3800, 0.8, 0.001, 0.32 * k, 0.003, 0.05); tone(b, t, rnd(2600, 3400), 'sine', 0.001, 0.06 * k, 0.005, 0.35, rnd(2400, 2600));
-      for (let i = 0; i < 5; i++) noise(b, t + 0.01 + rnd(0, 0.08), 'bandpass', rnd(4000, 8000), 6, 0.001, 0.08 * k, 0.001, 0.012); thump(b, t, 140, 0.12 * k, 0.08); },
-    /* the glass going: a burst of high noise, a low thud, and a rain of bright tinkles after it */
-    shatter: (b, t, o) => { const k = o.k == null ? 1 : o.k; noise(b, t, 'highpass', 2500, 0.5, 0.002, 0.5 * k, 0.04, 0.45, 7000); noise(b, t, 'bandpass', 1200, 0.8, 0.002, 0.25 * k, 0.01, 0.2); thump(b, t, 90, 0.5 * k, 0.4);
-      for (let i = 0; i < 26; i++) glint(b, t + 0.03 + Math.pow(Math.random(), 1.6) * 0.9, rnd(2800, 7200), 0.03 * k * rnd(0.4, 1), rnd(0.15, 0.5)); },
+    /* the reveal (reveals.js) */
     /* fire catching and running: a soft whoosh over o.dur with crackles through it */
     ignite: (b, t, o) => { const d = Math.max(0.2, o.dur || 1); noise(b, t, 'bandpass', 300, 0.7, Math.min(0.25, d * 0.4), 0.3, Math.max(0, d - 0.4), 0.35, 1400); noise(b, t, 'lowpass', 180, 0.8, 0.1, 0.2, Math.max(0, d - 0.3), 0.3);
       for (let i = 0, n = Math.round(d * 30); i < n; i++) noise(b, t + rnd(0, d), 'bandpass', rnd(1500, 4500), 5, 0.001, rnd(0.04, 0.12), 0.001, rnd(0.005, 0.02)); },
     /* the power-up: a whine climbing through o.dur with a rising hiss under it */
     charge: (b, t, o) => { const d = Math.max(0.3, o.dur || 1.2); tone(b, t, 160, 'sawtooth', d * 0.6, 0.05, d * 0.35, 0.08, 1500); tone(b, t, 320, 'sine', d * 0.7, 0.07, d * 0.25, 0.1, 2600, 8); noise(b, t, 'bandpass', 400, 1.2, d * 0.8, 0.14, d * 0.15, 0.1, 6000); },
-    /* one rung of the tier ladder: a bright note a step higher each time */
-    step: (b, t, o) => { const f = [N.A5, N.Cs6, N.E6, N.A6, N.Cs7, N.E7][clamp(o.i || 0, 0, 5)]; felt(b, t, f, 0.13, 0.9); glint(b, t + 0.01, f * 2, 0.03, 0.4); thump(b, t, 110 + 20 * (o.i || 0), 0.15, 0.1); },
-    /* the scan beam: a buzzing tone whose filter sweeps down with the line over o.dur */
-    scan: (b, t, o) => { const c = A.ctx, d = Math.max(0.3, o.dur || 1.2), lp = c.createBiquadFilter(); lp.type = 'bandpass'; lp.Q.value = 3; lp.frequency.setValueAtTime(3200, t); lp.frequency.exponentialRampToValueAtTime(500, t + d); lp.connect(b);
-      [110, 110.7, 220].forEach((f, i) => { const g = c.createGain(); env(g, t, 0.05, i < 2 ? 0.12 : 0.05, d - 0.1, 0.15); g.connect(lp); const os = c.createOscillator(); os.type = 'sawtooth'; os.frequency.value = f; os.connect(g); os.start(t); os.stop(t + d + 0.3); });
-      tone(b, t + d, N.A6, 'sine', 0.003, 0.05, 0.01, 0.4); },
-    /* the developer: liquid sloshing in the tray as it rocks, and a drip or two */
-    develop: (b, t, o) => { const d = Math.max(0.4, o.dur || 2); for (let i = 0, n = Math.max(2, Math.round(d / 0.7)); i < n; i++) noise(b, t + i * d / n, 'lowpass', rnd(500, 800), 1.4, 0.18, 0.14, 0.05, 0.3, 240);
-      drip(b, t + d * 0.4); drip(b, t + d * 0.8); },
   };
   /* the lift motor going up or down: two detuned saws under a lowpass with the brush noise, a relay click first and a clunk as it seats */
   function lift(b, t, o, up) { const c = A.ctx, d = Math.max(0.5, o.dur || 1.2), f0 = up ? 72 : 108, f1 = up ? 108 : 72, lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 520; lp.Q.value = 1.5; lp.connect(b);

@@ -1299,7 +1299,7 @@ function frame(now){
   dim.material.opacity+=(dimTarget-dim.material.opacity)*(1-Math.exp(-dt*8));
   if(dim.material.opacity>0.002){ const hh=2*dimDist*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*1.1; dim.position.set(0,0,-dimDist); dim.scale.set(hh*camera.aspect,hh,1); dim.visible=true; } else dim.visible=false;
   threads.visible=!inspected;
-  renderer.setRenderTarget(null); renderer.render(scene,camera);
+  renderer.setRenderTarget(null); if(!(SECRET&&SECRET.render&&SECRET.render(scene,camera))) renderer.render(scene,camera);   /* the secret reveal draws through its bloom while it runs */
   if(loupe.on&&mouse.in){
     const R=118, mag=3.1, D=R*2, vh=window.innerHeight;
     zoomCam.fov=2*THREE.MathUtils.radToDeg(Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*(D/vh)/mag)); zoomCam.aspect=1; zoomCam.updateProjectionMatrix();

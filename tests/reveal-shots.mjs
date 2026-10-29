@@ -1,6 +1,6 @@
-// Reveal styles (reveals.js): runs the rail once per style with a short reel, clicks the landed print and screenshots
-// the reveal as it plays. Needs `node build.mjs --web`. Shots: tests/out/reveal-<style>-<tier>-<n>.png
-// node tests/reveal-shots.mjs [style,style] [tier]
+// The reveal (reveals.js): runs the rail once per tier with a short reel, waits on the landed card, clicks it and
+// screenshots the reveal in slow motion. Needs `node build.mjs --web`. Shots: tests/out/reveal-<tier>-<n>.png
+// node tests/reveal-shots.mjs [tier,tier] [style]
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
 import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
@@ -31,7 +31,7 @@ const W = (ms) => page.waitForTimeout(ms);
 let fail = '', fr;
 const ev = (fn, a) => fr.evaluate(fn, a);
 const until = (fn, label, ms = 240000) => fr.waitForFunction(fn, null, { timeout: ms, polling: 200 }).catch(() => { throw new Error('timed out waiting for ' + label); });
-const STYLES = (process.argv[2] || 'develop,shatter,burn,charge,scan').split(','), TIER = process.argv[3] || 'epic';
+const TIERS = (process.argv[2] || 'legendary,epic,rare').split(','), STYLE = process.argv[3] || 'blaze';
 const t0 = Date.now();
 try {
   await page.goto(`http://localhost:${server.address().port}/index.html?dev&quick&noauto`); await W(8000);
@@ -50,18 +50,19 @@ try {
     await W(3000); await ev(() => __lt.secret.S.ctx.canvas.focus()); await page.keyboard.press('='); await W(800); await page.keyboard.type('secret'); await page.keyboard.press('Enter'); await W(2000); }
   if (!(await ev(() => __lt.secret.S.unlocked()))) throw new Error('did not unlock');
   await ev(() => { const S = __lt.secret.S; S.dev.set('reelLen', 'short'); S.hole.open(-17.5, -4, -3.5, 2); S.cam.push({ tx: -10.5, ty: -0.4, tz: -0.8, pitch: 30, dT: 16 }); S.rail.__drive(true); });
-  for (const st of STYLES) {
-    await ev((a) => { const S = __lt.secret.S; S.dev.set('reveal', a.st); S.T.setTimeScale(4);
-      window.__railR = 'pending'; S.rail.run(S.SL.roll({ tier: a.tier }), { rect: [-17.5, -4, -3.5, 2], decoys: Array.from({ length: 8 }, () => S.SL.roll()) }).then(o => { window.__railR = o === null ? 'null' : (o.slab ? 'obj:' + o.slab.tier : 'odd'); }); }, { st, tier: TIER });
-    await until(() => __lt.secret.S.rail.state().phase === 'prompt', st + ' landing');
-    await ev(() => __lt.secret.S.T.setTimeScale(1)); await W(800);
-    await ev(() => __lt.secret.S.rail.__flip());
-    for (let i = 0; i < 9; i++) { await W(i ? 700 : 250); await shot(`${st}-${TIER}-${i}`); }
+  for (const tier of TIERS) {
+    await ev((a) => { const S = __lt.secret.S; S.dev.set('reveal', a.style); S.T.setTimeScale(4);
+      window.__railR = 'pending'; S.rail.run(S.SL.roll({ tier: a.tier }), { rect: [-17.5, -4, -3.5, 2], decoys: Array.from({ length: 8 }, () => S.SL.roll()) }).then(o => { window.__railR = o === null ? 'null' : (o.slab ? 'obj:' + o.slab.tier : 'odd'); }); }, { style: STYLE, tier });
+    await until(() => __lt.secret.S.rail.state().phase === 'prompt', tier + ' landing');
+    await ev(() => __lt.secret.S.T.setTimeScale(1)); await W(1500); await shot(`${tier}-0-waiting`);
+    await ev(() => { __lt.secret.S.T.setTimeScale(0.3); __lt.secret.S.rail.__flip(); });
+    for (let i = 1; i <= 10; i++) { await W(450); await shot(`${tier}-${i}`); }
     await ev(() => __lt.secret.S.T.setTimeScale(4));
-    await until(() => { const s = __lt.secret.S.rail.state(); return s.phase === 'done' && s.handed; }, st + ' hand-off');
-    const res = await ev(() => window.__railR); console.log('  ' + st + ':', res);
-    if (!/^obj:/.test(res)) fail = fail || st + ' did not resolve with the print: ' + res;
-    await ev(() => __lt.secret.S.rail.close()); await until(() => __lt.secret.S.rail.state().phase === 'off', st + ' close');
+    await until(() => { const s = __lt.secret.S.rail.state(); return s.phase === 'done' && s.handed; }, tier + ' hand-off');
+    const res = await ev(() => window.__railR); console.log('  ' + tier + ':', res);
+    if (!/^obj:/.test(res)) fail = fail || tier + ' did not resolve with the print: ' + res;
+    await ev(() => __lt.secret.S.rail.close()); await until(() => __lt.secret.S.rail.state().phase === 'off', tier + ' close');
+    await ev(() => __lt.secret.S.T.setTimeScale(1)); await W(2500);
   }
 } catch (e) { fail = e.message; }
 await browser.close(); server.close();

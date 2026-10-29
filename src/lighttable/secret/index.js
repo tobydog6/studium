@@ -19,6 +19,7 @@ import * as arm from './arm.js';
 import * as print from './print.js';
 import * as rail from './rail.js';
 import * as reveals from './reveals.js';
+import * as bloom from './bloom.js';
 import * as parcel from './parcel.js';
 import * as sound from './sound.js';
 import * as under from './under.js';
@@ -278,7 +279,7 @@ export function installSecret(ctx) {
 
   /* ---------- the modules (each owns one file) ---------- */
   const secretTop = new Set();
-  [sound, print, holo, reveals, rail, arm, binder, parcel, loot, under, casebox, vitrine, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  [sound, print, holo, bloom, reveals, rail, arm, binder, parcel, loot, under, casebox, vitrine, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
   ctx.scene.children.forEach(c => { if (!lightSide.has(c)) secretTop.add(c); });   /* the rigs the modules just added */
 
   /* ---------- boot ---------- */
@@ -304,12 +305,13 @@ export function installSecret(ctx) {
       return M.key(e) || M.busy();
     },
     frame(dt, now) {
-      T.tick(dt); P.particleFrame(dt); placeLoot();
+      T.tick(dt); P.particleFrame(dt); placeLoot(); if (S.fx) S.fx.frame(dt); if (S.reveals) S.reveals.frame(dt * T.timeScale());
       if (S.unlocked()) { const pulse = 0.35 + 0.25 * Math.sin(now / 420);
         buttons.forEach(b => { const cap = b.userData.cap; if (!cap) return; const want = b.userData.hotT ? 1.4 : M.is('idle') ? pulse : 0.15; cap.material.emissiveIntensity += (want - cap.material.emissiveIntensity) * (1 - Math.exp(-dt * 10)); }); }
       M.frame(dt); inspect.frame(dt); if (S.parcel) S.parcel.frame(dt); if (S.under) S.under.frame(dt);
       slabObjs.forEach(o => { if (o.built) o.update(dt); });
     },
+    render(scene, camera) { return !!(S.fx && S.fx.render(scene, camera)); },
     pause(on) { if (on && inspect.active()) inspect.close('back'); if (S.blades && S.blades.pause) S.blades.pause(on); },
   };
   return api;

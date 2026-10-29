@@ -184,6 +184,7 @@ export function install(S) {
     r.rim = sprite(RIM, winner.obj.w * K * 1.65, winner.obj.h * K * 1.55, r.glow.color, 0); r.rim.position.set(0, winner.spin.position.y, -0.05); winner.h.add(r.rim);
     r.burst = sprite(BURST, 3.2, 3.2, 0xffffff, 0); r.burst.position.set(0, winner.spin.position.y, 0.25); winner.h.add(r.burst);
     r.ring = new THREE.Mesh(new THREE.RingGeometry(0.94, 1.0, 72), new THREE.MeshBasicMaterial({ color: 0xffe0a8, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); r.ring.position.copy(r.burst.position); r.ring.position.z = 0.3; winner.h.add(r.ring);
+    r.style = S.reveals ? S.reveals.style() : 'flip'; if (r.style !== 'flip') S.reveals.land(r);   /* the new reveal (reveals.js) lights the card itself from here */
     T.to(winner.h.position, { z: 1.25, y: BAR_Y + 0.32 }, { dur: 0.8, ease: E.outBack, tag: 'rail' });
     T.tween({ dur: 0.8, ease: E.outBack, tag: 'rail', update: e => winner.spin.scale.setScalar(1 + 0.32 * e) });
     T.to(ctx.cam, { dT: ctx.cam.dT * 0.72, ty: UP - 0.5, pitch: 24 }, { dur: 1.6, ease: E.inOutCubic, tag: 'rail' });
@@ -193,9 +194,9 @@ export function install(S) {
     await new Promise(res => { r.flipNow = res; }); if (!alive()) return;
     /* the flip: a turn on the vertical axis, the burst at the edge-on moment, then the tier-scaled landing */
     r.prompt = false; r.phase = 'flip'; r.hover = false; ctx.canvas.style.cursor = 'default';
-    const sp = winner.spin, y0 = sp.rotation.y, style = S.reveals ? S.reveals.style() : 'flip';
+    const sp = winner.spin, y0 = sp.rotation.y, style = r.style || 'flip';
     /* the other reveal styles (dev panel: Reveal style) bring their own moment and payoff; they leave the print face up */
-    if (style !== 'flip') { await S.reveals.run(style, { r, slot: winner, obj: winner.obj, spin: sp, y0, alive, hit: r.hitPoint || null }); if (!alive()) return; }
+    if (style !== 'flip') { await S.reveals.run(style, { r, slot: winner, obj: winner.obj, spin: sp, y0, alive }); if (!alive()) return; }
     else { S.snd && S.snd.play('flip');
       await T.tween({ dur: 0.42, ease: E.inCubic, tag: 'rail', update: e => { sp.rotation.y = y0 + Math.PI / 2 * e; sp.position.z = 0.5 * Math.sin(e * Math.PI / 2); } }); if (!alive()) return;
       r.burstT = T.time(); r.ring.scale.setScalar(0.55); r.keyFlash = 1;
@@ -217,7 +218,7 @@ export function install(S) {
     const r = R; if (!r) return Promise.resolve(); if (r.closing) return r.closing;
     r.closing = (async () => {
       r.prompt = false; r.rumbleOn = false; if (r.hum) { try { r.hum.stop(); } catch (e) {} r.hum = null; } if (r.reelDone) { const f = r.reelDone; r.reelDone = null; f(); }
-      ctx.canvas.style.cursor = 'default'; T.cancelAll('rail'); if (S.holo && S.holo.cancel) S.holo.cancel();   /* the reveal's effects stop with it, nothing left hanging in the room */
+      ctx.canvas.style.cursor = 'default'; T.cancelAll('rail'); if (S.holo && S.holo.cancel) S.holo.cancel(); if (S.reveals && S.reveals.close) S.reveals.close(r);   /* the reveal's effects stop with it, nothing left hanging in the room */
       if (!r.done) { r.alive = false; r.done = true; if (r.resolve) r.resolve(null); }
       S.snd && S.snd.play('sink'); r.sinking = true; r.phase = 'sink';
       await T.to(r.rg.rig.position, { y: SUNK }, { dur: 1.3, ease: E.inCubic, tag: 'railsink' });
@@ -283,13 +284,13 @@ export function install(S) {
   function pointer(kind, e) {
     const r = R; if (!r || !r.prompt) return false;
     if (kind === 'move') { const was = r.hover; r.hover = !!S.hit(e, r.winner.spin); if (r.hover && !was) S.snd && S.snd.play('glow'); ctx.canvas.style.cursor = r.hover ? 'pointer' : 'default'; return r.hover; }
-    if (kind === 'down') { if (e.button !== 0) return false; const h = S.hit(e, r.winner.spin); if (h) { r.hitPoint = h.point.clone(); flip(); return true; } return false; }   /* where you clicked: the shatter and burn reveals start there */
+    if (kind === 'down') { if (e.button !== 0) return false; if (S.hit(e, r.winner.spin)) { flip(); return true; } return false; }
     return false;
   }
   function key(e) { if (R && R.prompt && (e.key === ' ' || e.key === 'Enter')) { flip(); return true; } return false; }
 
   S.rail = { group, landing, run, pointer, key, frame, close,
-    __flip: flip, __spin: () => (R && R.winner ? R.winner.spin : null),
+    __flip: flip, __spin: () => (R && R.winner ? R.winner.spin : null), __r: () => R,
     /* the table loop calls update(dt) on everything in S.slabs; while loot.js is not forwarding frame(), this stand-in object is the driver */
     __drive(on) { if (on && !driver) { driver = { built: true, update: dt => frame(dt), setFinish() {}, dispose() {}, group: new THREE.Group(), slab: {} }; S.slabs.adopt(driver); } else if (!on && driver) { S.slabs.drop(driver); driver = null; } },
     state() { const r = R; return r ? { phase: r.phase, rigY: +r.rg.rig.position.y.toFixed(2), pos: +r.pos.toFixed(2), idx: r.idx, target: r.reel ? r.reel.target : null, rollback: r.reel ? r.reel.rollback : null, back: r.reel ? r.reel.back : null, pitch: +r.pitch.toFixed(2), prompt: r.prompt, hover: r.hover, built: r.slots.filter(s => s.obj.built).length, slots: r.slots.length, winner: r.winner.i, handed: r.handed } : { phase: 'off' }; },

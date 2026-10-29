@@ -16,7 +16,7 @@ const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
 const errors = []; page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
 const step = n => page.evaluate(n => H.step(n, 1 / 30), n);
 await page.goto('file://' + file); await page.waitForFunction(() => window.H, null, { timeout: 60000 });
-await page.evaluate(() => { const b = H.S.buttons.blades, v = b.getWorldPosition(new H.S.THREE.Vector3()); Object.assign(H.S.ctx.cam, { tx: v.x, ty: 0.3, tz: v.z, dT: 6, pitch: 50 }); }); await step(40); await page.screenshot({ path: join(OUT, 'blook-0-button.png') });
+await page.evaluate(() => { const b = H.S.buttons.blades, v = b.getWorldPosition(new H.S.THREE.Vector3()); Object.assign(H.S.ctx.cam, { tx: v.x, ty: 0.3, tz: v.z, dT: 5, pitch: 62 }); }); await step(40); await page.screenshot({ path: join(OUT, 'blook-0-button.png') });
 await page.evaluate(() => { H.S.buttons.blades.userData.hotT = 1; }); await page.evaluate(() => { for (let i = 0; i < 30; i++) H.S.under.frame(1 / 30); }); await step(2); await page.screenshot({ path: join(OUT, 'blook-0-button-hover.png') }); await page.evaluate(() => { H.S.buttons.blades.userData.hotT = 0; });
 await page.evaluate(() => H.M.send('BLADES')); for (let i = 0; i < 40 && (await step(10)) !== 'blades.build'; i++);
 await page.evaluate(() => H.S.blades.gallery()); for (let i = 0; i < 30; i++) { await step(3); if (await page.evaluate(() => H.S.blades.state.gallery.length)) break; await page.waitForTimeout(200); }

@@ -15,10 +15,10 @@ const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced
 
 /* ---------- the window: a parallax occlusion shader, so the scene sits deep behind the card without leaving the case ---------- */
 FR.window = `uniform vec2 uSize; uniform float uDepth; varying vec3 vVo;
-  void main(){ vec3 V=normalize(vVo); V.z=min(V.z,-0.12); V=normalize(V); vec2 st=(V.xy/-V.z)/uSize*uDepth; const int N=56; float layer=1.0/float(N);
+  void main(){ vec3 V=normalize(vVo); V.z=min(V.z,-0.2); V=normalize(V); vec2 st=clamp(V.xy/-V.z,vec2(-2.0),vec2(2.0))/uSize*uDepth; const int N=56; float layer=1.0/float(N);
     vec2 uv=vUv; float cur=0.0; float sd=1.0-Dp(uv); vec2 dUV=st*layer;
     for(int i=0;i<N;i++){ if(cur>=sd) break; uv+=dUV; cur+=layer; sd=1.0-Dp(clamp(uv,0.0,1.0)); }
-    vec2 pv=uv-dUV; float after=sd-cur, before=(1.0-Dp(clamp(pv,0.0,1.0)))-(cur-layer); float wgt=after/(after-before+1e-5); uv=mix(uv,pv,clamp(wgt,0.0,1.0));
+    vec2 pv=uv-dUV; float after=sd-cur, before=(1.0-Dp(clamp(pv,0.0,1.0)))-(cur-layer); float den=after-before; float wgt=abs(den)>1e-4?after/den:0.0; uv=mix(uv,pv,clamp(wgt,0.0,1.0));
     vec3 c=texture2D(uTex,clamp(uv,0.0,1.0)).rgb; vec2 o=max(-uv,uv-1.0); float out_=max(o.x,o.y);
     c=mix(c,vec3(0.035,0.03,0.025)*(1.2-cur*0.6),smoothstep(0.0,0.004,out_)); c*=mix(1.0,0.78,cur);
     vec2 e=min(vUv,1.0-vUv)*vec2(uAsp,1.0); c*=0.55+0.45*smoothstep(0.0,0.05,min(e.x,e.y)); gl_FragColor=vec4(c,1.0);`;

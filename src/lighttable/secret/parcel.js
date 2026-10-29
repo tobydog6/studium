@@ -81,7 +81,7 @@ export function install(S) {
     const pulls = store.get().pulls, now = Date.now();
     /* a box whose pull is gone (reset) or no longer waiting to be opened goes too */
     boxes.slice().forEach(bx => { if (bx.opening) return; if (!pulls.includes(bx.slab) || SL.gradingState(bx.slab, now) !== 'back') disposeBox(bx); });
-    if (!S.unlocked() || !(M.is('under') || M.is('idle'))) return;   /* parcels land on the dark side (the state there is 'under', which is why none ever came) */
+    if (!S.unlocked() || !M.is('under')) return;   /* parcels land on the dark side only */   /* parcels land on the dark side (the state there is 'under', which is why none ever came) */
     const due = pulls.filter(p => SL.gradingState(p, now) === 'back' && !boxes.some(b => b.slab === p));
     due.forEach((p, i) => { const bx = makeBox(p); boxes.push(bx); arrive(bx, spot(), i); });
     if (due.length) S.toast(due.length > 1 ? due.length + ' parcels for you, on the table.' : 'A parcel for you, on the table.');
@@ -91,7 +91,7 @@ export function install(S) {
     const list = boxes.filter(b => b.arrived && !b.opening); if (!list.length || ctx.cam.view === 'wall') { setHot(null); return false; }
     const find = () => { const h = S.hitAny(e, list.map(b => b.body)); return h ? list.find(b => b.body === h.root) || null : null; };
     if (kind === 'move') { const bx = find(); setHot(bx); if (bx) { ctx.canvas.style.cursor = 'pointer'; ctx.hideActs(); return true; } return false; }
-    if (kind === 'down') { if (e.button !== 0) return false; const bx = find(); if (!bx) return false; if ((M.is('idle') || M.is('under'))) { setHot(null); S.sfx('detent'); M.go('parcel.open', { box: bx }); } return true; }
+    if (kind === 'down') { if (e.button !== 0) return false; const bx = find(); if (!bx) return false; if (M.is('under')) { setHot(null); S.sfx('detent'); M.go('parcel.open', { box: bx }); } return true; }
     return false;
   }
   function frame(dt) {
@@ -143,7 +143,7 @@ export function install(S) {
       rush = false; bx.opening = true; setHot(null); bx.body.position.y = 0; bx.card.emissiveIntensity = 0; ctx.hideActs(); ctx.canvas.style.cursor = 'default';
       const slab = bx.slab, g = bx.group, x = g.position.x, z = g.position.z, yaw = bx.yaw, PITCH = 52;
       /* the grade is committed the moment the box is opened; the slab builds (photo and label) while the tape is cut */
-      SL.receiveGraded(slab); const obj = S.objFor(slab); obj.group.visible = false; ctx.scene.add(obj.group);
+      SL.receiveGraded(slab); slab.pending = true; const obj = S.objFor(slab); obj.group.visible = false; ctx.scene.add(obj.group);
       const K = S.TABLE_K || DEF_K, yLand = (obj.th || S.SM.SLAB.th) / 2 + 0.004, landQ = flatQ().premultiply(yawQ(yaw));
       phase = 'cam'; S.cam.push(); S.cam.set({ pitch: PITCH }); S.cam.set({ tx: x, ty: 0.35, tz: z + 0.2, dT: S.cam.fit(6.2, 5.0) }); S.sfx('ltInspect');
       await T.wait(dur(0.6), TAG);
@@ -153,7 +153,7 @@ export function install(S) {
         bx.blade.position.set(0, H + T0 + lift, -D / 2 - 0.1 + (D + 0.2) * cut); bx.slit.scale.z = Math.max(0.001, D * cut); bx.slit.position.z = -D / 2 + bx.slit.scale.z / 2; } });
       bx.blade.visible = false; bx.slit.scale.z = D; bx.slit.position.z = 0;
       /* the flaps: the taped pair first, then the ends they were covering */
-      phase = 'flaps'; snd('cardboard');
+      phase = 'flaps'; snd('cardboard'); bx.slit.visible = false; bx.blade.visible = false;
       await T.par(T.tween({ dur: dur(0.9), ease: E.inOutCubic, tag: TAG, update: e => bx.set(bx.ke, e) }), T.tween({ dur: dur(0.7), delay: rush ? 0 : 0.4, ease: E.inOutCubic, tag: TAG, update: e => bx.set(e, bx.kl) }));
       bx.set(1, 1);
       /* the slab lies in the box under the tissue, its long side along the box; the tissue parts */
@@ -187,7 +187,7 @@ export function install(S) {
           await T.wait(dur(0.45), TAG); snd('pop'); await T.tween({ dur: dur(0.3), ease: E.outCubic, tag: TAG, update: e => ov.draw(n, 1, true, 1 + 0.35 * (1 - e)) }); }
         else await T.tween({ dur: STEP, ease: E.linear, tag: TAG, update: (e, u) => ov.draw(i, 1 + 0.3 * Math.max(0, 1 - u * STEP / 0.18), false, 1) });
       }
-      ov.draw(n, 1, true, 1); S.toast(gradeLine(slab));
+      delete slab.pending; if (S.SM.relabel) S.SM.relabel(obj); ov.draw(n, 1, true, 1); S.toast(gradeLine(slab));
       await T.wait(dur(0.5), TAG); ov.remove();
       /* a normal table slab from here: inspect, vault, the lot */
       phase = 'done'; S.table.adopt(obj, x, z, yaw); S.hud(); if (!S.unlocked()) S.table.remove(obj, true);

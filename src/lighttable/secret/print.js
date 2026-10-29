@@ -42,7 +42,7 @@ function normalFrom(W, H, draw, strength) { const w = Math.round(W / 2), h = Mat
   sg.putImageData(out, 0, 0); return s; }
 /* the back's colour map and its emboss: bright white stock, the roundel with barely a tone of its own, the small
    embossed line above the tier bar, and the tier colour solid along the foot */
-function backCanvases(w, h, tier, style, slab) {
+export function backCanvases(w, h, tier, style, slab) {
   const px = 1024 / Math.max(w, h), W = Math.round(w * px), H = Math.round(h * px), c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
   const dark = style === 'black';
   if (style === 'exif') return exifBack(c, g, W, H, tier, slab);

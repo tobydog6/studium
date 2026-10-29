@@ -203,9 +203,7 @@ export function install(S) {
     /* the hand-off: the print slides to the right end of the pit and lies face up above the table top, where the arm
        can reach it (its hand only gets to about x 9 and up; loot keeps the rect's right end in reach) */
     r.phase = 'done'; const g = winner.obj.group; ctx.scene.attach(g); r.handed = true; winner.h.visible = false;
-    const dest = new THREE.Vector3(Math.max(rm.cx, rm.x1 - 3), 0.55, rm.z1 - 1.3), flat = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
-    await T.par([T.to(g.position, dest, { dur: 0.9, ease: E.inOutCubic, tag: 'rail' }), T.to(g.quaternion, flat, { dur: 0.9, ease: E.inOutCubic, tag: 'rail' })]); if (!alive()) return;
-    landing.copy(g.position);
+    landing.copy(g.position);   /* no slide to a landing spot: it goes straight up to the camera from here (Sam) */
     finish(winner.obj);
   }
   function flip() { if (R && R.prompt && R.flipNow) { const f = R.flipNow; R.flipNow = null; f(); } }

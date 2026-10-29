@@ -29,12 +29,13 @@ export function install(S) {
   const cover = new THREE.Mesh(new THREE.CircleGeometry(VAULT.r + 0.06, 48), new THREE.MeshStandardMaterial({ color: 0x15151a, roughness: 0.7, metalness: 0.3 })); cover.rotation.x = -Math.PI / 2; cover.position.set(VAULT.x, 0.012, VAULT.z); group.add(cover);
   /* the hangar doors over the pit: two leaves meeting in the middle, a hazard stripe along the join */
   const stripe = (() => { const c = document.createElement('canvas'); c.width = 256; c.height = 32; const g = c.getContext('2d'); g.fillStyle = '#16161a'; g.fillRect(0, 0, 256, 32); g.fillStyle = '#d9a32a'; for (let x = -32; x < 256; x += 32) { g.beginPath(); g.moveTo(x, 32); g.lineTo(x + 16, 32); g.lineTo(x + 32, 0); g.lineTo(x + 16, 0); g.closePath(); g.fill(); } const t = new THREE.CanvasTexture(c); t.wrapS = THREE.RepeatWrapping; t.repeat.set(PW / 4, 1); return t; })();
-  const doorMat = new THREE.MeshStandardMaterial({ color: 0x1c1c22, roughness: 0.55, metalness: 0.55 }), stripeMat = new THREE.MeshBasicMaterial({ map: stripe });
-  const doors = [-1, 1].map(s => { const d = new THREE.Group(); d.position.set(CX, 0.03, CZ); group.add(d);
-    const leaf = new THREE.Mesh(new THREE.BoxGeometry(PW / 2 + 0.3, 0.1, PD + 0.6), doorMat); leaf.position.set(s * (PW / 4 + 0.15 - 0.3), 0, 0); d.add(leaf);
-    const st = new THREE.Mesh(new THREE.PlaneGeometry(PD + 0.6, 0.32), stripeMat); st.rotation.set(-Math.PI / 2, 0, Math.PI / 2); st.position.set(s * 0.16, 0.052, 0); d.add(st);
-    for (let i = 0; i < 3; i++) { const rib = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, PD + 0.2), new THREE.MeshStandardMaterial({ color: 0x2a2a31, roughness: 0.5, metalness: 0.6 })); rib.position.set(s * (1.6 + i * 1.7), 0.07, 0); d.add(rib); }
+  /* the pit's lid is the table top itself: two flush halves that split down the middle and slide apart (Sam: no hangar doors) */
+  void stripe;
+  const doors = [-1, 1].map(s => { const d = new THREE.Group(); d.position.set(CX, 0, CZ); group.add(d);
+    const leaf = new THREE.Mesh(new THREE.PlaneGeometry(PW / 2, PD), plate.material); leaf.rotation.x = -Math.PI / 2; leaf.position.set(s * PW / 4, 0.001, 0); d.add(leaf);
+    const seam = new THREE.Mesh(new THREE.PlaneGeometry(0.03, PD), new THREE.MeshBasicMaterial({ color: 0x000000 })); seam.rotation.x = -Math.PI / 2; seam.position.set(s * 0.015, 0.002, 0); d.add(seam);
     d.userData.s = s; return d; });
+  { const uv = doors[0].children[0].geometry.attributes.uv, uv2 = doors[1].children[0].geometry.attributes.uv; const fix = (a, s) => { for (let i = 0; i < a.count; i++) a.setXY(i, (CX + s * PW / 4 + (a.getX(i) - 0.5) * PW / 2) / W + 0.5, (CZ - (a.getY(i) - 0.5) * PD) / H + 0.5); a.needsUpdate = true; }; fix(uv, -1); fix(uv2, 1); }
   /* the big loot button and a cool light or two */
   const big = S.pushButton ? S.pushButton(0xe4552e) : new THREE.Group(); big.name = 'loot'; big.scale.setScalar(3.2); big.position.set(-13.5, 0, 6.5); big.userData.base = 0.6; group.add(big);
   const l1 = new THREE.PointLight(0x5d7cff, 90, 44, 1.6); l1.position.set(-6, 7, 3); group.add(l1);
@@ -51,7 +52,7 @@ export function install(S) {
   /* what the flip hides: everything that sits on the light side of the table (not the lights, not the room, not ours) */
   const v = new THREE.Vector3();
   /* hidden by layer, not by visible: main.js sets visible on its prints every frame, but never touches layers */
-  function hideLightSide() { U.hidden = []; ctx.scene.children.forEach(c => { if (c === pivot || c.isLight || c.userData.secret) return; c.getWorldPosition(v); if (Math.abs(v.x) < W / 2 + 3 && Math.abs(v.z) < H / 2 + 3 && v.y > -0.5 && v.y < 12) { U.hidden.push(c); c.traverse(o => o.layers.set(7)); } }); }
+  function hideLightSide() { U.hidden = []; ctx.scene.children.forEach(c => { if (c === pivot || c.isLight || c.userData.secret || !S.isLightSide(c)) return; c.getWorldPosition(v); if (Math.abs(v.x) < W / 2 + 3 && Math.abs(v.z) < H / 2 + 3 && v.y > -0.5 && v.y < 12) { U.hidden.push(c); c.traverse(o => o.layers.set(7)); } }); }
   function showLightSide() { U.hidden.forEach(c => c.traverse(o => o.layers.set(0))); U.hidden = []; }
   function showSecret(on) { S.table.list.forEach(o => { o.group.visible = on; if (o.tableShadow) o.tableShadow.visible = on; }); if (S.buttons.vault) S.buttons.vault.visible = on; big.visible = on;
     if (S.parcel && S.parcel.__boxes) S.parcel.__boxes().forEach(b => { if (b.group) b.group.visible = on; }); }
@@ -65,9 +66,12 @@ export function install(S) {
       if (S.inspect.active()) S.inspect.close('back');
       S.cam.push({ tx: 0, tz: 1.5, pitch: 44, dT: ctx.fitDist(W + 6, H + 10, 44) }); ctx.hideActs(); S.snd.play('rise', { dur: 1.7 }); S.sfx('lift');
       const a0 = pivot.rotation.x, a1 = a0 + Math.PI; let flipped = false;
+      /* what sits on the side going down vanishes as the turn starts; the other side's things appear at the half way point */
+      if (to) hideLightSide(); else showSecret(false);
       await T.tween({ dur: 1.7, ease: E.inOutCubic, tag: 'flip', update: e => { pivot.rotation.x = a0 + (a1 - a0) * e;
-        if (!flipped && e >= 0.5) { flipped = true; if (to) { hideLightSide(); takeVault(true); showSecret(true); } else { showSecret(false); takeVault(false); showLightSide(); } } } });
-      pivot.rotation.x = to ? Math.PI : 0; if (!flipped) { flipped = true; if (to) { hideLightSide(); takeVault(true); showSecret(true); } else { showSecret(false); takeVault(false); showLightSide(); } }
+        if (!flipped && e >= 0.5) { flipped = true; if (to) { takeVault(true); showSecret(true); } else { takeVault(false); } } } });
+      pivot.rotation.x = to ? Math.PI : 0; if (!flipped) { flipped = true; if (to) { takeVault(true); showSecret(true); } else { takeVault(false); } }
+      if (!to) showLightSide();
       U.on = to; S.snd.play('slam'); S.sfx('ltPutDown'); S.cam.pop();
       if (to) { hum = S.snd.loop('hum'); S.toast('The underside. The big red button opens a pack. Space turns the table back over.'); } else { if (hum) { hum.stop(0.5); hum = null; } S.toast('Back the right way up.'); }
       if (run.alive()) M.go(to ? 'under' : 'idle');

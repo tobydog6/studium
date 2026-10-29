@@ -159,7 +159,7 @@ const FX = {
         vertexShader: `attribute float aR; attribute vec3 aDir; uniform float uTime; uniform float uPx; uniform float uZ; varying float vA;
           void main(){ vec3 p=position; p.z=(p.z-0.5)*uZ; vec4 wp=modelMatrix*vec4(p,1.0); vec4 mv=viewMatrix*wp; gl_Position=projectionMatrix*mv;
             vec3 V=normalize(cameraPosition-wp.xyz); float gl=pow(max(0.0,dot(V,normalize(mat3(modelMatrix)*aDir))),220.0);
-            float tw=pow(0.5+0.5*sin(uTime*0.9+aR*80.0),30.0); vA=0.26+0.24*aR+gl*2.4+tw*0.6; gl_PointSize=uPx*(1.3+gl*2.2)*(9.0/-mv.z); }`,
+            float tw=pow(0.5+0.5*sin(uTime*0.9+aR*80.0),30.0); vA=0.26+0.24*aR+gl*2.4+tw*0.6; gl_PointSize=uPx*(1.3+gl*2.2)*(9.0/-mv.z)*length(modelViewMatrix[0].xyz); }`,
         fragmentShader: `varying float vA; void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.0,d); gl_FragColor=vec4(vec3(0.82,0.9,1.0)*vA*a,1.0); }` });
       const pts = new THREE.Points(geo, mat); g.add(pts);
       /* an LED glow along the bottom edge, as if it sits on a light base */
@@ -198,7 +198,7 @@ const FX = {
       const M = 160, pos = new Float32Array(M * 3), seed = [], pg = new THREE.BufferGeometry(); for (let i = 0; i < M; i++) seed.push([hash(i * 1.3), hash(i * 2.9), hash(i * 4.1), hash(i * 7.7)]);
       pg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); const br = new Float32Array(M); pg.setAttribute('aB', new THREE.BufferAttribute(br, 1));
       const pm = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { uPx: { value: renderer.getPixelRatio() } },
-        vertexShader: 'attribute float aB; uniform float uPx; varying float vB; void main(){ vB=aB; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mv; gl_PointSize=uPx*(6.0+aB*14.0)*(9.0/-mv.z); }',
+        vertexShader: 'attribute float aB; uniform float uPx; varying float vB; void main(){ vB=aB; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mv; gl_PointSize=uPx*(6.0+aB*14.0)*(9.0/-mv.z)*length(modelViewMatrix[0].xyz); }',
         fragmentShader: 'varying float vB; void main(){ float d=length(gl_PointCoord-0.5); float core=smoothstep(0.18,0.0,d); float halo=exp(-d*d*28.0); gl_FragColor=vec4(vec3(1.0,0.82,0.36)*(core*1.4+halo*0.6)*vB,1.0); }' });
       const pts = new THREE.Points(pg, pm); g.add(pts);
       let K = 1;
@@ -245,7 +245,7 @@ const FX = {
       const M = 900, pos = new Float32Array(M * 3), seed = []; for (let i = 0; i < M; i++) seed.push([hash(i * 1.1), hash(i * 2.3), hash(i * 3.7), hash(i * 5.9)]);
       const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); const sz = new Float32Array(M).map((_, i) => 0.4 + seed[i][3]); pg.setAttribute('aS', new THREE.BufferAttribute(sz, 1));
       const pm = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, uniforms: { uPx: { value: renderer.getPixelRatio() } },
-        vertexShader: 'attribute float aS; uniform float uPx; varying float vS; void main(){ vS=aS; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mv; gl_PointSize=uPx*(2.0+aS*4.0)*(9.0/-mv.z); }',
+        vertexShader: 'attribute float aS; uniform float uPx; varying float vS; void main(){ vS=aS; vec4 mv=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mv; gl_PointSize=uPx*(1.0+aS*2.5)*(9.0/-mv.z)*length(modelViewMatrix[0].xyz); }',
         fragmentShader: 'varying float vS; void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.1,d)*0.9; gl_FragColor=vec4(vec3(0.95,0.97,1.0),a); }' });
       g.add(new THREE.Points(pg, pm)); let K = 1;
       const drv = driver([m], mesh, t => { for (let i = 0; i < M; i++) { const s = seed[i], fall = (s[1] - t * (0.035 + s[3] * 0.03)) % 1, v = fall < 0 ? fall + 1 : fall;

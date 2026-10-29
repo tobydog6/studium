@@ -36,7 +36,7 @@ try {
     if (/Open the bag again/.test(where)) { await page.keyboard.press('KeyB'); await page.waitForTimeout(2500); }
     if (/Open the settings again/.test(where)) { await page.evaluate(() => __co.back()); await page.waitForTimeout(2500); }
     if (/Raise the camera first/.test(where)) { await page.keyboard.press('KeyP'); await page.waitForTimeout(1500); }
-    if (SHOTS.includes(k)) { await page.waitForTimeout(1800); await page.screenshot({ path: join(OUT, `coach-${k}.png`) }); }
+    if (SHOTS.includes(k)) { await page.waitForTimeout(1800); await page.screenshot({ path: join(OUT, `coach-${k}.png`), timeout: 240000 }); }
     const txt = await page.evaluate(() => { const e = document.querySelector('#coCard'); return e ? e.innerText.replace(/\s+/g, ' ').slice(0, 120) : ''; });
     console.log(`  step ${k} [${s.ch}] ${txt}`);
     await page.evaluate(() => __co.go()); await page.waitForTimeout(1200);

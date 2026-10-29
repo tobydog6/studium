@@ -62,6 +62,7 @@ try {
     const res = await ev(() => window.__railR); console.log('  ' + tier + ':', res);
     if (!/^obj:/.test(res)) fail = fail || tier + ' did not resolve with the print: ' + res;
     await ev(() => __lt.secret.S.rail.close()); await until(() => __lt.secret.S.rail.state().phase === 'off', tier + ' close');
+    await ev(() => { const S = __lt.secret.S; S.slabs.all().filter(o => o.where !== 'table' && o.group && o.group.parent === S.scene).forEach(o => S.slabs.drop(o)); });   /* the handed-off card would hang in front of the next one */
     await ev(() => __lt.secret.S.T.setTimeScale(1)); await W(2500);
   }
 } catch (e) { fail = e.message; }

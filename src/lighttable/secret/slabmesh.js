@@ -3,6 +3,7 @@
 // and one finish layer over the photo from the finish registry (holo.js registers the shaders; matte is nothing).
 // Built with the face along +z and the label up +y: rotation.x=-PI/2 lays it flat on the table, no rotation stands it.
 import * as THREE from 'three';
+import { backCanvases } from './print.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { TIER, GRADES, VARIANT, finishOf, pad } from './slabs.js';
@@ -106,10 +107,10 @@ function labelCanvas(slab) {
   g.fillStyle = dim; g.font = '500 24px "Geist Mono", ui-monospace, monospace'; fitFill(g, 470, 12, ['Studium · 2026 · NZ', t.name.toUpperCase(), slab.variant ? (VARIANT[slab.variant] || {}).name : '', serialOf(slab)].filter(Boolean).join(' · '), 294, 336);
   g.fillStyle = dim; g.fillRect(762, 70, 2, 260); g.fillRect(1052, 70, 2, 260);
   const subs = slab.subs || [slab.grade, slab.grade, slab.grade, slab.grade]; g.font = '600 30px "Geist Mono", ui-monospace, monospace';
-  SUBS.forEach((k, i) => { const y = 122 + i * 62; g.fillStyle = ink; g.textAlign = 'left'; g.fillText(k, 796, y); g.textAlign = 'right'; g.fillText(String(subs[i]), 1022, y); const kw = g.measureText(k).width; g.fillStyle = dim; g.fillRect(796 + kw + 18, y - 8, Math.max(0, 1022 - 60 - (796 + kw + 18)), 2); });
+  SUBS.forEach((k, i) => { const y = 122 + i * 62; g.fillStyle = ink; g.textAlign = 'left'; g.fillText(k, 796, y); g.textAlign = 'right'; g.fillText(slab.pending ? '·' : String(subs[i]), 1022, y); const kw = g.measureText(k).width; g.fillStyle = dim; g.fillRect(796 + kw + 18, y - 8, Math.max(0, 1022 - 60 - (796 + kw + 18)), 2); });
   g.fillStyle = dim; g.font = '500 22px "Geist Mono", ui-monospace, monospace'; g.textAlign = 'left'; g.fillText('CERT  ' + slab.cert, 796, 366);
-  g.fillStyle = ink; g.textAlign = 'right'; g.font = '400 210px "Fraunces", Georgia, serif'; g.fillText(String(slab.grade), 1284, 248);
-  g.font = '600 34px "Geist Mono", ui-monospace, monospace'; g.fillText(GRADES[slab.grade] || '', 1282, 320);
+  g.fillStyle = ink; g.textAlign = 'right'; g.font = '400 210px "Fraunces", Georgia, serif'; g.fillText(slab.pending ? '' : String(slab.grade), 1284, 248);
+  g.font = '600 34px "Geist Mono", ui-monospace, monospace'; g.fillText(slab.pending ? 'GRADING' : (GRADES[slab.grade] || ''), 1282, 320);
   return c;
 }
 function labelCanvasVertical(slab) {
@@ -123,11 +124,11 @@ function labelCanvasVertical(slab) {
   if (slab.variant) g.fillText(((VARIANT[slab.variant] || {}).name || '').toUpperCase(), W / 2, 552);
   g.fillStyle = dim; g.fillRect(50, 566, 300, 2);
   const subs = slab.subs || [slab.grade, slab.grade, slab.grade, slab.grade]; g.font = '600 27px "Geist Mono", ui-monospace, monospace';
-  SUBS.forEach((k, i) => { const y = 626 + i * 58; g.fillStyle = ink; g.textAlign = 'left'; g.fillText(k, 56, y); g.textAlign = 'right'; g.fillText(String(subs[i]), 344, y); const kw = g.measureText(k).width; g.fillStyle = dim; g.fillRect(56 + kw + 16, y - 7, Math.max(0, 344 - 46 - (56 + kw + 16)), 2); });
+  SUBS.forEach((k, i) => { const y = 626 + i * 58; g.fillStyle = ink; g.textAlign = 'left'; g.fillText(k, 56, y); g.textAlign = 'right'; g.fillText(slab.pending ? '·' : String(subs[i]), 344, y); const kw = g.measureText(k).width; g.fillStyle = dim; g.fillRect(56 + kw + 16, y - 7, Math.max(0, 344 - 46 - (56 + kw + 16)), 2); });
   g.fillStyle = dim; g.font = '500 20px "Geist Mono", ui-monospace, monospace'; g.textAlign = 'left'; g.fillText('CERT  ' + slab.cert, 56, 892);
   g.fillStyle = dim; g.fillRect(50, 924, 300, 2);
-  g.fillStyle = ink; g.textAlign = 'center'; g.font = '400 230px "Fraunces", Georgia, serif'; g.fillText(String(slab.grade), W / 2, 1168);
-  g.font = '600 32px "Geist Mono", ui-monospace, monospace'; g.fillText(GRADES[slab.grade] || '', W / 2, 1236);
+  g.fillStyle = ink; g.textAlign = 'center'; g.font = '400 230px "Fraunces", Georgia, serif'; g.fillText(slab.pending ? '' : String(slab.grade), W / 2, 1168);
+  g.font = '600 32px "Geist Mono", ui-monospace, monospace'; g.fillText(slab.pending ? 'GRADING' : (GRADES[slab.grade] || ''), W / 2, 1236);
   return c;
 }
 /* the holographic verification sticker: a foil square that reacts to tilt, with the wordmark and cert over it */
@@ -139,6 +140,8 @@ function sticker(slab, size) { const g = new THREE.Group(); const base = new THR
 /* ---------- the slab ---------- */
 /* Sam's picks: clear acrylic case, full bleed mount, the Round 2 label. Portrait photos are as wide as the label (lw); landscape
    photos are as tall as the stood-up label, which sits down the left. The Full art variant runs the photo under the label too. */
+/* the label drawn again (the grade kept back until a parcel's count up has run) */
+export function relabel(obj) { const l = obj.parts.label; if (!l) return; const old = l.material.map; l.material.map = tex(obj.land ? labelCanvasVertical(obj.slab) : labelCanvas(obj.slab)); l.material.needsUpdate = true; if (old) old.dispose(); }
 export const SLAB = { lw: 2.6, lab: 0.78, gap: 0.08, margin: 0.17, th: 0.19 };
 export function makeSlab(slab, S) {
   const group = new THREE.Group(); group.userData.slab = slab; const inner = new THREE.Group(); group.add(inner);
@@ -163,6 +166,9 @@ function build(obj, S, env) {
   const gold = slab.tier === 'legendary', noir = slab.tier === 'mythic';
   if (!clear) { let m; if (gold) { const c = document.createElement('canvas'); c.width = 64; c.height = 256; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 64, 256); gr.addColorStop(0, '#8a6020'); gr.addColorStop(0.4, '#f3d48a'); gr.addColorStop(0.6, '#b07c25'); gr.addColorStop(1, '#ffe6a8'); g.fillStyle = gr; g.fillRect(0, 0, 64, 256); m = new THREE.MeshLambertMaterial({ map: tex(c) }); }
     else m = new THREE.MeshLambertMaterial({ color: noir || neg ? 0x08080a : 0xf2eee6 });
+    const bc = backCanvases(obj.w - 0.1, obj.h - 0.1, TIER[slab.tier] || TIER.common, S.dev && S.dev.opt ? S.dev.opt('back') : 'black', slab);
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(obj.w - 0.1, obj.h - 0.1), new THREE.MeshStandardMaterial({ map: tex(bc.map), normalMap: new THREE.CanvasTexture(bc.normal), roughness: bc.dark ? 0.45 : 0.8, envMap: env, envMapIntensity: 0.3 }));
+    back.rotation.y = Math.PI; back.position.z = z0 - 0.004; back.userData.order = 1; inner.add(back); obj.parts.back = back;   /* the card's back shows when you turn it */
     const card = new THREE.Mesh(new THREE.PlaneGeometry(obj.w - 0.1, obj.h - 0.1), m); card.position.z = z0; card.userData.order = 1; inner.add(card); obj.parts.card = card; }
   /* the photograph */
   const cx = land ? -(obj.w / 2) + m + lab + gap + pw / 2 : 0, cy = land ? 0 : -(obj.h / 2) + m + ph / 2;

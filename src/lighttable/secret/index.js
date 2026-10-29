@@ -53,6 +53,7 @@ export function installSecret(ctx) {
     shadow(w, d) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ map: SHADOW_TEX(), transparent: true, depthWrite: false, opacity: 0.55 })); m.rotation.x = -Math.PI / 2; m.position.y = 0.004; m.userData.noParticles = true; return m; },
   };
   SL.setPhotoSource(S.packs);
+  if (ctx.HOST && ctx.HOST.secretKey) try { store.key = ctx.HOST.secretKey(); } catch (e) {}   /* the demo's collection is its own */
   store.onSave = () => { if (ctx.HOST && ctx.HOST.secretSaved) ctx.HOST.secretSaved(); };
   let shadowTex = null; const SHADOW_TEX = () => { if (shadowTex) return shadowTex; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 20, 64, 64, 64); gr.addColorStop(0, 'rgba(0,0,0,0.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); shadowTex = new THREE.CanvasTexture(c); return shadowTex; };
 
@@ -313,6 +314,8 @@ export function installSecret(ctx) {
       slabObjs.forEach(o => { if (o.built) o.update(dt); });
     },
     pause(on) { if (on && inspect.active()) inspect.close('back'); if (S.blades && S.blades.pause) S.blades.pause(on); },
+    /* the table is being torn down: an online duel says goodbye first */
+    endDuel() { if (S.blades && S.blades.endDuel) S.blades.endDuel(); },
     /* an online duel (the page's duel.js): from wherever the layer is, to the Blades build card, then blades.js takes it.
        Someone invited who hasn't found the secret yet is let in: the invite is the way in. True once it has the duel. */
     duel(info) { if (!S.blades || !S.blades.duel || duelGoing) return !!duelGoing;

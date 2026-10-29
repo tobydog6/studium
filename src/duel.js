@@ -1,12 +1,14 @@
   // ================= DUEL: Blades duels between signed-in players, live =================
-  // Anyone signed in with Google (students, the demo, teachers) joins a lobby on Supabase Realtime while Studium is open.
+  // Anyone signed in with Google joins a lobby on Supabase Realtime while Studium is open: a class's students and teacher
+  // share their class's lobby (studium-lobby:<code>), everyone else (the public demo) the open one, so a stranger on the
+  // demo never sees or invites a school student.
   // Blades (the light table's secret layer) opens the list of who's on; an invite pops up wherever the other player is
   // in Studium, and accepting takes them to the stadium. Each duel runs on its own channel, studium-duel:<host>:<guest>;
   // blades.js plays it, this file is only the wire (LT_BRIDGE.duel). Private channels: only signed-in players can join
   // the lobby, and only the two players can join a duel (docs/supabase.sql, the realtime.messages policies). Names show
   // as first name and initial, never an email, and anyone can hide from the list. Plain WebSocket, Phoenix 1.0.0.
   var Duel=(function(){
-    var LOBBY="studium-lobby", ws=null, open=false, dialing=false, refN=0, hb=0, tokT=0, retry=0, wait=1000, tok=null, me=null, chans={}, people={}, L=null, denied=false;
+    var ws=null, open=false, dialing=false, refN=0, hb=0, tokT=0, retry=0, wait=1000, tok=null, me=null, chans={}, people={}, L=null, denied=false;
     var started=false, hide=false, busy=null, out=null, inbox=null, listEl=null, invEl=null;
     try{ hide=localStorage.getItem("studium_duel_hide")==="1"; }catch(e){}
     function cfg(){ return typeof Sync!=="undefined"&&Sync.cfg?Sync.cfg():null; }
@@ -49,7 +51,8 @@
       else if(m.event==="presence_state"){ if(c.h.state) c.h.state(m.payload||{}); }
       else if(m.event==="presence_diff"){ if(c.h.diff) c.h.diff(m.payload||{}); }
       else if(m.event==="system"&&m.payload&&m.payload.status==="error") console.warn("duel:", c.topic, m.payload.message); }
-    function push(c, event, payload){ if(!c.joined){ if(c.q.length<60) c.q.push([event, payload]); return; }
+    /* waiting to join: keep what matters. A full queue drops a position update or heartbeat before a launch or a round's end */
+    function push(c, event, payload){ if(!c.joined){ if(c.q.length>=60){ var k=-1; for(var i=0;i<c.q.length;i++){ var e=c.q[i][1]&&c.q[i][1].event; if(e==="snap"||e==="hi"){ k=i; break; } } if(k<0) return; c.q.splice(k,1); } c.q.push([event, payload]); return; }
       raw({topic:topicOf(c), event:event, payload:payload, ref:ref(), join_ref:c.jr}); }
     function send(c, ev, p){ push(c, "broadcast", {type:"broadcast", event:ev, payload:p}); }
     function track(c, meta){ c.meta=meta; if(c.joined) raw({topic:topicOf(c), event:"presence", payload:{type:"presence", event:"track", payload:meta}, ref:ref(), join_ref:c.jr}); }
@@ -57,7 +60,8 @@
     function leave(c){ if(!c||chans[c.topic]!==c) return; if(c.joined) raw({topic:topicOf(c), event:"phx_leave", payload:{}, ref:ref(), join_ref:c.jr}); delete chans[c.topic]; }
 
     // ---- the lobby: who's on (presence), and invites addressed to one player ----
-    function lobby(){ L=channel(LOBBY, {
+    function lobbyTopic(){ var w=(typeof lsWho==="function"&&lsWho())||{}; return w.code&&!w.demo?"studium-lobby:"+String(w.code).toUpperCase():"studium-lobby:open"; }
+    function lobby(){ L=channel(lobbyTopic(), {
         state:function(p){ people={}; for(var k in p) people[k]=(p[k].metas||[]).slice(); paint(); },
         diff:function(p){ var k;
           for(k in p.joins||{}) people[k]=(people[k]||[]).concat(p.joins[k].metas||[]);
@@ -112,7 +116,7 @@
         h+='<p class="dl-sub">Sign in with Google to duel other players who are in Studium right now.</p>'+(w.demo?'<button type="button" class="primary dl-in" data-d="in">Sign in with Google</button><p class="dl-note">Your demo progress saves to your account too.</p>':'<p class="dl-note">Sign in from the start page with your school Google account.</p>'); }
       else if(denied) h+='<p class="dl-sub">Online duels aren’t switched on here yet. Ask your teacher.</p>';
       else if(!L||!L.joined) h+='<p class="dl-sub">Connecting…</p>';
-      else { var list=online(); h+='<p class="dl-sub">Signed in and in Studium right now.</p><div class="dl-rows">';
+      else { var list=online(); h+='<p class="dl-sub">'+(L.topic==="studium-lobby:open"?'Signed in and playing the demo right now.':'From your class, in Studium right now.')+'</p><div class="dl-rows">';
         if(!list.length) h+='<p class="dl-none">Nobody else is on right now. When a friend signs in with Google and opens Studium, they’ll show up here.</p>';
         list.forEach(function(p){ var wt=out&&out.to===p.id; h+='<div class="dl-row"><span class="dl-n">'+esc(p.n)+'</span><span class="dl-s">'+(wt?'Waiting for an answer':p.busy?'In a duel':'Free')+'</span>'
           +(wt?'<button type="button" data-d="cancel">Cancel</button>':'<button type="button" class="primary" data-d="inv" data-k="'+esc(p.id)+'"'+(p.busy||out?' disabled':'')+'>Invite</button>')+'</div>'; });
@@ -124,7 +128,8 @@
       Sync.me().then(function(u){ if(!u||!started){ started=false; return; } me={id:u.id, n:short(u.name)}; lobby(); connect(); },function(){ started=false; }); }
     function stop(){ started=false; clearTimeout(retry); clearOut(); closeInvite(); for(var k in chans) leave(chans[k]); chans={}; L=null; people={}; busy=null; me=null;
       if(ws){ var w=ws; ws=null; open=false; try{ w.close(); }catch(e){} } clearInterval(hb); clearInterval(tokT); paint(); }
-    setInterval(function(){ if(can()&&!started) start(); else if(!can()&&started) stop(); }, 15000);
+    setInterval(function(){ if(can()&&!started) start(); else if(!can()&&started) stop();
+      else if(started&&L&&me&&L.topic!==lobbyTopic()){ untrack(L); leave(L); L=null; people={}; denied=false; lobby(); paint(); } }, 15000);   /* joined a class, or left the demo: the right lobby */
     setTimeout(function(){ if(can()) start(); }, 4000);
 
     var css=document.createElement("style"); css.textContent=

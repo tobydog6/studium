@@ -1,6 +1,7 @@
 // The slab data model and the secret store. A pull is a graded photo in an acrylic slab: a tier (the odds Sam set),
 // a grade rolled separately, sometimes a variant, a finish set by the tier (the dev panel can override it), and a
-// photograph from an artist pack. Everything lives in localStorage under studium_secret_v1; the light table runs in a
+// photograph from an artist pack. Everything lives in localStorage under studium_secret_v1 (the demo's under
+// studium_secret_demo_v1: the page sets store.key); the light table runs in a
 // srcdoc iframe on the page's own origin, so library.js in the parent page reads the same key for the Rare folder.
 import { rng } from './tween.js';
 
@@ -50,11 +51,11 @@ export const pad = (n, w) => String(n).padStart(w, '0');
 const KEY = 'studium_secret_v1';
 const fresh = () => ({ v: 1, unlocked: false, code: '1234', pulls: [], vault: [], binder: [], table: [], display: [], caseCols: [[], [], [], []], points: 0, certN: 0, finishes: {} });
 export const store = {
-  d: null, t: 0,
-  get() { if (store.d) return store.d; let d = null; try { d = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { d = null; }
+  d: null, t: 0, key: KEY,
+  get() { if (store.d) return store.d; let d = null; try { d = JSON.parse(localStorage.getItem(store.key) || 'null'); } catch (e) { d = null; }
     store.d = d && d.v === 1 ? Object.assign(fresh(), d) : fresh(); return store.d; },
   save() { clearTimeout(store.t); store.t = setTimeout(store.saveNow, 200); },
-  saveNow() { clearTimeout(store.t); try { localStorage.setItem(KEY, JSON.stringify(store.get())); } catch (e) {} if (store.onSave) try { store.onSave(); } catch (e) {} },   /* onSave: the page saves the session, so the collection reaches the cloud */
+  saveNow() { clearTimeout(store.t); try { localStorage.setItem(store.key, JSON.stringify(store.get())); } catch (e) {} if (store.onSave) try { store.onSave(); } catch (e) {} },   /* onSave: the page saves the session, so the collection reaches the cloud */
   reset() { store.d = fresh(); store.saveNow(); },
   pull(id) { return store.get().pulls.find(p => p.id === id) || null; },
   addPull(slab) { const d = store.get(); d.pulls.push(slab); d.points += slab.points; store.save(); return slab; },

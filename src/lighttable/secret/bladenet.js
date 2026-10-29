@@ -45,4 +45,8 @@ export function cleanSlab(s) {
   if (s.photo) { o.photo = { ...s.photo }; if (typeof o.photo.url === 'string' && (o.photo.url.length > 2000 || /^(blob|data):/.test(o.photo.url))) delete o.photo.url; }
   return o;
 }
-export function foeSlab(s) { const o = cleanSlab(s); o.id = 'foe-' + String(s.id).replace(/^foe-/, ''); o.foe = true; return o; }
+/* ok(url): whether to load a photo from there (the receiving side decides; anything else is painted from the seed) */
+export function foeSlab(s, ok) { const o = cleanSlab(s); o.id = 'foe-' + String(s.id).replace(/^foe-/, ''); o.foe = true;
+  if (o.photo && o.photo.url && !(ok && ok(o.photo.url))) delete o.photo.url;
+  ['title', 'cert', 'label'].forEach(k => { if (typeof o[k] === 'string') o[k] = o[k].slice(0, 80); }); if (o.photo) ['title', 'pack', 'artist', 'by'].forEach(k => { if (typeof o.photo[k] === 'string') o.photo[k] = o.photo[k].slice(0, 80); });
+  return o; }

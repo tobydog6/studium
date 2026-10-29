@@ -80,7 +80,9 @@ studium.nz is unchanged (except playtesters' finish-card answers now save to `st
   right. Signed in, a player's demo (photos, edits, quests, and their Blades slabs) saves to their Google account at
   `<user id>/demo.json` in `studium-saves`, apart from any real class work. Next time, *Carry on* picks it up on any
   computer. *Sign out* (top right, or the name on the hub) saves first.
-- **Blades duels.** Anyone signed in with Google who has Studium open is in a live lobby. In Blades (the light table:
+- **Blades duels.** Anyone signed in with Google who has Studium open is in a live lobby: a class's students and
+  teacher share their class's own lobby, and demo players share the open one, so a stranger on the public demo never
+  sees or invites a school student. In Blades (the light table:
   `=`, type `secret`, Space to turn the table over, then the ripper), **Duel online** lists who's on by first name and
   initial. An invite pops up wherever the other player is in Studium; *Let's go* takes them straight to the stadium,
   even if they've never found the secret layer. Each player builds their own blade, both rip, first to 4 wins.

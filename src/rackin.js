@@ -20,7 +20,7 @@
     b.addEventListener("focus",function(){ RF.over="btn"; }); b.addEventListener("blur",function(){ RF.over=null; });
     b.addEventListener("click",function(ev){ ev.stopPropagation(); rfPlay(); });
     e.querySelector(".rf-acct").addEventListener("click",function(ev){ var a=ev.target.closest("[data-rf]"); if(!a) return; ev.stopPropagation();
-      if(a.getAttribute("data-rf")==="in") siDemoSignIn(); else siSignOut(function(){}); });
+      if(a.getAttribute("data-rf")==="in") siDemoSignIn(); else siSignOut(function(){ rfAcct(e); }); });
     window.addEventListener("keydown",function(ev){ if(!RF.on) return; ev.stopImmediatePropagation(); if(ev.key==="Enter"&&!ev.repeat){ ev.preventDefault(); var f=document.activeElement; if(f&&f.closest&&f.closest(".rf-acct")) f.click(); else rfPlay(); } else if(ev.key!=="Tab") ev.preventDefault(); },true);
     window.addEventListener("keyup",function(ev){ if(RF.on) ev.stopImmediatePropagation(); },true);
     return e; }

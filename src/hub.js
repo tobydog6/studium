@@ -124,7 +124,7 @@
       if(siDemoResume()) return;   /* signed in with Google: their own demo carries on where they left it */
       var b=s.querySelector('[data-si="demo"]');
       siDemoAsk=false; b.classList.remove("ask"); b.innerHTML=SI_DEMO_LABEL;
-      if(typeof saveSessionNow==="function") saveSessionNow(); wipeWorkspace(); lsSetWho({role:"solo", name:"", demo:true}); siDone(); qDemoStart(); return; }   // a fresh demo every time; a real student's saved work is left alone
+      if(typeof saveSessionNow==="function") saveSessionNow(); wipeWorkspace(); lsSetWho(siDemoSignedIn()?{role:"solo", name:lsWho().name, demo:true, google:true}:{role:"solo", name:"", demo:true}); siDone(); qDemoStart(); return; }   // a fresh demo every time; a real student's saved work is left alone
     if(a==="teacher"){ return openTeacher("plan"); } }
   // ---- the demo with a Google sign-in: progress saves to their account (Sync, <uid>/demo.json) and comes back next time
   function siDemoSignedIn(){ var w=lsWho(); return !!(w&&w.demo&&w.google&&typeof Sync!=="undefined"&&Sync.signedIn()); }

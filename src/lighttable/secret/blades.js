@@ -649,19 +649,23 @@ export function install(S) {
      Both build their own blade and rip their own launch; the round starts when both have ripped. */
   const HOSTD = ctx.HOST && ctx.HOST.duel || null, NET_HZ = 10, LOST_MS = 15000;
   const foeName = () => B.net ? B.net.foe.n : 'Rival';
+  /* the other player's slabs only bring photos from where Studium's packs live; anything else is painted instead */
+  const PHOTO_HOSTS = ['studium.nz', 'www.studium.nz', 'xddjfwoppmuhyagkhalk.supabase.co', 'ircgijvxzcxmcnyugdvm.supabase.co', 'localhost'];
+  const photoOk = u => { try { const h = new URL(u).hostname; let own = ''; try { own = window.parent.location.hostname; } catch (e) {} return PHOTO_HOSTS.includes(h) || (!!own && h === own); } catch (e) { return false; } };
   const netSend = (ev, p) => { if (B.net && B.net.ch) B.net.ch.send(ev, p || {}); };
-  function duelStart(info) { if (!HOSTD) return; duelEnd(); const now = performance.now();
+  function duelStart(info) { if (!HOSTD) return; duelEnd(true); const now = performance.now();
     const N = B.net = { role: info.role, host: info.role === 'host', foe: info.foe, topic: info.topic, ch: null, hello: false, heard: now + 30000, parts: null, theirs: null, rd: 0, rip: null, theirRip: null, launched: false, again: { me: false, them: false }, evq: [], snapT: 0, foeSp: false };
     N.ch = HOSTD.channel(info.topic, { msg: (ev, p) => { if (B.net === N) try { netMsg(N, ev, p); } catch (e) { console.error('duel', e); } } });
     /* a heartbeat that also repeats what the other side may have missed while they were still on their way */
-    N.beat = setInterval(() => { if (B.net !== N) return; netSend('hi', { ready: !!N.parts });
+    N.beat = setInterval(() => { if (B.net !== N) return; netSend('hi', { ready: !!N.parts, st: M.state, rd: N.rd });
       if (N.parts && !N.gotAck) netSend('parts', { parts: N.parts });
       if (N.rip && !N.launched && M.is('blades.ready')) netSend('rip', N.rip);
       if (performance.now() - N.heard > (B.lostMs || LOST_MS)) duelLost(N.hello ? 'The duel’s off. We lost touch with ' + N.foe.n.replace(/\.$/, '') + '.' : N.foe.n.replace(/\.$/, '') + ' didn’t make it to the stadium.'); }, 1000);
     arena.rotation.y = N.host ? 0 : Math.PI;
     if (M.is('blades.build')) { if (!M.is('blades.build.inspect')) renderCard(); } else M.go('blades.build');
     banner('Duel with ' + esc(N.foe.n), N.host ? 'Waiting for them to get to the stadium' : 'Build your blade, then press Fight', 2600); snd('chime', { tier: 'rare' }); }
-  function duelEnd() { const N = B.net; if (!N) return; B.net = null; clearInterval(N.beat); try { N.ch.send('bye', {}); N.ch.leave(); } catch (e) {} if (HOSTD) HOSTD.end(); arena.rotation.y = 0; }
+  /* quiet: a new duel is taking over, so the page's busy flag (now the new duel's) is left alone */
+  function duelEnd(quiet) { const N = B.net; if (!N) return; B.net = null; clearInterval(N.beat); try { N.ch.send('bye', {}); N.ch.leave(); } catch (e) {} if (HOSTD && !quiet) HOSTD.end(); arena.rotation.y = 0; }
   /* the other player is gone: back to the build card, where the rolled rival is waiting as before */
   function duelLost(why) { duelEnd(); S.toast(why); hideBanner(); if (/^blades\.(ready|battle|round|result)/.test(M.state)) M.go('blades.build'); else if (M.is('blades.build') && !M.is('blades.build.inspect')) renderCard(); }
   function netReady() { const N = B.net; N.parts = B.slots.map(BN.cleanSlab); N.gotAck = false; netSend('parts', { parts: N.parts }); renderCard(); netMaybeStart(); }
@@ -670,17 +674,19 @@ export function install(S) {
     if (M.is('blades.result') ? !(N.again.me && N.again.them) : !M.is('blades.build')) return;
     const mid = Math.random().toString(36).slice(2, 9); netSend('start', { mid, parts: N.parts }); duelMatch(mid); }
   function duelMatch(mid) { const N = B.net; if (!N || N.mid === mid) return; N.mid = mid; N.rd = 0; N.again = { me: false, them: false }; N.rip = N.theirRip = null; hideBanner(); hideBar();
-    B.starting = true; B.score = [0, 0]; B.roundN = 1; forgetRival(); const parts = B.rivalParts = N.theirs.map(BN.foeSlab), sets = spareSets();
-    Promise.all(B.slots.concat(parts, sets.flat()).map(loadDNA)).then(() => { B.starting = false; if (B.rivalParts === parts && B.net === N && (M.is('blades.build') || M.is('blades.result'))) { placeSpares(sets); M.go('blades.ready'); } }); }
+    B.starting = true; B.score = [0, 0]; B.roundN = 1; forgetRival(); const parts = B.rivalParts = N.theirs.map(s => BN.foeSlab(s, photoOk)), sets = spareSets();
+    Promise.all(B.slots.concat(parts, sets.flat()).map(loadDNA)).then(() => { B.starting = false; if (B.rivalParts !== parts || B.net !== N || !(M.is('blades.build') || M.is('blades.result'))) return;
+      if (!N.parts || !N.theirs) { N.mid = null; if (M.is('blades.build') && !M.is('blades.build.inspect')) renderCard(); return; }   /* one of you changed your blade while it loaded */
+      placeSpares(sets); M.go('blades.ready'); }); }
   /* both ripped: the host launches and sends where everything is */
   function netLaunch() { const N = B.net; if (!N || !N.host || N.launched || !N.rip || !N.theirRip || N.theirRip.rd !== N.rd || !M.is('blades.ready')) return;
     N.launched = true; B.lx = N.rip.x; B.W.tops[0].p.x = N.rip.x; B.rivalPlan = BN.turnPlan(N.theirRip); hideBanner(); doLaunch(N.rip.power, N.rip.aim); N.snapT = 0;
-    netSend('go', { rd: N.rd, snap: netSnapOut() }); }
+    N.lastGo = { rd: N.rd, snap: netSnapOut() }; netSend('go', N.lastGo); }
   function netSnapOut() { const W = B.W; return { t: Math.round(W.t * 1000) / 1000, s: W.tops.map(BN.packTop) }; }
   function netQueue(ev) { const N = B.net; if (!N || !N.host || !ev.length) return; ev.forEach(e => N.evq.push(BN.packEv(e, B.W.tops))); }
   function netFlush(dt) { const N = B.net; if (!N || !N.host) return; N.snapT -= dt; if (N.snapT > 0) return; N.snapT = 1 / NET_HZ;
     const out = netSnapOut(); out.ev = N.evq; N.evq = []; netSend('snap', out); }
-  function netRound(o) { const N = B.net; if (!N || !N.host) return; const out = netSnapOut(); out.ev = N.evq; N.evq = []; out.o = { w: B.W.tops.indexOf(o.winner), how: o.how, pts: o.pts }; netSend('round', out); }
+  function netRound(o) { const N = B.net; if (!N || !N.host) return; const out = netSnapOut(); out.ev = N.evq; N.evq = []; out.o = { w: B.W.tops.indexOf(o.winner), how: o.how, pts: o.pts }; out.rd = N.rd; N.lastRound = out; netSend('round', out); }
   /* what the host sent, onto the guest's turned-round world: a top that's still spinning eases to it, the events play */
   function netApply(p) { const W = B.W; if (!W || !p || !p.s) return; W.t = p.t;
     p.s.forEach((a, hi) => { const t = W.tops[1 - hi], was = t.alive, ox = t.p.x, oy = t.p.y; t.netAlive = !!(a[12] & 1);
@@ -691,6 +697,7 @@ export function install(S) {
   function netMsg(N, ev, p) { N.heard = performance.now();
     if (!N.hello) { N.hello = true; if (M.is('blades.build') && !M.is('blades.build.inspect')) renderCard(); if (N.host) banner(esc(N.foe.n) + ' is here', 'Build your blade, then press Fight', 2200); }
     if (ev === 'bye') { duelLost(N.foe.n + ' left the duel.'); return; }
+    if (ev === 'hi') { if (N.host) { if (p.st === 'blades.ready' && p.rd === N.rd && N.lastGo && N.lastGo.rd === N.rd && N.launched) netSend('go', N.lastGo); else if (p.st === 'blades.battle' && N.lastRound && N.lastRound.rd === p.rd && !(M.is('blades.battle') && p.rd === N.rd)) netSend('round', N.lastRound); } return; }   /* the guest missed the launch or the round's end: send it again */
     if (ev === 'parts') { netSend('got'); if (!Array.isArray(p.parts) || p.parts.length !== 3) return; const fresh = !N.theirs; N.theirs = p.parts; if (fresh && M.is('blades.build') && !M.is('blades.build.inspect')) renderCard(); netMaybeStart(); return; }
     if (ev === 'got') { N.gotAck = true; return; }
     if (ev === 'unready') { N.theirs = null; if (M.is('blades.ready') && !N.launched) { M.go('blades.build'); return; } if (M.is('blades.build') && !M.is('blades.build.inspect')) renderCard(); return; }
@@ -703,11 +710,11 @@ export function install(S) {
     /* the guest: the host's launch, what happens, and how each round ends */
     if (ev === 'go') { if (!M.is('blades.ready') || p.rd !== N.rd || N.launched) return; N.launched = true; hideBanner(); tip.classList.remove('on'); B.pull = null; netApply(p.snap); B.W.tops.forEach(t => { t.ox = t.oy = 0; }); launched(N.rip ? N.rip.power : 0.7); return; }
     if (ev === 'snap') { if (M.is('blades.battle')) netApply(p); return; }
-    if (ev === 'round') { if (!M.is('blades.battle')) return; netApply(p); const o = p.o || {}, W = B.W; M.go('blades.round', { winner: W.tops[BN.turnWinner(o.w | 0, true)], how: o.how, pts: o.pts }); }
+    if (ev === 'round') { if (!M.is('blades.battle') || (p.rd != null && p.rd !== N.rd)) return; netApply(p); const o = p.o || {}, W = B.W; M.go('blades.round', { winner: W.tops[BN.turnWinner(o.w | 0, true)], how: o.how, pts: o.pts }); }
   }
 
   /* ---------- test hooks and the dev panel ---------- */
-  S.blades = { sim: () => B.W, state: B, stadium, duel: duelStart, net: () => B.net,
+  S.blades = { sim: () => B.W, state: B, stadium, duel: duelStart, net: () => B.net, endDuel: () => duelEnd(),
     /* the room is put away mid-battle: hush the whirrs (the next frame turns them back up) */
     pause(on) { if (on) [B.me, B.rival].forEach(bl => { if (bl && bl.whirr) bl.whirr.set(0, 0); }); },
     pick(ids) { B.slots = ids.map(id => byId(id)); renderCard(); buildPreview(); },

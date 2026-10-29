@@ -162,16 +162,21 @@ create policy "studium: own saves" on storage.objects for all to authenticated
   using (bucket_id = 'studium-saves' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'studium-saves' and (storage.foldername(name))[1] = auth.uid()::text);
 
--- ---------- live: the Blades duel lobby and each duel (src/duel.js), on Supabase Realtime ----------
--- Private channels only. The lobby (who's on, invites) is for signed-in players; a duel's channel,
--- studium-duel:<host id>:<guest id>, is only for those two.
+-- ---------- live: the Blades duel lobbies and each duel (src/duel.js), on Supabase Realtime ----------
+-- Private channels only. studium-lobby:<class code> is for that class's students and teacher; studium-lobby:open is the
+-- public demo's (any signed-in player); a duel's channel, studium-duel:<host id>:<guest id>, is only for those two.
+create or replace function studium_may_live(t text) returns boolean language sql stable security definer set search_path = public as $$
+  select case
+    when t = 'studium-lobby:open' then true
+    when t like 'studium-lobby:%' then exists (select 1 from studium_members m where m.class_code = split_part(t, ':', 2) and m.user_id = auth.uid())
+                                    or exists (select 1 from studium_classes c where c.code = split_part(t, ':', 2) and c.teacher_id = auth.uid())
+    when t like 'studium-duel:%' then auth.uid()::text in (split_part(t, ':', 2), split_part(t, ':', 3))
+    else false end;
+$$;
+grant execute on function studium_may_live(text) to authenticated;
 drop policy if exists "studium: duel lobby and duels, read" on realtime.messages;
 drop policy if exists "studium: duel lobby and duels, send" on realtime.messages;
 create policy "studium: duel lobby and duels, read" on realtime.messages for select to authenticated
-  using ( realtime.messages.extension in ('broadcast','presence') and (
-          realtime.topic() = 'studium-lobby'
-          or (realtime.topic() like 'studium-duel:%' and auth.uid()::text in (split_part(realtime.topic(), ':', 2), split_part(realtime.topic(), ':', 3))) ) );
+  using ( realtime.messages.extension in ('broadcast','presence') and studium_may_live(realtime.topic()) );
 create policy "studium: duel lobby and duels, send" on realtime.messages for insert to authenticated
-  with check ( realtime.messages.extension in ('broadcast','presence') and (
-          realtime.topic() = 'studium-lobby'
-          or (realtime.topic() like 'studium-duel:%' and auth.uid()::text in (split_part(realtime.topic(), ':', 2), split_part(realtime.topic(), ':', 3))) ) );
+  with check ( realtime.messages.extension in ('broadcast','presence') and studium_may_live(realtime.topic()) );

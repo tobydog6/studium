@@ -123,7 +123,9 @@
     function csGet(path){ return fresh().then(function(){ return fetch(cfg.url+"/storage/v1/object/authenticated/"+SAVES+"/"+path,{cache:"no-store", headers:{apikey:cfg.anonKey, Authorization:"Bearer "+session.access_token}}); }); }
     function csPut(path, blob, type){ return req("/storage/v1/object/"+SAVES+"/"+path,{method:"POST", raw:blob, headers:{"Content-Type":type, "x-upsert":"true", "cache-control":path.slice(-5)===".json"?"no-cache":"31536000"}}); }
     /* this student's own fresh start: nothing of whoever used this computer before (photos, boards, quests, presets) */
-    function csBlank(){ wipeWorkspace(); try{ localStorage.removeItem("studium_secret_v1"); }catch(e){}   /* the last player's Blades collection too */
+    /* theirs: the work here is another Google player's, so their Blades collection goes too (a cloud copy that brings
+       its own replaces it in applySession; an older copy without one leaves this computer's alone) */
+    function csBlank(theirs){ wipeWorkspace(); if(theirs) try{ localStorage.removeItem(typeof ltSecretKey==="function"?ltSecretKey():"studium_secret_v1"); }catch(e){}
       try{ localStorage.removeItem(csDemo()?"studium_quests_demo_v1":"studium_quests_v1"); }catch(e){} if(typeof qLoad==="function") Q=qLoad();
       try{ localStorage.removeItem("studium_presets_v1"); }catch(e){} if(typeof PR!=="undefined"){ PR.items=[]; PR.folders=PR.folders.filter(function(x){ return x.fixed; }).concat([{id:"mine",name:"My looks",open:true}]); }   /* set directly: prLoad merges in what's already here */
       if(typeof studioSync==="function") studioSync(); }
@@ -166,10 +168,10 @@
               if(d!=="none"&&(!mine||!photos.length||(d.savedAt||0)>localAt)){
                 toast("Bringing your work back…");
                 return cloudImages(u, d).then(function(full){
-                  csBlank(); applySession(full, true); lsDB[ok]=u.id; lsSave(); csReady=true; saveSessionNow();
+                  csBlank(theirs); applySession(full, true); lsDB[ok]=u.id; lsSave(); csReady=true; saveSessionNow();
                   if(typeof studioSync==="function") studioSync(); if(typeof App!=="undefined"&&App.is("hub")&&typeof hubRender==="function") hubRender();
                   var n=photos.length; toast("Your work is back · "+n+" photo"+(n===1?"":"s")); return true; }); }
-              if(theirs) csBlank();   /* another student's work was on this computer: start this student clean */
+              if(theirs) csBlank(true);   /* another student's work was on this computer: start this student clean */
               lsDB[ok]=u.id; lsSave(); csReady=true; cloudSave(); return false; }); }); })
         .catch(function(e){ console.warn("cloud restore", e);
           if(!csWarned){ csWarned=true; toast("We couldn't reach your saved work. Anything you do now stays on this computer until it connects."); }

@@ -2,6 +2,7 @@
 // Renders the synthesised sound offline (launch.js sdRenderFilm) on the film's own clock, then muxes it with
 // assets/launch/opening.mp4 at 720p. Needs `node build.mjs --web` and ffmpeg.
 //   node tools/openingsound.mjs        → tests/out/sound/sound-<n>-<name>.mp4 (whole opening) and shutter-<n>-<name>.mp4 (the shot)
+//   --only 6,7,8   just those soundtracks      --noshut   no shutter clips
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
 import { createReadStream, existsSync, mkdirSync, statSync, writeFileSync, rmSync } from 'node:fs';
@@ -30,6 +31,7 @@ async function one(v, sh, out, from, to) {
   const wav = out.replace(/\.mp4$/, '.wav'); writeFileSync(wav, Buffer.from(r.wav, 'base64')); mux(wav, out, from, to);
   console.log(out.split('/').pop(), 'peak', r.peak);
 }
-for (let v = 0; v < names.snd.length; v++) await one(v, names.now[1], join(OUT, `sound-${v}-${slug(names.snd[v])}.mp4`));
-for (let s = 1; s < names.shut.length; s++) await one(names.now[0], s, join(OUT, `shutter-${s}-${slug(names.shut[s])}.mp4`), 8.6, 13.4);
+const ONLY = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1].split(',').map(Number) : null;
+for (let v = 0; v < names.snd.length; v++) if (!ONLY || ONLY.includes(v)) await one(v, names.now[1], join(OUT, `sound-${v}-${slug(names.snd[v])}.mp4`));
+if (!process.argv.includes('--noshut')) for (let s = 1; s < names.shut.length; s++) await one(names.now[0], s, join(OUT, `shutter-${s}-${slug(names.shut[s])}.mp4`), 8.6, 13.4);
 await browser.close(); server.close();

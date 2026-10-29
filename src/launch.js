@@ -172,7 +172,7 @@
     sdTone(b,t+D,2730,"sine",0.003,0.04,0.045,0.03); sdTone(b,t+D+0.1,2730,"sine",0.003,0.04,0.045,0.05); }
   // ---- the shutter: five to choose from (?shut=1..5, or localStorage studium_open_shut); all on the audio clock ----
   var SD_SHN=["","Mirrorless","DSLR","Film SLR and wind-on","Rangefinder","Recorded"];
-  var SD_SH=(function(){ var m=/[?&]shut=(\d)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_shut"); if(v!=null) return +v; }catch(e){} return 2; })();
+  var SD_SH=(function(){ var m=/[?&]shut=(\d+)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_shut"); if(v!=null) return +v; }catch(e){} return 5; })();   /* the recording is the default */
   function sdClk(b,t,f,q,peak,dec,pan){ var c=SD.ctx, s=c.createBufferSource(), fl=c.createBiquadFilter(), g=c.createGain(); s.buffer=SD.nb; fl.type="bandpass"; fl.frequency.value=f; fl.Q.value=q;   /* a mechanical click: a short burst of noise, shaped by the body it rings in */
     g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+0.0012); g.gain.exponentialRampToValueAtTime(0.0001,t+0.0012+dec); s.connect(fl); fl.connect(g); sdOut(g,b,pan,null,t,dec); s.start(t,Math.random()*1.5); s.stop(t+dec+0.02); }
   function sdBody(b,t,f,peak,dec){ sdTone(b,t,f,"sine",0.0015,peak,0.002,dec,f*0.92); }   /* the camera body's short ring */
@@ -190,10 +190,10 @@
   function sdShutLoad(c){ if(SD.shBuf||!c||SD.shGet) return SD.shGet; SD.shGet=fetch(SHUTTER_SRC[0]).then(function(r){ return r.arrayBuffer(); }).then(function(ab){ return new Promise(function(ok,no){ c.decodeAudioData(ab,ok,no); }); }).then(function(bf){ SD.shBuf=bf; }).catch(function(){}); return SD.shGet; }
   function sdShutter(t){ var c=sdCtx(); if(!c) return; t=t==null?sdNow():t; var b=SD.shB&&SD.shB.context===c?SD.shB:(SD.shB=sdBus(0.22)); (SD_SHUT[SD_SH]||SD_SHUT[2])(b,t);   /* its own bus: a little room, not the music's big one */
     if(SD.drone){ sdDroneTo(1,t,0.05); } if(SD.vb){ SD.vb.gain.setTargetAtTime(0.0001,t+0.01,0.06); SD.vb=null; } if(sdVar("shot")) sdVar("shot")(sdSeq()||b,t); }
-  // ---- five sound options for the beginning (?snd=1..5): the bed, the point cloud, the lens, the focus, the shot.
-  //      The spin and the title are the same in all of them. ----
-  var SD_V=(function(){ var m=/[?&]snd=(\d)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_snd"); if(v!=null) return +v; }catch(e){} return 2; })();   /* Air is the default; ?snd=0..5 to compare */
-  var SD_VN=["As it is","Felt","Air","Strings","Pulse","Glass"];
+  // ---- the soundtrack options (?snd=0..11, or localStorage studium_open_snd): each brings its bed, the film's start, the lens,
+  //      the focus and the shot; 6 to 11 also their own title moment. tools/openingsound.mjs lays each under the film to compare ----
+  var SD_V=(function(){ var m=/[?&]snd=(\d+)/.exec(location.search); if(m) return +m[1]; try{ var v=localStorage.getItem("studium_open_snd"); if(v!=null) return +v; }catch(e){} return 3; })();   /* Strings is the default; ?snd=0..11 to compare */
+  var SD_VN=["As it is","Felt","Air","Strings","Pulse","Glass","Cinematic","Lo-fi","Deep drone","Electronic","Bush","Piano and cello"];
   function sdVar(k){ var v=SDV[SD_V]; return v&&v[k]||null; }
   function sdVBus(c,t,send){ var b=c.createGain(); b.gain.value=1; b.connect(SD.out); if(send){ var s=c.createGain(); s.gain.value=send; b.connect(s); s.connect(SD.verb); } SD.vb=b; return b; }   /* the beginning's own music: the shutter cuts it */
   function sdAir(c,bus,t,g0,lpf){ var s=c.createBufferSource(); s.buffer=SD.nb; s.loop=true; var lp=c.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=lpf||500; var hp=c.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=120; var g=c.createGain(); g.gain.value=g0;
@@ -234,7 +234,95 @@
         scan:function(b,t,D){ var vb=SD.vb||b; for(var i=0;i<70;i++){ var u=i/70, f=SD_PENTA[Math.floor(Math.random()*SD_PENTA.length)]*(u>0.6?2:1); sdTone(vb,t+D*Math.pow(u,0.75)+Math.random()*0.06,f,"sine",0.002,0.03+0.02*(1-u),0.005,0.35,null,(Math.random()*2-1)*0.9); }
           sdNoise(vb,t+D-1.1,"highpass",1500,0.7,1.05,0.04,0.01,0.04,9000); [1760,2217.46,2637.02,3951.07].forEach(function(f,i){ sdBell(vb,t+D+i*0.03,f,0.05,(i-1.5)*0.4,2.6); }); },
         lens:function(b,t){ sdNoise(b,t,"bandpass",600,0.9,0.08,0.02,0.08,0.3,1600); sdBell(SD.vb||b,t+0.5,2637.02,0.012,0,0.8); },
-        rack:function(b,t,D){ for(var i=0;i<12;i++) sdTone(b,t+D*0.85*(1-Math.pow(1-i/12,1.7)),3520+i*40,"sine",0.001,0.016,0.002,0.04); sdBell(b,t+D,1760,0.05,-0.2,1.2); sdBell(b,t+D+0.11,2637.02,0.05,0.2,1.4); } } };
+        rack:function(b,t,D){ for(var i=0;i<12;i++) sdTone(b,t+D*0.85*(1-Math.pow(1-i/12,1.7)),3520+i*40,"sine",0.001,0.016,0.002,0.04); sdBell(b,t+D,1760,0.05,-0.2,1.2); sdBell(b,t+D+0.11,2637.02,0.05,0.2,1.4); } },
+    /* 6 · Cinematic: a low drone and a slow brass swell building under the glide, low drums gathering pace toward the shot;
+       the shutter cuts it all to silence, then a trailer "braam" lands with the title */
+    6:{ bed:function(c,t){ var bus=sdBedBus(c,t); SD.ambSrc=sdAir(c,bus,t,0.008,300); },
+        scan:function(b,t){ var c=SD.ctx, F=LA_F, vb=sdVBus(c,t,0.9); sdDrone(vb,t,[55,82.41],F.fire+1,0.05,240,700);
+          sdPad(vb,t+1.5,[110,130.81,164.81,220],F.fire-1.5,0.022,260,2600);   /* A minor, opening up */
+          var at=t+4.2, gap=1.3; while(at<t+F.fire-0.25){ sdTom(vb,at,0.22*(0.5+0.5*(at-t)/F.fire)); at+=gap; gap=Math.max(0.32,gap*0.86); }   /* the drums gather pace */
+          sdNoise(vb,t+F.fire-2.2,"highpass",1200,0.7,2.1,0.05,0.02,0.05,9000); },   /* a riser into the shot */
+        lens:function(b,t){ sdNoise(b,t,"bandpass",600,0.9,0.08,0.02,0.08,0.3,1600); },
+        rack:function(b,t,D){ for(var i=0;i<10;i++) sdTick(b,t+D*0.85*(1-Math.pow(1-i/10,1.7)),3600,0.01); },
+        spin:function(b,t){ var w=t+0.7; sdNoise(b,t+0.15,"highpass",900,0.7,0.55,0.07,0.01,0.03,8000);   /* breath in */
+          [55,82.41,110,164.81].forEach(function(f,i){ var c=SD.ctx, o=c.createOscillator(), o2=c.createOscillator(), lp=c.createBiquadFilter(), g=c.createGain(); o.type=o2.type="sawtooth"; o.frequency.value=f; o2.frequency.value=f*1.004;
+            lp.type="lowpass"; lp.frequency.setValueAtTime(180,w); lp.frequency.exponentialRampToValueAtTime(2200,w+0.25); lp.frequency.exponentialRampToValueAtTime(260,w+4.5); sdEnv(g,w,0.03,[0.11,0.09,0.06,0.035][i],0.4,4.2);
+            o.connect(lp); o2.connect(lp); lp.connect(g); g.connect(b); o.start(w); o2.start(w); o.stop(w+5); o2.stop(w+5); });   /* the braam */
+          sdTone(b,w,48,"sine",0.01,0.35,0.2,3,28); sdNoise(b,w,"lowpass",3000,0.7,0.004,0.12,0.03,1.6,200); } },
+    /* 7 · Lo-fi: warm electric piano chords, vinyl crackle, a lazy boom-bap; the shot is a tape stop, the title a soft chord */
+    7:{ bed:function(c,t){ var bus=sdBedBus(c,t); SD.ambSrc=sdAir(c,bus,t,0.006,500); },
+        scan:function(b,t){ var c=SD.ctx, F=LA_F, vb=sdVBus(c,t,0.35), B=F.fire/24, i;   /* 24 beats to the shot */
+          for(i=0;i<Math.floor(F.len*7);i++) sdTick(vb,t+Math.random()*F.len,1800+Math.random()*4000,0.006+Math.random()*0.01,(Math.random()*2-1)*0.5);   /* crackle */
+          sdNoise(vb,t,"bandpass",2500,0.4,1,0.006,F.fire,0.3);   /* hiss */
+          var ch=[[62,66,69,73],[61,64,68,71],[59,62,66,69],[64,68,71,74],[62,66,69,73],[61,64,68,71]];   /* Dmaj7 C#m7 Bm7 E7(9) Dmaj7 C#m7 */
+          ch.forEach(function(nt,k){ var at=t+k*4*B; nt.forEach(function(m,j){ sdEP(vb,at+j*0.018,sdMidi(m),0.045,4*B); }); sdEP(vb,at,sdMidi(nt[0]-24),0.05,4*B); });
+          for(i=4;i<24;i++){ var bt=t+i*B+(i%2?B*0.08:0); if(i%4===0) sdKick(vb,bt,0.3); if(i%4===2) sdKick(vb,bt+B*0.5,0.22); if(i%2===1) sdSnare(vb,bt,0.09); sdHat(vb,bt+B*0.5,0.025); } },
+        lens:function(b,t){ sdNoise(b,t,"bandpass",600,0.9,0.08,0.015,0.08,0.3,1600); },
+        rack:function(b,t,D){ for(var i=0;i<8;i++) sdTick(b,t+D*0.85*(1-Math.pow(1-i/8,1.7)),3200,0.01); },
+        shot:function(b,t){ [62,66,69,73].forEach(function(m){ sdTone(b,t+0.02,sdMidi(m),"sine",0.005,0.035,0.05,0.6,sdMidi(m)*0.45); }); },   /* the tape winds down */
+        spin:function(b,t){ var w=t+0.7; [57,64,68,71,76].forEach(function(m,j){ sdEP(b,w+j*0.05,sdMidi(m),0.05,3.5); }); sdEP(b,w,sdMidi(45),0.06,3.5); sdKick(b,w,0.25); for(var i=0;i<3;i++) sdTick(b,w+0.8+i*0.4,2400,0.02); } },
+    /* 8 · Deep drone: one evolving drone, the whole way: low and dark in the dark, opening and shimmering through the glide,
+       a held breath for the shot, and it blooms into the title */
+    8:{ bed:function(c,t){ var bus=sdBedBus(c,t); SD.ambSrc=sdAir(c,bus,t,0.006,300); },
+        scan:function(b,t){ var c=SD.ctx, F=LA_F, vb=sdVBus(c,t,1.3); sdDrone(vb,t,[36.71,73.42,110,146.83,164.81],F.len+2,0.045,150,1900);   /* D, open fifths and a ninth */
+          [587.33,880,1174.66].forEach(function(f,i){ sdTone(vb,t+3+i*1.4,f,"sine",3,0.008,F.fire-6-i*1.4,2.5,null,(i-1)*0.6); });   /* the shimmer above */
+          sdNoise(vb,t+2,"bandpass",900,6,4,0.012,F.fire-7,2,2600); },
+        lens:function(b,t){ sdNoise(b,t,"bandpass",500,0.9,0.1,0.015,0.08,0.3,1400); },
+        rack:function(b,t,D){ sdTone(b,t,1174.66,"sine",0.3,0.012,D-0.3,0.8,1318.51); },
+        spin:function(b,t){ var w=t+0.7; [73.42,110,146.83,220,293.66,329.63,440].forEach(function(f,i){ sdTone(b,w+i*0.04,f,i<2?"triangle":"sine",0.6+i*0.1,[0.06,0.05,0.04,0.03,0.025,0.02,0.014][i],1.2,4.5,null,(i%2?0.35:-0.35)); });
+          sdTone(b,w-0.05,36.71,"sine",0.4,0.2,1,4); [1174.66,1479.98,1760].forEach(function(f,i){ sdBell(b,w+0.3+i*0.12,f,0.018,(i-1)*0.5,3); }); } },
+    /* 9 · Electronic: a pulsing arpeggio and a four-on-the-floor beat building, a riser, a hard cut on the shutter,
+       and a big chord stab with the title */
+    9:{ bed:function(c,t){ var bus=sdBedBus(c,t); SD.ambSrc=sdAir(c,bus,t,0.005,400); },
+        scan:function(b,t){ var c=SD.ctx, F=LA_F, vb=sdVBus(c,t,0.3), B=F.fire/24, S=B/4, i, arp=[57,64,69,72,76,72,69,64], lp=c.createBiquadFilter();
+          lp.type="lowpass"; lp.Q.value=6; lp.frequency.setValueAtTime(400,t); lp.frequency.exponentialRampToValueAtTime(4200,t+F.fire); lp.connect(vb);
+          for(i=0;i<24*4;i++){ var at=t+i*S, m=arp[i%8]+(i>=48?(i%16<8?0:-2):0); sdPluck(lp,at,sdMidi(m),0.03+0.02*i/96,S*1.6,(i%2?0.3:-0.3)); }   /* the arpeggio, the filter opening */
+          for(i=8;i<24;i++){ var bt=t+i*B; sdKick(vb,bt,0.42); if(i>=12) sdHat(vb,bt+B*0.5,0.04); if(i>=16&&i%2===1) sdClap(vb,bt,0.08); }
+          sdTone(vb,t+8*B,sdMidi(33),"sawtooth",0.05,0.02,F.fire-8*B-0.1,0.05);   /* the bass comes in with the kick */
+          sdNoise(vb,t+F.fire-4*B,"bandpass",800,2,4*B,0.06,0.01,0.02,9000); },   /* riser */
+        lens:function(b,t){ sdTone(b,t,1760,"square",0.002,0.01,0.03,0.05); },
+        rack:function(b,t,D){ for(var i=0;i<12;i++) sdTone(b,t+i*D/12,1760+i*120,"square",0.001,0.006,0.01,0.03); },
+        spin:function(b,t){ var w=t+0.7; [45,57,64,69,72,76].forEach(function(m,j){ sdPluck(b,w,sdMidi(m),0.07,2.8,(j%2?0.4:-0.4)); sdTone(b,w,sdMidi(m),"sawtooth",0.01,0.025,0.4,2.6); });
+          sdKick(b,w,0.5); sdNoise(b,w,"highpass",6000,0.7,0.002,0.05,0.02,1.4); } },
+    /* 10 · Bush: no music. A New Zealand bush in the morning: wind moving through the canopy, a stream nearby, tūī and
+       bellbird calling, a fantail close by; the title lands on a gust and a bellbird's phrase */
+    10:{ bed:function(c,t){ var bus=sdBedBus(c,t); var a=sdAir(c,bus,t,0.02,900), w=sdAir(c,bus,t,0.012,3200); SD.ambSrc=a.concat(w); },
+        scan:function(b,t){ var F=LA_F, i, T=F.len+1;
+          for(i=0;i<T*22;i++) sdNoise(b,t+Math.random()*T,"bandpass",500+Math.random()*1300,3,0.02,0.006+Math.random()*0.008,0.03,0.08,null,-0.6+Math.random()*0.3);   /* the stream, off to the left */
+          for(i=0;i<6;i++) sdTui(b,t+1.2+i*2.6+Math.random()*0.8,(Math.random()*2-1)*0.8);
+          for(i=0;i<5;i++) sdBellbird(b,t+2.4+i*2.9+Math.random()*0.6,(Math.random()*2-1)*0.7);
+          for(i=0;i<4;i++) sdFantail(b,t+3+i*3.3+Math.random(),(Math.random()*2-1)*0.6); },
+        lens:function(b,t){ sdNoise(b,t,"bandpass",500,0.8,0.1,0.08,0.12,0.35,1400,-0.3,0.2); sdTick(b,t+0.52,1400,0.07); },
+        rack:function(b,t,D){ for(var i=0;i<12;i++) sdTick(b,t+D*0.85*(1-Math.pow(1-i/12,1.7)),3800,0.01); },
+        spin:function(b,t){ var w=t+0.7; sdNoise(b,t,"lowpass",500,0.6,1.2,0.07,0.4,1.8,1800,-0.6,0.6); sdBellbird(b,w,0); sdBellbird(b,w+1.1,0.4); sdTone(b,w,55,"sine",1.2,0.05,1,3); } },
+    /* 11 · Piano and cello: a simple tune on a felt piano over a slow cello line, resolving as the title lands */
+    11:{ bed:function(c,t){ var bus=sdBedBus(c,t); SD.ambSrc=sdAir(c,bus,t,0.006,400); },
+        scan:function(b,t){ var c=SD.ctx, F=LA_F, vb=sdVBus(c,t,1.0), B=F.fire/16;   /* 16 slow beats to the shot */
+          [[0,76,1.5],[1.5,73,0.5],[2,71,1],[3,69,1],[4,73,1.5],[5.5,74,0.5],[6,76,2],[8,78,1.5],[9.5,76,0.5],[10,74,1],[11,73,1],[12,71,2],[14,73,1],[15,76,1]].forEach(function(n){ sdFelt(vb,t+n[0]*B,sdMidi(n[1]),0.06,0.15); });
+          [[0,57],[4,54],[8,50],[12,52]].forEach(function(n){ sdFelt(vb,t+n[0]*B,sdMidi(n[1]-12),0.05,-0.15); sdFelt(vb,t+n[0]*B+B,sdMidi(n[1]),0.035,-0.1); sdCello(vb,t+n[0]*B,sdMidi(n[1]-12),4*B,0.03); }); },
+        lens:function(b,t){ sdNoise(b,t,"bandpass",600,0.9,0.08,0.015,0.08,0.3,1600); },
+        rack:function(b,t,D){ for(var i=0;i<8;i++) sdTick(b,t+D*0.85*(1-Math.pow(1-i/8,1.7)),3400,0.008); },
+        spin:function(b,t){ var w=t+0.7; [45,57,61,64,69,73,76].forEach(function(m,j){ sdFelt(b,w+j*0.07,sdMidi(m),0.06-j*0.004,(j-3)*0.12); }); sdCello(b,w,sdMidi(45),4,0.035); } } };
+  // ---- the building blocks of 6 to 11 ----
+  function sdMidi(m){ return 440*Math.pow(2,(m-69)/12); }
+  function sdPad(b,t,fs,dur,peak,c0,c1){ var c=SD.ctx, lp=c.createBiquadFilter(), g=c.createGain(); lp.type="lowpass"; lp.Q.value=0.7; lp.frequency.setValueAtTime(c0,t); lp.frequency.exponentialRampToValueAtTime(c1,t+dur); sdEnv(g,t,dur*0.35,peak,dur*0.55,dur*0.25+0.6); lp.connect(g); g.connect(b);
+    fs.forEach(function(f,i){ [-7,7].forEach(function(dt){ var o=c.createOscillator(); o.type="sawtooth"; o.frequency.value=f; o.detune.value=dt+i*2; o.connect(lp); o.start(t); o.stop(t+dur*1.2+0.8); }); }); }
+  function sdDrone(b,t,fs,dur,peak,c0,c1){ var c=SD.ctx, lp=c.createBiquadFilter(), g=c.createGain(), lfo=c.createOscillator(), lg=c.createGain(); lp.type="lowpass"; lp.Q.value=1.2; lp.frequency.setValueAtTime(c0,t); lp.frequency.exponentialRampToValueAtTime(c1,t+dur*0.7);
+    lfo.frequency.value=0.09; lg.gain.value=c0*0.4; lfo.connect(lg); lg.connect(lp.frequency); sdEnv(g,t,3,peak,dur-4,1.5); lp.connect(g); g.connect(b); lfo.start(t); lfo.stop(t+dur+0.5);
+    fs.forEach(function(f,i){ [-5,0,5].forEach(function(dt){ var o=c.createOscillator(); o.type=i===0?"sine":"sawtooth"; o.frequency.value=f; o.detune.value=dt*(i?1:0); var og=c.createGain(); og.gain.value=i===0?2.5:1; o.connect(og); og.connect(lp); o.start(t); o.stop(t+dur+0.5); }); }); }
+  function sdTom(b,t,peak){ sdTone(b,t,92,"sine",0.003,peak,0.02,0.5,46); sdNoise(b,t,"lowpass",900,0.7,0.002,peak*0.25,0.01,0.15,200); }
+  function sdKick(b,t,peak){ sdTone(b,t,140,"sine",0.002,peak,0.01,0.28,42); sdTick(b,t,3000,peak*0.08); }
+  function sdSnare(b,t,peak){ sdNoise(b,t,"bandpass",1900,0.8,0.002,peak,0.01,0.16,1200); sdTone(b,t,190,"triangle",0.002,peak*0.5,0.01,0.08,150); }
+  function sdClap(b,t,peak){ for(var k=0;k<3;k++) sdNoise(b,t+k*0.011,"bandpass",1400,1.2,0.001,peak,0.002,0.03); sdNoise(b,t+0.033,"bandpass",1400,1.2,0.001,peak*0.8,0.01,0.14); }
+  function sdHat(b,t,peak){ sdNoise(b,t,"highpass",7500,0.7,0.001,peak,0.004,0.045); }
+  function sdEP(b,t,f,peak,dur){ sdTone(b,t,f,"sine",0.008,peak,dur*0.25,dur*0.75); sdTone(b,t,f*2,"sine",0.004,peak*0.18,0.02,dur*0.4); sdTone(b,t,f*7.03,"sine",0.001,peak*0.05,0.004,0.18); }   /* an electric piano: the note, its octave, the tine's ping */
+  function sdPluck(b,t,f,peak,dur,pan){ var c=SD.ctx, o=c.createOscillator(), lp=c.createBiquadFilter(), g=c.createGain(); o.type="sawtooth"; o.frequency.value=f; lp.type="lowpass"; lp.frequency.setValueAtTime(f*8,t); lp.frequency.exponentialRampToValueAtTime(f*1.2,t+dur*0.6); sdEnv(g,t,0.003,peak,0.01,dur); o.connect(lp); lp.connect(g); sdOut(g,b,pan,null,t,dur); o.start(t); o.stop(t+dur+0.1); }
+  function sdCello(b,t,f,dur,peak){ var c=SD.ctx, o=c.createOscillator(), lp=c.createBiquadFilter(), g=c.createGain(), v=c.createOscillator(), vg=c.createGain(); o.type="sawtooth"; o.frequency.value=f; v.frequency.value=5.2; vg.gain.value=f*0.006; v.connect(vg); vg.connect(o.frequency);
+    lp.type="lowpass"; lp.frequency.value=900; lp.Q.value=0.8; sdEnv(g,t,0.6,peak,Math.max(0.1,dur-1.2),1.2); o.connect(lp); lp.connect(g); g.connect(b); o.start(t); v.start(t); o.stop(t+dur+1); v.stop(t+dur+1); }
+  function sdTui(b,t,pan){ var seq=[[1900,0.06],[2700,0.05],[0,0.05],[1250,0.09],[3400,0.04],[0,0.03],[2200,0.07]], at=t;   /* a tūī: bell notes, a click, a gurgle */
+    seq.forEach(function(s){ if(s[0]) sdTone(b,at,s[0],"sine",0.004,0.012,s[1]*0.5,s[1]*0.6,s[0]*(Math.random()<0.4?1.3:0.95),pan); else sdTick(b,at,3800,0.03,pan); at+=s[1]+0.03; }); }
+  function sdBellbird(b,t,pan){ [1568,2093,1760].forEach(function(f,i){ sdBell(b,t+i*0.2,f*(0.98+Math.random()*0.04),0.014,pan,0.9); }); }   /* korimako: three pure bell notes */
+  function sdFantail(b,t,pan){ for(var i=0;i<6;i++) sdTone(b,t+i*0.07,3600+((i%2)?500:-300),"sine",0.003,0.008,0.01,0.03,null,pan); }   /* pīwakawaka: a quick squeaky chatter */
   // ---- the day in sound (Air): crickets in the night, fading as it greys; the first bird at first light, a dawn chorus by
   //      golden hour. The rain is the weather's own sound, following the rain you see. t is the reveal, T the time to the shot ----
   function sdCricket(b,t,f,peak,pan){ for(var k=0;k<4;k++) sdTone(b,t+k*0.028,f,"sine",0.002,peak,0.008,0.012,null,pan); }
@@ -249,7 +337,7 @@
     g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+0.012); g.gain.exponentialRampToValueAtTime(peak*0.35,t+0.5); g.gain.exponentialRampToValueAtTime(0.0001,t+3.2); lp.connect(g); sdOut(g,b,pan,null,t,3.2);
     [[1,1],[2,0.32],[3,0.1],[4.02,0.05]].forEach(function(h){ var o=c.createOscillator(), og=c.createGain(); o.type="sine"; o.frequency.value=f*h[0]; og.gain.value=h[1]; o.connect(og); og.connect(lp); o.start(t); o.stop(t+3.3); }); }
   // the big circle: a whoosh round, the sub swelling, then the wordmark lands on a warm A chord with the letters glinting in
-  function sdSpin(t,quick){ var b=sdCtx()&&sdBus(0.6); if(!b) return; t=t==null?sdNow():t; SD.big=b; var D=quick?1.6:LA_T.spin, w=t+0.7;
+  function sdSpin(t,quick){ var b=sdCtx()&&sdBus(0.6); if(!b) return; t=t==null?sdNow():t; SD.big=b; if(sdVar("spin")) return sdVar("spin")(b,t,quick);   /* 6 to 11 bring their own title moment */ var D=quick?1.6:LA_T.spin, w=t+0.7;
     sdNoise(b,t,"lowpass",300,0.8,D*0.35,0.15,D*0.1,D*0.45,2000,-0.7,0.7); sdNoise(b,t+D*0.15,"bandpass",600,1.4,D*0.3,0.05,0.1,D*0.4,300,0.7,-0.5);   /* round we go */
     sdNoise(b,w-0.55,"highpass",900,0.8,0.5,0.06,0.02,0.04,7000);   /* a breath in before the hit */
     sdDroneTo(1,w,0.4);

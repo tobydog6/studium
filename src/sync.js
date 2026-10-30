@@ -209,7 +209,9 @@
       if(w.role==="teacher"&&dirty){ var p=lsDB.plans[w.code]; if(p&&p.sent) jobs.push(pushPlan(p)); dirty=false; }
       Promise.all(jobs).then(function(){ busy=false; },function(){ busy=false; }); }
     if(on()) setInterval(beat, 20000);
-    return {on:on, providers:providers, signIn:signIn, signedIn:signedIn, justBack:justBack, me:me, signOut:signOut, token:token, cfg:function(){ return cfg; },
+    /* the secret layer's trading (lighttable/secret/market.js): its two tables only */
+    function tradeRest(path, opt){ if(!/^studium_trade_(shelves|offers)\b/.test(String(path))) return Promise.reject(new Error("trade tables only")); return rest(path, opt); }
+    return {tradeRest:tradeRest, on:on, providers:providers, signIn:signIn, signedIn:signedIn, justBack:justBack, me:me, signOut:signOut, token:token, cfg:function(){ return cfg; },
       joinClass:joinClass, myMembership:myMembership, addMember:addMember, myClasses:myClasses, pushClass:pushClass,
       pushPlan:pushPlan, pullPlan:pullPlan, roster:roster, sendNote:sendNote, sendFeedback:sendFeedback, rarity:rarity, pullNotes:pullNotes,
       saveWorkbook:saveWorkbook, cloudSave:cloudSave, cloudSoon:cloudSoon, cloudRestore:cloudRestore, driveStatus:driveStatus, driveConnect:driveConnect, driveRebuild:driveRebuild,

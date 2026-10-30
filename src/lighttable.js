@@ -26,6 +26,13 @@
     /* online Blades duels (duel.js) */
     duel:{ can:function(){ return typeof Duel!=="undefined"&&Duel.can(); }, list:function(){ if(typeof Duel!=="undefined") Duel.list(); }, end:function(){ if(typeof Duel!=="undefined") Duel.end(); },
       channel:function(topic,h){ return Duel.channel(topic,h); } },
+    /* the secret layer's coins and trading (market.js): what quests and achievements have earned, who you are, your
+       lobby (a class trades inside its class, the public demo with the demo, the same as Blades duels), the trade tables */
+    trade:{ can:function(){ return typeof Sync!=="undefined"&&Sync.on()&&Sync.signedIn(); },
+      me:function(){ if(typeof Sync==="undefined") return Promise.resolve(null); return Sync.me().then(function(u){ if(!u) return null; var p=String(u.name||"").trim().split(/\s+/); return {id:u.id, name:p[0]?p[0]+(p.length>1?" "+p[p.length-1].charAt(0).toUpperCase()+".":""):"Someone"}; }); },
+      lobby:function(){ var w=(typeof lsWho==="function"&&lsWho())||{}; return w.code&&!w.demo?"studium-lobby:"+String(w.code).toUpperCase():"studium-lobby:open"; },
+      rest:function(path,opt){ return Sync.tradeRest(path,opt); },
+      earnings:function(){ var a=0, q=0; try{ if(typeof Q!=="undefined"&&Q){ a=Object.keys((Q.ach&&Q.ach.earned)||{}).length; for(var k in Q.quests||{}) if(Q.quests[k]&&Q.quests[k].done) q++; } }catch(e){} return {ach:a, quests:q}; } },
     shutter:function(){ try{ if(typeof shutterSound==="function") shutterSound(); else sfx("capture"); }catch(e){} },
     save:function(s){ st.lightTable=s; saveSession(); },
     tourDone:function(){ ltWant=false; if(typeof Q!=="undefined"&&Q&&Q.tours){ Q.tours.lighttable=true; if(typeof qSave==="function") qSave(); } },

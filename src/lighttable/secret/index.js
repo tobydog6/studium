@@ -20,6 +20,7 @@ import * as print from './print.js';
 import * as rail from './rail.js';
 import * as reveals from './reveals.js';
 import * as bloom from './bloom.js';
+import * as market from './market.js';
 import * as parcel from './parcel.js';
 import * as sound from './sound.js';
 import * as under from './under.js';
@@ -115,7 +116,7 @@ export function installSecret(ctx) {
   skipBtn.addEventListener('pointerdown', e => e.stopPropagation());
   skipBtn.addEventListener('click', () => { let n = 0; store.get().pulls.forEach(p => { if (p.sentAt && !p.graded && Date.now() < p.readyAt) { SL.skipGrading(p); n++; } }); S.toast(n ? 'The lab worked through the night. ' + n + ' parcel' + (n === 1 ? '' : 's') + ' on the way.' : 'Nothing is away for grading.'); hud(); if (S.parcel) S.parcel.check(); });
   function hud() { const d = store.get(), away = d.pulls.filter(p => SL.gradingState(p) === 'away').length;
-    pts.textContent = d.points.toLocaleString('en-NZ') + ' PTS  ·  KEYS ∞  ·  ' + d.pulls.length + ' PULL' + (d.pulls.length === 1 ? '' : 'S') + (away ? '  ·  ' + away + ' AWAY' : ''); pts.classList.toggle('on', !!d.unlocked);
+    pts.textContent = d.points.toLocaleString('en-NZ') + ' PTS  ·  KEYS ' + (S.market ? S.market.keys() : '∞') + '  ·  ' + d.pulls.length + ' PULL' + (d.pulls.length === 1 ? '' : 'S') + (away ? '  ·  ' + away + ' AWAY' : ''); pts.classList.toggle('on', !!d.unlocked);
     skipBtn.hidden = !(d.unlocked && away); dev.refresh(); }
   /* the HUD keeps up with the clock so AWAY turns into a parcel without a click */
   setInterval(() => { if (S.unlocked()) hud(); }, 5000);
@@ -232,7 +233,7 @@ export function installSecret(ctx) {
   M.define('idle', {
     exit() { sd = null; setHot(null); },
     on: { VAULT: (p, M) => M.defined('vault.open') ? 'vault.open' : (S.toast('The vault is still being built. Soon.'), undefined),
-          LOOT: (p, M) => M.defined('loot.open') ? 'loot.open' : (S.toast('The loot board is still being built. Soon.'), undefined),
+          LOOT: (p, M) => M.defined('loot.open') ? (!S.market || S.market.spendKey() ? 'loot.open' : undefined) : (S.toast('The loot board is still being built. Soon.'), undefined),   /* a pull takes a key (market.js) */
           ROOM: 'room.knock' },
     pointer(kind, e, M) {
       /* a print, wall group or string being dragged keeps the table's own handling; the buttons only take a free pointer */
@@ -299,7 +300,7 @@ export function installSecret(ctx) {
 
   /* ---------- the modules (each owns one file) ---------- */
   const secretTop = new Set();
-  [sound, print, holo, fxfin, bloom, reveals, rail, arm, binder, parcel, loot, under, casebox, shelf, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  [sound, print, holo, fxfin, bloom, reveals, rail, arm, binder, parcel, loot, under, casebox, shelf, market, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
   ctx.scene.children.forEach(c => { if (!lightSide.has(c)) secretTop.add(c); });   /* the rigs the modules just added */
 
   /* ---------- boot ---------- */

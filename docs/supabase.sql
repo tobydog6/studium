@@ -180,3 +180,45 @@ create policy "studium: duel lobby and duels, read" on realtime.messages for sel
   using ( realtime.messages.extension in ('broadcast','presence') and studium_may_live(realtime.topic()) );
 create policy "studium: duel lobby and duels, send" on realtime.messages for insert to authenticated
   with check ( realtime.messages.extension in ('broadcast','presence') and studium_may_live(realtime.topic()) );
+
+-- ---------- trading: slabs and coins between players in the same lobby (src/lighttable/secret/market.js) ----------
+-- A lobby is the same string the Blades duels use (studium-lobby:<class code>, or studium-lobby:open for the public demo),
+-- and the same rule decides who may see it (studium_may_live above): a class trades only inside its class, the demo only
+-- with the demo. Each player publishes their shelf (the slabs they have, no photos of their own, only the artist pack
+-- prints the slabs are made from); an offer names what the sender gives and what they want, coins and slabs, and only
+-- the two players can read it. The client holds the sender's side in escrow until the offer is accepted or ends.
+create table if not exists studium_trade_shelves (
+  user_id uuid primary key default auth.uid(),
+  lobby text not null,
+  name text not null,
+  cards jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+create table if not exists studium_trade_offers (
+  id uuid primary key default gen_random_uuid(),
+  lobby text not null,
+  from_id uuid not null default auth.uid(),
+  from_name text not null,
+  to_id uuid not null,
+  to_name text not null,
+  give jsonb not null default '{}'::jsonb,
+  want jsonb not null default '{}'::jsonb,
+  status text not null default 'open' check (status in ('open','accepted','declined','cancelled','done')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists studium_trade_offers_to on studium_trade_offers (to_id, status);
+create index if not exists studium_trade_offers_from on studium_trade_offers (from_id, status);
+alter table studium_trade_shelves enable row level security;
+alter table studium_trade_offers enable row level security;
+drop policy if exists "trade: see shelves in my lobby" on studium_trade_shelves;
+drop policy if exists "trade: my shelf" on studium_trade_shelves;
+drop policy if exists "trade: see my offers" on studium_trade_offers;
+drop policy if exists "trade: make an offer" on studium_trade_offers;
+drop policy if exists "trade: answer my offers" on studium_trade_offers;
+create policy "trade: see shelves in my lobby" on studium_trade_shelves for select to authenticated using (studium_may_live(lobby));
+create policy "trade: my shelf" on studium_trade_shelves for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid() and studium_may_live(lobby));
+create policy "trade: see my offers" on studium_trade_offers for select to authenticated using (auth.uid() in (from_id, to_id));
+create policy "trade: make an offer" on studium_trade_offers for insert to authenticated
+  with check (from_id = auth.uid() and studium_may_live(lobby) and exists (select 1 from studium_trade_shelves s where s.user_id = to_id and s.lobby = studium_trade_offers.lobby));
+create policy "trade: answer my offers" on studium_trade_offers for update to authenticated using (auth.uid() in (from_id, to_id)) with check (auth.uid() in (from_id, to_id));

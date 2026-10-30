@@ -238,7 +238,7 @@ export function install(S) {
       if (r === 'grade') { await T.wait(0.6); if (!run.alive()) return; L.obj = null; S.sendForGrading(obj); await T.wait(0.6); if (!run.alive()) return; M.send('CLOSE'); return; }
       /* Sam: it files itself (a slab into the case, a raw print into the binder); the table stays clear */
       L.obj = null; if (S.fileAway) { await S.fileAway(obj).catch(e => console.error(e)); if (!run.alive()) return; }
-      if (r === 'another') { await T.wait(0.3); if (!run.alive()) return; M.go('loot.rise'); return; }
+      if (r === 'another') { await T.wait(0.3); if (!run.alive()) return; if (S.market && !S.market.spendKey()) { M.send('CLOSE'); return; } M.go('loot.rise'); return; }   /* another pull, another key */
       await T.wait(0.3); if (!run.alive()) return; M.send('CLOSE'); },
     pointer(kind, e) {
       const g = L.obj && L.obj.where === 'table' ? L.obj.group : null;
@@ -250,7 +250,7 @@ export function install(S) {
   async function act(id) {
     if (!M.is('loot.result')) return;
     if (id === 'done') { M.send('CLOSE'); return; }
-    if (id === 'another') { M.go('loot.rise'); return; }
+    if (id === 'another') { if (S.market && !S.market.spendKey()) return; M.go('loot.rise'); return; }
     const obj = L.obj; if (!obj || obj.where !== 'table') return;
     if (id === 'look') { hideBar(); const r = await S.inspect.open(obj, { actions: obj.slab.graded ? [{ id: 'back', label: 'Put down', primary: true }] : [{ id: 'back', label: 'Put down' }, { id: 'grade', label: 'Send for grading', primary: true }], hint: 'Drag to turn it, scroll to zoom. Click the room to put it down.' });
       while (S.inspect.active()) await T.wait(0.05); if (!M.is('loot.result')) return; if (r === 'grade') { await T.wait(0.3); if (!M.is('loot.result')) return; id = 'grade'; } else { showBar('print'); return; } }

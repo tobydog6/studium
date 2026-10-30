@@ -45,6 +45,7 @@ try {
   await hideHub();
   await ev(() => __lt.secret.S.ctx.canvas.focus());
   await page.keyboard.press('='); await W(500); await page.keyboard.type('secret'); await page.keyboard.press('Enter'); await W(1500);
+  for (let k = 0; k < 4 && !(await ev(() => __lt.secret.S.unlocked())); k++) { await W(3000); await ev(() => __lt.secret.S.ctx.canvas.focus()); await page.keyboard.press('='); await W(800); await page.keyboard.type('secret'); await page.keyboard.press('Enter'); await W(2000); }   /* the = box can miss on a slow start; S.unlock isn't on S, and setting the store alone leaves the machine locked */
   if (!(await ev(() => __lt.secret.S.unlocked()))) { log('typing did not unlock, using S.unlock'); await ev(() => __lt.secret.S.unlock()); await W(1500); }
   if (!(await ev(() => __lt.secret.S.unlocked()))) fail = 'did not unlock';
   await ev(() => { const S = __lt.secret.S; S.store.reset(); S.store.get().unlocked = true; S.store.save(); S.hud(); S.T.setTimeScale(3); });

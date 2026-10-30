@@ -63,6 +63,11 @@ Seventh round (30 Oct), photo and acrylic ideas:
   develops a little more each real day owned, complete after a week).
 - One more batch, then Sam wants to start building.
 
+Eighth round (30 Oct), last before building:
+- Goldfish (only with Liquid-filled), Growing crystals (grow from the corners over real days), Geode case (photo set in
+  a split geode), Two-faced (a different photo on the back), Mimic (a plain slab that very rarely snaps open like a
+  mouth full of teeth; goes with the jump scares).
+
 ## Structure (draft for Sam)
 A pull = one finish + up to a few extras, each from a different slot. Slots roll on their own, then a cap trims.
 

@@ -12,7 +12,11 @@ import { variantFx } from './fxvariants.js';
 import { studioEnvs } from './fxkit.js';
 
 let ENV = null;
-export function envMap(renderer) { if (!ENV) { const p = new THREE.PMREMGenerator(renderer); ENV = p.fromScene(new RoomEnvironment(), 0.04).texture; p.dispose(); } return ENV; }
+/* the room's ceiling panels run at 17 to 100x; reflected in a slab's acrylic they were a blinding jagged block that hid
+   the photo as it tipped (Sam). Capped and blurred a touch, they still read as a light without burning out. */
+export function envMap(renderer) { if (!ENV) { const p = new THREE.PMREMGenerator(renderer), room = new RoomEnvironment();
+  room.traverse(o => { const m = o.material; if (m && m.emissiveIntensity > 6) m.emissiveIntensity = 6; });
+  ENV = p.fromScene(room, 0.07).texture; p.dispose(); } return ENV; }
 
 /* ---------- finish registry ---------- */
 const REG = {};

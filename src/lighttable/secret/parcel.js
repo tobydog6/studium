@@ -196,7 +196,10 @@ export function install(S) {
       /* the slab rises to meet you: up, forward and turning to face the camera, growing to its table size */
       phase = 'rise'; snd('rise');
       const upQ = new THREE.Quaternion().setFromAxisAngle(X, -PITCH * Math.PI / 180), p0 = obj.group.position.clone(), p1 = new THREE.Vector3(x, 1.45, z + 0.8);
-      await T.tween({ dur: dur(1.1), ease: E.outCubic, tag: TAG, update: e => { obj.group.position.lerpVectors(p0, p1, e); obj.group.quaternion.slerpQuaternions(inQ, upQ, e); obj.group.scale.setScalar(IN_K + (K - IN_K) * e); } });
+      /* straight up out of the box first, still flat and small, so it never cuts through the walls (Sam); then it turns and grows */
+      const pUp = new THREE.Vector3(x, H + T0 + 0.45, z); p1.y = 1.6;
+      await T.tween({ dur: dur(0.45), ease: E.outCubic, tag: TAG, update: e => { obj.group.position.lerpVectors(p0, pUp, e); } });
+      await T.tween({ dur: dur(0.8), ease: E.inOutCubic, tag: TAG, update: e => { obj.group.position.lerpVectors(pUp, p1, e); obj.group.quaternion.slerpQuaternions(inQ, upQ, e); obj.group.scale.setScalar(IN_K + (K - IN_K) * e); } });
       obj.group.position.copy(p1); obj.group.quaternion.copy(upQ); obj.group.scale.setScalar(K);
       /* the empty box goes while you look at it */
       const mode = S.dev.opt('dissolve'); boxes.splice(boxes.indexOf(bx), 1); P.dissolve(g, { mode, spread: 1.6, dur: rush ? 0.5 : 1.3 }).then(() => disposeBox(bx), () => disposeBox(bx));

@@ -107,6 +107,14 @@ function pickPhoto(r, want) {
   const i = Math.floor(r() * pk.imgs.length), im = pk.imgs[i];
   return { packId: pk.id, pack: pk.name, imgId: im.id, url: im.url, plate: i + 1, title: pk.name.replace(/\s*·.*$/, '') + ' · Plate ' + pad(i + 1, 3) };
 }
+/* only artist packs go on slabs (Sam): a slab that got the old sample pack (renders of a scan) takes an artist's photo
+   instead, picked from its own seed, once the packs are in. Returns how many changed. */
+export function artistOnly(pulls) {
+  const packs = (photoSource() || []).filter(p => p && p.imgs && p.imgs.length); if (!packs.length) return 0; let n = 0;
+  (pulls || []).forEach(s => { const ph = s.photo; if (!ph || !(ph.packId === 'sample' || /^Sample pack/.test(ph.pack || ''))) return;
+    s.photo = pickPhoto(rng((s.seed || 1) ^ 0x5a17), null); s.title = s.photo.title; n++; });
+  return n;
+}
 /* Sam's loop: a pull comes out as a raw card (tier, variant and finish known, no grade), you post it off for grading,
    and GRADING_MS later it is back on the table as a parcel; opening the parcel is the grade reveal. The grade is
    rolled at the pull and kept hidden, so a reload can't re-roll it. The dev panel can make the wait instant. */

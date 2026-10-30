@@ -53,7 +53,9 @@ export function installSecret(ctx) {
     hitAny(e, list) { ctx.setNDC(e); ctx.ray.setFromCamera(ctx.ndc, ctx.camera); let best = null; list.forEach(o => { if (!o || o.visible === false) return; const h = ctx.ray.intersectObject(o, true)[0]; if (h && (!best || h.distance < best.distance)) best = { ...h, root: o }; }); return best; },
     tableHit(e, y) { ctx.setNDC(e); return ctx.planeHit(ctx.camera, ctx.ndc, y || 0); },
     testFinish() { return dev.opt('finishTest'); },
-    packs() { try { if (ctx.HOST && ctx.HOST.packs) { const p = ctx.HOST.packs(); if (p && p.length) return p; } } catch (e) {} try { const c = JSON.parse(localStorage.getItem('studium_rs') || 'null'); if (c && c.length) return c; } catch (e) {} return []; },
+    /* artist packs only: never the sample pack (renders of a scan), whichever way the list arrives (Sam) */
+    packs() { const art = l => (l || []).filter(p => p && p.id !== 'sample' && !p.sample && !/^Sample pack/.test(p.name || ''));
+      try { if (ctx.HOST && ctx.HOST.packs) { const p = art(ctx.HOST.packs()); if (p.length) return p; } } catch (e) {} try { const c = art(JSON.parse(localStorage.getItem('studium_rs') || 'null')); if (c.length) return c; } catch (e) {} return []; },
     unlocked() { return !!store.get().unlocked; },
     points() { return store.get().points; },
     addPoints(n) { store.get().points += n; store.save(); hud(); },
@@ -62,6 +64,9 @@ export function installSecret(ctx) {
     shadow(w, d) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ map: SHADOW_TEX(), transparent: true, depthWrite: false, opacity: 0.55 })); m.rotation.x = -Math.PI / 2; m.position.y = 0.004; m.userData.noParticles = true; return m; },
   };
   SL.setPhotoSource(S.packs);
+  /* slabs that got the sample pack before: swap in an artist's photo once the packs are in (tries for a few minutes) */
+  { let tries = 0; const fix = () => { let n = 0; try { n = SL.artistOnly(store.get().pulls); } catch (e) {} if (n) store.save();   /* tables built already show the new photo after a reload */
+      if (!n && !S.packs().length && ++tries < 40) setTimeout(fix, 5000); }; setTimeout(fix, 2000); }
   if (ctx.HOST && ctx.HOST.secretKey) try { store.key = ctx.HOST.secretKey(); } catch (e) {}   /* the demo's collection is its own */
   store.onSave = () => { if (ctx.HOST && ctx.HOST.secretSaved) ctx.HOST.secretSaved(); };
   let shadowTex = null; const SHADOW_TEX = () => { if (shadowTex) return shadowTex; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 20, 64, 64, 64); gr.addColorStop(0, 'rgba(0,0,0,0.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); shadowTex = new THREE.CanvasTexture(c); return shadowTex; };

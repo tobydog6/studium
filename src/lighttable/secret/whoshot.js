@@ -130,6 +130,17 @@ export function install(S) {
       float g = smoothstep(1.0, 0.99, r) * smoothstep(0.975, 0.99, r);
       gl_FragColor = vec4(holo * g * 0.16 * k, g * 0.16 * k); }`;
   const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+  /* the game mats (Sam: "a clean game mat where the cards go in their spots"): charcoal cloth, a fine inset border and a
+     thin gold outline for every spot a slab sits in; w × d in table units, spots as [x, z] from the mat's centre */
+  const SPOT_W = 1.78, SPOT_D = 2.14;
+  function matMesh(w, d, spots, word) { const k = 72, c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(d * k); const g = c.getContext('2d');
+    const gr = g.createRadialGradient(c.width / 2, c.height / 2, 10, c.width / 2, c.height / 2, Math.max(c.width, c.height) * 0.7); gr.addColorStop(0, '#1b1d21'); gr.addColorStop(1, '#101114'); g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height);
+    const rr = (x, y, ww, hh, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + ww, y, x + ww, y + hh, r); g.arcTo(x + ww, y + hh, x, y + hh, r); g.arcTo(x, y + hh, x, y, r); g.arcTo(x, y, x + ww, y, r); g.closePath(); };
+    g.strokeStyle = 'rgba(244,241,234,0.14)'; g.lineWidth = 2; rr(0.25 * k, 0.25 * k, c.width - 0.5 * k, c.height - 0.5 * k, 0.3 * k); g.stroke();
+    spots.forEach(([x, z]) => { const px = (x + w / 2 - SPOT_W / 2) * k, pz = (z + d / 2 - SPOT_D / 2) * k; g.fillStyle = 'rgba(227,173,87,0.04)'; rr(px, pz, SPOT_W * k, SPOT_D * k, 0.12 * k); g.fill(); g.strokeStyle = 'rgba(227,173,87,0.55)'; g.lineWidth = 2.5; g.stroke(); });
+    if (word) { g.fillStyle = 'rgba(244,241,234,0.22)'; g.font = '600 ' + Math.round(0.22 * k) + 'px "Geist", system-ui, sans-serif'; g.textAlign = 'center'; g.fillText(word, c.width / 2, c.height - 0.48 * k); }
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, transparent: true })); m.rotation.x = -Math.PI / 2; m.userData.secret = true; m.userData.noParticles = true; return m; }
   function buildProps() { if (props) return props;
     const g = new THREE.Group(); g.userData.secret = true; g.position.set(GX, 0, PORTAL_Z); g.visible = false; ctx.scene.add(g);
     const ring = new THREE.Group(); g.add(ring);   /* the dome's centre is on the table: a half disc standing up */
@@ -146,14 +157,19 @@ export function install(S) {
     const wood = new THREE.CanvasTexture(wc); wood.colorSpace = THREE.SRGBColorSpace; wood.wrapS = wood.wrapT = THREE.RepeatWrapping; wood.repeat.set(2, 1.4);
     const top = new THREE.Mesh(new THREE.BoxGeometry(22, 0.6, 10), new THREE.MeshStandardMaterial({ map: wood, roughness: 0.55 })); top.position.set(GX, -0.3, THEIR_EDGE - 5); room.add(top);
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 60), new THREE.MeshStandardMaterial({ color: 0x0e0b0d, roughness: 1 })); floor.rotation.x = -Math.PI / 2; floor.position.set(GX, -3.6, PORTAL_Z - 10); room.add(floor);
-    const mat = new THREE.Mesh(new THREE.PlaneGeometry(15, 6.4), new THREE.MeshStandardMaterial({ color: 0x1d2a24, roughness: 0.95 })); mat.rotation.x = -Math.PI / 2; mat.position.set(GX, 0.005, THEIR_EDGE - 3.8); room.add(mat);
+    /* their mat: the same cloth, a spot for each of their five and one where yours lands */
+    const tz0 = THEIR_EDGE - 0.15, tz1 = THEIRS_Z - 1.55, tzc = (tz0 + tz1) / 2;
+    const tmat = matMesh(14, tz0 - tz1, [...Array(HAND)].map((_, i) => [(i - (HAND - 1) / 2) * RIV_GAP, RIV_Z - tzc]).concat([[0, THEIRS_Z - tzc]]), ''); tmat.position.set(GX, 0.005, tzc); room.add(tmat);
     const walls = new THREE.Mesh(new THREE.BoxGeometry(70, 30, 60), new THREE.MeshStandardMaterial({ color: 0x17121c, roughness: 1, side: THREE.BackSide })); walls.position.set(GX, 12, PORTAL_Z - 12); room.add(walls);
     const lamp = new THREE.PointLight(0xffd7a0, 480, 34, 1.5); lamp.position.set(GX, 8, THEIR_EDGE - 4); room.add(lamp);
     const rim = new THREE.PointLight(0x7d6bff, 40, 30, 1.6); rim.position.set(GX - 7, 4, PORTAL_Z - 10); room.add(rim);
     room.add(new THREE.HemisphereLight(0xb8aaff, 0x2a1a10, 1.0));
     [g, ring, disc, halo].forEach(o => { o.userData.secret = true; o.userData.noParticles = true; });
     const pcam = new THREE.PerspectiveCamera();
-    props = { g, ring, disc, rt, room, pcam }; return props; }
+    /* your mat: your five along the front, the spot theirs lands in, in front of the portal */
+    const mz0 = MINE_Z - 1.55, mz1 = HAND_Z + 1.45, mzc = (mz0 + mz1) / 2;
+    const mat = matMesh(14, mz1 - mz0, [...Array(HAND)].map((_, i) => [(i - (HAND - 1) / 2) * GAP, HAND_Z - mzc]).concat([[0, MINE_Z - mzc]]), 'WHO SHOT IT?'); mat.position.set(GX, 0.004, mzc); mat.visible = false; ctx.scene.add(mat);
+    props = { g, ring, disc, rt, room, pcam, mat }; return props; }
   /* render their room for the portal from your camera, every frame while the portal is up */
   const pv = new THREE.Vector3(), pq = new THREE.Quaternion(), psz = new THREE.Vector2();
   function portalFrame() { const P = props; if (!P || !P.g.visible) { loop = 0; return; } loop = requestAnimationFrame(portalFrame);
@@ -163,13 +179,13 @@ export function install(S) {
     P.pcam.projectionMatrix.copy(cam.projectionMatrix); P.pcam.projectionMatrixInverse.copy(cam.projectionMatrixInverse); P.pcam.updateMatrixWorld();
     P.disc.material.uniforms.time.value = performance.now() / 1000;
     const prev = r.getRenderTarget(), ac = r.autoClear; r.autoClear = true; r.setRenderTarget(P.rt); try { r.render(P.room, P.pcam); } catch (e) {} r.setRenderTarget(prev); r.autoClear = ac; }
-  function portal(on) { const P = buildProps(), u = P.disc.material.uniforms; if (on) { P.g.visible = true; P.ring.scale.setScalar(0.01); u.k.value = 0; if (!loop) portalFrame(); }
+  function portal(on) { const P = buildProps(), u = P.disc.material.uniforms; if (on) { P.g.visible = true; P.mat.visible = true; P.mat.material.opacity = 0; P.ring.scale.setScalar(0.01); u.k.value = 0; if (!loop) portalFrame(); }
     S.sfx(on ? 'rise' : 'ltPutDown');
-    return T.tween({ dur: on ? 1.2 : 0.5, ease: on ? T.E.outCubic : T.E.inCubic, tag: 'who', update: e => { const k = on ? e : 1 - e; P.ring.scale.setScalar(Math.max(0.01, k)); u.k.value = Math.min(1, Math.max(0, on ? e * 1.5 - 0.4 : k)); } })
-      .then(() => { if (!on) P.g.visible = false; }); }
+    return T.tween({ dur: on ? 1.2 : 0.5, ease: on ? T.E.outCubic : T.E.inCubic, tag: 'who', update: e => { const k = on ? e : 1 - e; P.ring.scale.setScalar(Math.max(0.01, k)); u.k.value = Math.min(1, Math.max(0, on ? e * 1.5 - 0.4 : k)); P.mat.material.opacity = k; } })
+      .then(() => { if (!on) { P.g.visible = false; P.mat.visible = false; } }); }
 
   /* ---------- slabs on the table (logical coordinates: past the portal's plane is their room) ---------- */
-  const yOf = obj => (obj.th || S.SM.SLAB.th) * K / 2 + 0.004 + (obj.lift || 0);   /* lift: overlapping slabs stack instead of fighting */
+  const yOf = obj => (obj.th || S.SM.SLAB.th) * K / 2 + 0.01 + (obj.lift || 0);   /* lift: overlapping slabs stack instead of fighting */
   const v = (x, z, y) => new THREE.Vector3(GX + x, y || 0, z);
   const there = L => L.z < PORTAL_Z - 0.02;
   function place(obj, L) { const g = obj.group, far = there(L); if (obj.far !== far) { obj.far = far; (far ? buildProps().room : ctx.scene).add(g); } g.position.copy(L); }
@@ -184,7 +200,7 @@ export function install(S) {
   /* flip where it lies */
   const flip = (obj, down) => slide(obj, logical(obj), { down, dur: 0.6, arc: 0.7, scale: obj.group.scale.x });
 
-  const hand = () => G.hand.map(h => h.obj.group), handSpot = i => v((i - (G.hand.length - 1) / 2) * GAP, HAND_Z), rivSpot = i => v((i - (HAND - 1) / 2) * RIV_GAP, RIV_Z);
+  const hand = () => G.hand.map(h => h.obj.group), handSpot = i => v((i - (HAND - 1) / 2) * GAP, HAND_Z)   /* each chosen slab goes straight into its own spot on the mat */, rivSpot = i => v((i - (HAND - 1) / 2) * RIV_GAP, RIV_Z);
 
   /* the developer: a print over the slab's photo that comes up from black; it fades away to leave the slab's own finish */
   async function developer(obj) { await obj.ready; const ph = obj.parts && obj.parts.photo; if (!ph || !G) return null;

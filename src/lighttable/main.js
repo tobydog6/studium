@@ -1735,8 +1735,10 @@ function finishBoot(){ restack(); updateChains(false); drawBoxBtn(); applyOpts()
   if(library.every(i=>i.sample||i.copyOf)) try{ if(localStorage.getItem('lt_tour_done')) TOUR.done=true; }catch(e){}
   if(!TOUR.done||WANT_TOUR) setTimeout(()=>{ WANT_TOUR=false; if(!TOUR.on) tourStart(); },900); }
 let WANT_TOUR=false;
-window.LTapp={ tour(){ if(READY){ if(!TOUR.on) tourStart(); } else WANT_TOUR=true; }, kill(){ READY=false; PAUSED=true; clearTimeout(saveT); },
+window.LTapp={ tour(){ if(READY){ if(!TOUR.on) tourStart(); } else WANT_TOUR=true; }, kill(){ if(SECRET&&SECRET.endDuel) try{ SECRET.endDuel(); }catch(e){} READY=false; PAUSED=true; clearTimeout(saveT); },
   sync(d){ if(!READY||LOADING) return; hostLibrary(d); },
+  /* an online Blades duel from the page (duel.js); false until the table and its secret layer are ready for it */
+  duel(info){ if(!READY||LOADING||!SECRET||!SECRET.duel) return false; return SECRET.duel(info); },
   pause(on){ on=!!on; if(on===PAUSED) return; PAUSED=on; if(SECRET) SECRET.pause(on); if(on){ clearTimeout(saveT); saveNow(); recordHist(); closeBinder(); dropString(); }
     else if(READY&&!looping){ last=performance.now(); looping=true; requestAnimationFrame(frame); } } };
 drawBoxLabel(0); buildPanel(); buildSwatches(); buildWallPick(); setStringsOn(stringsOn);

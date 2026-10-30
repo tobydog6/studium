@@ -7,12 +7,15 @@
 // from three rolled slabs. Nothing here costs a slab: a burst only lasts the round, and borrowed parts are never saved.
 // States: blades.open (busy) → blades.build → blades.ready → blades.battle → blades.round (busy) → blades.ready or
 // blades.result; blades.closing (busy) on CLOSE (= or Esc). Test hooks on S.blades: sim(), pick(ids), launch(p, aim).
+// Online: S.blades.duel(info) plays another signed-in player instead of the rolled rival (the page's duel.js finds them
+// and carries the messages, bladenet.js packs them). The inviter hosts the sim; the guest sees it turned round.
 import * as THREE from 'three';
 import * as BS from './bladesim.js';
 import * as BSH from './bladeshape.js';
 import * as BP from './bladeparts.js';
 import * as BL from './bladelauncher.js';
 import * as BSN from './bladesound.js';
+import * as BN from './bladenet.js';
 
 const LIFT = 0.7;        /* the bowl floor's height above the table once it is up */
 const DOWN = -9;         /* the stadium's height while it waits in the pit */
@@ -99,6 +102,8 @@ export function install(S) {
     const body = new THREE.Mesh(new THREE.ExtrudeGeometry(sh, { depth: DEP + 0.42 + LIFT, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 3, curveSegments: 48 }).rotateX(-Math.PI / 2),
       new THREE.MeshStandardMaterial({ color: 0x111115, roughness: 0.42, metalness: 0.25, envMap: ENV, envMapIntensity: 0.6 }));
     body.position.y = -LIFT - 0.06; stadium.add(body); }
+  /* everything built so far is the stadium itself: an online guest turns it round, so their side is the near one (bladenet.js) */
+  const arena = new THREE.Group(); stadium.children.slice().forEach(c => arena.add(c)); stadium.add(arena);
   /* spare blades waiting on the corners: yours near you, your rival's across the bowl */
   const SPOTS = [[-1, 1], [1, 1], [-1, -1], [1, -1]].map(([x, z]) => [x * (HALF - 0.95), z * (HALF - 0.95)]);
   function clearSpares() { (B.spares || []).forEach(bl => { bl.dispose(); bl.slabs.forEach(x => { if (x.loaner || x.spare) { SM.forgetPhoto(x.id); DNA.delete(x.id); } }); }); B.spares = []; }
@@ -359,7 +364,9 @@ export function install(S) {
     return BS.TIPS[st.tip].name + ' tip · ' + BS.TIPS[st.tip].desc.toLowerCase(); }
   function renderCard() {
     const list = mine(), full = B.slots.every(Boolean), st = full ? BS.statsOf(B.slots) : null;
-    let h = '<div class="bl-h"><span class="eb">BLADES</span><h2>Build your blade</h2><p>Three slabs, three parts. Pick a part, then a slab for it.</p></div><div class="bl-slots">';
+    const N = B.net, fn = N ? esc(N.foe.n) : '', fe = fn.replace(/\.$/, '');   /* fe: the name at the end of a sentence ("Sam Q." never gets a second full stop) */
+    const say = !N ? 'Three slabs, three parts. Pick a part, then a slab for it.' : !N.hello ? 'Duel with ' + fe + '. Waiting for them to get to the stadium.' : N.parts ? (N.theirs ? 'Both ready. Here we go.' : 'You’re ready. Waiting for ' + fn + ' to pick their blade.') : N.theirs ? fn + ' is ready. Pick your three slabs and press Fight.' : 'Duel with ' + fe + '. Pick your three slabs, then press Fight.';
+    let h = '<div class="bl-h"><span class="eb">' + (N ? 'BLADES · DUEL' : 'BLADES') + '</span><h2>Build your blade</h2><p' + (N ? ' class="bl-duel"' : '') + '>' + say + '</p></div><div class="bl-slots">';
     B.slots.forEach((s, i) => { h += '<button type="button" class="bl-slot' + (B.active === i ? ' on' : '') + '" data-slot="' + i + '"' + (s ? ' style="--tc:' + tierCol(s) + '"' : '') + '><span class="bl-th">' + (s ? '<img data-th="' + s.id + '" alt="">' : '<i>' + (i + 1) + '</i>') + '</span><span class="bl-sl"><b>' + PART[i] + '</b><small>' + esc(slotLine(i, s)) + '</small></span></button>'; });
     h += '</div>';
     if (st) { h += '<div class="bl-stats">' + BS.bars(st).map(b => '<div class="bl-stat"><span>' + b[0] + '</span><i><em style="width:' + Math.round(b[1] * 100) + '%"></em></i></div>').join('') + '</div>';
@@ -369,11 +376,13 @@ export function install(S) {
     h += '<div class="bl-pick"><span class="bl-sh">YOUR SLABS · ' + list.length + '</span>';
     if (list.length < 3) h += '<p class="bl-few">You need three slabs to build a blade. Open a pack with the big red button, or borrow a practice set for now.</p><button type="button" class="btn" data-a="borrow">Borrow a practice set</button>';
     h += '<div class="bl-grid">' + list.map(s => { const at = B.slots.indexOf(s); return '<button type="button" class="bl-s' + (at >= 0 ? ' used' : '') + '" data-id="' + s.id + '" style="--tc:' + tierCol(s) + '" title="' + esc(s.title) + '"><img data-th="' + s.id + '" alt=""><span>' + SL.tierOf(s).name + '<br>' + gradeTag(s) + '</span>' + (at >= 0 ? '<em>' + (at + 1) + '</em>' : '') + '</button>'; }).join('') + '</div></div>';
-    h += '<div class="bl-acts"><button type="button" class="btn" data-a="close">Close</button><button type="button" class="btn" data-a="random"' + (list.length < 3 ? ' disabled' : '') + '>Random</button><button type="button" class="btn" data-a="look"' + (full ? '' : ' disabled') + '>Look closer</button><button type="button" class="btn primary" data-a="fight"' + (full ? '' : ' disabled') + '>Fight</button></div>';
+    const fight = N && N.parts ? '<button type="button" class="btn" data-a="unready">Change my blade</button>' : '<button type="button" class="btn primary" data-a="fight"' + (full ? '' : ' disabled') + '>' + (N ? 'Fight ' + fn : 'Fight') + '</button>';
+    h += '<div class="bl-acts"><button type="button" class="btn" data-a="' + (N ? 'leave' : 'close') + '">' + (N ? 'Leave duel' : 'Close') + '</button>' + (!N && HOSTD ? '<button type="button" class="btn" data-a="online">Duel online</button>' : '') + '<button type="button" class="btn" data-a="random"' + (list.length < 3 ? ' disabled' : '') + '>Random</button><button type="button" class="btn" data-a="look"' + (full ? '' : ' disabled') + '>Look closer</button>' + fight + '</div>';
     card.innerHTML = h;
     card.querySelectorAll('img[data-th]').forEach(img => { const s = byId(img.dataset.th) || B.slots.find(x => x && x.id === img.dataset.th); if (s) thumb(s).then(u => { if (u) img.src = u; }); });
   }
   card.addEventListener('click', e => { if (!M.is('blades.build')) return; const t = e.target.closest('[data-slot],[data-id],[data-a]'); if (!t) return; e.stopPropagation();
+    if (B.net && B.net.parts && (t.dataset.id || t.dataset.a === 'random' || t.dataset.a === 'borrow')) { B.net.parts = null; netSend('unready'); }   /* a change after Fight: not ready any more */
     if (t.dataset.slot != null) { B.active = +t.dataset.slot; S.sfx('detent'); renderCard(); return; }
     if (t.dataset.id) { const s = byId(t.dataset.id); if (!s) return; const was = B.slots.indexOf(s); if (was >= 0) B.slots[was] = null; B.slots[B.active] = s; S.sfx('ltPutDown');
       const next = B.slots.findIndex(x => !x); B.active = next >= 0 ? next : B.active; renderCard(); buildPreview(); return; }
@@ -393,7 +402,7 @@ export function install(S) {
       return '<div class="bl-side ' + cls + '"><div class="bl-who">' + who + '<span class="bl-pips">' + Array.from({ length: BS.WIN_AT }, (_, i) => '<i' + (i < B.score[cls === 'me' ? 0 : 1] ? ' class="on"' : '') + '></i>').join('') + '</span></div>'
         + '<div class="bl-meter"><span>Spin</span><i><em style="width:' + Math.round(s * 100) + '%"></em></i></div><div class="bl-meter burst"><span>Cracks</span><i><em style="width:' + Math.round(Math.min(1, t.burst) * 100) + '%"></em></i></div>'
         + (sp ? '<div class="bl-meter sp' + (t.charge >= 1 ? ' full' : '') + '"><span>' + BS.SPECIALS[sp].name + (cls === 'me' && t.charge >= 1 ? ' · Space' : '') + '</span><i><em style="width:' + Math.round(t.charge * 100) + '%"></em></i></div>' : '') + '</div>'; };
-    return row(me, 'You', 'me') + '<div class="bl-clock">' + Math.max(0, Math.ceil(BS.ROUND_S - B.W.t)) + '</div>' + row(rv, 'Rival', 'rv'); }
+    return row(me, 'You', 'me') + '<div class="bl-clock">' + Math.max(0, Math.ceil(BS.ROUND_S - B.W.t)) + '</div>' + row(rv, esc(foeName()), 'rv'); }
   let hudT = 0;
   function hudFrame(dt, force) { hudT -= dt; if (!force && hudT > 0) return; hudT = 0.1; if (B.W) hud.innerHTML = hudHtml(); }
 
@@ -413,7 +422,8 @@ export function install(S) {
     const sh = S.shadow(1.0, 1.7); sh.position.set(-0.12, 0.004, 0.05); btn.add(sh);
     btn.userData.L = L; btn.userData.top = null; btn.userData.cap = null; btn.rotation.y = 0.35; }
   const aim = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 1), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, depthWrite: false, toneMapped: false })); aim.geometry.translate(0, 0.5, 0); aim.rotation.x = -Math.PI / 2; aim.visible = false; stadium.add(aim);
-  function doLaunch(power, ang) { const [a, b] = B.W.tops, lx = a.p.x; BS.launch(a, power, ang); a.p.x = lx; BS.launch(b, B.rivalPlan.power, B.rivalPlan.aim); B.me.drop = B.rival.drop = LAUNCH_H - 0.75; B.ripT = 0;
+  function doLaunch(power, ang) { const [a, b] = B.W.tops, lx = a.p.x; BS.launch(a, power, ang); a.p.x = lx; BS.launch(b, B.rivalPlan.power, B.rivalPlan.aim); if (B.rivalPlan.x != null) b.p.x = B.rivalPlan.x; launched(power); }
+  function launched(power) { const [a, b] = B.W.tops; B.me.drop = B.rival.drop = LAUNCH_H - 0.75; B.ripT = 0;
     B.me.whirr = whirr(B.me); B.rival.whirr = whirr(B.rival); aim.visible = false; { const z = sx(); if (z) z.rip(power); } B.shake = 0.35;
     [a, b].forEach(t => { spark(t.p.x, hB(Math.hypot(t.p.x, t.p.y)) + 0.05, t.p.y, 40, [0xffffff, 0xffd08a], 3.5); wave(t.p.x, t.p.y, 2, 0xffffff); }); M.go('blades.battle'); }
   function fx(ev) {
@@ -428,19 +438,20 @@ export function install(S) {
       else if (e.type === 'wall') { const z = sx(); if (z && e.k > 0.6) z.wall(e.k, panOf(e.x)); spark(e.x, DEP + 0.2, e.y, Math.round(e.k * 4), 0xffd08a, 1.5); }
       else if (e.type === 'shield') { banner('Stamped!', 'One burst saved', 1300); snd('chime', { tier: 'rare' }); }
       else if (e.type === 'special') { const bl = blOf(e.top), p = e.top.p, y = hB(Math.hypot(p.x, p.y)) + 0.5, who = e.top === a ? 'You' : 'Rival', nm = BS.SPECIALS[e.id].name;
-        banner(nm + '!', who === 'You' ? '' : 'Your rival', 1200);
+        banner(nm + '!', who === 'You' ? '' : B.net ? esc(foeName()) : 'Your rival', 1200);
         if (e.id === 'starburst') { spark(p.x, y, p.y, 120, [0xffffff, 0xff4fae, 0xffe08a], 6); snd('burst', { tier: 'epic' }); }
         else if (e.id === 'slam') { spark(p.x, y, p.y, 80, [0xffd58a, 0xd9962a], 4); snd('slam'); }
         else if (e.id === 'guard') { spark(p.x, y, p.y, 60, [0xa9edff, 0xffffff], 3); snd('glow'); }
         else if (e.id === 'eclipse') { veil.classList.remove('on'); void veil.offsetWidth; veil.classList.add('on'); snd('chime', { tier: 'mythic' }); spark(p.x, y, p.y, 100, [0xff3fd0, 0x8a4cff, 0xffffff], 5); }
         if (bl) bl.halo.material.opacity = 1; }
       else if (e.type === 'dash') { const bl = blOf(e.top), i = e.top === a ? 0 : 1; railFlash.k = 1; spark(e.x, DEP, e.y, 30, [0xff7a2a, 0xffd08a, 0xffffff], 4); B.shake = Math.max(B.shake, 0.15); { const z = sx(); if (z) z.dash(panOf(e.x)); } B.speedK = Math.max(B.speedK || 0, 0.5);
-        const el = tags.children[i]; if (el && el.classList.contains('who')) { el.textContent = 'X Dash!'; el.classList.add('dash'); clearTimeout(el._t); el._t = setTimeout(() => { el.textContent = i ? 'Rival' : 'You'; el.classList.remove('dash'); }, 900); } }
+        const el = tags.children[i]; if (el && el.classList.contains('who')) { el.textContent = 'X Dash!'; el.classList.add('dash'); clearTimeout(el._t); el._t = setTimeout(() => { el.textContent = i ? foeName() : 'You'; el.classList.remove('dash'); }, 900); } }
       else if (e.type === 'xdash') { const i = e.top === a ? 0 : 1; B.speedK = 1; spark(e.x, DEP * 0.8, e.y, 40, [0xff7a2a, 0xffffff], 5); B.shake = Math.max(B.shake, 0.25); { const z = sx(); if (z) z.dash(panOf(e.x)); }
-        const el = tags.children[i]; if (el && el.classList.contains('who')) { el.textContent = 'Xtreme Dash!'; el.classList.add('dash'); clearTimeout(el._t); el._t = setTimeout(() => { el.textContent = i ? 'Rival' : 'You'; el.classList.remove('dash'); }, 1000); } }
+        const el = tags.children[i]; if (el && el.classList.contains('who')) { el.textContent = 'Xtreme Dash!'; el.classList.add('dash'); clearTimeout(el._t); el._t = setTimeout(() => { el.textContent = i ? foeName() : 'You'; el.classList.remove('dash'); }, 1000); } }
       else if (e.type === 'burst') { burstApart(blOf(e.top), e.top); screenFlash(0.7); B.slowT = 1.1; B.slowK = 0.3; B.shake = 0.6; flash(e.top.p.x, 0.6, e.top.p.y, 8, 0xffffff); wave(e.top.p.x, e.top.p.y, 8, tierCol(blOf(e.top).slabs[0])); }
       else if (e.type === 'out') { const bl = blOf(e.top), t = e.top, r = Math.hypot(t.p.x, t.p.y) || 1; bl.dead = 'out'; const pa = e.a != null ? e.a : Math.atan2(t.p.y, t.p.x); bl.fly = { x: t.p.x, z: t.p.y, y: hB(r), vx: Math.cos(pa) * 4.5, vz: Math.sin(pa) * 4.5, vy: 2.6, spin: t.w }; if (e.zone === 'xtreme') { const el = tags.children[e.top === a ? 0 : 1]; railFlash.k = 1; B.speedK = 1; } { const z = sx(); if (z) z.ringOut(panOf(t.p.x)); } screenFlash(0.5); B.slowT = 1.0; B.slowK = 0.3; B.shake = 0.5; flash(t.p.x, DEP + 0.4, t.p.y, 7, 0xffffff); }
       else if (e.type === 'down') { blOf(e.top).dead = 'spin'; snd('land'); }
+      else if (e.type === 'cine') { B.cine = { t: 0.9, x: e.x, z: e.z }; B.slowT = 0.9; B.slowK = 0.12; B.cineCd = 5; snd('rumble', { gain: 0.8, dur: 0.9 }); snd('glow'); }
     }
   }
   /* a burst: the three parts come apart and scatter, each spinning off on its own */
@@ -465,7 +476,7 @@ export function install(S) {
   function camTo(tx, tz, size, dt, pitch) { const c = ctx.cam, pt = pitch || 55, d = ctx.fitDist(size, size, pt); if (dt) { c.tx = T.damp(c.tx, tx, 2.5, dt); c.tz = T.damp(c.tz, tz, 2.5, dt); c.dT = T.damp(c.dT, d, 2.5, dt); c.pitch = T.damp(c.pitch, pt, 2.5, dt); } else { c.tx = tx; c.tz = tz; c.dT = d; c.pitch = pt; } }
   /* You and Rival tags over the blades while they're in the bowl */
   function battleTags() { const on = (M.is('blades.ready') || M.is('blades.battle') || M.is('blades.round')) && B.me && B.rival;
-    tags.classList.toggle('on', !!on); if (!on) return; if (!tags.querySelector('.who')) tags.innerHTML = '<div class="bl-tag who me">You</div><div class="bl-tag who rv">Rival</div>';
+    tags.classList.toggle('on', !!on); if (!on) return; if (!tags.querySelector('.who')) { tags.innerHTML = '<div class="bl-tag who me">You</div><div class="bl-tag who rv"></div>'; tags.children[1].textContent = foeName(); }
     [B.me, B.rival].forEach((bl, i) => { const el = tags.children[i]; if (!el) return; const gone = bl.dead === 'burst' || (bl.dead === 'out' && bl.deadT > 1); const p = toScreen(bl.root, 1.25); el.style.opacity = gone || !p.on ? 0 : 1; el.style.transform = 'translate(' + Math.round(p.x - el.offsetWidth / 2) + 'px,' + Math.round(p.y - el.offsetHeight) + 'px)'; }); }
   M.define('blades', {
     on: { CLOSE: () => 'blades.closing' },
@@ -487,7 +498,7 @@ export function install(S) {
     },
   });
   M.define('blades.build', {
-    enter(d) { if (M.prev === 'blades.build.inspect') { renderCard(); card.classList.add('on'); return; } hud.classList.remove('on'); hideBar(); hideBanner(); tip.classList.remove('on'); clearBlades(); clearSpares(); camTo(CX, CZ + 1.0, 2 * R + 3.5); B.slots = B.slots.map(s => s && byId(s.id) ? s : null); if (!B.slots.every(Boolean)) { const n = B.slots.findIndex(x => !x); B.active = n >= 0 ? n : 0; } renderCard(); card.classList.add('on'); buildPreview(); },
+    enter(d) { if (M.prev === 'blades.build.inspect') { renderCard(); card.classList.add('on'); return; } if (B.net) { B.net.parts = null; B.net.mid = null; } hud.classList.remove('on'); hideBar(); hideBanner(); tip.classList.remove('on'); clearBlades(); clearSpares(); camTo(CX, CZ + 1.0, 2 * R + 3.5); B.slots = B.slots.map(s => s && byId(s.id) ? s : null); if (!B.slots.every(Boolean)) { const n = B.slots.findIndex(x => !x); B.active = n >= 0 ? n : 0; } renderCard(); card.classList.add('on'); buildPreview(); },
     exit(next) { card.classList.remove('on'); if (!/^blades\.build/.test(next || '')) dropPreview(); },
   });
   function dropPreview() { if (B.preview) { B.preview.dispose(); B.preview = null; } B.gallery.forEach(g => { g.dispose(); g.slabs.forEach(x => { SM.forgetPhoto(x.id); DNA.delete(x.id); }); }); B.gallery = []; }
@@ -532,9 +543,11 @@ export function install(S) {
       tip.innerHTML = 'Drag the launcher (or A and D) to aim. Grab the ripcord and yank it out fast: the faster the pull, the better the rip.'; tip.classList.add('on'); hud.classList.add('on'); hudFrame(0, true);
       [B.myL, B.rvL].forEach(L => { if (L) L.dispose(); }); B.myL = makeLauncher(new THREE.Color().setHSL(dnaOf(B.slots[0]).hue, 0.8, 0.28)); B.rvL = makeLauncher(0xb3261e); stadium.add(B.myL.g, B.rvL.g);
       B.me.root.scale.setScalar(B.me.st.radius); B.lx = 0; B.pull = null; B.ripK = 1;
-      const rs = B.rivalParts[0]; banner(B.score[0] + B.score[1] ? 'Round ' + (B.roundN = (B.roundN || 1) + 1) : 'Ready, set', 'Your rival: ' + esc((rs.photo && rs.photo.pack || 'Sample pack').replace(/\s*·.*$/, '')) + ' blade, ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip', 0); rimTo(tierCol(B.slots[0])); },
+      const rs = B.rivalParts[0]; if (B.net) { const N = B.net; N.rd++; N.rip = null; if (N.theirRip && N.theirRip.rd < N.rd) N.theirRip = null; N.launched = false; }
+      banner(B.score[0] + B.score[1] ? 'Round ' + (B.roundN = (B.roundN || 1) + 1) : 'Ready, set', B.net ? esc(foeName()) + ': ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip' : 'Your rival: ' + esc((rs.photo && rs.photo.pack || 'Sample pack').replace(/\s*·.*$/, '')) + ' blade, ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip', 0); rimTo(tierCol(B.slots[0])); },
     pointer(kind, e) {
       const P = B.pull, A = B.aimDrag;
+      if (B.net && B.net.rip) return kind !== 'wheel';   /* ripped: waiting on the other player */
       /* the launcher stays where it is: drag its body to aim, take hold of the cord (or anywhere else) to pull */
       const part = ev => { const h = B.myL && S.hitAny(ev, [B.myL.g]); if (!h) return null; let o = h.object; while (o) { if (B.myL.grab.includes(o)) return 'cord'; o = o.parent; } return 'body'; };
       if (kind === 'move' && A) { const h = S.tableHit(e, LIFT + LAUNCH_H); if (h) B.lx = T.clamp(A.lx + (h.x - A.x), -R * 0.4, R * 0.4); return true; }
@@ -549,7 +562,7 @@ export function install(S) {
       return kind !== 'wheel'; },
     key(e) { const k = e.key; if (k === 'a' || k === 'A' || k === 'ArrowLeft') { B.lx = T.clamp(B.lx - 0.3, -R * 0.4, R * 0.4); return true; } if (k === 'd' || k === 'D' || k === 'ArrowRight') { B.lx = T.clamp(B.lx + 0.3, -R * 0.4, R * 0.4); return true; } return false; },
     frame(dt) { if (!B.W) return; const [a, b] = B.W.tops, P = B.pull, dir = BS.statsOf(B.slots).dir;
-      a.p.x = T.damp(a.p.x, B.lx, 12, dt); a.p.y = R * 0.62; b.p.x = 0; b.p.y = -R * 0.62;
+      a.p.x = T.damp(a.p.x, B.lx, 12, dt); a.p.y = R * 0.62; b.p.x = B.net && B.net.theirRip ? BN.turnPlan(B.net.theirRip).x : 0; b.p.y = -R * 0.62;
       /* the cord winds the blade up as it comes out */
       a.w = dir * (6 + (P ? P.len : 0) * 16); a.ang += a.w * dt; b.ang += b.w * dt; pose(B.me, a, dt); pose(B.rival, b, dt);
       launcherPose(B.myL, a.p.x, a.p.y, 1, P ? P.len : 0, 1); launcherPose(B.rvL, b.p.x, b.p.y, -1, 0, 1);
@@ -561,10 +574,13 @@ export function install(S) {
   function rip() { const P = B.pull; if (!P) return; B.pull = null; ctx.canvas.style.cursor = 'default';
     if (P.len < 0.6) { banner('Yank the cord', 'Grab it and pull fast', 1300); return; }
     const sp = ripSpeed(P), q = T.clamp((sp - 0.35) / 2.4, 0, 1) * T.clamp(P.len / 2.2, 0.4, 1), power = 0.2 + 0.8 * q, label = RIP.find(r => q >= r[0])[1];
-    tip.classList.remove('on'); doLaunch(power, B.lx / (R * 0.4) * 0.35); banner(label, 'Rip ' + Math.round(q * 100) + '%', 1100); }
+    tip.classList.remove('on');
+    if (B.net) { const N = B.net; N.rip = { rd: N.rd, power, aim: B.lx / (R * 0.4) * 0.35, x: B.lx }; netSend('rip', N.rip); banner(label, 'Rip ' + Math.round(q * 100) + '%. Waiting for ' + esc(foeName()), 0); netLaunch(); return; }
+    doLaunch(power, B.lx / (R * 0.4) * 0.35); banner(label, 'Rip ' + Math.round(q * 100) + '%', 1100); }
   M.define('blades.battle', {
     enter() { ctx.canvas.style.cursor = 'default'; },
-    key(e) { if (e.key === ' ') { const ev = []; if (BS.special(B.W, B.W.tops[0], ev)) fx(ev); return true; } return false; },
+    key(e) { if (e.key !== ' ') return false; if (B.net && !B.net.host) { const t = B.W.tops[0]; if (t.alive && t.charge >= 1 && t.st.special && performance.now() > (B.net.spAt || 0)) { B.net.spAt = performance.now() + 800; netSend('sp'); } return true; }
+      const ev = []; if (BS.special(B.W, B.W.tops[0], ev)) { fx(ev); netQueue(ev); } return true; },
     frame(dt) { dt = Math.min(dt, 0.05); const W = B.W, [a, b] = W.tops, real = dt;
       /* the speed lines follow a dive or a dash; the sound goes muffled while it's slowed */
       B.speedK = (B.speedK || 0) * Math.exp(-real * 3); speedEl.style.opacity = Math.min(0.9, (B.cine && B.cine.t > 0 ? 0.85 : 0) + B.speedK * 0.6).toFixed(2);
@@ -573,29 +589,32 @@ export function install(S) {
       if (B.stop > 0) { B.stop -= real; dt = 0; } else if (B.slowT > 0) { B.slowT -= real; dt *= B.slowK; }
       B.me.drop *= Math.exp(-dt * 14); B.rival.drop *= Math.exp(-dt * 14);
       if (B.myL) { B.ripT = (B.ripT || 0) + real; const k = B.ripT; [B.myL, B.rvL].forEach((L, i) => { L.setCord(Math.max(0, (i ? 3 : 1.5) * (1 - k * 6))); L.g.position.y += real * (2 + k * 18); L.g.scale.setScalar(Math.max(0.001, 0.62 * (1 - k * 1.6))); }); if (k > 0.65) { B.myL.dispose(); B.rvL.dispose(); B.myL = B.rvL = null; } }
-      B.acc += dt * BS.TIME; const ev = []; while (B.acc >= 1 / 120) { B.acc -= 1 / 120; BS.step(W, 1 / 120, ev); if (BS.aiThink(W, b, 1 / 120)) BS.special(W, b, ev); }
-      fx(ev);
+      const guest = B.net && !B.net.host;
+      B.acc += dt * BS.TIME; const ev = []; while (B.acc >= 1 / 120) { B.acc -= 1 / 120; BS.step(W, 1 / 120, ev); if (!B.net && BS.aiThink(W, b, 1 / 120)) BS.special(W, b, ev); }
+      if (guest) { ev.length = 0; W.tops.forEach(t => { if (t.netAlive && !t.alive) { t.alive = true; t.done = null; } }); [a, b].forEach(t => { const k = Math.exp(-real * 10); t.ox = (t.ox || 0) * k; t.oy = (t.oy || 0) * k; }); }   /* a guest's step is only a guess: the host says who's out */
+      else if (B.net && B.net.foeSp) { B.net.foeSp = false; BS.special(W, b, ev); }
+      fx(ev); netQueue(ev);
       /* now and then, just before a big crash: everything slows, the camera dives in, then it lands */
       B.cineCd = (B.cineCd || 0) - real;
       if (a.alive && b.alive && !(B.cine && B.cine.t > 0) && B.cineCd <= 0 && B.slowT <= 0 && W.t > 1.5) { const nx = b.p.x - a.p.x, nz = b.p.y - a.p.y, d = Math.hypot(nx, nz) || 1, gap = d - a.st.radius - b.st.radius, close = -((b.v.x - a.v.x) * nx + (b.v.y - a.v.y) * nz) / d;
-        if (gap > 0.1 && gap < 1.1 && close > 5.5 && Math.random() < 0.6) { B.cine = { t: 0.9, x: (a.p.x + b.p.x) / 2, z: (a.p.y + b.p.y) / 2 }; B.slowT = 0.9; B.slowK = 0.12; B.cineCd = 5; snd('rumble', { gain: 0.8, dur: 0.9 }); snd('glow'); } }
-      const vdt = dt * BS.TIME; if (a.alive) pose(B.me, a, vdt); else deadFrame(B.me, a, vdt); if (b.alive) pose(B.rival, b, vdt); else deadFrame(B.rival, b, vdt);
+        if (!guest && gap > 0.1 && gap < 1.1 && close > 5.5 && Math.random() < 0.6) { const ce = [{ type: 'cine', x: (a.p.x + b.p.x) / 2, z: (a.p.y + b.p.y) / 2 }]; fx(ce); netQueue(ce); } }
+      const vdt = dt * BS.TIME; [[a, B.me], [b, B.rival]].forEach(([t, bl]) => { if (!t.alive) { deadFrame(bl, t, vdt); return; } const ox = t.ox || 0, oy = t.oy || 0; t.p.x += ox; t.p.y += oy; pose(bl, t, vdt); t.p.x -= ox; t.p.y -= oy; });
       /* the camera leans towards the action, never far from the middle of the bowl */
       const mx = (a.p.x + b.p.x) / 2, mz = (a.p.y + b.p.y) / 2; if (B.cine && B.cine.t > 0) { B.cine.t -= real; camTo(CX + B.cine.x, CZ + B.cine.z + 1.4, 4.2, real * 3, 30); } else { /* low and close, from your side, pulling out to keep both blades in frame as they part */ const gap = Math.hypot(a.p.x - b.p.x, a.p.y - b.p.y); camTo(CX + mx * 0.75, CZ + 0.7 + mz * 0.75, T.clamp(gap * 1.25 + 4.2, 6.5, 11.5), real, 33); }
-      hudFrame(dt); const o = BS.outcome(W); if (o) M.go('blades.round', o); },
+      hudFrame(dt); if (guest) return; netFlush(real); const o = BS.outcome(W); if (o) { netRound(o); M.go('blades.round', o); } },
   });
   M.define('blades.round', { busy: true,
     /* the winner keeps spinning and the loser finishes falling, for a beat */
     frame(dt) { dt = Math.min(dt, 0.05); if (B.slowT > 0) { B.slowT -= dt; dt *= B.slowK; } const [a, b] = B.W.tops; [[a, B.me], [b, B.rival]].forEach(([t, bl]) => { if (!bl) return; const vdt = dt * BS.TIME; if (t.alive) { t.ang += t.w * vdt; t.w *= Math.exp(-vdt * 0.3); pose(bl, t, vdt); } else deadFrame(bl, t, vdt); }); },
     async enter(o, run) { const W = B.W, [a, b] = W.tops, won = o.winner === a; tip.classList.remove('on'); setTimeout(() => { speedEl.style.opacity = 0; const z = sx(); if (z && B.slowOn) { B.slowOn = false; z.slow(false); } }, 1200); B.score[won ? 0 : 1] += o.pts; hudFrame(0, true);
       if (o.how === 'time') { [a, b].forEach(t => { if (t !== o.winner) { t.alive = false; (t === a ? B.me : B.rival).dead = 'spin'; } }); }
-      banner(HOW[o.how] + '!', (won ? 'You' : 'Your rival') + ' +' + o.pts + (o.pts === 1 ? ' point' : ' points'), 0); snd(won ? 'chime' : 'sink', won ? { tier: o.pts > 1 ? 'epic' : 'rare' } : { dur: 0.8 });
+      banner(HOW[o.how] + '!', (won ? 'You' : B.net ? esc(foeName()) : 'Your rival') + ' +' + o.pts + (o.pts === 1 ? ' point' : ' points'), 0); snd(won ? 'chime' : 'sink', won ? { tier: o.pts > 1 ? 'epic' : 'rare' } : { dur: 0.8 });
       await T.wait(2.4, 'blades'); if (!run.alive()) return; [B.me, B.rival].forEach(bl => { if (bl && bl.whirr) { bl.whirr.stop(); bl.whirr = null; } });
       if (B.score[0] >= BS.WIN_AT || B.score[1] >= BS.WIN_AT) M.go('blades.result'); else M.go('blades.ready'); },
   });
   M.define('blades.result', {
-    enter() { const win = B.score[0] >= BS.WIN_AT; hudFrame(0, true); camTo(CX, CZ + 1.0, 2 * R + 3.5); banner(win ? 'You win the match' : 'Your rival takes it', B.score[0] + ' to ' + B.score[1], 0); snd(win ? 'countFinal' : 'sink'); if (win) snd('chime', { tier: 'legendary' });
-      showBar([['done', 'Done'], ['rebuild', 'Change parts'], ['rematch', 'Rematch', true]]); },
+    enter() { const win = B.score[0] >= BS.WIN_AT; hudFrame(0, true); camTo(CX, CZ + 1.0, 2 * R + 3.5); banner(win ? 'You win the match' : B.net ? esc(foeName()) + ' takes it' : 'Your rival takes it', B.score[0] + ' to ' + B.score[1], 0); snd(win ? 'countFinal' : 'sink'); if (win) snd('chime', { tier: 'legendary' });
+      showBar([['done', B.net ? 'Leave' : 'Done'], ['rebuild', 'Change parts'], ['rematch', B.net && B.net.again.them ? esc(foeName()) + ' wants a rematch' : 'Rematch', true]]); },
     exit() { hideBar(); },
   });
   M.define('blades.closing', { busy: true, on: { CLOSE: () => undefined },
@@ -608,7 +627,7 @@ export function install(S) {
         stadium.visible = false; spot.visible = false; key.visible = rim.visible = false; await S.under.doors(false); doorsShut = true; }
       catch (e) { console.error('blades closing', e); }
       finally { stadium.visible = false; spot.visible = false; key.visible = rim.visible = false; stadium.position.y = DOWN; if (!doorsShut) { try { S.hole.close(); } catch (e) {} }
-        if (B.pushed) { S.cam.pop(); B.pushed = false; } forgetRival(); S.sfx('detent'); B.score = [0, 0]; B.roundN = 1; B.starting = false;
+        duelEnd(); if (B.pushed) { S.cam.pop(); B.pushed = false; } forgetRival(); S.sfx('detent'); B.score = [0, 0]; B.roundN = 1; B.starting = false;
         if (M.is('blades.closing')) M.go(S.under.on ? 'under' : 'idle'); } },
   });
   function forgetRival() { if (B.rivalParts) B.rivalParts.forEach(s => { SM.forgetPhoto(s.id); DNA.delete(s.id); }); B.rivalParts = null; }
@@ -619,16 +638,91 @@ export function install(S) {
     if (a === 'close' || a === 'done') M.send('CLOSE');
     else if (a === 'borrow') { borrow(); randomPick(); }
     else if (a === 'random') randomPick();
-    else if (a === 'fight' && B.slots.every(Boolean)) { S.sfx('detent'); startMatch(); }
-    else if (a === 'rematch') startMatch();
-    else if (a === 'rebuild') M.go('blades.build');
+    else if (a === 'fight' && B.slots.every(Boolean)) { S.sfx('detent'); if (B.net) netReady(); else startMatch(); }
+    else if (a === 'rematch') { if (B.net) { B.net.again.me = true; netSend('again'); showBar([['done', 'Leave'], ['rebuild', 'Change parts']]); banner('Rematch?', 'Waiting for ' + esc(foeName()), 0); netMaybeStart(); } else startMatch(); }
+    else if (a === 'rebuild') { if (B.net) { B.net.theirs = null; netSend('rebuild'); } M.go('blades.build'); }
+    else if (a === 'online') { if (HOSTD) HOSTD.list(); }
+    else if (a === 'leave') { duelEnd(); S.toast('You left the duel.'); renderCard(); }
+    else if (a === 'unready' && B.net) { B.net.parts = null; netSend('unready'); renderCard(); }
     else if (a === 'look' && B.preview) M.go('blades.build.inspect');
     else if (a === 'back') M.go('blades.build');
     else if (a === 'apart' && B.look) { B.look.apart = !B.look.apart; S.sfx(B.look.apart ? 'lift' : 'ltPutDown'); lookBar(); }
   }
 
+
+  /* ---------- online duels: another signed-in player instead of the rolled rival ----------
+     The page's duel.js finds them and carries the messages; bladenet.js packs them. The inviter hosts: their sim is the
+     real one, sent ten times a second with what happened. The guest's own step only fills in between (its outs and
+     bursts are thrown away; the host's arrive with the state), and its bowl is turned round so its blade is nearest.
+     Both build their own blade and rip their own launch; the round starts when both have ripped. */
+  const HOSTD = ctx.HOST && ctx.HOST.duel || null, NET_HZ = 10, LOST_MS = 15000;
+  const foeName = () => B.net ? B.net.foe.n : 'Rival';
+  /* the other player's slabs only bring photos from where Studium's packs live; anything else is painted instead */
+  const PHOTO_HOSTS = ['studium.nz', 'www.studium.nz', 'xddjfwoppmuhyagkhalk.supabase.co', 'ircgijvxzcxmcnyugdvm.supabase.co', 'localhost'];
+  const photoOk = u => { try { const h = new URL(u).hostname; let own = ''; try { own = window.parent.location.hostname; } catch (e) {} return PHOTO_HOSTS.includes(h) || (!!own && h === own); } catch (e) { return false; } };
+  const netSend = (ev, p) => { if (B.net && B.net.ch) B.net.ch.send(ev, p || {}); };
+  function duelStart(info) { if (!HOSTD) return; duelEnd(true); const now = performance.now();
+    const N = B.net = { role: info.role, host: info.role === 'host', foe: info.foe, topic: info.topic, ch: null, hello: false, heard: now + 30000, parts: null, theirs: null, rd: 0, rip: null, theirRip: null, launched: false, again: { me: false, them: false }, evq: [], snapT: 0, foeSp: false };
+    N.ch = HOSTD.channel(info.topic, { msg: (ev, p) => { if (B.net === N) try { netMsg(N, ev, p); } catch (e) { console.error('duel', e); } } });
+    /* a heartbeat that also repeats what the other side may have missed while they were still on their way */
+    N.beat = setInterval(() => { if (B.net !== N) return; netSend('hi', { ready: !!N.parts, st: M.state, rd: N.rd });
+      if (N.parts && !N.gotAck) netSend('parts', { parts: N.parts });
+      if (N.rip && !N.launched && M.is('blades.ready')) netSend('rip', N.rip);
+      if (performance.now() - N.heard > (B.lostMs || LOST_MS)) duelLost(N.hello ? 'The duel’s off. We lost touch with ' + N.foe.n.replace(/\.$/, '') + '.' : N.foe.n.replace(/\.$/, '') + ' didn’t make it to the stadium.'); }, 1000);
+    arena.rotation.y = N.host ? 0 : Math.PI;
+    if (M.is('blades.build')) { if (!M.is('blades.build.inspect')) renderCard(); } else M.go('blades.build');
+    banner('Duel with ' + esc(N.foe.n), N.host ? 'Waiting for them to get to the stadium' : 'Build your blade, then press Fight', 2600); snd('chime', { tier: 'rare' }); }
+  /* quiet: a new duel is taking over, so the page's busy flag (now the new duel's) is left alone */
+  function duelEnd(quiet) { const N = B.net; if (!N) return; B.net = null; clearInterval(N.beat); try { N.ch.send('bye', {}); N.ch.leave(); } catch (e) {} if (HOSTD && !quiet) HOSTD.end(); arena.rotation.y = 0; }
+  /* the other player is gone: back to the build card, where the rolled rival is waiting as before */
+  function duelLost(why) { duelEnd(); S.toast(why); hideBanner(); if (/^blades\.(ready|battle|round|result)/.test(M.state)) M.go('blades.build'); else if (M.is('blades.build') && !M.is('blades.build.inspect')) renderCard(); }
+  function netReady() { const N = B.net; N.parts = B.slots.map(BN.cleanSlab); N.gotAck = false; netSend('parts', { parts: N.parts }); renderCard(); netMaybeStart(); }
+  /* the host starts a match once both blades are in (or both asked for a rematch) */
+  function netMaybeStart() { const N = B.net; if (!N || !N.host || !N.parts || !N.theirs || B.starting) return;
+    if (M.is('blades.result') ? !(N.again.me && N.again.them) : !M.is('blades.build')) return;
+    const mid = Math.random().toString(36).slice(2, 9); netSend('start', { mid, parts: N.parts }); duelMatch(mid); }
+  function duelMatch(mid) { const N = B.net; if (!N || N.mid === mid) return; N.mid = mid; N.rd = 0; N.again = { me: false, them: false }; N.rip = N.theirRip = null; hideBanner(); hideBar();
+    B.starting = true; B.score = [0, 0]; B.roundN = 1; forgetRival(); const parts = B.rivalParts = N.theirs.map(s => BN.foeSlab(s, photoOk)), sets = spareSets();
+    Promise.all(B.slots.concat(parts, sets.flat()).map(loadDNA)).then(() => { B.starting = false; if (B.rivalParts !== parts || B.net !== N || !(M.is('blades.build') || M.is('blades.result'))) return;
+      if (!N.parts || !N.theirs) { N.mid = null; if (M.is('blades.build') && !M.is('blades.build.inspect')) renderCard(); return; }   /* one of you changed your blade while it loaded */
+      placeSpares(sets); M.go('blades.ready'); }); }
+  /* both ripped: the host launches and sends where everything is */
+  function netLaunch() { const N = B.net; if (!N || !N.host || N.launched || !N.rip || !N.theirRip || N.theirRip.rd !== N.rd || !M.is('blades.ready')) return;
+    N.launched = true; B.lx = N.rip.x; B.W.tops[0].p.x = N.rip.x; B.rivalPlan = BN.turnPlan(N.theirRip); hideBanner(); doLaunch(N.rip.power, N.rip.aim); N.snapT = 0;
+    N.lastGo = { rd: N.rd, snap: netSnapOut() }; netSend('go', N.lastGo); }
+  function netSnapOut() { const W = B.W; return { t: Math.round(W.t * 1000) / 1000, s: W.tops.map(BN.packTop) }; }
+  function netQueue(ev) { const N = B.net; if (!N || !N.host || !ev.length) return; ev.forEach(e => N.evq.push(BN.packEv(e, B.W.tops))); }
+  function netFlush(dt) { const N = B.net; if (!N || !N.host) return; N.snapT -= dt; if (N.snapT > 0) return; N.snapT = 1 / NET_HZ;
+    const out = netSnapOut(); out.ev = N.evq; N.evq = []; netSend('snap', out); }
+  function netRound(o) { const N = B.net; if (!N || !N.host) return; const out = netSnapOut(); out.ev = N.evq; N.evq = []; out.o = { w: B.W.tops.indexOf(o.winner), how: o.how, pts: o.pts }; out.rd = N.rd; N.lastRound = out; netSend('round', out); }
+  /* what the host sent, onto the guest's turned-round world: a top that's still spinning eases to it, the events play */
+  function netApply(p) { const W = B.W; if (!W || !p || !p.s) return; W.t = p.t;
+    p.s.forEach((a, hi) => { const t = W.tops[1 - hi], was = t.alive, ox = t.p.x, oy = t.p.y; t.netAlive = !!(a[12] & 1);
+      if (!was && !t.netAlive) return;   /* already down here: its fall plays on */
+      BN.applyTop(t, a, true); if (was && t.alive) { t.ox = T.clamp((t.ox || 0) + ox - t.p.x, -1.2, 1.2); t.oy = T.clamp((t.oy || 0) + oy - t.p.y, -1.2, 1.2); } else { t.ox = t.oy = 0; } });
+    const ev = (p.ev || []).map(e => BN.unpackEv(e, W.tops, true)); if (ev.length) fx(ev);
+    [[W.tops[0], B.me], [W.tops[1], B.rival]].forEach(([t, bl]) => { if (bl && !t.alive && !bl.dead) { if (t.done === 'burst') burstApart(bl, t); else bl.dead = 'spin'; } }); }
+  function netMsg(N, ev, p) { N.heard = performance.now();
+    if (!N.hello) { N.hello = true; if (M.is('blades.build') && !M.is('blades.build.inspect')) renderCard(); if (N.host) banner(esc(N.foe.n) + ' is here', 'Build your blade, then press Fight', 2200); }
+    if (ev === 'bye') { duelLost(N.foe.n + ' left the duel.'); return; }
+    if (ev === 'hi') { if (N.host) { if (p.st === 'blades.ready' && p.rd === N.rd && N.lastGo && N.lastGo.rd === N.rd && N.launched) netSend('go', N.lastGo); else if (p.st === 'blades.battle' && N.lastRound && N.lastRound.rd === p.rd && !(M.is('blades.battle') && p.rd === N.rd)) netSend('round', N.lastRound); } return; }   /* the guest missed the launch or the round's end: send it again */
+    if (ev === 'parts') { netSend('got'); if (!Array.isArray(p.parts) || p.parts.length !== 3) return; const fresh = !N.theirs; N.theirs = p.parts; if (fresh && M.is('blades.build') && !M.is('blades.build.inspect')) renderCard(); netMaybeStart(); return; }
+    if (ev === 'got') { N.gotAck = true; return; }
+    if (ev === 'unready') { N.theirs = null; if (M.is('blades.ready') && !N.launched) { M.go('blades.build'); return; } if (M.is('blades.build') && !M.is('blades.build.inspect')) renderCard(); return; }
+    if (ev === 'rebuild') { N.theirs = null; if (/^blades\.(ready|result)/.test(M.state)) { M.go('blades.build'); banner(esc(N.foe.n) + ' is changing parts', 'Pick yours too, then press Fight', 2400); } else if (M.is('blades.build') && !M.is('blades.build.inspect')) renderCard(); return; }
+    if (ev === 'start' && !N.host) { if (Array.isArray(p.parts) && p.parts.length === 3) N.theirs = p.parts; if (!N.parts) { if (!M.is('blades.result')) netSend('unready'); return; } if (!N.theirs || !B.slots.every(Boolean)) return; if (M.is('blades.build.inspect')) M.go('blades.build'); duelMatch(p.mid); return; }
+    if (ev === 'again') { N.again.them = true; if (M.is('blades.result') && !N.again.me) showBar([['done', 'Leave'], ['rebuild', 'Change parts'], ['rematch', esc(N.foe.n) + ' wants a rematch', true]]); netMaybeStart(); return; }
+    if (ev === 'rip') { if (typeof p.rd !== 'number' || p.rd < N.rd) return; N.theirRip = p; if (M.is('blades.ready') && !N.rip) banner(esc(N.foe.n) + ' is ready', 'Your rip', 1400); netLaunch(); return; }
+    if (ev === 'sp' && N.host) { if (M.is('blades.battle')) N.foeSp = true; return; }
+    if (N.host) return;
+    /* the guest: the host's launch, what happens, and how each round ends */
+    if (ev === 'go') { if (!M.is('blades.ready') || p.rd !== N.rd || N.launched) return; N.launched = true; hideBanner(); tip.classList.remove('on'); B.pull = null; netApply(p.snap); B.W.tops.forEach(t => { t.ox = t.oy = 0; }); launched(N.rip ? N.rip.power : 0.7); return; }
+    if (ev === 'snap') { if (M.is('blades.battle')) netApply(p); return; }
+    if (ev === 'round') { if (!M.is('blades.battle') || (p.rd != null && p.rd !== N.rd)) return; netApply(p); const o = p.o || {}, W = B.W; M.go('blades.round', { winner: W.tops[BN.turnWinner(o.w | 0, true)], how: o.how, pts: o.pts }); }
+  }
+
   /* ---------- test hooks and the dev panel ---------- */
-  S.blades = { sim: () => B.W, state: B, stadium,
+  S.blades = { sim: () => B.W, state: B, stadium, duel: duelStart, net: () => B.net, endDuel: () => duelEnd(),
     /* the room is put away mid-battle: hush the whirrs (the next frame turns them back up) */
     pause(on) { if (on) [B.me, B.rival].forEach(bl => { if (bl && bl.whirr) bl.whirr.set(0, 0); }); },
     pick(ids) { B.slots = ids.map(id => byId(id)); renderCard(); buildPreview(); },

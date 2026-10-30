@@ -20,6 +20,12 @@
     spark:function(){ return LT_SPARK; },
     scan:function(id){ var s=null; try{ s=SPLAT_SCENES.filter(function(x){ return x.id===id; })[0]; }catch(e){} return s&&s.detail?s.detail.data:null; },
     sfx:function(id,o){ return sfx(id,o); },
+    /* the secret collection changed: the session saves, so a signed-in player's slabs go to the cloud with it */
+    secretSaved:function(){ saveSession(); },
+    secretKey:function(){ return ltSecretKey(); },
+    /* online Blades duels (duel.js) */
+    duel:{ can:function(){ return typeof Duel!=="undefined"&&Duel.can(); }, list:function(){ if(typeof Duel!=="undefined") Duel.list(); }, end:function(){ if(typeof Duel!=="undefined") Duel.end(); },
+      channel:function(topic,h){ return Duel.channel(topic,h); } },
     shutter:function(){ try{ if(typeof shutterSound==="function") shutterSound(); else sfx("capture"); }catch(e){} },
     save:function(s){ st.lightTable=s; saveSession(); },
     tourDone:function(){ ltWant=false; if(typeof Q!=="undefined"&&Q&&Q.tours){ Q.tours.lighttable=true; if(typeof qSave==="function") qSave(); } },
@@ -37,6 +43,11 @@
       else { var at=bk.pages.length; if(bk.pages[at-1].back) at--; ids.forEach(function(id,k){ bk.pages.splice(at+k,0,{tpl:"centre", imgs:[id]}); }); }
       saveSession(); }
   };
+  /* where the secret collection lives: the demo's apart from real work, like its quests. A demo player from before the
+     split keeps the collection they had (copied across once) */
+  function ltSecretKey(){ if(!(typeof qDemo==="function"&&qDemo())) return "studium_secret_v1";
+    try{ if(localStorage.getItem("studium_secret_demo_v1")==null&&localStorage.getItem("studium_secret_v1")!=null&&!localStorage.getItem("studium_secret_split")) localStorage.setItem("studium_secret_demo_v1", localStorage.getItem("studium_secret_v1")); localStorage.setItem("studium_secret_split","1"); }catch(e){}
+    return "studium_secret_demo_v1"; }
   function ltSync(){ try{ if(ltFrame&&ltFrame.contentWindow&&ltFrame.contentWindow.LTapp) ltFrame.contentWindow.LTapp.sync(ltData()); }catch(e){} }
   function ltFonts(){ var css=""; try{ Array.prototype.forEach.call(document.styleSheets, function(sh){ var rules; try{ rules=sh.cssRules; }catch(e){ return; }
       Array.prototype.forEach.call(rules||[], function(r){ if(r.type===5) css+=r.cssText+"\n"; }); }); }catch(e){} return css; }

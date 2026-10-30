@@ -3401,3 +3401,12 @@ body.fl-dragging #viewport canvas{cursor:grabbing!important}
 .co-card.ok .co-tick{opacity:1;transform:scale(1) rotate(0)}
 .co-card.ok .co-line,.co-card.ok .co-sub{opacity:.45;transition:opacity .2s}
 @media (prefers-reduced-motion:reduce){.co-line kbd[data-co-k]:not(.on),.co-mouse .l,.co-mouse .r,.co-mouse svg{animation:none!important}}
+
+/* who's signed in: a pill in the studio bar, and its card (hub.js siWho) */
+.st-who{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:999px;border:1px solid rgba(244,241,234,.18);background:rgba(244,241,234,.04);color:var(--text);font:500 10.5px var(--mono);letter-spacing:.1em;cursor:pointer;white-space:nowrap}
+.st-who:hover{border-color:var(--accent);color:var(--accent)}
+.st-who i{width:7px;height:7px;border-radius:50%;background:#6fd08a;box-shadow:0 0 0 3px rgba(111,208,138,.18)}
+.st-whopop{position:fixed;top:64px;right:24px;z-index:3000;width:260px;display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:10px;background:rgba(20,18,15,.97);border:1px solid rgba(244,241,234,.16);box-shadow:0 18px 40px rgba(0,0,0,.45);color:var(--text);font:400 13px/1.4 var(--sans)}
+.st-whopop b{font:400 17px var(--serif)} .st-whopop span{color:rgba(244,241,234,.65)}
+.st-whopop button{align-self:flex-start;margin-top:4px;padding:8px 12px;border-radius:7px;border:1px solid rgba(244,241,234,.22);background:transparent;color:var(--text);font:500 11px var(--mono);letter-spacing:.1em;cursor:pointer}
+.st-whopop button:hover{border-color:var(--accent);color:var(--accent)}

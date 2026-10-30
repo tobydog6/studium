@@ -136,9 +136,12 @@
   function siDemoBack(u){ var s=$("signin");
     if(typeof sessionLoaded!=="undefined"&&!sessionLoaded){ setTimeout(function(){ siDemoBack(u); }, 100); return; }   /* the boot load finishes first, so it can't land on top of theirs */
     lsSetWho({role:"solo", name:u.name, demo:true, google:true}); wipeWorkspace(); if(typeof qLoad==="function") Q=qLoad();
-    loadSession(function(){ Sync.cloudRestore().then(function(){ if(s) s.classList.add("hidden");
-      if(siDemoHasWork()){ showHub(); if(typeof hubRender==="function") hubRender(); toast("Kia ora "+u.name.split(" ")[0]+". Your demo saves to your Google account now."); }
-      else { if(typeof saveSessionNow==="function") saveSessionNow(); qDemoStart(); toast("Kia ora "+u.name.split(" ")[0]+". Your progress saves to your Google account as you go."); } }); }); }
+    loadSession(function(){ var go=function(){ if(s) s.classList.add("hidden"); var first=u.name.split(" ")[0];
+        /* Sam: back to the launch page, signed in (its corner says so, its button carries on or starts fresh), not the old home screen */
+        if(SI_DEMO_ONLY&&typeof rfShow==="function"&&!RF.failed){ siShow(); siWho(); toast("Kia ora "+first+". You're signed in, so your progress saves to your Google account."); return; }
+        if(siDemoHasWork()){ showHub(); if(typeof hubRender==="function") hubRender(); toast("Kia ora "+first+". Your demo saves to your Google account now."); }
+        else { if(typeof saveSessionNow==="function") saveSessionNow(); qDemoStart(); toast("Kia ora "+first+". Your progress saves to your Google account as you go."); } };
+      Sync.cloudRestore().then(go, function(e){ console.warn("cloud restore", e); go(); }); }); }   /* a failed restore still lands you somewhere, never stuck on Signing you in */
   // ---- back from Google (Sync read the token from the address bar). Students: their class if they've joined one, else
   // the class code once. Teachers: their classes from the server, then the teacher view. Returns true when it takes over boot.
   var siGoogle=null;
@@ -160,6 +163,17 @@
         siGoogle=u; siShow(); var s2=$("signin"); s2.querySelector(".si-sub").textContent="Kia ora "+u.name.split(" ")[0]+". Type your class code to join your class."; s2.querySelector(".si-help").textContent="Your teacher has it on the board. You only need it once."; setTimeout(function(){ $("siCode").focus(); },30); }); })
       .catch(function(e){ console.warn(e); siShow(); toast("Google sign-in didn't finish. Try again, or join with a class code."); });
     return true; }
+  // ---- who's signed in: a pill in the studio bar while a Google account is on (Sam: so people know they're logged in);
+  // click it for a small card with Sign out ----
+  function siWho(){ var b=$("stWho"); if(!b) return; var w=lsWho()||{}, on=typeof Sync!=="undefined"&&Sync.signedIn()&&!!w.google; b.classList.toggle("hidden",!on); if(!on){ siWhoPop(false); return; }
+    var nm=String(w.name||"").trim().split(/\s+/), short=nm[0]?nm[0]+(nm.length>1?" "+nm[nm.length-1].charAt(0).toUpperCase()+".":""):"You";
+    b.innerHTML='<i aria-hidden="true"></i>'+short.replace(/[<>&"]/g,""); b.title="Signed in with Google. Your progress saves to your account."; }
+  function siWhoPop(open){ var p=$("stWhoPop"); if(!open){ if(p) p.remove(); return; } if(p){ p.remove(); return; }
+    var w=lsWho()||{}; p=document.createElement("div"); p.id="stWhoPop"; p.className="st-whopop";
+    p.innerHTML='<b>'+String(w.name||"You").replace(/[<>&"]/g,"")+'</b><span>Signed in with Google. Your progress saves to your account as you go.</span><button type="button" data-out>Sign out</button>';
+    document.body.appendChild(p); p.querySelector("[data-out]").addEventListener("click",function(){ p.remove(); siSignOut(function(){ siWho(); siShow(); }); }); }
+  (function wireWho(){ var b=$("stWho"); if(!b) return; b.addEventListener("click",function(e){ e.stopPropagation(); siWhoPop(true); });
+    document.addEventListener("click",function(e){ var p=$("stWhoPop"); if(p&&!p.contains(e.target)&&e.target!==b) p.remove(); }); setInterval(siWho, 3000); setTimeout(siWho, 500); })();
   // signing out on a shared computer: the workbook goes up (and the teacher's deck is rebuilt) before the session goes
   function siSignOut(then){ if(typeof Sync!=="undefined"&&Sync.signedIn()){ toast("Saving your workbook…"); Sync.signOut().then(function(){ lsSetWho(null); then(); toast("Signed out. Your work is saved."); }); return; }
     lsSetWho(null); then(); }

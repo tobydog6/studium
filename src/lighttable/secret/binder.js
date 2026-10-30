@@ -36,10 +36,13 @@ export function install(S) {
     mesh: () => binderMesh(S),
     open() { if (M.is('idle')) return M.go('binder.open'); if (M.is('vault') && !M.is('vault.binder')) return M.go('vault.binder'); return null; },
     close() { if (b.active()) M.send('CLOSE'); },
+    /* a game's chooser: pages of the ids given; choose(slab, worldPos) → true for more; the binder closes into ret */
+    pick(o) { const ids = (o.ids || []).slice(), pages = []; while (ids.length) pages.push(ids.splice(0, 9).concat(new Array(9).fill(null)).slice(0, 9));
+      b.pick = { pages, choose: o.choose, ret: o.ret, hint: o.hint || '', label: o.label, hold: o.hold || null }; return M.go('binder.open'); },
     turn(dir) { return b.turn(dir || 1); },
     spread() { return b.spread; },
     pockets() { return b.allPockets(); },
-    hot: () => b.hot, pending: () => b.pending, busy: () => b.busy,
+    hot: () => b.hot, pending: () => b.pending, busy: () => b.busy, __pick: pk => b.pickPocket(pk),
   };
   S.dev.action('Open binder', () => M.is('idle') && M.go('binder.open'), 'Try');
 
@@ -56,6 +59,7 @@ export function install(S) {
   M.define('vault.binder', {
     async enter(d, run) {
       b.root.visible = true; b.begin(false);
+      if (b.pick && b.pick.hold) { b.frameCam(); await b.toHold(true); if (!run.alive()) return; }
       await b.openCover(); if (!run.alive()) return;
       b.showSpread();
     },
@@ -75,10 +79,11 @@ export function install(S) {
   /* ---------- straight from the table (the Library's Rare folder, the dev panel) ---------- */
   M.define('binder.open', {
     async enter(d, run) {
-      S.cam.push(); b.pushed = true; const already = b.root.visible; b.resetClosed(); b.begin(true); S.dropTargets.binder = dropInto;
+      S.cam.push(); b.pushed = true; const already = b.root.visible; b.resetClosed(); b.begin(true); S.dropTargets.binder = b.pick ? null : dropInto;
       if (!already) { const rect = [HINGE_X - B.w - 0.6 + B.x, B.z - B.d / 2 - 0.6, B.w / 2 + 0.6 + B.x, B.z + B.d / 2 + 0.6];
         await S.clearPrints(rect, S.dev.opt('clearing')); if (!run.alive()) return;
         S.sfx('detent'); await S.P.reform(b.root, { mode: S.dev.opt('dissolve'), dur: 1.1 }); if (!run.alive()) return; } else S.sfx('detent');
+      if (b.pick && b.pick.hold) { b.frameCam(); await b.toHold(true); if (!run.alive()) return; }
       await b.openCover(); if (!run.alive()) return;
       b.showSpread();
     },
@@ -89,10 +94,11 @@ export function install(S) {
   M.define('binder.closing', { busy: true,
     async enter(d, run) {
       await b.closeCover(); if (!run.alive()) return;
+      if (b.pick && b.pick.hold) { await b.toHold(false); if (!run.alive()) return; }
       await T.wait(0.15); if (!run.alive()) return;
       if (!(S.under && S.under.on)) { await S.P.dissolve(b.root, { mode: S.dev.opt('dissolve'), dur: 1.2 }); if (!run.alive()) return; }
       if (b.pushed) { S.cam.pop(); b.pushed = false; }
-      M.go('idle');
+      M.go((b.pick && b.pick.ret) || 'idle');
     },
     exit: next => b.leave(next), on: { CLOSE: () => {} }, frame,
   });
@@ -171,26 +177,32 @@ function build(S) {
     allPockets() { return [b.pages.L, b.pages.R].filter(Boolean).flatMap(pc => pc.pockets); },
     /* ---------- pose ---------- */
     resetClosed() { b.clearPages(); spineG.rotation.z = 0; coverG.rotation.z = 0; leaf.visible = false; leaf.rotation.z = 0; b.hot = null; b.pending = null; b.busy = false; b.drawCover(); },
-    drawCover() { const n = store.get().binder.reduce((s, pg) => s + (pg ? pg.filter(Boolean).length : 0), 0); const c = coverCanvas(S, n); coverCv.getContext('2d').drawImage(c, 0, 0); coverTex.needsUpdate = true; },
+    drawCover() { const n = b.pagesData().reduce((s, pg) => s + (pg ? pg.filter(Boolean).length : 0), 0); const c = coverCanvas(S, n); coverCv.getContext('2d').drawImage(c, 0, 0); coverTex.needsUpdate = true; },
     begin(fromTable) { b.gen++; b.mode = fromTable ? 'table' : 'vault'; b.spread = 0; b.pending = null; b.hot = null; b.busy = false; b.drawCover(); },
+    /* held (a game's chooser): the binder slides up the mat from its spot and tilts up towards you, as if in your hands */
+    toHold(on) { const H = b.pick && b.pick.hold; if (!H) return Promise.resolve(); const p0 = root.position.clone(), r0 = root.rotation.clone(), p1 = on ? new THREE.Vector3(...H.pos) : new THREE.Vector3(B.x, 0, B.z);
+      const r1 = on ? new THREE.Euler(H.tilt || 0.7, H.yaw || 0, 0) : new THREE.Euler(0, 0, 0); S.sfx('lift');
+      return T.tween({ dur: on ? 1.1 : 0.9, ease: T.E.inOutCubic, tag: 'binder', update: e => { root.position.lerpVectors(p0, p1, e); root.position.y += Math.sin(e * Math.PI) * 0.4; root.rotation.set(r0.x + (r1.x - r0.x) * e, r0.y + (r1.y - r0.y) * e, 0); } }); },
     async openCover() { S.sfx('binder'); b.frameCam();
       await T.tween({ dur: 1.0, ease: flap, tag: 'binder', update: e => { spineG.rotation.z = e * Math.PI / 2; coverG.rotation.z = e * Math.PI / 2; } }); },
     async closeCover() { b.busy = true; b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; S.sfx('binder');
       const s0 = spineG.rotation.z, c0 = coverG.rotation.z;
       await T.tween({ dur: 0.7, ease: T.E.inOutCubic, tag: 'binder', update: e => { spineG.rotation.z = s0 * (1 - e); coverG.rotation.z = c0 * (1 - e); } }); b.busy = false; },
     /* from above and in front, the open spread filling the view; wide pulls back a touch so a slab laid in front shows too */
-    frameCam(wide) { S.cam.set({ pitch: 58 }); if (wide) S.cam.set({ tx: B.x + AX + 0.6, ty: 0, tz: B.z + 1.6, dT: S.cam.fit(11.4, 9.2) }); else S.cam.set({ tx: B.x + AX + 0.4, ty: 0, tz: B.z + 0.3, dT: S.cam.fit(10.8, 6.2) }); },
-    showSpread() { b.busy = false; b.loadSpread(); S.ctx.hint(HINT); },
-    leave(next) { if (/^(vault\.binder|binder)(\.|$)/.test(next)) return; S.dropTargets.binder = null; b.gen++; T.cancelAll('binder'); b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; b.busy = false; b.mode = null;
+    frameCam(wide) { if (b.pick && b.pick.hold) { S.cam.set(b.pick.hold.cam); return; } S.cam.set({ pitch: 58 }); if (wide) S.cam.set({ tx: B.x + AX + 0.6, ty: 0, tz: B.z + 1.6, dT: S.cam.fit(11.4, 9.2) }); else S.cam.set({ tx: B.x + AX + 0.4, ty: 0, tz: B.z + 0.3, dT: S.cam.fit(10.8, 6.2) }); },
+    showSpread() { b.busy = false; b.loadSpread(); S.ctx.hint(b.pick ? b.pick.hint : HINT); },
+    leave(next) { if (/^(vault\.binder|binder)(\.|$)/.test(next)) return; S.dropTargets.binder = null; b.pick = null; root.position.set(B.x, 0, B.z); root.rotation.set(0, 0, 0); b.gen++; T.cancelAll('binder'); b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; b.busy = false; b.mode = null;
       if (b.pushed) { S.cam.pop(); b.pushed = false; }
       if (/^vault\./.test(next)) { spineG.rotation.z = 0; coverG.rotation.z = 0; if (next === 'vault.closing') root.visible = false; } else { b.resetClosed(); root.visible = !!(S.under && S.under.on); } },
     /* ---------- pages ---------- */
-    pageCount() { return Math.max(2, Math.ceil(store.get().binder.length / 2) * 2); },
+    /* the pages on show: the binder's own, or the slabs a game asks you to choose from (S.binder.pick) */
+    pagesData() { return b.pick ? b.pick.pages : store.get().binder; },
+    pageCount() { return Math.max(2, Math.ceil(b.pagesData().length / 2) * 2); },
     spreads() { return b.pageCount() / 2; },
-    slots(idx) { const pg = store.get().binder[idx]; return pg ? pg.slice(0, 9) : new Array(9).fill(null); },
+    slots(idx) { const pg = b.pagesData()[idx]; return pg ? pg.slice(0, 9) : new Array(9).fill(null); },
     /* one page's contents: nine pocket groups, the page number, the turn arrow and its hit strip; mount() puts them in a frame */
     buildPage(idx, side) {
-      const pc = { idx, side, pockets: [], items: [], gen: b.gen }, slots = b.slots(idx), empty = store.get().binder.length === 0;
+      const pc = { idx, side, pockets: [], items: [], gen: b.gen }, slots = b.slots(idx), empty = b.pagesData().length === 0;
       slots.forEach((id, i) => {
         const g = new THREE.Group(); g.position.set(((i % 3) - 1) * PK.px, 0, (Math.floor(i / 3) - 1) * PK.pz);
         const mat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.2, roughness: 0.05, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.04, envMap: env, envMapIntensity: 1.1, depthWrite: false, emissive: 0xf2c46a, emissiveIntensity: 0 });
@@ -261,9 +273,23 @@ function build(S) {
     },
     /* ---------- pockets: inspect, move, onto the table ---------- */
     clickPocket(pk) {
+      if (b.pick) { if (pk.obj && !pk.taken) b.pickPocket(pk); return; }
       if (b.pending) { if (b.pending.page === pk.page && b.pending.slot === pk.slot) { b.pending = null; S.sfx('detent'); S.toast('Left where it was.'); return; } b.swap(b.pending, pk); return; }
       if (!pk.obj) { S.toast('An empty pocket. Click a slab, then Move it, to put one here.'); return; }
       b.inspectPocket(pk);
+    },
+    /* pick mode: look closer, then choose it; a chosen slab leaves its pocket (the game takes it from there) */
+    async pickPocket(pk) {
+      const obj = pk.obj, g = obj.group, gen = b.gen, P = b.pick; b.setHot(null); S.sfx('detent'); S.ctx.hint(null);
+      T.to(g.scale, { x: 1, y: 1, z: 1 }, { dur: 0.5, ease: T.E.outCubic, tag: 'binder' });
+      const r = await S.inspect.open(obj, { actions: [{ id: 'back', label: 'Put back' }, { id: 'choose', label: P.label || 'Choose this one', primary: true }], hint: 'Drag to turn it, scroll to zoom.' });
+      if (b.gen !== gen || pk.obj !== obj || b.pick !== P) return;
+      T.to(g.scale, { x: pk.s, y: pk.s, z: pk.s }, { dur: 0.45, ease: T.E.inOutSine, tag: 'binder' });
+      if (r !== 'choose') { S.ctx.hint(P.hint); return; }
+      await T.wait(0.45); if (b.gen !== gen || b.pick !== P) return;
+      pk.taken = true; g.updateMatrixWorld(true); const at = g.getWorldPosition(new THREE.Vector3()); g.visible = false;
+      const more = P.choose(obj.slab, at); S.ctx.hint(P.hint);
+      if (!more && S.M.is('binder.open')) S.M.go('binder.closing');
     },
     async inspectPocket(pk) {
       const obj = pk.obj, g = obj.group, gen = b.gen; b.setHot(null); S.sfx('detent'); S.ctx.hint(null);

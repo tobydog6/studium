@@ -27,6 +27,8 @@ import * as under from './under.js';
 import * as casebox from './casebox.js';
 import * as shelf from './shelf.js';
 import * as blades from './blades.js';
+import * as collection from './collection.js';
+import * as whoshot from './whoshot.js';
 import * as fxfin from './fxfinishes.js';
 import { createTools, TOOLS_CSS } from './fxtools.js';
 import * as FXM from './fxmoments.js';
@@ -134,8 +136,8 @@ export function installSecret(ctx) {
   S.specLine = slab => { const f = SL.FINISH[SL.finishOf(slab, S.testFinish())]; return [SL.tierOf(slab).name, f ? f.name + (S.fx && S.fx.fxLabel(slab, f.id) ? ' (' + S.fx.fxLabel(slab, f.id) + ')' : '') : '', slab.variant ? (SL.VARIANT[slab.variant] || {}).name : '', slab.graded ? 'Grade ' + slab.grade + ' ' + SL.gradeText(slab.grade) : 'Raw, ungraded', slab.title, slab.photo && (slab.photo.artist || slab.photo.by)].filter(Boolean).join('  ·  '); };
   /* a small bar while the vault or binder is open: the way back to the case, and out */
   const nav = S.el('div', 'sk-nav', ''); nav.id = 'skNav'; document.body.appendChild(nav); nav.addEventListener('pointerdown', e => e.stopPropagation());
-  nav.addEventListener('click', e => { const b = e.target.closest('[data-ev]'); if (b) M.send(b.dataset.ev); });
-  const NAV = { 'vault.case': [['CLOSE', 'Close the vault']], 'vault.keypad': [['CLOSE', 'Close the vault']], 'vault.lid': [['CLOSE', 'Close the vault']], 'vault.binder': [['CASE', 'Back to the case'], ['CLOSE', 'Close']], 'binder.open': [['CLOSE', 'Close the binder']], 'shelf.view': [['CLOSE', 'Back to the table']], 'case.view': [['CLOSE', 'Close the case']] };
+  nav.addEventListener('click', e => { const b = e.target.closest('[data-ev]'); if (!b) return; if (b.dataset.ev === 'INDEX') { if (S.collection) S.collection.open(); return; } M.send(b.dataset.ev); });   /* Index is the collection's encyclopedia over the binder */
+  const NAV = { 'vault.case': [['CLOSE', 'Close the vault']], 'vault.keypad': [['CLOSE', 'Close the vault']], 'vault.lid': [['CLOSE', 'Close the vault']], 'vault.binder': [['CASE', 'Back to the case'], ['INDEX', 'Index'], ['CLOSE', 'Close']], 'binder.open': [['INDEX', 'Index'], ['CLOSE', 'Close the binder']], 'shelf.view': [['CLOSE', 'Back to the table']], 'case.view': [['CLOSE', 'Close the case']] };
   M.onChange(st => { const b = NAV[st]; nav.innerHTML = b ? b.map(x => '<button type="button" data-ev="' + x[0] + '">' + x[1] + '</button>').join('') : ''; nav.classList.toggle('on', !!b); });
 
   /* ---------- the three diegetic buttons ---------- */
@@ -308,7 +310,7 @@ export function installSecret(ctx) {
 
   /* ---------- the modules (each owns one file) ---------- */
   const secretTop = new Set();
-  [sound, print, holo, fxfin, bloom, reveals, rail, arm, binder, parcel, loot, under, casebox, shelf, market, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  [sound, print, holo, fxfin, bloom, reveals, rail, arm, binder, parcel, loot, under, casebox, shelf, market, collection, blades, whoshot].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
   ctx.scene.children.forEach(c => { if (!lightSide.has(c)) secretTop.add(c); });   /* the rigs the modules just added */
 
   /* ---------- boot ---------- */

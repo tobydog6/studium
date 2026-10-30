@@ -43,6 +43,13 @@ Fourth round (30 Oct):
   (no visible pity counter).
 - Sam wants more slab looks in the same spirit as the finishes: cool, not game breaking.
 
+Fifth round (30 Oct), finishes and extras:
+- Finishes: Stained glass (leaded panes along depth edges, coloured light on the table), Mosaic (raised grout, tiles
+  catch light differently), Marble statue (veined marble rising out of a rough block), Ice sculpture (clear ice,
+  background bent through it, frosty edges), Thermal camera (hot subject, cold purple background, temperature readout).
+- Extra: Prism edges (case edges throw a little rainbow on the table).
+- Sam wants ideas borrowed from other games next (Balatro and the like), spread wide.
+
 ## Structure (draft for Sam)
 A pull = one finish + up to a few extras, each from a different slot. Slots roll on their own, then a cap trims.
 

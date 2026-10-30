@@ -20,7 +20,8 @@
 // not there to forward it), S.rail.state().
 import * as THREE from 'three';
 
-const K = 0.4;                 /* prints on the rail at the table's card scale */
+const K = 0.54;                /* Sam: bigger prints on the rail, fewer across, closer to you */
+const SHOW = 3.3;              /* how many slots either side of the marker are in view */
 const BAR_Y = 0.55, HANG = 0.2;   /* the rail bar above the table top; clip and string down to the top of a print */
 const DEEP = -5.0, BENCH_Y = -1.95, SUNK = -4.6, UP = 1.55;   /* risen, the whole rail hangs above the table top so nothing is cut off */   /* the darkroom floor, the bench, where the rail waits in the dark */
 const ROLLBACK = 0.3;          /* how often the reel passes the winner and rolls back */
@@ -84,7 +85,7 @@ export function install(S) {
       const paper = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), lam(0xffffff, { map: S.SM.tex(ctx.paintPhoto(S.KINDS[(i * 5 + 1) % S.KINDS.length], 300 + i * 17, land ? 300 : 210, land ? 210 : 300)), side: THREE.DoubleSide })); paper.position.y = -0.06 - ph / 2; g.add(paper);
       [-0.3, 0.3].forEach(x => box(0.05, 0.12, 0.05, lam(0x6a4a3a), x * pw, -0.04, 0, g)); g.userData = { pw, ph, i }; line.add(g); hung.push(g);
       for (let k = 0; k < 2; k++) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.026, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffb0a0, transparent: true, opacity: 0.8 })); d.userData.noParticles = true; line.add(d); drops.push({ m: d, g, k, ph: (i * 0.37 + k * 0.5) % 1 }); } }
-    return { room, W, D, x0, x1, z0, z1, cx, cz, walls, halo, red, redBack, key, line, hung, drops, LN, LP, span: W / 2 - 0.55 };
+    return { room, W, D, x0, x1, z0, z1, cx, cz, walls, halo, red, redBack, key, line, hung, drops, LN, LP, span: Math.min(W / 2 - 0.55, SHOW * 1.75) };
   }
 
   /* ---------- the rail: the bar, two posts, the marker, the hangers ---------- */
@@ -122,7 +123,7 @@ export function install(S) {
   function mk(slab) { const o = (!slab.graded || slab.decoy) && S.print && S.print.make ? S.print.make(slab) : null; return o ? S.slabs.adopt(o) : S.slabs.make(slab); }
 
   /* ---------- the camera ---------- */
-  const FRAME = rm => ({ tx: rm.cx, ty: UP - 0.35, tz: rm.cz + 0.2, pitch: 24, dT: Math.max(9, ctx.fitDist(rm.W + 1.2, 4.5, 24)) });
+  const FRAME = rm => ({ tx: rm.cx, ty: UP - 0.55, tz: rm.cz + 0.2, pitch: 22, dT: Math.max(8, ctx.fitDist(rm.span * 2 + 1.0, 5.2, 22)) });   /* framed on the slots in view, not the whole pit */
 
   /* ---------- the reel plan: slots over time, with the long deceleration, the near miss or the roll-back ---------- */
   function plan(n, win) {

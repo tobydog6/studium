@@ -69,6 +69,14 @@ export function installSecret(ctx) {
     push(t) { const c = ctx.cam; camStack.push({ tx: c.tx, ty: c.ty, tz: c.tz, dT: c.dT, pitch: c.pitch, view: c.view }); if (c.view !== 'table') ctx.focus('table'); if (t) Object.assign(c, t); },
     set(t) { Object.assign(ctx.cam, t); },
     pop() { const s = camStack.pop(); if (!s) return; if (s.view === 'wall' && ctx.cam.view !== 'wall') { ctx.focus('wall'); return; } Object.assign(ctx.cam, { tx: s.tx, ty: s.ty, tz: s.tz, dT: s.dT, pitch: s.pitch }); },
+    /* orbit a prop while looking at it (case, shelf): drag anywhere empty turns round it and tilts; the wheel zooms.
+       orbit(kind, e) → true when it used the event; the view's exit sets yaw back to 0 */
+    orbit(kind, e) { const c = ctx.cam, O = S.cam._o;
+      if (kind === 'down' && e.button === 0) { S.cam._o = { x: e.clientX, y: e.clientY, yaw: c.yaw || 0, pitch: c.pitch }; ctx.canvas.style.cursor = 'grabbing'; return true; }
+      if (kind === 'move' && O) { c.yaw = O.yaw - (e.clientX - O.x) * 0.008; c.pitch = T.clamp(O.pitch + (e.clientY - O.y) * 0.25, 12, 82); return true; }
+      if (kind === 'up' && O) { S.cam._o = null; ctx.canvas.style.cursor = 'default'; return true; }
+      if (kind === 'wheel') { c.dT = T.clamp(c.dT * Math.exp(e.deltaY * 0.0012), 4, 40); return true; }
+      return false; },
     /* how far back the camera sits to frame a w × d patch of table at the current pitch */
     fit(w, d) { return ctx.fitDist(w, d, ctx.cam.pitch); },
   };

@@ -69,10 +69,10 @@ export function install(S) {
   const VIEW = () => { const c = new THREE.Vector3(0, h * 0.4, 0); g.localToWorld(c); return { tx: c.x, ty: c.y, tz: c.z + 0.8, pitch: 50, dT: S.ctx.fitDist(w + 2.2, d + 3.4, 50) }; };
   let pushed = false;
   S.M.define('case.view', {
-    enter() { if (!pushed) { S.cam.push(); pushed = true; } S.cam.set(VIEW()); S.ctx.hideActs(); setOpen(true); S.toast('Your case. Drag a slab out, or click one to look closer.'); },
-    exit(next) { if (!/^case/.test(next)) { setOpen(false); if (pushed) { S.cam.pop(); pushed = false; } } },
+    enter() { if (!pushed) { S.cam.push(); pushed = true; } S.cam.set(VIEW()); S.ctx.hideActs(); setOpen(true); S.toast('Your case. Drag round it to look, drag a slab out, or click one to look closer.'); },
+    exit(next) { if (!/^case/.test(next)) { setOpen(false); S.ctx.cam.yaw = 0; S.cam._o = null; if (pushed) { S.cam.pop(); pushed = false; } } },
     on: { CLOSE: () => 'under' },
-    pointer(kind, e) { if (rack.pointer(kind, e)) return true; if (S.tablePointer(kind, e, S.table.list.map(o => o.group))) return true; return kind !== 'wheel'; },
+    pointer(kind, e) { if (S.cam._o) return S.cam.orbit(kind, e); if (rack.pointer(kind, e)) return true; if (S.tablePointer(kind, e, S.table.list.map(o => o.group))) return true; if (S.cam.orbit(kind, e)) return true; return kind !== 'wheel'; },   /* Sam: drag to orbit it */
     key() { return true; },
     frame(dt) { rack.frame(dt); },
   });

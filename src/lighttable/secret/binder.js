@@ -140,19 +140,21 @@ function build(S) {
   const THREE_ = THREE, T = S.T, store = S.store;
   const env = S.SM.envMap(S.renderer);
   const root = new THREE.Group(); root.name = 'rareBinder'; root.position.set(B.x, 0, B.z); root.visible = false; S.scene.add(root);
-  /* divider tabs for a game's chooser (Sam's sketch): clean card tabs out of the left cover's outer edge, one per
-     artist (and All), and along its top edge, one per order; the chosen one stands proud and bright */
+  /* divider tabs for a game's chooser (Sam's sketch): down the left cover's outer edge one slim tab per artist, tucked
+     under the page so they all fit, sliding out to show the name on hover; along the top, all the photos, each tab a
+     different order. The chosen ones stay out and bright */
   const tabsG = new THREE.Group(); tabsG.visible = false; root.add(tabsG);
-  const EDGE_X = PLX - B.pageW / 2 - 0.1, TOP_Z = -B.pageD / 2 - 0.1;
-  const TAB_COLS = ['#d9cdb4', '#7fa58a', '#c49a62', '#8a74c0', '#c46a5f', '#6f93c4', '#c4b25a', '#5fb0a8', '#b46fa0', '#8f8f8f'];
-  function tabCanvas(label, col, w, h) { const c = document.createElement('canvas'), k = 160; c.width = Math.round(w * k); c.height = Math.round(h * k); const g = c.getContext('2d');
-    g.fillStyle = col; g.fillRect(0, 0, c.width, c.height); g.fillStyle = 'rgba(20,18,16,0.88)'; let fs = Math.round(c.height * 0.42); g.font = '600 ' + fs + 'px "Geist", system-ui, sans-serif';
-    while (g.measureText(label).width > c.width * 0.86 && fs > 10) { fs--; g.font = '600 ' + fs + 'px "Geist", system-ui, sans-serif'; }
-    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, c.width / 2, c.height / 2 + 1); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; }
-  function tab(kind, id, label, col, x, z, w, d) { const g = new THREE.Group(); g.position.set(x, PAGE_TOP - 0.02, z);
-    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: tabCanvas(label, col, w, d), roughness: 0.62 });
-    const body = new THREE.Mesh(new RoundedBoxGeometry(w, 0.035, d, 2, 0.03), new THREE.MeshStandardMaterial({ color: new THREE.Color(col), roughness: 0.7 })); g.add(body);
-    const face = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.06, d - 0.06), mat); face.rotation.x = -Math.PI / 2; face.position.y = 0.019; g.add(face);
+  const EDGE_X = PLX - B.pageW / 2 - 0.1, TOP_Z = -B.pageD / 2 - 0.1, SIDE_W = 2.0, TUCK = EDGE_X - 0.32 + SIDE_W / 2, OUT = EDGE_X - 1.72 + SIDE_W / 2, TAB_Y = PAGE_TOP - 0.03;
+  const TAB_COLS = ['#7fa58a', '#c49a62', '#8a74c0', '#c46a5f', '#6f93c4', '#c4b25a', '#5fb0a8', '#b46fa0', '#d9cdb4', '#8f9aa6', '#a3c46f', '#c47f9e'];
+  function tabCanvas(label, col, w, h, left) { const c = document.createElement('canvas'), k = 180; c.width = Math.round(w * k); c.height = Math.round(h * k); const g = c.getContext('2d');
+    g.fillStyle = col; g.fillRect(0, 0, c.width, c.height); g.fillStyle = 'rgba(20,18,16,0.9)'; let fs = Math.round(Math.min(c.height * 0.5, 0.2 * k)); g.font = '600 ' + fs + 'px "Geist", system-ui, sans-serif';
+    const room = left ? (SIDE_W - 0.45) * k : c.width * 0.86; while (g.measureText(label).width > room && fs > 9) { fs--; g.font = '600 ' + fs + 'px "Geist", system-ui, sans-serif'; }
+    g.textBaseline = 'middle'; if (left) { g.textAlign = 'left'; g.fillText(label, 0.12 * k, c.height / 2 + 1); } else { g.textAlign = 'center'; g.fillText(label, c.width / 2, c.height / 2 + 1); }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; }
+  function tab(kind, id, label, col, x, z, w, d) { const g = new THREE.Group(); g.position.set(x, TAB_Y, z);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: tabCanvas(label, col, w, d, kind === 'side'), roughness: 0.62 });
+    const body = new THREE.Mesh(new RoundedBoxGeometry(w, 0.03, d, 2, Math.min(0.03, d / 3)), new THREE.MeshStandardMaterial({ color: new THREE.Color(col), roughness: 0.7 })); g.add(body);
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.04, d - 0.04), mat); face.rotation.x = -Math.PI / 2; face.position.y = 0.016; g.add(face);
     g.userData.tab = { kind, id }; g.userData.noParticles = true; body.userData.noParticles = face.userData.noParticles = true; tabsG.add(g); return g; }
   const clothTex = S.SM.tex(clothCanvas(S)); clothTex.wrapS = clothTex.wrapT = THREE.RepeatWrapping; clothTex.repeat.set(3, 3);
   const cloth = new THREE.MeshLambertMaterial({ map: clothTex }), lining = new THREE.MeshLambertMaterial({ color: 0x2a2b31 });
@@ -200,14 +202,19 @@ function build(S) {
     /* the chooser's tabs: built from b.pick.tabs ({ side, top, sel, list(sel) → ids }); the chosen ones stand proud */
     buildTabs() { tabsG.children.slice().forEach(g => { tabsG.remove(g); g.traverse(o => { if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.geometry) o.geometry.dispose(); }); });
       const P = b.pick && b.pick.tabs; tabsG.visible = !!P; if (!P) return;
-      const side = P.side.slice(0, 8), sd = Math.min(0.62, (B.pageD - 0.2) / side.length);
-      side.forEach((t, i) => tab('side', t.id, t.label, TAB_COLS[i % TAB_COLS.length], EDGE_X - 0.42, -B.pageD / 2 + 0.1 + sd * (i + 0.5), 1.15, sd - 0.06));
-      P.top.forEach((t, i) => tab('top', t.id, t.label, '#3a3631', EDGE_X + 1.0 + i * 1.3, TOP_Z - 0.2, 1.2, 0.5));
-      b.paintTabs(); },
-    paintTabs() { const P = b.pick && b.pick.tabs; if (!P) return; tabsG.children.forEach(g => { const t = g.userData.tab, on = P.sel[t.kind] === t.id;
-      g.position.y = PAGE_TOP - 0.02 + (on ? 0.05 : 0); if (t.kind === 'side') g.position.x = EDGE_X - 0.42 - (on ? 0.18 : 0); else g.position.z = TOP_Z - 0.2 - (on ? 0.14 : 0);
-      g.children[1].material.color.setScalar(on ? 1 : 0.62); if (t.kind === 'top') g.children[0].material.color.set(on ? 0xe3ad57 : 0x3a3631); }); },
-    clickTab(t) { const P = b.pick && b.pick.tabs; if (!P || P.sel[t.kind] === t.id) return; P.sel[t.kind] = t.id; S.sfx('detent');
+      const side = P.side.slice(0, 16), sd = Math.min(0.5, (B.pageD - 0.16) / Math.max(1, side.length));
+      side.forEach((t, i) => tab('side', t.id, t.label, TAB_COLS[i % TAB_COLS.length], TUCK, -B.pageD / 2 + 0.08 + sd * (i + 0.5), SIDE_W, sd - 0.04));
+      P.top.forEach((t, i) => tab('top', t.id, t.label, '#3a3631', EDGE_X + 1.0 + i * 1.32, TOP_Z - 0.2, 1.24, 0.46));
+      b.hotTab = null; b.paintTabs(true); },
+    /* where a tab sits: side tabs tucked, out when hovered or chosen; the chosen top tab stands out of the edge */
+    tabPose(g, now) { const P = b.pick.tabs, t = g.userData.tab, on = t.kind === 'side' ? P.sel.side === t.id : P.sel.top === t.id;
+      const x = t.kind === 'side' ? (on || b.hotTab === g ? OUT - (on ? 0.1 : 0) : TUCK) : g.position.x, z = t.kind === 'top' ? TOP_Z - 0.2 - (on ? 0.12 : 0) : g.position.z;
+      if (now) g.position.set(x, TAB_Y, z); else T.to(g.position, new THREE.Vector3(x, TAB_Y, z), { dur: 0.18, ease: T.E.outCubic, tag: 'binder' });
+      g.children[1].material.color.setScalar(on || b.hotTab === g ? 1 : 0.7); if (t.kind === 'top') g.children[0].material.color.set(on ? (P.sel.side ? 0x8a7a5a : 0xe3ad57) : 0x3a3631); },
+    hoverTab(g) { if (b.hotTab === g) return; const was = b.hotTab; b.hotTab = g; if (was) b.tabPose(was); if (g) { b.tabPose(g); S.sfx('detent', { vol: 0.25 }); } },
+    paintTabs(now) { const P = b.pick && b.pick.tabs; if (!P) return; tabsG.children.forEach(g => b.tabPose(g, now)); },
+    /* an artist tab shows just them (again to go back to everyone); a top tab shows all the photos in its order */
+    clickTab(t) { const P = b.pick && b.pick.tabs; if (!P) return; if (t.kind === 'side') P.sel.side = P.sel.side === t.id ? null : t.id; else { if (P.sel.top === t.id && !P.sel.side) return; P.sel.top = t.id; P.sel.side = null; } S.sfx('detent');
       const ids = P.list(P.sel), pages = []; while (ids.length) pages.push(ids.splice(0, 9).concat(new Array(9).fill(null)).slice(0, 9));
       b.pick.pages = pages; b.spread = 0; b.loadSpread(); b.paintTabs(); },
     async openCover() { S.sfx('binder'); b.frameCam();
@@ -285,7 +292,7 @@ function build(S) {
     setHot(o) { if (b.hot === o) return; b.hot = o; S.ctx.canvas.style.cursor = o ? 'pointer' : 'default'; },
     pointer(kind, e) {
       if (!b.active() || b.busy || !b.pages.R) return kind === 'down';
-      if (kind === 'move') { const h = S.hitAny(e, b.hittable()); b.setHot(h && !h.root.userData.tab ? h.root : null); if (h && h.root.userData.tab) S.ctx.canvas.style.cursor = 'pointer'; return !!h; }
+      if (kind === 'move') { const h = S.hitAny(e, b.hittable()), tb = h && h.root.userData.tab; b.setHot(h && !tb ? h.root : null); b.hoverTab(tb && tb.kind === 'side' ? h.root : null); if (tb) S.ctx.canvas.style.cursor = 'pointer'; return !!h; }
       if (kind === 'down') { if (e.button !== 0) return false; const h = S.hitAny(e, b.hittable()); if (!h) return false; const r = h.root;
         if (r.userData.tab) { b.clickTab(r.userData.tab); return true; }
         if (r.userData.turn) { b.turn(r.userData.turn); return true; }

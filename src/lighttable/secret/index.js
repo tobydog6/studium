@@ -21,6 +21,7 @@ import * as rail from './rail.js';
 import * as reveals from './reveals.js';
 import * as bloom from './bloom.js';
 import * as market from './market.js';
+import * as rig from './rig.js';
 import * as parcel from './parcel.js';
 import * as sound from './sound.js';
 import * as under from './under.js';
@@ -207,7 +208,7 @@ export function installSecret(ctx) {
       return obj; },
     remove(obj, keepStore) { const i = tableSlabs.indexOf(obj); if (i >= 0) tableSlabs.splice(i, 1); if (obj.tableShadow) ctx.scene.remove(obj.tableShadow); if (!keepStore) store.detach(obj.slab.id); S.slabs.drop(obj); },
     /* a free patch of table for a new slab, left of the board and clear of the other slabs */
-    freeSpot() { const cx = 0, cz = 8.5; for (let k = 0; k < 40; k++) { const x = cx + (Math.random() - 0.5) * 18, z = cz + (Math.random() - 0.5) * 4; if (!tableSlabs.some(o => Math.hypot(o.group.position.x - x, o.group.position.z - z) < 3.4)) return { x, z }; } return { x: cx, z: cz }; },
+    freeSpot() { const cx = 0, cz = S.under && S.under.on ? -1 : 8.5;   /* on the dark side, clear of the pit */ for (let k = 0; k < 40; k++) { const x = cx + (Math.random() - 0.5) * 18, z = cz + (Math.random() - 0.5) * 4; if (!tableSlabs.some(o => Math.hypot(o.group.position.x - x, o.group.position.z - z) < 3.4)) return { x, z }; } return { x: cx, z: cz }; },
     restore() { store.get().table.forEach(t => { const slab = store.pull(t.id); if (slab) S.table.place(slab, t.x, t.z, t.yaw, { quiet: true }); }); },
   };
   /* a pull straight onto the table (the dev panel's Roll; loot.js lays its slab down the long way) */
@@ -308,7 +309,7 @@ export function installSecret(ctx) {
 
   /* ---------- the modules (each owns one file) ---------- */
   const secretTop = new Set();
-  [sound, print, holo, fxfin, bloom, reveals, rail, arm, binder, parcel, loot, under, casebox, shelf, market, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  [sound, print, holo, fxfin, bloom, reveals, rail, arm, binder, parcel, loot, under, casebox, shelf, market, rig, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
   ctx.scene.children.forEach(c => { if (!lightSide.has(c)) secretTop.add(c); });   /* the rigs the modules just added */
 
   /* ---------- boot ---------- */

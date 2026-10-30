@@ -38,7 +38,7 @@ export function install(S) {
     close() { if (b.active()) M.send('CLOSE'); },
     /* a game's chooser: pages of the ids given; choose(slab, worldPos) → true for more; the binder closes into ret */
     pick(o) { const ids = (o.ids || []).slice(), pages = []; while (ids.length) pages.push(ids.splice(0, 9).concat(new Array(9).fill(null)).slice(0, 9));
-      b.pick = { pages, choose: o.choose, ret: o.ret, hint: o.hint || '', label: o.label, hold: o.hold || null }; return M.go('binder.open'); },
+      b.pick = { pages, choose: o.choose, ret: o.ret, hint: o.hint || '', label: o.label, hold: o.hold || null, tabs: o.tabs || null }; return M.go('binder.open'); },
     turn(dir) { return b.turn(dir || 1); },
     spread() { return b.spread; },
     pockets() { return b.allPockets(); },
@@ -140,12 +140,20 @@ function build(S) {
   const THREE_ = THREE, T = S.T, store = S.store;
   const env = S.SM.envMap(S.renderer);
   const root = new THREE.Group(); root.name = 'rareBinder'; root.position.set(B.x, 0, B.z); root.visible = false; S.scene.add(root);
-  /* a left hand holding it open (a game's chooser, Sam's sketch): fingers round the outer edge of the left cover, three over its top corner */
-  const glove = new THREE.MeshStandardMaterial({ color: 0x2b2724, roughness: 0.72 }), hands = new THREE.Group(); hands.visible = false; root.add(hands);
-  const finger = (len, x, z, along) => { const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, len, 6, 12), glove); if (along === 'x') m.rotation.z = Math.PI / 2; else m.rotation.x = Math.PI / 2; m.position.set(x, PAGE_TOP + 0.12, z); m.userData.noParticles = true; hands.add(m); };
-  const EDGE_X = PLX - B.pageW / 2 - 0.12;
-  [-1.25, -0.42, 0.42, 1.25].forEach((z, i) => finger(0.55 + (i === 1 || i === 2 ? 0.12 : 0), EDGE_X + 0.1, z, 'x'));
-  [0, 0.62, 1.24].forEach((dx, i) => finger(0.5 + (i === 1 ? 0.1 : 0), EDGE_X + 0.9 + dx, -B.pageD / 2 - 0.05, 'z'));
+  /* divider tabs for a game's chooser (Sam's sketch): clean card tabs out of the left cover's outer edge, one per
+     artist (and All), and along its top edge, one per order; the chosen one stands proud and bright */
+  const tabsG = new THREE.Group(); tabsG.visible = false; root.add(tabsG);
+  const EDGE_X = PLX - B.pageW / 2 - 0.1, TOP_Z = -B.pageD / 2 - 0.1;
+  const TAB_COLS = ['#d9cdb4', '#7fa58a', '#c49a62', '#8a74c0', '#c46a5f', '#6f93c4', '#c4b25a', '#5fb0a8', '#b46fa0', '#8f8f8f'];
+  function tabCanvas(label, col, w, h) { const c = document.createElement('canvas'), k = 160; c.width = Math.round(w * k); c.height = Math.round(h * k); const g = c.getContext('2d');
+    g.fillStyle = col; g.fillRect(0, 0, c.width, c.height); g.fillStyle = 'rgba(20,18,16,0.88)'; let fs = Math.round(c.height * 0.42); g.font = '600 ' + fs + 'px "Geist", system-ui, sans-serif';
+    while (g.measureText(label).width > c.width * 0.86 && fs > 10) { fs--; g.font = '600 ' + fs + 'px "Geist", system-ui, sans-serif'; }
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, c.width / 2, c.height / 2 + 1); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; }
+  function tab(kind, id, label, col, x, z, w, d) { const g = new THREE.Group(); g.position.set(x, PAGE_TOP - 0.02, z);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: tabCanvas(label, col, w, d), roughness: 0.62 });
+    const body = new THREE.Mesh(new RoundedBoxGeometry(w, 0.035, d, 2, 0.03), new THREE.MeshStandardMaterial({ color: new THREE.Color(col), roughness: 0.7 })); g.add(body);
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.06, d - 0.06), mat); face.rotation.x = -Math.PI / 2; face.position.y = 0.019; g.add(face);
+    g.userData.tab = { kind, id }; g.userData.noParticles = true; body.userData.noParticles = face.userData.noParticles = true; tabsG.add(g); return g; }
   const clothTex = S.SM.tex(clothCanvas(S)); clothTex.wrapS = clothTex.wrapT = THREE.RepeatWrapping; clothTex.repeat.set(3, 3);
   const cloth = new THREE.MeshLambertMaterial({ map: clothTex }), lining = new THREE.MeshLambertMaterial({ color: 0x2a2b31 });
   const edge = new THREE.MeshLambertMaterial({ map: S.SM.tex(edgeCanvas()) });
@@ -186,9 +194,22 @@ function build(S) {
     drawCover() { const n = b.pagesData().reduce((s, pg) => s + (pg ? pg.filter(Boolean).length : 0), 0); const c = coverCanvas(S, n); coverCv.getContext('2d').drawImage(c, 0, 0); coverTex.needsUpdate = true; },
     begin(fromTable) { b.gen++; b.mode = fromTable ? 'table' : 'vault'; b.spread = 0; b.pending = null; b.hot = null; b.busy = false; b.drawCover(); },
     /* held (a game's chooser): the binder slides up the mat from its spot and tilts up towards you, as if in your hands */
-    toHold(on) { const H = b.pick && b.pick.hold; if (!H) return Promise.resolve(); if (on && H.hands) hands.visible = true; const p0 = root.position.clone(), r0 = root.rotation.clone(), p1 = on ? new THREE.Vector3(...H.pos) : new THREE.Vector3(B.x, 0, B.z);
+    toHold(on) { const H = b.pick && b.pick.hold; if (!H) return Promise.resolve(); if (on) b.buildTabs(); else tabsG.visible = false; const p0 = root.position.clone(), r0 = root.rotation.clone(), p1 = on ? new THREE.Vector3(...H.pos) : new THREE.Vector3(B.x, 0, B.z);
       const r1 = on ? new THREE.Euler(H.tilt || 0.7, H.yaw || 0, 0) : new THREE.Euler(0, 0, 0); S.sfx('lift');
-      return T.tween({ dur: on ? 1.1 : 0.9, ease: T.E.inOutCubic, tag: 'binder', update: e => { root.position.lerpVectors(p0, p1, e); root.position.y += Math.sin(e * Math.PI) * 0.4; root.rotation.set(r0.x + (r1.x - r0.x) * e, r0.y + (r1.y - r0.y) * e, 0); } }).then(r => { if (!on) hands.visible = false; return r; }); },
+      return T.tween({ dur: on ? 1.1 : 0.9, ease: T.E.inOutCubic, tag: 'binder', update: e => { root.position.lerpVectors(p0, p1, e); root.position.y += Math.sin(e * Math.PI) * 0.4; root.rotation.set(r0.x + (r1.x - r0.x) * e, r0.y + (r1.y - r0.y) * e, 0); } }); },
+    /* the chooser's tabs: built from b.pick.tabs ({ side, top, sel, list(sel) → ids }); the chosen ones stand proud */
+    buildTabs() { tabsG.children.slice().forEach(g => { tabsG.remove(g); g.traverse(o => { if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } if (o.geometry) o.geometry.dispose(); }); });
+      const P = b.pick && b.pick.tabs; tabsG.visible = !!P; if (!P) return;
+      const side = P.side.slice(0, 8), sd = Math.min(0.62, (B.pageD - 0.2) / side.length);
+      side.forEach((t, i) => tab('side', t.id, t.label, TAB_COLS[i % TAB_COLS.length], EDGE_X - 0.42, -B.pageD / 2 + 0.1 + sd * (i + 0.5), 1.15, sd - 0.06));
+      P.top.forEach((t, i) => tab('top', t.id, t.label, '#3a3631', EDGE_X + 1.0 + i * 1.3, TOP_Z - 0.2, 1.2, 0.5));
+      b.paintTabs(); },
+    paintTabs() { const P = b.pick && b.pick.tabs; if (!P) return; tabsG.children.forEach(g => { const t = g.userData.tab, on = P.sel[t.kind] === t.id;
+      g.position.y = PAGE_TOP - 0.02 + (on ? 0.05 : 0); if (t.kind === 'side') g.position.x = EDGE_X - 0.42 - (on ? 0.18 : 0); else g.position.z = TOP_Z - 0.2 - (on ? 0.14 : 0);
+      g.children[1].material.color.setScalar(on ? 1 : 0.62); if (t.kind === 'top') g.children[0].material.color.set(on ? 0xe3ad57 : 0x3a3631); }); },
+    clickTab(t) { const P = b.pick && b.pick.tabs; if (!P || P.sel[t.kind] === t.id) return; P.sel[t.kind] = t.id; S.sfx('detent');
+      const ids = P.list(P.sel), pages = []; while (ids.length) pages.push(ids.splice(0, 9).concat(new Array(9).fill(null)).slice(0, 9));
+      b.pick.pages = pages; b.spread = 0; b.loadSpread(); b.paintTabs(); },
     async openCover() { S.sfx('binder'); b.frameCam();
       await T.tween({ dur: 1.0, ease: flap, tag: 'binder', update: e => { spineG.rotation.z = e * Math.PI / 2; coverG.rotation.z = e * Math.PI / 2; } }); },
     async closeCover() { b.busy = true; b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; S.sfx('binder');
@@ -197,7 +218,7 @@ function build(S) {
     /* from above and in front, the open spread filling the view; wide pulls back a touch so a slab laid in front shows too */
     frameCam(wide) { if (b.pick && b.pick.hold) { S.cam.set(b.pick.hold.cam); return; } S.cam.set({ pitch: 58 }); if (wide) S.cam.set({ tx: B.x + AX + 0.6, ty: 0, tz: B.z + 1.6, dT: S.cam.fit(11.4, 9.2) }); else S.cam.set({ tx: B.x + AX + 0.4, ty: 0, tz: B.z + 0.3, dT: S.cam.fit(10.8, 6.2) }); },
     showSpread() { b.busy = false; b.loadSpread(); S.ctx.hint(b.pick ? b.pick.hint : HINT); },
-    leave(next) { if (/^(vault\.binder|binder)(\.|$)/.test(next)) return; S.dropTargets.binder = null; b.pick = null; root.position.set(B.x, 0, B.z); root.rotation.set(0, 0, 0); hands.visible = false; b.gen++; T.cancelAll('binder'); b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; b.busy = false; b.mode = null;
+    leave(next) { if (/^(vault\.binder|binder)(\.|$)/.test(next)) return; S.dropTargets.binder = null; b.pick = null; root.position.set(B.x, 0, B.z); root.rotation.set(0, 0, 0); tabsG.visible = false; b.gen++; T.cancelAll('binder'); b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; b.busy = false; b.mode = null;
       if (b.pushed) { S.cam.pop(); b.pushed = false; }
       if (/^vault\./.test(next)) { spineG.rotation.z = 0; coverG.rotation.z = 0; if (next === 'vault.closing') root.visible = false; } else { b.resetClosed(); root.visible = !!(S.under && S.under.on); } },
     /* ---------- pages ---------- */
@@ -260,12 +281,13 @@ function build(S) {
       b.busy = false; return true;
     },
     /* ---------- pointer ---------- */
-    hittable() { return b.allPockets().map(pk => pk.group).concat([b.pages.L, b.pages.R].filter(Boolean).flatMap(pc => pc.items.filter(it => it.userData.turn))); },
+    hittable() { return b.allPockets().map(pk => pk.group).concat([b.pages.L, b.pages.R].filter(Boolean).flatMap(pc => pc.items.filter(it => it.userData.turn))).concat(tabsG.visible ? tabsG.children : []); },
     setHot(o) { if (b.hot === o) return; b.hot = o; S.ctx.canvas.style.cursor = o ? 'pointer' : 'default'; },
     pointer(kind, e) {
       if (!b.active() || b.busy || !b.pages.R) return kind === 'down';
-      if (kind === 'move') { const h = S.hitAny(e, b.hittable()); b.setHot(h ? h.root : null); return !!h; }
+      if (kind === 'move') { const h = S.hitAny(e, b.hittable()); b.setHot(h && !h.root.userData.tab ? h.root : null); if (h && h.root.userData.tab) S.ctx.canvas.style.cursor = 'pointer'; return !!h; }
       if (kind === 'down') { if (e.button !== 0) return false; const h = S.hitAny(e, b.hittable()); if (!h) return false; const r = h.root;
+        if (r.userData.tab) { b.clickTab(r.userData.tab); return true; }
         if (r.userData.turn) { b.turn(r.userData.turn); return true; }
         if (r.userData.pocket) { b.clickPocket(r.userData.pocket); return true; } return true; }
       return false;

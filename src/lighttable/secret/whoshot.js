@@ -23,7 +23,7 @@ const DEV = 20, LOCK = 5, HAND = 5, WRONG = 3, WIN_COINS = 30, WIN_CAP = 3, ARTI
 /* the layout on the dark table: centre-left, clear of the pit (right), the binder (front left) and the shelf */
 /* the layout, low on the dark table (the top is kept for the PC): your five along the front edge, theirs arriving in
    front of you, the portal standing behind that; past the portal (z < PORTAL_Z) is their room, not this table */
-const GX = 1.0, PORTAL_Z = 1.2, PR = 5.6, GAP = 2.3, HAND_Z = PORTAL_Z + 8.0, MINE_Z = PORTAL_Z + 3.8, THEIRS_Z = PORTAL_Z - 4.6, RIV_Z = PORTAL_Z - 2.2, RIV_GAP = 2.3, THEIR_EDGE = PORTAL_Z - 0.8;
+const GX = 1.0, PORTAL_Z = 1.2, PR = 7.4, GAP = 2.3, HAND_Z = PORTAL_Z + 8.0, MINE_Z = PORTAL_Z + 3.8, THEIRS_Z = PORTAL_Z - 4.6, RIV_Z = PORTAL_Z - 2.2, RIV_GAP = 2.3, THEIR_EDGE = PORTAL_Z - 0.8;
 const RIVALS = ['kiri.lens', 'tui_frames', 'harbourlight', 'ngaio.prints', 'fernfocus', 'southerly_slabs', 'te_awa_archive', 'flatwhite.film', 'kea_collects', 'lyttelton_light', 'gumboot_gallery', 'tarn_tones'];
 const DAY = 864e5, today = () => Math.floor(Date.now() / DAY);
 const h32 = s => { let h = 2166136261; s = String(s); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; };
@@ -105,20 +105,20 @@ export function install(S) {
      Their room is a scene of its own, drawn from your camera every frame into the portal's texture, so it lines up
      behind the portal like a window (its own scene keeps that draw cheap: none of the table is walked). Their table
      carries on behind the portal's plane; a slab past that plane lives in their room, this side of it on the table.
-     The look (Sam: a black hole, Interstellar): a clean edge, a thin holographic photon ring on it, and the view bent
-     round the inside edge (lensing, a little colour split, a dark band before the ring); the middle is clear. */
+     The look (Sam: a black hole, Interstellar): a clean edge, a thin, faint holographic ring on it, and the view bent
+     a little just inside the edge (lensing, a touch of colour split); the rest is a clear view of their table.
+     It never turns: the dome stands still so it always shows through. */
   let props = null, loop = 0;
   const PORTAL_FRAG = `uniform sampler2D map; uniform vec2 res; uniform float time; uniform float k; varying vec2 vUv;
     void main(){ vec2 d = vUv - 0.5; float r = length(d) * 2.0; float a = atan(d.y, d.x); vec2 dir = d / max(1e-4, length(d));
       vec2 sc = gl_FragCoord.xy / res;
-      float bend = pow(smoothstep(0.55, 1.0, r), 2.4);
-      vec2 off = dir * bend * 0.075 + vec2(-dir.y, dir.x) * bend * 0.04 * sin(time * 0.45 + r * 7.0);
+      float bend = pow(smoothstep(0.8, 1.0, r), 2.2);
+      vec2 off = dir * bend * 0.018 + vec2(-dir.y, dir.x) * bend * 0.007 * sin(time * 0.45 + r * 9.0);
       vec3 c = vec3(texture2D(map, sc - off * 1.1).r, texture2D(map, sc - off).g, texture2D(map, sc - off * 0.9).b);
-      c *= 1.0 - 0.7 * smoothstep(0.82, 0.955, r);
+      c *= 1.0 - 0.3 * smoothstep(0.93, 0.985, r);
       vec3 holo = 0.6 + 0.4 * cos(6.2831 * (vec3(0.0, 0.33, 0.67) + a / 3.1416 + time * 0.06));
-      float ring = exp(-pow((r - 0.972) / 0.011, 2.0));
-      float streak = smoothstep(0.86, 0.94, r) * (1.0 - smoothstep(0.94, 0.965, r)) * (0.45 + 0.55 * sin(a * 2.0 - time * 0.6));
-      c += ring * mix(vec3(1.0, 0.88, 0.7), holo, 0.65) * 1.7 + streak * vec3(1.0, 0.72, 0.42) * 0.45;
+      float ring = exp(-pow((r - 0.992) / 0.0045, 2.0));
+      c += ring * mix(vec3(1.0, 0.9, 0.78), holo, 0.35) * 0.9;
       c = mix(vec3(0.0), c, k);
       gl_FragColor = vec4(c, 1.0);
       #include <tonemapping_fragment>
@@ -127,8 +127,8 @@ export function install(S) {
   const HALO_FRAG = `uniform float time; uniform float k; varying vec2 vUv;
     void main(){ vec2 d = vUv - 0.5; float r = length(d) * 2.0; float a = atan(d.y, d.x);
       vec3 holo = 0.6 + 0.4 * cos(6.2831 * (vec3(0.0, 0.33, 0.67) + a / 3.1416 - time * 0.05));
-      float g = smoothstep(1.0, 0.905, r) * smoothstep(0.88, 0.905, r);
-      gl_FragColor = vec4(holo * g * 0.5 * k, g * 0.5 * k); }`;
+      float g = smoothstep(1.0, 0.99, r) * smoothstep(0.975, 0.99, r);
+      gl_FragColor = vec4(holo * g * 0.16 * k, g * 0.16 * k); }`;
   const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
   function buildProps() { if (props) return props;
     const g = new THREE.Group(); g.userData.secret = true; g.position.set(GX, 0, PORTAL_Z); g.visible = false; ctx.scene.add(g);
@@ -137,7 +137,7 @@ export function install(S) {
     const disc = new THREE.Mesh(new THREE.CircleGeometry(PR, 160, 0, Math.PI), new THREE.ShaderMaterial({ uniforms: { map: { value: rt.texture }, res: { value: new THREE.Vector2(1, 1) }, time: { value: 0 }, k: { value: 0 } }, toneMapped: true, vertexShader: VERT, fragmentShader: PORTAL_FRAG }));
     disc.onBeforeRender = r => { const t = r.getRenderTarget(); if (t) disc.material.uniforms.res.value.set(t.width, t.height); else r.getDrawingBufferSize(disc.material.uniforms.res.value); };
     /* a faint holographic halo just outside the clean edge */
-    const halo = new THREE.Mesh(new THREE.CircleGeometry(PR * 1.1, 160, 0, Math.PI), new THREE.ShaderMaterial({ uniforms: { time: disc.material.uniforms.time, k: disc.material.uniforms.k }, vertexShader: VERT, fragmentShader: HALO_FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const halo = new THREE.Mesh(new THREE.CircleGeometry(PR * 1.02, 160, 0, Math.PI), new THREE.ShaderMaterial({ uniforms: { time: disc.material.uniforms.time, k: disc.material.uniforms.k }, vertexShader: VERT, fragmentShader: HALO_FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     halo.position.z = -0.01; ring.add(halo, disc);
     /* their room: their own walnut table just past the portal (its front edge in view), a warm lamp, dark walls and floor */
     const room = new THREE.Scene(); room.background = new THREE.Color(0x0c0a10);
@@ -148,9 +148,9 @@ export function install(S) {
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 60), new THREE.MeshStandardMaterial({ color: 0x0e0b0d, roughness: 1 })); floor.rotation.x = -Math.PI / 2; floor.position.set(GX, -3.6, PORTAL_Z - 10); room.add(floor);
     const mat = new THREE.Mesh(new THREE.PlaneGeometry(15, 6.4), new THREE.MeshStandardMaterial({ color: 0x1d2a24, roughness: 0.95 })); mat.rotation.x = -Math.PI / 2; mat.position.set(GX, 0.005, THEIR_EDGE - 3.8); room.add(mat);
     const walls = new THREE.Mesh(new THREE.BoxGeometry(70, 30, 60), new THREE.MeshStandardMaterial({ color: 0x17121c, roughness: 1, side: THREE.BackSide })); walls.position.set(GX, 12, PORTAL_Z - 12); room.add(walls);
-    const lamp = new THREE.PointLight(0xffd7a0, 260, 30, 1.6); lamp.position.set(GX, 8, THEIR_EDGE - 4); room.add(lamp);
+    const lamp = new THREE.PointLight(0xffd7a0, 480, 34, 1.5); lamp.position.set(GX, 8, THEIR_EDGE - 4); room.add(lamp);
     const rim = new THREE.PointLight(0x7d6bff, 40, 30, 1.6); rim.position.set(GX - 7, 4, PORTAL_Z - 10); room.add(rim);
-    room.add(new THREE.HemisphereLight(0x8c7cff, 0x1a0f08, 0.55));
+    room.add(new THREE.HemisphereLight(0xb8aaff, 0x2a1a10, 1.0));
     [g, ring, disc, halo].forEach(o => { o.userData.secret = true; o.userData.noParticles = true; });
     const pcam = new THREE.PerspectiveCamera();
     props = { g, ring, disc, rt, room, pcam }; return props; }
@@ -211,7 +211,7 @@ export function install(S) {
     const go = () => M.go('who.open');
     if (M.is('under')) go(); else if (M.is('idle') && S.under) { S.under.flip('under'); let n = 0; const w = setInterval(() => { if (M.is('under')) { clearInterval(w); go(); } else if (++n > 150 || !M.is('flipping') && n > 20) { clearInterval(w); G = null; paintBtn(); S.toast('Turn the table over to the dark side, then play again.'); } }, 150); }
     else { G = null; paintBtn(); S.toast('Close what is open first, then play.'); } }
-  const FRAME = () => ({ tx: GX, ty: 1.2, tz: PORTAL_Z + 4.2, pitch: 34, dT: ctx.fitDist(25, 17, 34) });
+  const FRAME = () => ({ tx: GX, ty: 2.0, tz: PORTAL_Z + 4.0, pitch: 32, dT: ctx.fitDist(28, 19, 32) });
 
   function rival(r) { const a = r.ai; if (a.done) return;
     /* a wrong guess before it knows (now and then), then the right one once the print is far enough up */
@@ -243,7 +243,6 @@ export function install(S) {
     key(e) { if (!G) return true; if (e.key === 'Escape') { if (G.picker) G.picker = false; else G.leaving = !G.leaving; paintHud(); return true; }
       if ((e.key === 'g' || e.key === 'G') && M.is('who.play')) { openPicker(); return true; } return true; },
     pointer(kind, e) { if (kind === 'wheel') { ctx.cam.dT = T.clamp(ctx.cam.dT * Math.exp(e.deltaY * 0.0012), 8, 40); return true; } return true; },
-    frame(dt) { if (props && props.g.visible) props.disc.rotation.z -= dt * 0.35; },
   });
   M.define('who.open', { busy: true, on: { CLOSE: () => undefined },
     async enter(d, run) { G.pushed = true; S.cam.push(FRAME()); ctx.hideActs(); hud.classList.add('on');
@@ -256,9 +255,14 @@ export function install(S) {
       M.go('who.choose'); } });
   M.define('who.choose', { busy: true, on: { CLOSE: () => undefined },
     enter() { paintHud('Choose five slabs from your binder.');
-      const ids = mine().sort(rarer).map(s => s.id);
+      /* the binder's tabs: an artist (or All) down the side, an order along the top; your five chosen stay out */
+      const ORD = { rarity: rarer, grade: (a, b) => (b.graded ? b.grade : 0) - (a.graded ? a.grade : 0) || rarer(a, b), newest: (a, b) => (b.ts || 0) - (a.ts || 0) };
+      const list = sel => { const out = new Set(G.hand.map(h => h.slab.id)); return mine().filter(s => !out.has(s.id) && (sel.side === 'all' || String(s.photo.packId) === sel.side)).sort(ORD[sel.top] || rarer).map(s => s.id); };
+      const have = new Set(mine().map(s => String(s.photo.packId))), side = [{ id: 'all', label: 'All' }].concat(G.A.filter(a => have.has(a.id)).map(a => ({ id: a.id, label: a.name })));
+      const sel = { side: 'all', top: 'rarity' };
       hud.classList.add('choosing');
-      S.binder.pick({ ids, ret: 'who.hand', label: 'Play this one', hold: { pos: [GX + 2.45, 3.3, PORTAL_Z + 6.6], tilt: 1.0, yaw: 0, hands: true, cam: FRAME() }, hint: 'Choose five slabs to play with. They sit face up in front of you.',
+      S.binder.pick({ ids: list(sel), ret: 'who.hand', label: 'Play this one', hold: { pos: [GX + 2.45, 3.6, PORTAL_Z + 7.0], tilt: 1.0, yaw: 0, cam: FRAME() },
+        tabs: { side, top: [{ id: 'rarity', label: 'Rarity' }, { id: 'grade', label: 'Grade' }, { id: 'newest', label: 'Newest' }], sel, list }, hint: 'Choose five slabs to play with. They sit face up in front of you.',
         choose: (slab, at) => { if (!G || G.hand.length >= HAND) return false; const obj = S.objFor(slab), i = G.hand.length; G.hand.push({ slab, obj, used: false });
           lay(obj, at, false); obj.group.scale.setScalar(0.2); G.hand.forEach((h, k) => { if (h.obj !== obj) slide(h.obj, handSpot(k), { dur: 0.5, sfx: false }); }); slide(obj, handSpot(i), { dur: 1.0 });
           paintHud(G.hand.length < HAND ? 'Chosen ' + G.hand.length + ' of ' + HAND + '.' : 'Your five are on the table.'); return G.hand.length < HAND; } }); } });

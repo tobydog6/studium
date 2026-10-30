@@ -111,10 +111,10 @@ export function install(S) {
     const left = Math.max(0.001, 1 - u); bx.guide.scale.y = D * left; bx.guide.position.z = D / 2 - D * left / 2; bx.guide.material.map.repeat.y = D * left * 2.2; }
   function cutPointer(kind, e) {
     const c = cutGo, bx = c.bx, w = S.tableHit(e, H + T0); if (!w) return true; const p = bx.body.worldToLocal(w.clone()), uz = (p.z + D / 2) / D;
-    if (kind === 'down') { if (e.button !== 0) return true; if (Math.abs(p.x) < 0.45 && uz > c.u - 0.25 && uz < c.u + 0.3) { c.drag = true; ctx.canvas.style.cursor = 'grabbing'; cutAt(bx, c.u, 0); } else S.toast('Grab the knife at the end of the cut.'); return true; }
+    if (kind === 'down') { if (e.button !== 0) return true; if (S.hitAny(e, [bx.blade]) || Math.abs(p.x) < 0.45 && uz > c.u - 0.45 && uz < c.u + 0.3) { c.drag = true; ctx.canvas.style.cursor = 'grabbing'; cutAt(bx, c.u, 0); } else S.toast('Grab the knife at the end of the cut.'); return true; }
     if (kind === 'up') { if (c.drag) { c.drag = false; ctx.canvas.style.cursor = 'grab'; cutAt(bx, c.u, 0.12); } return true; }
     if (kind !== 'move') return true;
-    if (!c.drag) { ctx.canvas.style.cursor = Math.abs(p.x) < 0.45 && Math.abs(uz - c.u) < 0.3 ? 'grab' : 'default'; return true; }
+    if (!c.drag) { ctx.canvas.style.cursor = S.hitAny(e, [bx.blade]) || Math.abs(p.x) < 0.45 && uz > c.u - 0.45 && uz < c.u + 0.3 ? 'grab' : 'default'; return true; }
     /* off the line: the knife slips out and you pick it up again where you left off */
     if (Math.abs(p.x) > 0.5) { c.drag = false; ctx.canvas.style.cursor = 'default'; cutAt(bx, c.u, 0.12); S.sfx('detent'); ctx.hint('Oops, off the tape. Pick the knife up and keep going.'); return true; }
     const u = Math.min(1, Math.max(c.u, Math.min(uz, c.u + 0.2)));   /* only forwards, and no jumping ahead */
@@ -176,7 +176,7 @@ export function install(S) {
       /* the tape: a blade drops onto the far end of the seam and runs to the near end, the slit opening behind it */
       /* the tape: you slice it yourself (Sam): drag the knife from the far end of the seam down to the near end */
       phase = 'cut'; bx.blade.visible = true; bx.slit.visible = true; bx.guide.visible = true; cutAt(bx, 0, 0.12);
-      if (!rush && run.alive()) { ctx.hint('Drag the knife down the tape to slice the box open.'); await new Promise(res => { cutGo = { bx, u: 0, drag: false, said: 0, done: () => { cutGo = null; res(); } }; }); ctx.hint(null); }
+      if (!rush && run.alive()) { ctx.hint('Drag the knife down the tape to slice the box open.'); await new Promise(res => { cutGo = { bx, u: 0, drag: false, said: 0, done: () => { cutGo = null; ctx.canvas.style.cursor = 'default'; res(); } }; }); ctx.hint(null); }
       if (bx.slit.scale.z < D - 0.01) await T.tween({ dur: dur(0.3), ease: E.linear, tag: TAG, update: e => cutAt(bx, Math.max(bx.cutU || 0, e), 0) });
       bx.guide.visible = false;
       bx.blade.visible = false; bx.slit.scale.z = D; bx.slit.position.z = 0;
@@ -192,7 +192,7 @@ export function install(S) {
       await T.tween({ dur: dur(0.8), ease: E.inOutSine, tag: TAG, update: e => bx.tissueTo(e, T.time()) });
       bx.tissueTo(1, T.time());
       /* it waits in the box until you click it to lift it out (Sam) */
-      if (!rush && run.alive()) { phase = 'lift'; ctx.hint('Click the slab to lift it out.'); const y0 = obj.group.position.y; await new Promise(res => { liftGo = { obj, y: y0, done: () => { liftGo = null; res(); } }; }); obj.group.position.y = y0; ctx.hint(null); }
+      if (!rush && run.alive()) { phase = 'lift'; ctx.hint('Click the slab to lift it out.'); const y0 = obj.group.position.y; await new Promise(res => { liftGo = { obj, y: y0, done: () => { liftGo = null; ctx.canvas.style.cursor = 'default'; res(); } }; }); obj.group.position.y = y0; ctx.hint(null); }
       /* the slab rises to meet you: up, forward and turning to face the camera, growing to its table size */
       phase = 'rise'; snd('rise');
       const upQ = new THREE.Quaternion().setFromAxisAngle(X, -PITCH * Math.PI / 180), p0 = obj.group.position.clone(), p1 = new THREE.Vector3(x, 1.45, z + 0.8);

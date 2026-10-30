@@ -283,7 +283,7 @@ export function install(S) {
       const have = new Set(mine().map(s => String(s.photo.packId))), side = G.A.filter(a => have.has(a.id)).map(a => ({ id: a.id, label: a.name }));
       const sel = { side: null, top: 'rarity' };
       hud.classList.add('choosing');
-      S.binder.pick({ ids: list(sel), ret: 'who.hand', label: 'Play this one', hold: { pos: [GX + 2.45, 3.6, PORTAL_Z + 7.0], tilt: 1.0, yaw: 0, cam: FRAME() },
+      S.binder.pick({ ids: list(sel), ret: 'who.hand', label: 'Play this one', hold: { pos: [GX + 2.45, 3.6, PORTAL_Z + 7.0], tilt: 1.0, yaw: 0, cam: { tx: GX, ty: 2.6, tz: PORTAL_Z + 3.4, pitch: 28, dT: ctx.fitDist(17.5, 12.5, 28) } },   /* the binder keeps its close view */
         tabs: { side, top: [{ id: 'rarity', label: 'Rarest' }, { id: 'grade', label: 'Best grade' }, { id: 'newest', label: 'Newest' }, { id: 'artist', label: 'By artist' }], sel, list }, hint: 'Choose five slabs to play with. They sit face up in front of you.',
         choose: (slab, at) => { if (!G || G.hand.length >= HAND) return false; const obj = S.objFor(slab), i = G.hand.length; G.hand.push({ slab, obj, used: false });
           lay(obj, at, false); obj.group.scale.setScalar(0.2); G.hand.forEach((h, k) => { if (h.obj !== obj) slide(h.obj, handSpot(k), { dur: 0.5, sfx: false }); }); slide(obj, handSpot(i), { dur: 1.0 });
@@ -406,10 +406,10 @@ const CSS = `
 #skWhoHud .wh-k{ font:500 9px var(--f-mono); letter-spacing:.26em; text-transform:uppercase; color:var(--accent); } #skWhoHud .wh-reveal>b{ font:400 38px/1.1 var(--f-serif, Georgia, serif); font-weight:400; text-align:center; }
 #skWhoHud .wh-chips{ display:flex; gap:8px; margin:8px 0 10px; } #skWhoHud .wh-chips span{ padding:5px 11px; border-radius:999px; background:rgba(244,241,234,.07); font:500 11px var(--f-mono); color:var(--h-mut); } #skWhoHud .wh-chips .up{ color:var(--h-up); } #skWhoHud .wh-chips .dn{ color:var(--h-dn); }
 @keyframes whIn{ from{ opacity:0; transform:translate(-50%,14px); } to{ opacity:1; transform:translate(-50%,0); } }
-#skWhoHud .wh-pick{ position:absolute; top:84px; right:16px; bottom:calc(16px + env(safe-area-inset-bottom,0px)); width:min(380px,32vw); display:flex; pointer-events:auto; z-index:3; }   /* a side panel, so the print stays clear (Sam) */
-#skWhoHud .wh-pick-in{ display:flex; flex-direction:column; width:100%; min-height:0; max-height:100%; align-self:flex-start; padding:16px 18px 18px; background:rgba(14,13,12,.92); border:1px solid var(--h-ln); border-radius:18px; backdrop-filter:blur(14px); box-shadow:0 -10px 60px rgba(0,0,0,.6); animation:whUp .3s cubic-bezier(.2,.8,.2,1) both; }
+#skWhoHud .wh-pick{ position:absolute; top:84px; right:16px; bottom:calc(16px + env(safe-area-inset-bottom,0px)); width:min(380px,32vw); min-width:300px; display:flex; pointer-events:none; z-index:3; }   /* a side panel, so the print stays clear (Sam) */
+#skWhoHud .wh-pick-in{ pointer-events:auto; display:flex; flex-direction:column; width:100%; min-height:0; max-height:100%; align-self:flex-start; padding:16px 18px 18px; background:rgba(14,13,12,.92); border:1px solid var(--h-ln); border-radius:18px; backdrop-filter:blur(14px); box-shadow:0 -10px 60px rgba(0,0,0,.6); animation:whUp .3s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes whUp{ from{ transform:translateX(40px); opacity:0; } to{ transform:none; opacity:1; } }
-#skWhoHud .wh-pick-top{ display:flex; align-items:center; gap:16px; margin-bottom:14px; } #skWhoHud .wh-pick-top h3{ margin:0; font:400 24px/1 var(--f-serif, Georgia, serif); } #skWhoHud .wh-pick-top .wh-ghost{ margin-left:auto; }
+#skWhoHud .wh-pick-top{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; margin-bottom:14px; } #skWhoHud .wh-pick-top h3{ margin:0; font:400 24px/1 var(--f-serif, Georgia, serif); } #skWhoHud .wh-pick-top .wh-ghost{ margin-left:auto; }
 #skWhoHud .wh-artists{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; min-height:0; overflow:auto; padding:2px; }
 #skWhoHud .wh-art{ position:relative; display:flex; flex-direction:column; gap:8px; padding:0; background:none; border:0; color:var(--text); text-align:left; cursor:pointer; transition:transform .15s; }
 #skWhoHud .wh-ph{ display:block; overflow:hidden; border-radius:10px; border:1px solid var(--h-ln); transition:border-color .15s, box-shadow .15s; } #skWhoHud .wh-ph img{ display:block; width:100%; aspect-ratio:4/5; object-fit:cover; background:#000; transition:transform .3s; }

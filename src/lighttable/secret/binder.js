@@ -228,8 +228,8 @@ function build(S) {
       await T.tween({ dur: 0.7, ease: T.E.inOutCubic, tag: 'binder', update: e => { spineG.rotation.z = s0 * (1 - e); coverG.rotation.z = c0 * (1 - e); } }); b.busy = false; },
     /* from above and in front, the open spread filling the view; wide pulls back a touch so a slab laid in front shows too */
     frameCam(wide) { if (b.pick && b.pick.hold) { S.cam.set(b.pick.hold.cam); return; } S.cam.set({ pitch: 58 }); if (wide) S.cam.set({ tx: B.x + AX + 0.6, ty: 0, tz: B.z + 1.6, dT: S.cam.fit(11.4, 9.2) }); else S.cam.set({ tx: B.x + AX + 0.4, ty: 0, tz: B.z + 0.3, dT: S.cam.fit(10.8, 6.2) }); },
-    showSpread() { b.busy = false; b.loadSpread(); S.ctx.hint(b.pick ? b.pick.hint : HINT); },
-    leave(next) { if (/^(vault\.binder|binder)(\.|$)/.test(next)) return; S.dropTargets.binder = null; b.pick = null; root.position.set(B.x, 0, B.z); root.rotation.set(0, 0, 0); tabsG.visible = false; b.gen++; T.cancelAll('binder'); b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; b.busy = false; b.mode = null;
+    showSpread() { b.busy = false; b.loadSpread(); S.ctx.hint(b.pick ? (b.quick ? 'Select is on: click a slab to choose it.' : b.pick.hint) : HINT); },
+    leave(next) { if (/^(vault\.binder|binder)(\.|$)/.test(next)) return; S.dropTargets.binder = null; b.pick = null; b.quick = false; if (b.quickBtn) b.quickBtn.hidden = true; root.position.set(B.x, 0, B.z); root.rotation.set(0, 0, 0); tabsG.visible = false; b.gen++; T.cancelAll('binder'); b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; b.busy = false; b.mode = null;
       if (b.pushed) { S.cam.pop(); b.pushed = false; }
       if (/^vault\./.test(next)) { spineG.rotation.z = 0; coverG.rotation.z = 0; if (next === 'vault.closing') root.visible = false; } else { b.resetClosed(); root.visible = !!(S.under && S.under.on); } },
     /* ---------- pages ---------- */

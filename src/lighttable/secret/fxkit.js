@@ -260,7 +260,7 @@ Object.assign(FR, {
   ascii: `uniform sampler2D uGlyph;
     void main(){ float cols=130.0; vec2 cell=vec2(cols,cols/uAsp*0.62); vec2 g=vUv*cell; vec2 id=floor(g); vec2 f=fract(g); vec2 cuv=(id+0.5)/cell;
     vec3 p=texture2D(uTex,cuv,1.5).rgb; float l=luma(p); float d=Dp(cuv); float idx=floor(clamp(pow(l,0.8)*1.2,0.0,0.999)*10.0);
-    float gl=texture2D(uGlyph,vec2((idx+f.x)/10.0,f.y)).r; vec3 phos=mix(vec3(0.08,0.85,0.3),vec3(0.75,1.0,0.85),smoothstep(0.5,0.9,d)*min(uK,1.5)/1.5);
+    float gl=texture2D(uGlyph,vec2((idx+f.x)/10.0,f.y)).r; float cpp=max(fwidth(g.x),fwidth(g.y)); gl=mix(gl,(idx/10.0)*0.55,smoothstep(0.18,0.4,cpp)); vec3 phos=mix(vec3(0.08,0.85,0.3),vec3(0.75,1.0,0.85),smoothstep(0.5,0.9,d)*min(uK,1.5)/1.5);
     float scan=0.78+0.22*sin(vUv.y*cell.y*6.2832); float fl=0.96+0.04*sin(uT*50.0); float roll=0.9+0.1*smoothstep(0.0,0.06,abs(fract(vUv.y-uT*0.07)-0.5));
     vec3 c=phos*gl*(1.0+1.6*d)*scan*fl*roll+phos*0.03; gl_FragColor=vec4(c,1.0);`,
   kal: `void main(){ vec2 A=vec2(uAsp,1.0); vec2 p=(vUv-0.5)*A; float n=floor(4.0+uK*3.2); float seg=6.2832/n; float r=length(p);
@@ -281,9 +281,9 @@ Object.assign(FR, {
 Object.assign(FR, {
   aperture: `uniform sampler2D uA; uniform sampler2D uB; uniform float uF;
     void main(){ vec3 a=texture2D(uA,vUv).rgb, b=texture2D(uB,vUv).rgb; vec3 c=mix(a,b,uF); gl_FragColor=vec4(c,1.0);`,
-  vertigo: `void main(){ float s=1.0+0.26*sin(uT*0.55)*min(uK,2.0); vec2 c=vec2(0.55,0.42);
+  vertigo: `void main(){ float s=1.0+0.2*sin(uT*0.55)*min(uK,2.0); vec2 c=vec2(0.55,0.42);
     vec2 uv=vUv; for(int i=0;i<3;i++){ float d=Dp(uv); uv=c+(vUv-c)*mix(1.0,1.0/s,pow(1.0-d,1.3)); }
-    vec3 col=texture2D(uTex,clamp(uv,0.0,1.0)).rgb; gl_FragColor=vec4(col,1.0);`,
+    vec3 col=texture2D(uTex,1.0-abs(1.0-mod(uv,2.0))).rgb; gl_FragColor=vec4(col,1.0);`,
   nightvis: `void main(){ vec3 p=texture2D(uTex,vUv).rgb; float l=luma(p); float d=Dp(vUv); vec2 A=vec2(uAsp,1.0);
     vec2 tp=mix(vec2(0.5+0.3*sin(uT*0.4),0.45+0.15*sin(uT*0.63)),uPtr,uHov); float spot=exp(-dot((vUv-tp)*A,(vUv-tp)*A)*9.0);
     float dist=0.35+(1.0-d)*2.6; float lit=l*(0.05+spot*2.4/(dist*dist))*(0.6+0.6*uK);
@@ -318,8 +318,8 @@ Object.assign(FR, {
     vec3 lava=mix(vec3(0.05,0.01,0.0),mix(vec3(1.0,0.25,0.02),vec3(1.0,0.85,0.3),smoothstep(0.55,0.8,f)),smoothstep(0.35,0.6,f))*1.6;
     float glow=0.0; for(int i=1;i<7;i++){ vec2 o=vec2(0.0,-0.025*float(i)); vec2 q=vUv+o; vec3 nn=nrm(q,0.35); float lf=smoothstep(0.12,0.3,nn.y*1.6+0.2-texture2D(uMap,q).g*1.5); glow+=lf*(1.0-float(i)/7.0); }
     vec3 lit=p*(vec3(0.22,0.18,0.22)+vec3(1.0,0.4,0.1)*glow*0.45*uK); vec3 c=mix(lit,lava,floor_); gl_FragColor=vec4(c,1.0);`,
-  aurora: `void main(){ vec2 A=vec2(uAsp,1.0); vec3 p=texture2D(uTex,vUv).rgb; float d=Dp(vUv); float sky=smoothstep(0.3,0.12,d)*smoothstep(0.25,0.6,vUv.y);
-    float x=vUv.x*3.0; float band=0.62+0.12*sin(x*1.3+uT*0.12)+0.08*fbm(vec2(x*0.8,uT*0.05)); float dy=vUv.y-band;
+  aurora: `void main(){ vec2 A=vec2(uAsp,1.0); vec3 p=texture2D(uTex,vUv).rgb; float d=Dp(vUv); float sky=smoothstep(0.4,0.14,d)*smoothstep(0.18,0.5,vUv.y);
+    float x=vUv.x*3.0; float band=0.56+0.12*sin(x*1.3+uT*0.12)+0.08*fbm(vec2(x*0.8,uT*0.05)); float dy=vUv.y-band;
     float curtain=smoothstep(-0.05,0.02,dy)*exp(-max(dy,0.0)*5.0)*pow(vnoise(vec2(x*18.0+fbm(vec2(x,uT*0.1))*6.0,uT*0.25)),2.0)*1.8;
     vec3 ac=mix(vec3(0.1,1.0,0.45),vec3(0.9,0.2,0.7),smoothstep(0.03,0.25,dy))*curtain*min(uK,2.0);
     vec3 stars=vec3(step(0.997,h1(floor(vUv*A*400.0))))*(0.5+0.5*sin(uT*2.0+h1(floor(vUv*A*300.0))*30.0));
@@ -492,6 +492,6 @@ export function studioEnvs(renderer) {
   const room = (bg, panels) => { const s = new THREE.Scene(); s.background = new THREE.Color(bg); panels.forEach(([w, h, col, k, pos]) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(k), side: THREE.DoubleSide })); m.position.set(...pos); m.lookAt(0, 0, 0); s.add(m); });
     const p = new THREE.PMREMGenerator(renderer), t = p.fromScene(s, 0).texture; p.dispose(); s.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); }); return t; };
   const e = { studio: room(0x060505, [[7, 3.2, 0xfff1e0, 5, [-3.5, 5, 4.5]], [1.1, 9, 0xffffff, 3.6, [6.5, 0, 1.5]], [1.1, 9, 0xd8e4ff, 1.6, [-6.5, 0, -1]], [12, 2.5, 0xffd2a0, 0.9, [0, -5.5, 3]], [1.6, 1.6, 0xffffff, 12, [2.5, 3, 7]], [14, 6, 0x1a1612, 1, [0, 1, -8]]]),
-    bright: room(0x2a2622, [[9, 4, 0xffffff, 3, [0, 1, 9]], [3, 10, 0xfff0dc, 4, [-6, 0, 4]], [3, 10, 0xdce8ff, 3, [6, 0, 4]], [16, 3, 0x0a0a0c, 1, [0, -2.5, 8]], [16, 2, 0xffe2b8, 2, [0, 5, 3]]]) };
+    bright: room(0x2a2622, [[12, 12, 0xfff6ea, 2.2, [0, 10, 1]], [9, 4, 0xffffff, 3, [0, 1, 9]], [3, 10, 0xfff0dc, 4, [-6, 0, 4]], [3, 10, 0xdce8ff, 3, [6, 0, 4]], [16, 3, 0x0a0a0c, 1, [0, -2.5, 8]], [16, 2, 0xffe2b8, 2, [0, 5, 3]]]) };
   ENVS.set(renderer, e); return e;
 }

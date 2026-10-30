@@ -65,7 +65,7 @@ try {
       S.cam.set({ tx: 0, tz: 8.6, dT: 9.5 }); return S.table.list.length; }, { id, v: VARIANT });
     /* wait for both finishes to land (depth, then the build queue) */
     await fr.waitForFunction(() => __lt.secret.S.table.list.every(o => o.built && o.finish && (o.finish.mesh || !__lt.secret.S.fx.isFx(o.finishId))), null, { timeout: 120000, polling: 300 }).catch(() => console.log('  ' + id + ': finish did not land in time'));
-    await page.waitForTimeout(1500); await shot(id + '-table');
+    await page.waitForTimeout(id === 'scan3d' ? 45000 : 1500); await shot(id + '-table');
     await fr.evaluate(() => { const S = __lt.secret.S, o = S.table.list.find(o => o.slab.graded) || S.table.list[0]; S.inspect.open(o, { actions: [{ id: 'back', label: 'Put back', primary: true }], hint: S.specLine(o.slab) }); });
     await fr.waitForFunction(() => __lt.secret.S.inspect.t > 0.97, null, { timeout: 60000, polling: 200 }).catch(() => {}); await page.mouse.move(430, 250); await page.waitForTimeout(1600); await shot(id + '-inspect');
     if (flag('--tools')) for (const t of ['loupe', 'uv', 'compose']) { await page.click('#skTools [data-tool="' + t + '"]').catch(() => {}); await page.mouse.move(560, 320); await page.waitForTimeout(1800); await shot(id + '-tool-' + t); }

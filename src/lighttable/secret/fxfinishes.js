@@ -166,9 +166,9 @@ const FX = {
       const led = new THREE.Mesh(new THREE.PlaneGeometry(w * 1.05, 0.7), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
         vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
         fragmentShader: 'varying vec2 vUv; void main(){ float a=exp(-vUv.y*5.0)*smoothstep(0.0,0.15,vUv.x)*smoothstep(1.0,0.85,vUv.x)*0.35; gl_FragColor=vec4(vec3(0.55,0.75,1.0)*a,1.0); }' }));
-      led.position.set(0, -h / 2 + 0.3, 0.06); g.add(led);
+      led.position.set(0, -h / 2 + 0.3, api.room * 0.5); g.add(led);
       g.userData.dark = true;
-      return { relief: k => { const z = (0.05 + k * 0.07) * RK / 0.72; mat.uniforms.uZ.value = z; pts.position.z = 0.012 + z * 0.5; }, update: t => { mat.uniforms.uTime.value = t; } };
+      return { relief: k => { const z = api.room * (0.45 + 0.35 * clamp((k - 0.8) / 0.6, 0, 1)); mat.uniforms.uZ.value = z; pts.position.z = 0.012 + z * 0.5; }, update: t => { mat.uniforms.uTime.value = t; } };
     } },
   focus: { name: 'Rack focus', amt: [0.8, 1.5],
     build(P, g, w, h, api) { const driver = api.driver, renderer = api.renderer, camera = api.camera, ENV2 = api.env2, RK = RELIEF.k;
@@ -263,7 +263,7 @@ const FX = {
       const SW = 200, SH = Math.round(200 / P.aspect), cur = new Float32Array(SW * SH), prev = new Float32Array(SW * SH), data = new Uint8Array(SW * SH * 4);
       const nt = new THREE.DataTexture(data, SW, SH, THREE.RGBAFormat); nt.magFilter = THREE.LinearFilter; nt.minFilter = THREE.LinearFilter; nt.needsUpdate = true;
       const N = P.W * P.H, Hf = new Float32Array(N); for (let i = 0; i < N; i++) Hf[i] = P.R[i] * 0.6 + P.D[i] * 0.2;
-      const map = texOf(P.W, P.H, true, i => { const t = 0.12 + 0.88 * Math.pow(P.L[i], 1.1); return [t * 0.97, t * 0.98, t]; });
+      const map = texOf(P.W, P.H, true, i => { const t = 0.25 + 0.75 * Math.pow(P.L[i], 1.1); return [t * 0.97, t * 0.98, t]; });
       const geo = reliefGeo(P, w, h, smoothHeight(P, Hf, 3));
       const mat = new THREE.MeshPhysicalMaterial({ map, metalness: 1, roughness: 0.1, normalMap: nt, normalScale: new THREE.Vector2(1.6, 1.6), envMap: ENV2, envMapIntensity: 1.3 });
       const mesh = new THREE.Mesh(geo, mat); g.add(mesh); let last = null, nextDrop = 1, damp = 0.986;
@@ -292,12 +292,12 @@ const FX = {
       const ft = new THREE.CanvasTexture(c); ft.colorSpace = THREE.SRGBColorSpace;
       const m = shaderMat(P, FR.polaroid, { uFrame: { value: ft }, uT0: { value: 0 } }), mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); g.add(mesh); let t0 = null;
       document.fonts.load('48px Caveat').then(() => { cx.fillStyle = '#f2efe8'; cx.fillRect(0, 0.82 * H, W, 0.18 * H); cx.fillStyle = '#1d2b5a'; cx.fillText(api.caption, 0.1 * W, 0.91 * H); ft.needsUpdate = true; }).catch(() => {});
-      const d = driver([m], mesh, t => { if (t0 === null) t0 = t; m.uniforms.uT0.value = t0; const p = clamp((t - t0) / 22, 0, 1); api.hud(p < 1 ? 'DEVELOPING · <b>' + Math.round(p * 100) + '%</b>' : 'DEVELOPED · <b>INSTANT FILM</b>'); });
+      const d = driver([m], mesh, t => { if (t0 === null) t0 = api.seen() ? t - 60 : t; m.uniforms.uT0.value = t0; const p = clamp((t - t0) / 22, 0, 1); if (p >= 1) api.markSeen(); api.hud(p < 1 ? 'DEVELOPING · <b>' + Math.round(p * 100) + '%</b>' : 'DEVELOPED · <b>INSTANT FILM</b>'); });
       return { pickMesh: mesh, click: () => { t0 = null; }, update: d.update, relief: () => {} };
     } },
   tray: { name: 'Developing tray', amt: null,
     build(P, g, w, h, api) { const driver = api.driver, renderer = api.renderer, camera = api.camera, ENV2 = api.env2, RK = RELIEF.k; const m = shaderMat(P, FR.tray, { uT0: { value: 0 } }), mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); g.add(mesh); let t0 = null;
-      const d = driver([m], mesh, t => { if (t0 === null) t0 = t; m.uniforms.uT0.value = t0; const p = clamp((t - t0) / 16, 0, 1); api.hud('DEVELOPER · <b>' + Math.round((t - t0)) + ' S</b>' + (p >= 1 ? ' · INTO THE STOP BATH' : '')); });
+      const d = driver([m], mesh, t => { if (t0 === null) t0 = api.seen() ? t - 60 : t; m.uniforms.uT0.value = t0; const p = clamp((t - t0) / 16, 0, 1); if (p >= 1) api.markSeen(); api.hud('DEVELOPER · <b>' + Math.round((t - t0)) + ' S</b>' + (p >= 1 ? ' · INTO THE STOP BATH' : '')); });
       return { pickMesh: mesh, click: () => { t0 = null; }, update: d.update, relief: () => {} }; } },
   burn: { name: 'Film burn', amt: null,
     build(P, g, w, h, api) { const driver = api.driver, renderer = api.renderer, camera = api.camera, ENV2 = api.env2, RK = RELIEF.k; const m = shaderMat(P, FR.burn, { uT0: { value: 0 }, uImp: { value: new THREE.Vector2(0.7, 0.6) } }), mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); g.add(mesh); let t0 = null;
@@ -364,12 +364,13 @@ const FX = {
     build(P, g, w, h, api) { const m = shaderMat(P, FR.window, { vs: VS_WIN, uSize: { value: new THREE.Vector2(w, h) }, uDepth: { value: 1 } }), mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); g.add(mesh);
       return { relief: k => { m.uniforms.uDepth.value = 0.9 * k; }, update: t => { m.uniforms.uT.value = t; } }; } },
   scan3d: { name: 'Inside the scan', amt: [0.85, 1.1],
-    build(P, g, w, h, api) { const holder = new THREE.Group(); holder.position.z = 0.06; g.add(holder); let K = 1, base = 1, s = null, gone = false, win = null;
+    build(P, g, w, h, api) { const holder = new THREE.Group(); holder.position.z = api.room * 0.5; g.add(holder); let K = 1, base = 1, flat = 1, s = null, gone = false, win = null;
+      const fit = () => holder.scale.set(base * K, base * K, base * K * flat);
       loadScan(api.S).then(sc => { if (gone) { if (sc) sc.release(); return; }
         if (!sc) { const m = shaderMat(P, FR.window, { vs: VS_WIN, uSize: { value: new THREE.Vector2(w, h) }, uDepth: { value: 0.9 } }); win = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); g.add(win); return; }
         s = sc; const off = new THREE.Group(); off.add(sc.mesh); sc.mesh.position.set(-sc.c[0], -sc.c[1], -sc.c[2]); const spin = new THREE.Group(); spin.rotation.y = sc.face; spin.add(off); holder.add(spin);
-        base = Math.min(h * 0.86 / sc.size[1], w * 0.86 / Math.max(sc.size[0], sc.size[2]), 0.11 / Math.max(0.01, Math.min(sc.size[0], sc.size[2]) * 0.5)); holder.scale.setScalar(base * K); holder.position.y = -h * 0.04; });
-      return { relief: k => { K = k; holder.scale.setScalar(base * K); }, update: t => { if (holder.children[0] && s) holder.children[0].rotation.y = s.face + Math.sin(t * 0.25) * 0.35; },
+        base = Math.min(h * 0.8 / sc.size[1], w * 0.62 / Math.max(sc.size[0], sc.size[2])); flat = Math.min(1, api.room * 0.85 / (Math.max(sc.size[0], sc.size[2]) * base)); fit(); holder.position.y = -h * 0.04; });
+      return { relief: k => { K = k; fit(); }, update: t => { if (holder.children[0] && s) holder.children[0].rotation.y = s.face + Math.sin(t * 0.25) * 0.35; },
         dispose: () => { gone = true; if (s) s.release(); } };
     } },
 };
@@ -380,7 +381,7 @@ export const META = {
   gold: { tier: 'legendary', metal: [0xe6b24a, 0.16] }, gilt: { tier: 'legendary', glow: [0xe9b54a, 0xfff0c0, 'steady'], metal: [0xe6b24a, 0.16] },
   dag: { tier: 'mythic', glow: [0xcfd8e6, 0xffffff, 'cold'], metal: [0xdfe3ea, 0.1] }, bronze: { tier: 'epic', glow: [0xc9874a, 0x5fb39a, 'steady'], metal: [0xb07a45, 0.3] },
   porcelain: { tier: 'epic', glow: [0x3a6fe0, 0xffffff, 'steady'], metal: [0xf0ede6, 0.3, 0, 0.05] }, kintsugi: { tier: 'legendary', glow: [0xf0c060, 0xbfe0d0, 'steady'], metal: [0x1f1e22, 0.28] },
-  litho: { tier: 'epic', glow: [0xffb060, 0xffe8c8, 'pulse'], metal: [0xf2ede4, 0.5, 0, 0.05] }, crystal: { tier: 'mythic', sealed: true, cover: 0x050608, glow: [0x9fd0ff, 0xffffff, 'sparkle'], metal: [0xd8f0ff, 0.04, 0, 0.1, 1] },
+  litho: { tier: 'epic', glow: [0xffb060, 0xffe8c8, 'pulse'], metal: [0xf2ede4, 0.5, 0, 0.05] }, crystal: { tier: 'mythic', sealed: true, th: 0.6, cover: 0x050608, glow: [0x9fd0ff, 0xffffff, 'sparkle'], metal: [0xd8f0ff, 0.04, 0, 0.1, 1] },
   focus: { tier: 'uncommon', glow: [0xffe6b0, 0xffffff, 'steady'], metal: [0x9aa2ac, 0.25] }, fireflies: { tier: 'epic', glow: [0xffc85a, 0x9cff6a, 'sparkle'], metal: [0x6a7a40, 0.3] },
   depthscan: { tier: 'rare', glow: [0x40f0ff, 0x0a6070, 'cycle'], metal: [0x2a8a9a, 0.2] }, sun: { tier: 'legendary', glow: [0xffa040, 0xffe0a0, 'steady'], metal: [0xe0904a, 0.2] },
   rain: { tier: 'rare', glow: [0x9fc8e8, 0xffffff, 'cold'], metal: [0x9ab0c0, 0.15] }, snow: { tier: 'epic', glow: [0xe8f4ff, 0xffffff, 'cold'], metal: [0xeef4fa, 0.3, 0, 0.05] },
@@ -399,7 +400,7 @@ export const META = {
   puddles: { tier: 'uncommon', glow: [0x8ab0d0, 0xffffff, 'cold'], metal: [0x6a8098, 0.12] }, aero: { tier: 'uncommon', glow: [0xff3080, 0x30a0ff, 'cycle'], metal: [0xd03070, 0.2, 1] },
   storm: { tier: 'epic', glow: [0xc0d0ff, 0x3040a0, 'sparkle'], metal: [0x404a70, 0.2], rest: 0.3 }, fireworks: { tier: 'epic', glow: [0xff4060, 0x40e0ff, 'sparkle'], metal: [0xd03050, 0.15, 1], rest: 0.3 },
   lightpaint: { tier: 'mythic', glow: [0xff40c0, 0x40ffff, 'cycle'], metal: [0xa040d0, 0.1, 1] }, lensball: { tier: 'rare', glow: [0xffffff, 0xa0c8ff, 'steady'], metal: [0xe0e8f0, 0.04, 0, 0.1, 1] },
-  scan3d: { tier: 'mythic', sealed: true, cover: 0x070806, glow: [0x9fe07a, 0xffffff, 'pulse'], metal: [0x6a8a50, 0.3] },
+  scan3d: { tier: 'mythic', sealed: true, th: 0.8, cover: 0x070806, glow: [0x9fe07a, 0xffffff, 'pulse'], metal: [0x6a8a50, 0.3] },
 };
 /* a word for the roll where the finish has no label of its own (the spec line under an inspected slab) */
 const BAND = (lo, mid, hi) => a => a < 0.85 ? lo : a > 1.25 ? hi : mid;
@@ -437,7 +438,9 @@ function makeFx(S, id, d, ctx) {
     const g = new THREE.Group(); g.userData.fxGroup = true; let label = '', t = Math.random() * 20;
     const api = { S, amt, lamp: 1, renderer: S.renderer, camera: S.camera || S.ctx.camera, env2: envs.bright, tilt: new THREE.Vector2(), caption: captionOf(slab),
       rng: () => rngOf(seed ^ 0x5bd1e995), label: parts => { label = [].concat(parts).join(' · '); }, hud() {},
+      room: Math.max(0.1, (obj.th || 0.19) - 0.07),
       active: () => !!obj.top, pick: () => (obj.top && obj.pointerOn ? obj.pointer : null),
+      seen: () => !!(slab.fxSeen && slab.fxSeen[id]), markSeen: () => { if (slab.fxSeen && slab.fxSeen[id]) return; slab.fxSeen = Object.assign({}, slab.fxSeen, { [id]: 1 }); try { S.store.save(); } catch (e) {} },
       driver(mats, mesh, extra) { return { relief: k => mats.forEach(m => { m.uniforms.uK.value = k; }), update: (tt, dt) => { const hit = api.pick();
         mats.forEach(m => { const u = m.uniforms; u.uT.value = tt; u.uTilt.value.set(api.tilt.y, api.tilt.x); if (hit) u.uPtr.value.lerp(hit, Math.min(1, dt * 10)); u.uHov.value += ((hit ? 1 : 0) - u.uHov.value) * Math.min(1, dt * 3); });
         if (extra) extra(tt, dt, hit); } }; } };
@@ -463,12 +466,12 @@ function captionOf(slab) { const t = String(slab.title || 'untitled').replace(/\
 
 export function install(S) {
   Object.entries(FX).forEach(([id, d]) => { const prev = S.SM.hasFinish(id) ? S.SM.finishDef(id) : null;   /* holo.js's old gold, chrome, porcelain, kintsugi: Blades still wear them */
-    S.SM.registerFinish(id, { kind: 'fx', sealed: isSealed(id),
+    S.SM.registerFinish(id, { kind: 'fx', sealed: isSealed(id), th: META[id] && META[id].th,
       make: ctx => (!ctx.obj && prev && prev.make ? prev.make(ctx) : makeFx(S, id, d, ctx)),
       update: (g, c) => { if (!g) return; if (g.userData.fx) g.userData.fx.update(c); else if (prev && prev.update) prev.update(g, c); } }); });
   /* the hover glows on the rail and the Blades metals, for the new finishes */
   if (S.holo && S.holo.GLOWS) Object.entries(META).forEach(([id, m]) => { if (m.glow) S.holo.GLOWS[id] = { color: m.glow[0], color2: m.glow[1], kind: m.glow[2], flicker: 0 }; });
-  S.fx = { META, fxLabel, isFx, isSealed, depthKey };
+  S.fx = { META, fxLabel, isFx, isSealed, depthKey, loadScanTest: () => loadScan(S).then(s => s ? { n: s.n, size: s.size, ok: true } : 'null') };
   if (S.holo && S.holo.VARIANT_GLOWS) Object.assign(S.holo.VARIANT_GLOWS, { breakout: { color: 0xf3e6c8, color2: 0xffffff, kind: 'pulse' }, liquid: { color: 0x58d0c0, color2: 0xffd27a, kind: 'cycle' } });
   /* the AI depth model downloads once (about 27 MB) and is cached; Quick only keeps every map made on the spot */
   if (S.dev && S.dev.define) { S.dev.define('depth', 'Depth maps', { ai: 'AI, downloads once', quick: 'Quick only' }, 'ai'); setDepthMode(S.dev.opt('depth')); S.dev.on('depth', setDepthMode); }

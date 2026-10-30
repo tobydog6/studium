@@ -45,18 +45,27 @@ try {
   await until(() => __lt.secret.S.M.is('under'), 'the dark side');
   await ev(() => { const S = __lt.secret.S; S.T.setTimeScale(1); const c = S.ctx.cam; c.tx = 0; c.tz = 0; c.pitch = 38; c.dT = 36; c.yaw = 0; }); await W(2500); await shot('0-parked');
   const STEPS = (process.argv[2] || '0.1,0.3,0.5,0.7,0.9,1').split(',').map(Number);
-  if (process.argv[3] !== 'flow') { const close = process.argv[3] === 'car', closeM = process.argv[3] === 'mech';
+  if (process.argv[3] !== 'flow' && process.argv[3] !== 'screen') { const close = process.argv[3] === 'car', closeM = process.argv[3] === 'mech';
     await ev(() => { const S = __lt.secret.S, c = S.ctx.cam, w = S.under.group.localToWorld(new S.THREE.Vector3(0, 0, -5.5)); c.tx = w.x; c.tz = w.z; c.ty = 1.8; c.pitch = 20; c.dT = 22; c.yaw = 0.4; });
     if (close) await ev(() => { const S = __lt.secret.S, c = S.ctx.cam, w = S.under.group.localToWorld(new S.THREE.Vector3(1, 0, -3.9)); c.tx = w.x; c.tz = w.z; c.ty = 0.7; c.pitch = 28; c.dT = 11; c.yaw = 0.5; });
     if (closeM) await ev(() => { const S = __lt.secret.S, c = S.ctx.cam, w = S.under.group.localToWorld(new S.THREE.Vector3(0, 2.6, -8.3)); c.tx = w.x; c.tz = w.z; c.ty = w.y; c.pitch = 10; c.dT = 17; c.yaw = 0.7; });
     for (const t of STEPS) { await ev((t) => { const S = __lt.secret.S; S.rig.__car(t); S.rig.__mech(t); S.rig.__link(t >= 1 ? 1 : 0); }, t); await W(1800); await shot('t' + t); }
     await ev(() => { const S = __lt.secret.S; S.rig.__home(); });
+  } else if (process.argv[3] === 'screen') {
+    await ev(() => { const S = __lt.secret.S; S.store.get().coins = 5000; S.store.save(); S.rig.__built(); S.rig.go(); });
+    await until(() => __lt.secret.S.M.is('pc.view'), 'the screen', 300000); await W(12000); await shot('s1-screen');
+    await ev(() => { const b = document.querySelector('#skMarket [data-k="stock"]'); if (b) b.click(); }); await W(4000); await shot('s2-detail');
+    await ev(() => { __lt.secret.S.T.setTimeScale(0.25); const b = document.querySelector('#skMarket [data-a="inspectsel"]'); if (b) b.click(); }); await W(9000); await shot('s3-building');
+    await ev(() => __lt.secret.S.T.setTimeScale(1)); await until(() => { const S = __lt.secret.S; return S.rig.projecting() && !S.T.running('pj'); }, 'the card', 300000); await W(1000); await shot('s4-card');
+    await ev(() => { const S = __lt.secret.S; S.T.setTimeScale(0); S.rig.__pj(0.55); }); await W(2500); await shot('s3b-points'); await ev(() => { const S = __lt.secret.S; S.rig.__pj(1.02); S.T.setTimeScale(1); });
+    await ev(() => __lt.secret.S.M.send('CLOSE')); await until(() => !__lt.secret.S.rig.projecting(), 'card back', 300000);
+    await ev(() => __lt.secret.S.M.send('CLOSE')); await until(() => __lt.secret.S.M.is('under'), 'back to the table', 300000); await W(2500); await shot('s5-table');
   } else {
     await ev(() => { const S = __lt.secret.S; S.store.get().coins = 5000; S.store.save(); S.T.setTimeScale(3); S.rig.go(); });
     for (let k = 0; k < 6; k++) { await W(4000); console.log('  ', JSON.stringify(await ev(() => { const S = __lt.secret.S; return { m: S.M.state, t: +S.T.time().toFixed(1) }; }))); }
     await shot('1-driving');
     await until(() => __lt.secret.S.M.is('pc.view'), 'the computer', 600000); await ev(() => __lt.secret.S.T.setTimeScale(1)); await W(3000); await shot('2-screen');
-    await ev(() => { const b = document.querySelector('#skMarket tr[data-k="stock"]'); if (b) b.click(); }); await W(1200);
+    await ev(() => { const b = document.querySelector('#skMarket [data-k="stock"]'); if (b) b.click(); }); await W(1200);
     await ev(() => { const b = document.querySelector('#skMarket [data-a="inspectsel"]') || document.querySelector('#skMarket [data-a="inspect"]'); if (b) b.click(); });
     await W(2500); await shot('3-beam'); await until(() => { const S = __lt.secret.S; return S.rig.projecting() && !S.T.running('pj'); }, 'the card', 400000); await W(800); await shot('4-card');
     await ev(() => __lt.secret.S.M.send('CLOSE')); await until(() => !__lt.secret.S.rig.projecting(), 'the card going back', 400000); await W(800); await shot('5-back');

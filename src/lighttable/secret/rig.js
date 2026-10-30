@@ -10,23 +10,24 @@
 // They connect (a cable snakes from the monitor's base into the back of the keyboard and a pulse runs down it), the
 // screen boots, and the camera flies into it: the exchange (market.js) is an HTML page laid exactly over the 3D
 // screen, so the edge of the monitor stays in view. Examine a card and the screen dims, a little arm slides out of
-// the mech's head towards you, a blue beam shoots down and scans the real card in front of the screen; once it is
-// built the beam goes clear and the card is yours to turn. Close it and it all runs backwards; shut the exchange and
-// the two transform back and go home. Shapes in rigmodel.js. A click while they are transforming speeds it up.
+// the top of the monitor towards you and the card is built in front of the screen out of fine points of light; then
+// it is yours to turn. Close the exchange and the camera comes back out with the computer still standing (click it
+// to go back in); its power button turns it back into the toys, who go home to their plinths along the back edge.
+// Shapes in rigmodel.js. A click while they are transforming speeds it up.
 //   S.rig = { root, wants(), go(), inPc(), projecting(), project(slab), onClose(), pointer(kind, e), frame(dt) }
-//   states: 'pc.go' (busy), 'pc.view', 'pc.back' (busy)
+//   states: 'pc.go' (busy), 'pc.view', 'pc.out' (busy, back to the table), 'pc.back' (busy, back to toys)
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { buildCar, buildKeys, buildMech, dressMech, radial, CAR, MECH } from './rigmodel.js';
+import { buildCar, buildKeys, buildMech, dressMech, CAR, MECH } from './rigmodel.js';
 import MECH_GLB from './mech.glb';
 
 export function install(S) {
   if (!S.under) return;
   const { T, M, ctx } = S, E = T.E, ENV = S.SM.envMap(S.renderer), PI = Math.PI;
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
-  const CPARK = { x: -8.4, z: -1.0, h: 0.12 };      /* the car, nose towards the middle, clear of the case, the Blades launcher and the binder */
+  const CPARK = { x: -7.6, z: -9.0, h: 0 };         /* the car on its plinth along the back edge, nose towards the middle, out of everyone's way (Sam) */
   const KB = { x: 0, z: -4.6 };                      /* where it stops side on and becomes the keyboard: the top of the table, clear of the pit (Sam) */
-  const MPARK = { x: 12.6, z: 0.8, yaw: -PI / 2 };   /* between the shelf and the pit */   /* the mech, facing the middle, clear of the shelf, the pit and the big button */
+  const MPARK = { x: 7.8, z: -10.0, yaw: 0 };       /* the mech on its plinth along the back edge, facing you */
   const MON = { x: 0, z: -8.3 };                     /* where it stands and becomes the monitor */
   const MOUSE = V(KB.x + 4.35, 0, KB.z + 1.0);
   const snd = (id, o) => { try { if (S.snd && S.snd.play) return S.snd.play(id, o); } catch (e) {} return null; };
@@ -82,19 +83,28 @@ export function install(S) {
     /* sealed: the head, the arms, the legs and the hip armour fold away inside, and the monitor's own shells close over */
     const cm = smooth(sub(t, 0.8, 0.97)), gs = sub(t, 0.8, 0.98), g2 = gs > 0 ? E.outBack(gs) : 0, sc = (o, k) => { o.scale.setScalar(Math.max(0.001, k)); o.visible = k > 0.002; };
     mech.head.position.y -= 0.95 * cm; mech.head.position.z = -0.45 * cm; MA.forEach(m => sc(m.mount, 1 - cm)); ML.forEach(l => sc(l.hip, 1 - cm)); [...mech.skin.pelvis, ...mech.skin.spine].forEach(m => sc(m, 1 - cm));
-    [...mech.skin.torso, ...mech.skin.wings, mech.skin.neck, mech.skin.foot].forEach(o => sc(o, g2));
+    [mech.skin.neck, mech.skin.foot].forEach(o => sc(o, g2));
     /* the one curved screen rolls out from the middle over the three panels */
-    const dp = sub(t, 0.84, 0.99), de = dp > 0 ? E.outCubic(dp) : 0; mech.skin.display.visible = de > 0; mech.skin.display.scale.set(Math.max(0.001, de), 1, 1); const panelsOn = de < 0.98; mech.panels.forEach(p => { p.visible = panelsOn; }); mech.housing.forEach(m => { m.visible = panelsOn; });
-    MW.forEach(w => w.slide.children.forEach(c => { if (!mech.skin.wings.includes(c)) c.visible = panelsOn; }));   /* behind the one screen nothing of the robot is left */
+    const dp = sub(t, 0.84, 0.99), de = dp > 0 ? E.outCubic(dp) : 0; mech.skin.display.visible = de > 0; mech.skin.display.scale.set(Math.max(0.001, de), 1, 1); const panelsOn = de < 0.98;   /* once the one screen is out, nothing of the robot is left behind it */
+    mech.torso.children.forEach(c => { if (c !== mech.skin.display && c !== mech.pole && !mech.occluders.includes(c)) c.visible = panelsOn; });
     mech.torso.rotation.set(0, 0, 0); }
   /* the walk: phase ph (2 PI is two steps), amp 0 standing .. 1 striding */
   function walkPose(ph, amp) { const f = p => [0.42 * amp * Math.sin(p), amp * (0.12 + 0.75 * Math.max(0, Math.cos(p)))];
     const [aL, bL] = f(ph + PI), [aR, bR] = f(ph); legs(aL, bL, aR, bR, 0);
     MA.forEach(m => { m.arm.rotation.x = 0.32 * amp * Math.sin(m.s < 0 ? ph : ph + PI); m.elbow.rotation.x = -0.25 * amp; });
     mech.torso.rotation.y = 0.05 * amp * Math.sin(ph); mech.torso.rotation.z = 0.025 * amp * Math.sin(ph); }
-  mech.root.position.set(MPARK.x, 0, MPARK.z); mech.root.rotation.y = MPARK.yaw; mechT(0);
+  mech.root.position.set(MPARK.x, 0.1, MPARK.z); mech.root.rotation.y = MPARK.yaw; mechT(0);
   /* the Blender model goes on as soon as it is parsed (a moment after the table opens); until then the stand-in boxes */
-  try { new GLTFLoader().parse(MECH_GLB.buffer.slice(MECH_GLB.byteOffset, MECH_GLB.byteOffset + MECH_GLB.byteLength), '', g => { try { dressMech(THREE, ENV, mech, g); mechT(R.tm); } catch (e) { console.error('mech', e); } }, e => console.error('mech', e)); } catch (e) { console.error('mech', e); }
+  try { new GLTFLoader().parse(MECH_GLB.buffer.slice(MECH_GLB.byteOffset, MECH_GLB.byteOffset + MECH_GLB.byteLength), '', g => { try { dressMech(THREE, ENV, mech, g); mechT(R.tm); warm(); } catch (e) { console.error('mech', e); } }, e => console.error('mech', e)); } catch (e) { console.error('mech', e); }
+  /* every material compiled up front, hidden parts too, so the first transform and the first hologram never stutter */
+  function warm() { const vis = []; root.traverse(o => { vis.push([o, o.visible]); o.visible = true; }); try { S.renderer.compile(root, ctx.camera, ctx.scene); } catch (e) {} vis.forEach(([o, v]) => { o.visible = v; }); }
+  /* the plinths the two wait on along the back of the table */
+  const plM = new THREE.MeshStandardMaterial({ color: 0x15161a, metalness: 0.8, roughness: 0.35, envMap: ENV });
+  const plinths = [[CPARK.x, CPARK.z, 3.0], [MPARK.x, MPARK.z, 1.7]].map(([x, z, r]) => { const g = new THREE.Group(); g.position.set(x, 0, z); root.add(g);
+    const d = new THREE.Mesh(new THREE.CylinderGeometry(r, r + 0.1, 0.1, 72), plM); d.position.y = 0.05; g.add(d);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r + 0.03, 0.02, 6, 120), new THREE.MeshBasicMaterial({ color: 0x4fb8ff, transparent: true, opacity: 0.5 })); ring.rotation.x = PI / 2; ring.position.y = 0.1; g.add(ring); return ring; });
+  const PLINTH = 0.1;
+  function plinthGlow() { plinths.forEach((r, i) => { r.material.opacity = 0.3 + 0.2 * Math.sin(T.time() * 1.5 + i * 2); }); }
   mech.occluders.forEach(o => o.layers.set(S.bloom.FX));   /* the monitor hides the glow of whatever is behind it, without glowing */
 
   /* ---------- the screen, the cable ---------- */
@@ -102,7 +112,7 @@ export function install(S) {
     g.fillStyle = '#0e0f11'; g.fillRect(0, 0, 2048, 890); g.fillStyle = '#f2efe9'; g.beginPath(); g.moveTo(0, 0); g.lineTo(1180, 0); g.lineTo(900, 890); g.lineTo(0, 890); g.closePath(); g.fill();
     g.save(); g.clip(); g.strokeStyle = 'rgba(14,14,14,0.06)'; g.lineWidth = 2; for (let x = 0; x < 1200; x += 56) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 890); g.stroke(); } for (let y = 0; y < 890; y += 56) { g.beginPath(); g.moveTo(0, y); g.lineTo(1200, y); g.stroke(); } g.restore();
     g.fillStyle = '#0e0e0e'; g.font = '900 150px "Archivo", "Geist", "Helvetica Neue", Arial, sans-serif'; g.fillText('STUDIUM', 120, 470); g.font = 'italic 400 96px "Instrument Serif", Georgia, serif'; g.fillText('House', 140, 580);
-    g.fillStyle = '#f4f1ea'; g.font = '500 30px "Geist Mono", "JetBrains Mono", monospace'; g.fillText('THE EXCHANGE', 1300, 420); g.fillStyle = 'rgba(244,241,234,0.25)'; g.fillRect(1300, 460, 560, 6); g.fillStyle = '#f4f1ea'; g.fillRect(1300, 460, 380, 6);
+    g.fillStyle = '#ff4655'; g.fillRect(1300, 360, 56, 6); g.fillStyle = '#f4f1ea'; g.font = '500 30px "Geist Mono", "JetBrains Mono", monospace'; g.fillText('THE EXCHANGE', 1300, 420); g.fillStyle = 'rgba(244,241,234,0.25)'; g.fillRect(1300, 460, 560, 6); g.fillStyle = '#f4f1ea'; g.fillRect(1300, 460, 380, 6);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; })();
   const SM_ = mech.screenMat.uniforms; SM_.map.value = splash;
   const cablePts = [V(0.9, 0.16, MON.z + 0.78), V(0.95, 0.04, MON.z + 1.2), V(0.8, 0.04, KB.z - 1.5), V(0.85, 0.3, KB.z - 1.08)];
@@ -154,7 +164,7 @@ export function install(S) {
   let lastS = 0, lastH = CPARK.h, vel = 0; const tp = V(0, 0, 0), tt = V(0, 0, 0), tl = V(0, 0, 0);
   function setDrive(s, dt) {
     bez(s, tp); dbez(s, tt); const h = Math.atan2(-tt.z, tt.x), dist = bez(lastS, tl).distanceTo(tp) * Math.sign(s - lastS || 1);
-    carRoot.position.set(tp.x, 0, tp.z); carRoot.rotation.y = h;
+    carRoot.position.set(tp.x, PLINTH * (1 - sub(s, 0.02, 0.12)), tp.z); carRoot.rotation.y = h;
     wheels.forEach(w => { w.userData.spin.rotation.z -= dist / CAR.wr; });
     const dh = Math.atan2(Math.sin(h - lastH), Math.cos(h - lastH)), steer = Math.abs(dist) > 1e-4 ? T.clamp(dh / Math.abs(dist) * CAR.wb * 1.4, -0.5, 0.5) : 0;
     R.steer += (steer - R.steer) * 0.25; wheels.forEach(w => { if (w.userData.front) w.userData.steer.rotation.y = R.steer; });
@@ -164,7 +174,7 @@ export function install(S) {
   }
   setDrive(0, 0);
   async function drive(dir) {
-    const dur = 2.5; lastS = dir > 0 ? 0 : 1; lastH = carRoot.rotation.y; let prev = 0; snd('ignite');
+    const dur = 1.9; lastS = dir > 0 ? 0 : 1; lastH = carRoot.rotation.y; let prev = 0; snd('ignite');
     const eng = S.snd && S.snd.loop ? S.snd.loop('rumble', { gain: 0.2 }) : null;
     await T.tween({ dur, ease: E.linear, tag: 'rig', update: (e, raw) => { const dt = (raw - prev) * dur; prev = raw; const k = E.inOutCubic(raw); setDrive(dir > 0 ? k : 1 - k, dt); if (eng && eng.set) eng.set(0.12 + 0.45 * bump(raw)); } });
     if (eng) eng.stop(0.4); carRoot.rotation.x = 0; carRoot.rotation.z = 0; wheels.forEach(w => { if (w.userData.front) w.userData.steer.rotation.y = 0; }); R.steer = 0; snd('land');
@@ -174,14 +184,14 @@ export function install(S) {
   const yawTo = (a, b) => b + Math.atan2(Math.sin(a - b), Math.cos(a - b));
   async function turn(y0, y1, dur) { await T.tween({ dur, ease: E.inOutSine, tag: 'rig', update: (e, raw) => { mech.root.rotation.y = y0 + (y1 - y0) * e; walkPose(raw * PI * 2, 0.35 * bump(raw)); } }); walkPose(0, 0); }
   async function walk(from, to, endYaw) {
-    const d = V(to.x - from.x, 0, to.z - from.z), len = d.length(), yaw = Math.atan2(d.x, d.z), STRIDE = 3.0, dur = Math.max(1.2, len / STRIDE * 0.95);
-    await turn(mech.root.rotation.y, yawTo(yaw, mech.root.rotation.y), 0.55);
+    const d = V(to.x - from.x, 0, to.z - from.z), len = d.length(), yaw = Math.atan2(d.x, d.z), STRIDE = 3.2, dur = Math.max(1.0, len / STRIDE * 0.62);
+    await turn(mech.root.rotation.y, yawTo(yaw, mech.root.rotation.y), 0.4);
     let lastStep = 0;
     await T.tween({ dur, ease: E.linear, tag: 'rig', update: (e, raw) => { const k = raw < 0.12 ? raw * raw / 0.24 : raw > 0.88 ? 1 - (1 - raw) * (1 - raw) / 0.24 : raw - 0.06, kk = k / 0.88;
-      mech.root.position.set(from.x + d.x * kk, 0, from.z + d.z * kk); const ph = kk * len / STRIDE * PI * 2, amp = Math.min(1, raw * 6, (1 - raw) * 6);
-      walkPose(ph, amp); const st = Math.floor(ph / PI); if (st !== lastStep) { lastStep = st; snd('land'); S.bloom.shake = Math.max(S.bloom.shake, 0.002); } } });
-    mech.root.position.set(to.x, 0, to.z); walkPose(0, 0);
-    await turn(mech.root.rotation.y, yawTo(endYaw, mech.root.rotation.y), 0.6); mech.root.rotation.y = endYaw;
+      mech.root.position.set(from.x + d.x * kk, PLINTH * (from === MON ? sub(kk, 0.88, 1) : 1 - sub(kk, 0, 0.12)), from.z + d.z * kk); const ph = kk * len / STRIDE * PI * 2, amp = Math.min(1, raw * 6, (1 - raw) * 6);
+      walkPose(ph, amp); const st = Math.floor(ph / PI); if (st !== lastStep) { lastStep = st; snd('land'); } } });
+    mech.root.position.set(to.x, to === MON ? 0 : PLINTH, to.z); walkPose(0, 0);
+    await turn(mech.root.rotation.y, yawTo(endYaw, mech.root.rotation.y), 0.45); mech.root.rotation.y = endYaw;
   }
 
   /* ---------- the camera ---------- */
@@ -199,74 +209,77 @@ export function install(S) {
   function openExchange() { const el = mk(); if (!el || !S.market) return; R.inPc = true; el.classList.add('inpc'); placeOverlay(); S.market.open(); }
   function closeExchange() { const el = mk(); R.closing = true; try { if (S.market) S.market.close(); } finally { R.closing = false; } R.inPc = false; if (el) { el.classList.remove('peek'); setTimeout(() => { if (!R.inPc) { el.classList.remove('inpc'); ['left', 'top', 'width', 'height'].forEach(k => { el.style[k] = ''; }); } }, 450); } }
 
-  /* ---------- the projector (the arm comes out of the mech's head) ---------- */
-  const PJ = { on: false, busy: false, obj: null, yaw: 0, pitch: 0, vy: 0, drag: null, z: 0, plane: new THREE.Plane(V(0, 1, 0), 0) };
-  const CARD = V(MON.x, MECH.cy - 0.05, MON.z + MECH.TD / 2 + 2.0), blue = new THREE.Color(0x4fb8ff), pole = mech.pole;
-  const beamMat = new THREE.ShaderMaterial({ uniforms: { uA: { value: 0 }, uT: { value: 0 }, uC: { value: blue } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform float uA, uT; uniform vec3 uC; varying vec2 vUv; void main(){ float edge = pow(1.0 - abs(fract(vUv.x * 2.0) - 0.5) * 2.0, 0.6); float lines = 0.75 + 0.25 * sin(vUv.y * 140.0 - uT * 14.0); float fall = mix(0.25, 1.0, vUv.y); gl_FragColor = vec4(uC * (0.55 * edge + 0.25) * lines * fall * uA, 1.0); }' });
-  let beam = null;
-  const scanMat = new THREE.MeshBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
-  const scan = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.035), scanMat); scan.visible = false; root.add(scan);
-  const scanGlow = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.5), new THREE.MeshBasicMaterial({ map: radial(THREE, '79,184,255'), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); scanGlow.visible = false; root.add(scanGlow);
-  const ghostMat = new THREE.ShaderMaterial({ uniforms: { uA: { value: 0 }, uCut: { value: 1 }, uT: { value: 0 }, uC: { value: blue } }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
-    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform float uA, uCut, uT; uniform vec3 uC; varying vec2 vUv; void main(){ if (vUv.y > uCut) discard; vec2 g = abs(fract(vUv * vec2(12.0, 18.0)) - 0.5); float grid = smoothstep(0.46, 0.5, max(g.x, g.y)); float e = 1.0 - smoothstep(0.0, 0.02, min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y))); float sl = 0.5 + 0.5 * sin(vUv.y * 300.0 + uT * 8.0); gl_FragColor = vec4(uC * (grid * 0.5 + e * 1.4 + 0.12 * sl) * uA, 1.0); }' });
-  const ghost = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), ghostMat); ghost.visible = false; root.add(ghost);
-  const spill = new THREE.PointLight(0x4fb8ff, 0, 10, 2); root.add(spill);
-  [scan, scanGlow, ghost].forEach(m => S.bloom.glow(m)); S.bloom.glow(pole.userData.ring);
+  /* ---------- the projector: the arm slides out of the top of the monitor, and the card is built out of fine light ----------
+     Sam: not big blocky lights, very fine particles like a high end CG hologram. Some 30,000 points stream down out of
+     the lens and settle into the shape of the card, each taking the colour of the photo where it lands; the real card
+     comes up out of them from the top as they arrive, and they fade. Putting it back runs the same thing in reverse.
+     No bloom (it is the slow part): the points are additive and bright enough on their own. */
+  const PJ = { on: false, busy: false, obj: null, yaw: 0, pitch: 0, vy: 0, drag: null, z: 0, plane: new THREE.Plane(V(0, 1, 0), 0), gen: 0 };
+  const CARD = V(MON.x, MECH.cy - 0.05, MON.z + MECH.TD / 2 + 2.0), pole = mech.pole, NP = 30000;
+  const pGeo = new THREE.BufferGeometry(); { const t = new Float32Array(NP * 2), r = new Float32Array(NP * 3), d = new Float32Array(NP), pos = new Float32Array(NP * 3);
+    for (let i = 0; i < NP; i++) { const x = Math.random(), y = Math.random(); t[i * 2] = x - 0.5; t[i * 2 + 1] = y - 0.5; r[i * 3] = Math.random(); r[i * 3 + 1] = Math.random(); r[i * 3 + 2] = Math.random(); d[i] = (1 - y) * 0.75 + Math.random() * 0.25; }
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); pGeo.setAttribute('aT', new THREE.BufferAttribute(t, 2)); pGeo.setAttribute('aR', new THREE.BufferAttribute(r, 3)); pGeo.setAttribute('aD', new THREE.BufferAttribute(d, 1)); }
+  const pMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { uP: { value: 0 }, uFrom: { value: V(0, 2, 0) }, uW: { value: 2 }, uH: { value: 3 }, uTex: { value: null }, uHas: { value: 0 }, uTime: { value: 0 }, uA: { value: 1 }, uPx: { value: 1 } },
+    vertexShader: `attribute vec2 aT; attribute vec3 aR; attribute float aD; uniform float uP, uW, uH, uTime, uPx; uniform vec3 uFrom; varying vec2 vT; varying float vE, vR;
+      void main(){ float e = clamp((uP - aD * 0.7) / 0.32, 0.0, 1.0); float k = e * e * (3.0 - 2.0 * e);
+        vec3 target = vec3(aT.x * uW, aT.y * uH, (aR.z - 0.5) * 0.015);
+        vec3 start = uFrom + vec3((aR.x - 0.5) * 0.05, 0.0, (aR.y - 0.5) * 0.05);
+        /* the fall: out of the lens in a thin stream that fans out to its spot, a little swirl on the way */
+        vec3 mid = mix(start, target, 0.55) + vec3(sin(aR.x * 40.0 + uTime * 3.0) * 0.18, 0.25, cos(aR.y * 40.0 + uTime * 2.4) * 0.18);
+        vec3 p = mix(mix(start, mid, k), mix(mid, target, k), k);
+        p += vec3(sin(uTime * 6.0 + aR.z * 60.0), cos(uTime * 5.0 + aR.x * 60.0), 0.0) * 0.004 * k;
+        vT = aT + 0.5; vE = e; vR = aR.x;
+        vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv;
+        gl_PointSize = uPx * (0.55 + aR.y * 0.9) * (1.0 + (1.0 - k) * 0.8) * 13.0 / -mv.z; }`,
+    fragmentShader: `uniform sampler2D uTex; uniform float uHas, uA, uP; varying vec2 vT; varying float vE, vR;
+      void main(){ vec2 c = gl_PointCoord - 0.5; float d = dot(c, c); if (d > 0.25) discard; float soft = exp(-d * 14.0);
+        vec3 photo = uHas > 0.5 ? texture2D(uTex, vT).rgb : vec3(0.85, 0.92, 1.0); vec3 cyan = vec3(0.45, 0.85, 1.0);
+        /* blue while it falls, the photo's colour as it lands, a flash on arrival, then it fades into the real card */
+        vec3 col = mix(cyan, photo * 1.4 + cyan * 0.15, smoothstep(0.6, 1.0, vE)) + vec3(0.6, 0.9, 1.0) * exp(-pow((vE - 0.97) * 22.0, 2.0)) * 0.8;
+        float a = soft * uA * (vE > 0.0 ? 1.0 : 0.0) * (0.35 + 0.65 * vR) * (1.0 - smoothstep(1.0, 1.0, vE) * 0.0);
+        gl_FragColor = vec4(col * a, 1.0); }` });
+  const pts = new THREE.Points(pGeo, pMat); pts.frustumCulled = false; pts.visible = false; root.add(pts);
+  const spill = new THREE.PointLight(0x7fd0ff, 0, 8, 2); root.add(spill);
   const poleBase = () => { const w = V(0, 0, 0); pole.getWorldPosition(w); return root.worldToLocal(w); };
   let poleLen = 2;
-  /* e 0: tucked inside the head; 1: all the way out over the card */
+  /* e 0: tucked inside the monitor; 1: all the way out over the card */
   function setPole(e) { const len = 0.2 + poleLen * e; pole.visible = e > 0.002; pole.userData.sleeve.scale.y = Math.max(0.01, len * 0.55); pole.userData.sleeve.position.z = len * 0.55 / 2; pole.userData.inner.scale.y = Math.max(0.01, len); pole.userData.inner.position.z = len / 2; pole.userData.head.position.set(0, 0, len); }
   function clip(on) { if (!PJ.obj) return; S.renderer.localClippingEnabled = true; PJ.obj.group.traverse(m => { if (!m.isMesh) return; [].concat(m.material).forEach(mt => { mt.clippingPlanes = on ? [PJ.plane] : null; if ('clipping' in mt) mt.clipping = on; mt.needsUpdate = true; }); }); }
   const tmpW = V(0, 0, 0);
-  const cutAt = (yLocal, below) => { tmpW.set(0, yLocal, 0); root.localToWorld(tmpW); if (below) PJ.plane.set(V(0, -1, 0), tmpW.y); else PJ.plane.set(V(0, 1, 0), -tmpW.y); };
+  const cutAt = yLocal => { tmpW.set(0, yLocal, 0); root.localToWorld(tmpW); PJ.plane.set(V(0, 1, 0), -tmpW.y); };   /* keep what is above y */
+  /* the build: p 0 nothing .. 1.02 every point has landed; the real card shows from the top down behind the points */
+  function buildAt(p, ch) { pMat.uniforms.uP.value = p; const front = T.clamp((p - 0.18) / 0.82, 0, 1); cutAt(CARD.y + ch / 2 - front * (ch + 0.1)); pMat.uniforms.uA.value = 1 - 0.9 * T.clamp((p - 0.85) / 0.17, 0, 1); }
   async function project(slab) {
-    if (PJ.on || PJ.busy || !slab) return; PJ.on = true; PJ.busy = true; const gen = PJ.gen = (PJ.gen || 0) + 1, gone = () => PJ.gen !== gen; const el = mk(); if (el) el.classList.add('peek');
-    snd('servo'); S.bloom.want = 1.1;
-    await T.tween({ dur: 0.45, ease: E.inOutSine, tag: 'pj', update: e => { SM_.uDim.value = 1 - 0.82 * e; } });
-    if (gone()) return; const s = JSON.parse(JSON.stringify(slab)); let obj = null; try { obj = S.objFor(s); } catch (e) { console.error(e); }
-    PJ.obj = obj; if (obj && obj.ready) obj.ready.catch(() => {});
-    const pb = poleBase(); poleLen = Math.max(0.5, CARD.z - pb.z);
-    await T.tween({ dur: 0.55, ease: E.outBack, tag: 'pj', update: e => setPole(e) }); snd('land');
-    pole.userData.ring.material.color.set(0xbfe6ff); snd('charge');
-    if (obj && obj.ready) { try { await Promise.race([obj.ready, T.wait(2.5)]); } catch (e) {} }
-    if (gone()) { if (obj && obj !== PJ.obj) { try { S.slabs.drop(obj); } catch (e) {} } return; }
-    const w = (obj && obj.w) || 3.0, h = (obj && obj.h) || 4.4, K = Math.min(2.6 / h, 3.6 / w), cw = w * K, ch = h * K, y0 = CARD.y + ch / 2, y1 = CARD.y - ch / 2;
-    if (obj) { root.add(obj.group); obj.group.position.copy(CARD); obj.group.scale.setScalar(K); obj.group.quaternion.identity(); clip(true); cutAt(y0 + 0.05); obj.group.visible = true; }
-    PJ.yaw = 0; PJ.pitch = 0; PJ.z = 0; PJ.ch = ch;
-    /* the beam shoots down from the lens, the ghost of the card flickers up inside it, then the scan builds it from the top */
-    const top = pb.y - 0.1, bh = top - (y1 - 0.2); if (beam) { root.remove(beam); beam.geometry.dispose(); }
-    beam = new THREE.Mesh(new THREE.ConeGeometry(Math.max(cw, ch * 0.5) * 0.62, bh, 48, 1, true), beamMat); beam.geometry.translate(0, -bh / 2, 0); beam.position.set(CARD.x, top, CARD.z); S.bloom.glow(beam); root.add(beam);
-    ghost.visible = true; ghost.position.copy(CARD).add(V(0, 0, 0.02)); ghost.scale.set(cw * 1.02, ch * 1.02, 1);
-    snd('zap'); spill.position.copy(CARD).add(V(0, 1.2, 0.6));
-    await T.tween({ dur: 0.28, ease: E.outCubic, tag: 'pj', update: e => { beam.scale.set(1, Math.max(0.01, e), 1); beamMat.uniforms.uA.value = 0.9 * e; spill.intensity = 30 * e; } });
-    await T.tween({ dur: 0.35, ease: E.linear, tag: 'pj', update: e => { ghostMat.uniforms.uA.value = (e < 0.5 ? (Math.random() > 0.4 ? 1 : 0.2) : 1) * 0.9; ghostMat.uniforms.uCut.value = 1; } });
-    scan.visible = true; scanGlow.visible = true; scan.scale.set(cw * 1.35, 1, 1); scanGlow.scale.set(cw * 1.5, 1, 1); snd('shimmer');
-    await T.tween({ dur: 1.25, ease: E.inOutSine, tag: 'pj', update: e => { const y = y0 - (y0 - y1) * e; cutAt(y); scan.position.set(CARD.x, y, CARD.z + 0.12); scanGlow.position.set(CARD.x, y, CARD.z + 0.1); scanMat.opacity = 1; scanGlow.material.opacity = 0.9; ghostMat.uniforms.uCut.value = 1 - e; } });
-    if (gone()) return; cutAt(y1 - 1); clip(false);
-    await T.tween({ dur: 0.38, ease: E.inOutSine, tag: 'pj', update: e => { const y = y1 + (y0 - y1) * e; scan.position.y = y; scanGlow.position.y = y; scanMat.opacity = 1 - e * 0.6; } });
-    snd('chime', { tier: slab.tier });
-    /* rendered: the beam goes clear, nothing left to project */
-    await T.tween({ dur: 0.6, ease: E.inOutSine, tag: 'pj', update: e => { beamMat.uniforms.uA.value = 0.9 * (1 - e) + 0.06 * e; scanMat.opacity = 0.4 * (1 - e); scanGlow.material.opacity = 0.9 * (1 - e); ghostMat.uniforms.uA.value = 0.9 * (1 - e); spill.intensity = 30 * (1 - e) + 4 * e; } });
-    if (gone()) return; scan.visible = false; scanGlow.visible = false; ghost.visible = false; S.bloom.want = 0.35;
-    PJ.busy = false; S.toast('Drag to turn it, scroll to bring it closer. Click away or press Esc to send it back.');
+    if (PJ.on || PJ.busy || !slab) return; PJ.on = true; PJ.busy = true; const gen = ++PJ.gen, gone = () => PJ.gen !== gen; const el = mk(); if (el) el.classList.add('peek');
+    const s = JSON.parse(JSON.stringify(slab)); let obj = null; try { obj = S.objFor(s); } catch (e) { console.error(e); } PJ.obj = obj; if (obj && obj.ready) obj.ready.catch(() => {});
+    const pb = poleBase(); poleLen = Math.max(0.5, CARD.z - pb.z); snd('servo');
+    /* the screen dims while the arm comes out */
+    await T.tween({ dur: 0.38, ease: E.outCubic, tag: 'pj', update: e => { SM_.uDim.value = 1 - 0.8 * e; setPole(e); } }); if (gone()) return; snd('land');
+    pole.userData.ring.material.color.set(0xbfe6ff);
+    if (obj && obj.ready) { try { await Promise.race([obj.ready, T.wait(1.5)]); } catch (e) {} } if (gone()) return;
+    const w = (obj && obj.w) || 3.0, h = (obj && obj.h) || 4.4, K = Math.min(2.6 / h, 3.6 / w), cw = w * K, ch = h * K; PJ.ch = ch;
+    if (obj) { root.add(obj.group); obj.group.position.copy(CARD); obj.group.scale.setScalar(K); obj.group.quaternion.identity(); clip(true); obj.group.visible = true; }
+    /* the points take the photo's colours */
+    const base = obj && obj.base; if (base) { if (pMat.uniforms.uTex.value) pMat.uniforms.uTex.value.dispose(); const t = new THREE.CanvasTexture(base); t.colorSpace = THREE.SRGBColorSpace; pMat.uniforms.uTex.value = t; pMat.uniforms.uHas.value = 1; } else pMat.uniforms.uHas.value = 0;
+    pts.position.copy(CARD); pts.quaternion.identity(); pMat.uniforms.uW.value = cw; pMat.uniforms.uH.value = ch; pMat.uniforms.uFrom.value.set(0, pb.y - 0.12 - CARD.y, CARD.z - CARD.z); pMat.uniforms.uPx.value = S.renderer.getPixelRatio() * (ctx.canvas.clientHeight / 900);
+    pts.visible = true; spill.position.copy(CARD).add(V(0, 1.0, 0.8)); snd('shimmer'); PJ.yaw = 0; PJ.pitch = 0; PJ.z = 0;
+    await T.tween({ dur: 1.35, ease: E.inOutSine, tag: 'pj', update: e => { buildAt(e * 1.02, ch); pMat.uniforms.uTime.value = T.time(); spill.intensity = 14 * T.bump(e); } }); if (gone()) return;
+    pts.visible = false; clip(false); snd('chime', { tier: slab.tier }); PJ.busy = false;
+    S.toast('Drag to turn it, scroll to bring it closer. Click away or press Esc to send it back.');
   }
   function dropCard() { if (PJ.obj) { clip(false); try { root.remove(PJ.obj.group); S.slabs.drop(PJ.obj); } catch (e) {} PJ.obj = null; } }
   async function unproject() {
-    if (!PJ.on || PJ.busy) return; PJ.busy = true; const obj = PJ.obj, ch = PJ.ch || 2.6; snd('servo'); S.bloom.want = 1.0;
-    if (obj) await T.tween({ dur: 0.35, ease: E.inOutCubic, tag: 'pj', update: () => { PJ.yaw *= 0.8; PJ.pitch *= 0.8; PJ.z *= 0.8; obj.group.quaternion.setFromEuler(new THREE.Euler(PJ.pitch, PJ.yaw, 0)); obj.group.position.set(CARD.x, CARD.y, CARD.z + PJ.z); } });
-    const y0 = CARD.y + ch / 2, y1 = CARD.y - ch / 2;
-    beamMat.uniforms.uA.value = 0.9; scan.visible = true; scanGlow.visible = true; snd('shimmer'); if (obj) clip(true);
-    /* the scan runs back up and takes the card with it */
-    await T.tween({ dur: 0.75, ease: E.inOutSine, tag: 'pj', update: e => { const y = y1 + (y0 - y1) * e; scan.position.set(CARD.x, y, CARD.z + 0.12); scanGlow.position.set(CARD.x, y, CARD.z + 0.1); scanMat.opacity = 1; scanGlow.material.opacity = 0.9; cutAt(y); } });
-    scan.visible = false; scanGlow.visible = false; dropCard();
-    if (beam) await T.tween({ dur: 0.25, ease: E.inCubic, tag: 'pj', update: e => { beam.scale.set(1, Math.max(0.01, 1 - e), 1); beamMat.uniforms.uA.value = 0.9 * (1 - e); spill.intensity = 30 * (1 - e); } });
-    if (beam) beam.visible = false; pole.userData.ring.material.color.set(0x4fb8ff);
-    await T.tween({ dur: 0.45, ease: E.inBack, tag: 'pj', update: e => setPole(1 - e) }); snd('land');
-    await T.tween({ dur: 0.35, ease: E.inOutSine, tag: 'pj', update: e => { SM_.uDim.value = 0.18 + 0.82 * e; } });
-    S.bloom.want = 0; const el = mk(); if (el) el.classList.remove('peek'); PJ.on = false; PJ.busy = false;
+    if (!PJ.on || PJ.busy) return; PJ.busy = true; const gen = PJ.gen, obj = PJ.obj, ch = PJ.ch || 2.6; snd('servo');
+    if (obj) await T.tween({ dur: 0.25, ease: E.inOutCubic, tag: 'pj', update: () => { PJ.yaw *= 0.75; PJ.pitch *= 0.75; PJ.z *= 0.75; obj.group.quaternion.setFromEuler(new THREE.Euler(PJ.pitch, PJ.yaw, 0)); obj.group.position.set(CARD.x, CARD.y, CARD.z + PJ.z); } });
+    if (PJ.gen !== gen) return;
+    if (obj) { obj.group.quaternion.identity(); obj.group.position.copy(CARD); clip(true); }
+    pts.visible = true; snd('shimmer');
+    /* the card comes apart into points, bottom first, and they stream back up into the lens */
+    await T.tween({ dur: 0.85, ease: E.inOutSine, tag: 'pj', update: e => { buildAt(1.02 * (1 - e), ch); pMat.uniforms.uTime.value = T.time(); } });
+    if (PJ.gen !== gen) return; pts.visible = false; dropCard(); pole.userData.ring.material.color.set(0x4fb8ff);
+    await T.tween({ dur: 0.3, ease: E.inCubic, tag: 'pj', update: e => { setPole(1 - e); SM_.uDim.value = 0.2 + 0.8 * e; } }); snd('land');
+    const el = mk(); if (el) el.classList.remove('peek'); PJ.on = false; PJ.busy = false;
   }
   function projPointer(kind, e) {
     if (PJ.busy) return true;
@@ -278,85 +291,94 @@ export function install(S) {
     return true;
   }
   function projFrame(dt) { if (!PJ.on || PJ.busy || !PJ.obj) return; if (!PJ.drag) { PJ.yaw += PJ.vy; PJ.vy *= Math.exp(-dt * 3); PJ.pitch += (0 - PJ.pitch) * (1 - Math.exp(-dt * 1.2)); }
-    PJ.obj.group.quaternion.setFromEuler(new THREE.Euler(PJ.pitch, PJ.yaw, 0)); PJ.obj.group.position.set(CARD.x, CARD.y + Math.sin(T.time() * 1.4) * 0.04, CARD.z + PJ.z); beamMat.uniforms.uT.value = T.time(); }
+    PJ.obj.group.quaternion.setFromEuler(new THREE.Euler(PJ.pitch, PJ.yaw, 0)); PJ.obj.group.position.set(CARD.x, CARD.y + Math.sin(T.time() * 1.4) * 0.04, CARD.z + PJ.z); }
+  function projOff() { PJ.gen++; T.cancelAll('pj'); pts.visible = false; spill.intensity = 0; dropCard(); setPole(0); pole.userData.ring.material.color.set(0x4fb8ff); SM_.uDim.value = 1; PJ.on = false; PJ.busy = false; const el = mk(); if (el) el.classList.remove('peek'); }
 
-  /* ---------- the states ---------- */
+  /* ---------- the states ----------
+     'pc.go': the toys come over and become the computer (or, if it is already built, the camera just goes in);
+     'pc.view': the exchange on the screen; closing it ('pc.out') pulls the camera back and leaves the computer on the
+     table (Sam: you can just move away from it); its power button ('pc.back') turns it back into the toys, who go home. */
   let pushed = false, scale0 = 1;
-  const hurry = kind => { if (kind === 'down' && !R.fast && R.moving) { R.fast = true; scale0 = T.timeScale(); T.setTimeScale(scale0 * 3.5); } return true; };   /* a click hurries them up */
+  const hurry = kind => { if (kind === 'down' && !R.fast && R.moving) { R.fast = true; scale0 = T.timeScale(); T.setTimeScale(scale0 * 3); } return true; };   /* a click hurries them up */
   const fastOff = () => { if (R.fast) { R.fast = false; T.setTimeScale(scale0); } };
-  async function assemble(run) {
-    R.moving = true; try { await assembleRun(run); } finally { R.moving = false; } }
+  async function assemble(run) { R.moving = true; try { await assembleRun(run); } finally { R.moving = false; } }
   async function assembleRun(run) {
-    look(0, 1.2, -3.5, 36, 36, 0);
-    await T.tween({ dur: 0.5, ease: E.outCubic, tag: 'rig', update: e => { R.awake = e; R.mAwake = e; carT(0); } });
+    look(0, 1.2, -6.5, 38, 30, 0);
+    await T.tween({ dur: 0.3, ease: E.outCubic, tag: 'rig', update: e => { R.awake = e; R.mAwake = e; carT(0); } });
     /* both set off; the car gets there first and starts on itself while the mech is still walking */
-    const carGo = (async () => { await drive(1); if (!run.alive()) return; look(KB.x, 0.9, KB.z + 0.3, 30, 15, 0.35); await play(carT, CUES_C, 0, 1, 3.8); })();
-    const mechGo = (async () => { await T.wait(0.35); await walk({ x: MPARK.x, z: MPARK.z }, MON, 0); if (!run.alive()) return; await carGo; if (!run.alive()) return;
-      look(MON.x, 2.4, MON.z + 2.2, 18, 22, 0.28); await play(mechT, CUES_M, 0, 1, 4.6); })();
+    const carGo = (async () => { await drive(1); if (!run.alive()) return; look(KB.x, 0.9, KB.z + 0.3, 30, 15, 0.3); await play(carT, CUES_C, 0, 1, 2.5); })();
+    const mechGo = (async () => { await T.wait(0.2); await walk({ x: MPARK.x, z: MPARK.z }, MON, 0); if (!run.alive()) return; await carGo; if (!run.alive()) return;
+      look(MON.x, 2.6, MON.z + 2.2, 16, 22, 0.24); await play(mechT, CUES_M, 0, 1, 3.0); })();
     await mechGo; if (!run.alive()) return;
     /* they connect: the cable snakes over, plugs in, a pulse runs down it and the screen boots */
-    look(0.8, 0.6, (MON.z + KB.z) / 2 + 0.6, 32, 11, 0.25); snd('servo'); await T.tween({ dur: 1.2, ease: E.linear, tag: 'rig', update: e => connectT(e) }); snd('zap'); connectT(1);
-    look(MON.x, 2.4, MON.z + 2.4, 14, 22, 0.06); snd('glow');
-    await T.tween({ dur: 0.9, ease: E.outCubic, tag: 'rig', update: e => { SM_.uBoot.value = e; SM_.uLine.value = bump(e) * 1.6; } });
-    snd('chime', { tier: 'legendary' });
+    look(0.8, 0.6, (MON.z + KB.z) / 2 + 0.6, 30, 11, 0.22); snd('servo'); await T.tween({ dur: 0.7, ease: E.linear, tag: 'rig', update: e => connectT(e) }); snd('zap'); connectT(1);
+    snd('glow'); await T.tween({ dur: 0.55, ease: E.outCubic, tag: 'rig', update: e => { SM_.uBoot.value = e; SM_.uLine.value = bump(e) * 1.6; } });
+    snd('chime', { tier: 'legendary' }); R.built = true;
   }
-  async function disassemble(run) {
-    R.moving = true; try { await disassembleRun(run); } finally { R.moving = false; } }
+  async function disassemble(run) { R.moving = true; try { await disassembleRun(run); } finally { R.moving = false; } }
   async function disassembleRun(run) {
     look(MON.x, 2.4, MON.z + 2.4, 18, 22, 0.2);
-    await T.tween({ dur: 0.5, ease: E.inCubic, tag: 'rig', update: e => { SM_.uBoot.value = 1 - e; } });
-    await T.tween({ dur: 0.7, ease: E.linear, tag: 'rig', update: e => connectT(1 - e) }); connectT(0);
-    await Promise.all([play(mechT, CUES_M, 1, 0, 3.4, E.inOutSine), play(carT, CUES_C, 1, 0, 3.0, E.inOutSine)]); if (!run.alive()) return;
-    look(0, 1.2, -3.5, 36, 36, 0);
+    await T.tween({ dur: 0.35, ease: E.inCubic, tag: 'rig', update: e => { SM_.uBoot.value = 1 - e; } });
+    await T.tween({ dur: 0.45, ease: E.linear, tag: 'rig', update: e => connectT(1 - e) }); connectT(0); R.built = false;
+    await Promise.all([play(mechT, CUES_M, 1, 0, 2.4, E.inOutSine), play(carT, CUES_C, 1, 0, 2.1, E.inOutSine)]); if (!run.alive()) return;
+    look(0, 1.2, -6.5, 38, 30, 0);
     await Promise.all([drive(-1), walk(MON, { x: MPARK.x, z: MPARK.z }, MPARK.yaw)]);
-    await T.tween({ dur: 0.5, tag: 'rig', update: e => { R.awake = 1 - e; R.mAwake = 1 - e; carT(0); } });
+    await T.tween({ dur: 0.35, tag: 'rig', update: e => { R.awake = 1 - e; R.mAwake = 1 - e; carT(0); } });
   }
+  const bail = () => { fastOff(); R.busy = false; if (pushed) { S.cam.pop(); pushed = false; } };
   M.define('pc.go', { busy: true, on: { CLOSE: () => undefined }, pointer: hurry,
     async enter(d, run) { R.busy = true; if (!pushed) { S.cam.push(); pushed = true; } ctx.hideActs();
-      const bail = () => { R.busy = false; if (pushed) { S.cam.pop(); pushed = false; } };
-      try { await assemble(run); } finally { fastOff(); } if (!run.alive()) { bail(); return; }
-      S.cam.set(screenView()); snd('rise', { dur: 1.2 }); await T.wait(1.3); if (!run.alive()) { bail(); return; }
+      if (!R.built) { try { await assemble(run); } finally { fastOff(); } if (!run.alive()) { bail(); return; } }
+      S.cam.set(screenView()); snd('rise', { dur: 0.9 }); await T.wait(0.95); if (!run.alive()) { bail(); return; }
       fastOff(); R.busy = false; M.go('pc.view'); } });
   M.define('pc.view', {
     enter() { openExchange(); },
-    exit() { S.bloom.want = 0; if (PJ.on) { PJ.gen = (PJ.gen || 0) + 1; T.cancelAll('pj'); spill.intensity = 0; dropCard(); if (beam) beam.visible = false; scan.visible = false; scanGlow.visible = false; ghost.visible = false; setPole(0); SM_.uDim.value = 1; PJ.on = false; PJ.busy = false; } },
-    on: { CLOSE: () => { if (PJ.on) { unproject(); return undefined; } return 'pc.back'; } },
+    exit() { S.bloom.want = 0; if (PJ.on) projOff(); },
+    on: { CLOSE: () => { if (PJ.on) { unproject(); return undefined; } return 'pc.out'; }, POWER: () => { if (PJ.on) projOff(); return 'pc.back'; } },
     pointer(kind, e) { if (PJ.on) return projPointer(kind, e);
       /* the power button in the screen's bottom bezel turns it all back into the toys */
-      const h = S.hitAny(e, [mech.power]); if (kind === 'move') { R.powerHot = !!h; ctx.canvas.style.cursor = h ? 'pointer' : 'default'; } if (kind === 'down' && e.button === 0 && h) { snd('detent'); M.send('CLOSE'); } return true; },
+      const h = S.hitAny(e, [mech.power]); if (kind === 'move') { R.powerHot = !!h; ctx.canvas.style.cursor = h ? 'pointer' : 'default'; } if (kind === 'down' && e.button === 0 && h) { snd('detent'); M.send('POWER'); } return true; },
     key(e) { if (e.key === 'Escape' && PJ.on) { unproject(); return true; } return true; },
-    frame(dt) { placeOverlay(); projFrame(dt); mech.power.userData.ring.color.setHSL(0.56, 0.9, R.powerHot ? 0.75 : 0.45 + 0.12 * Math.sin(T.time() * 2.4)); } });
+    frame(dt) { placeOverlay(); projFrame(dt); } });
+  /* away from it: the camera comes back out and the computer stays where it is */
+  M.define('pc.out', { busy: true, on: { CLOSE: () => undefined },
+    async enter(d, run) { closeExchange(); if (pushed) { S.cam.pop(); pushed = false; } ctx.cam.yaw = 0; await T.wait(0.6); if (run.alive()) M.go('under'); } });
   M.define('pc.back', { busy: true, on: { CLOSE: () => undefined }, pointer: hurry,
-    async enter(d, run) { R.busy = true; closeExchange();
+    async enter(d, run) { R.busy = true; closeExchange(); if (!pushed) { S.cam.push(); pushed = true; }
       try { await disassemble(run); } finally { fastOff(); }
       if (pushed) { S.cam.pop(); pushed = false; } ctx.cam.yaw = 0; R.busy = false; if (run.alive()) M.go('under'); } });
 
-  /* ---------- in the dark idle: point at either and it stirs; click and they go ---------- */
-  const hitAny = e => S.hitAny(e, [carRoot, mech.root]);
+  /* ---------- in the dark idle: point at either toy and it stirs, click and they come; once it is a computer, click it to go back in or press its power button ---------- */
+  const hitToys = e => S.hitAny(e, [carRoot, mech.root, cleanMouse]);
   let breathe = 0;
   S.rig = { root,
     wants: () => !!(S.under && S.under.on && M.is('under') && !M.busy()),
     go() { if (S.rig.wants()) M.go('pc.go'); },
+    built: () => !!R.built,
     inPc: () => R.inPc, projecting: () => PJ.on, project,
     onClose() { if (R.closing) return; if (M.is('pc.view')) M.send('CLOSE'); },
-    spots: () => [{ x: CPARK.x, z: CPARK.z, r: 4 }, { x: MPARK.x, z: MPARK.z, r: 3 }, { x: MOUSE.x, z: MOUSE.z, r: 2 }],
+    spots: () => [{ x: KB.x, z: KB.z, r: 3.6 }, { x: MOUSE.x, z: MOUSE.z, r: 2 }, { x: MON.x, z: MON.z, r: 4.5 }, { x: CPARK.x, z: CPARK.z, r: 4.2 }, { x: MPARK.x, z: MPARK.z, r: 3 }],
     pointer(kind, e) { if (R.busy || !S.under.on || (S.dragging && S.dragging())) return false;   /* a slab being dragged keeps the pointer */
-      if (kind === 'move') { const h = hitAny(e); R.hover = h ? h.root : null; if (h) { ctx.canvas.style.cursor = 'pointer'; return true; } return false; }
-      if (kind === 'down' && e.button === 0 && hitAny(e)) { snd('detent'); M.go('pc.go'); return true; }
+      if (R.built) { const p = S.hitAny(e, [mech.power]); if (p) { if (kind === 'move') { R.powerHot = true; ctx.canvas.style.cursor = 'pointer'; } if (kind === 'down' && e.button === 0) { snd('detent'); M.go('pc.back'); } return true; } R.powerHot = false; }
+      if (kind === 'move') { const h = hitToys(e); R.hover = h ? h.root : null; if (h) { ctx.canvas.style.cursor = 'pointer'; return true; } return false; }
+      if (kind === 'down' && e.button === 0 && hitToys(e)) { snd('detent'); M.go('pc.go'); return true; }
       return false; },
     frame(dt) {
       R.rgbT += dt; mouseBits.userData.ring.material.color.setHSL((R.rgbT * 0.08) % 1, 0.85, 0.6); cleanMouse.userData.ring.color.setHSL((R.rgbT * 0.08) % 1, 0.85, 0.6); keys.lip.material.color.setHSL((R.rgbT * 0.08 + 0.3) % 1, 0.85, 0.6); keys.glow.material.color.setHSL((R.rgbT * 0.08 + 0.5) % 1, 0.8, 0.5);
+      mech.power.userData.ring.color.setHSL(0.56, 0.9, R.powerHot ? 0.78 : 0.45 + 0.12 * Math.sin(T.time() * 2.4)); plinthGlow(dt);
       if (!R.busy && R.tc === 0) { const want = R.hover === carRoot ? 0.7 : 0; R.awake += (want - R.awake) * (1 - Math.exp(-dt * 6)); under.material.opacity = 0.55 * R.awake;
         const mw = R.hover === mech.root ? 1 : 0; R.mAwake += (mw - R.mAwake) * (1 - Math.exp(-dt * 6));
-        /* the mech idles: a slow breath in the knees and a glance of the head */
+        /* the mech idles on its plinth: a slow breath in the knees and a glance of the head */
         breathe += dt; const b = 0.04 + 0.03 * Math.sin(breathe * 1.3); legs(b, b * 2, b, b * 2, 0); mech.head.rotation.y = 0.25 * Math.sin(breathe * 0.37) * (1 - R.mAwake); }
       const k = 0.35 + 0.65 * Math.max(R.awake, R.tc > 0 ? 1 : 0); car.ledW.color.setScalar(k); car.ledR.color.setRGB(k, 0.16 * k, 0.22 * k);
-      if (!R.busy && !R.inPc) mech.visor.color.setHSL(0.55, 0.9, 0.35 + 0.35 * Math.max(R.mAwake, 0.25 + 0.15 * Math.sin(breathe * 2)));
+      if (!R.busy && !R.built) mech.visor.color.setHSL(0.55, 0.9, 0.35 + 0.35 * Math.max(R.mAwake, 0.25 + 0.15 * Math.sin(breathe * 2)));
     } };
   /* test hooks: hold the car's or the mech's transform at t on their spots */
   S.rig.__car = t => { lastS = 1; setDrive(1, 0); carRoot.rotation.set(0, 0, 0); R.awake = 1; carT(t); };
   S.rig.__mech = t => { mech.root.position.set(MON.x, 0, MON.z); mech.root.rotation.set(0, 0, 0); mechT(t); };
   S.rig.__link = t => { connectT(t); SM_.uBoot.value = t; };
-  S.rig.__home = () => { lastS = 0; setDrive(0, 0); R.awake = 0; carT(0); mech.root.position.set(MPARK.x, 0, MPARK.z); mech.root.rotation.set(0, MPARK.yaw, 0); mechT(0); connectT(0); SM_.uBoot.value = 0; };
+  S.rig.__home = () => { lastS = 0; setDrive(0, 0); R.awake = 0; carT(0); mech.root.position.set(MPARK.x, PLINTH, MPARK.z); mech.root.rotation.set(0, MPARK.yaw, 0); mechT(0); connectT(0); SM_.uBoot.value = 0; R.built = false; };
+  S.rig.__pj = p => { if (!PJ.obj) return; clip(true); pts.visible = true; buildAt(p, PJ.ch || 2.6); pMat.uniforms.uTime.value = T.time(); };
+  S.rig.__built = () => { S.rig.__car(1); S.rig.__mech(1); connectT(1); SM_.uBoot.value = 1; R.built = true; };
   S.dev.action('Bring the computer over', () => S.rig.go(), 'Try');
 }

@@ -28,6 +28,12 @@ Second round of picks (30 Oct):
 - Label variations: yes (black label 10, handwritten, error label).
 - Trade history on the back: yes, if it's etched nicely.
 
+Third round (30 Oct):
+- Teacher-signed slab and Photo of the week: liked, but later.
+- Peel-off film on new slabs, dust on slabs left alone (wipe it off), Visitor (a bird, cat or leaf now and then),
+  weather from outside (the photo's weather matches Christchurch today), heavy parcel (shakes or glows when rare).
+- Sam wants emergent ideas next: systems that interact.
+
 ## Structure (draft for Sam)
 A pull = one finish + up to a few extras, each from a different slot. Slots roll on their own, then a cap trims.
 

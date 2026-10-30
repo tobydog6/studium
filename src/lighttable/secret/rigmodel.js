@@ -299,7 +299,7 @@ export function buildMech(THREE, ENV) {
   dmarks.left.position.set(...arc(-DA, 0, 0)); dmarks.right.position.set(...arc(DA, 0, 0)); dmarks.top.position.set(...arc(0, DH / 2, 0)); dmarks.bottom.position.set(...arc(0, -DH / 2, 0)); Object.values(dmarks).forEach(o => display.add(o));
   /* black stand-ins on the glow layer only (rig.js sets the layer): they hide the glow of whatever is behind the monitor without glowing themselves */
   const occM = new THREE.MeshBasicMaterial({ color: 0x000000 }), occluders = [curved(DW + 0.1, DH + 0.1, -0.04, occM)]; display.add(occluders[0]);
-  { const o = new THREE.Mesh(new RB(TW, TH, TD + 1.2, 1, 0.05), occM); o.position.z = -0.6; torso.add(o); occluders.push(o); }
+  { const o = new THREE.Mesh(new RB(TW, TH, TD + 1.2, 1, 0.05), occM); o.position.z = -0.6; o.userData.keep = true; torso.add(o); occluders.push(o); }
   wings.forEach(w => { const g = new THREE.Group(); box(M.WW - 0.02, TH, 0.1, alu2, w.s * (M.WW / 2), 0, -0.36, g, 0.04); const piv = grow(w.slide, g); skin.wings.push(piv); });
   /* the neck and the foot stand on the ground: they are the mech root's, and line up with the monitor once it is one */
   const NH = M.cy - TH / 2 + 0.7, neck = new THREE.Group(); box(0.42, NH, 0.16, alu2, 0, NH / 2, 0, neck, 0.07); neck.rotation.x = -0.06; box(0.06, NH * 0.7, 0.01, std(0x45484f, 0.3, 0.9), 0, NH * 0.45, 0.103, neck);

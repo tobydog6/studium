@@ -145,7 +145,7 @@ export function install(S) {
   S.css(CSS);
   const btn = S.el('button', 'mk-btn', ''); btn.type = 'button'; btn.id = 'skMk'; document.body.appendChild(btn);
   const el = S.el('div', 'mk', ''); el.id = 'skMarket'; document.body.appendChild(el);
-  btn.addEventListener('click', () => { if (!el.classList.contains('on') && S.rig && S.rig.wants()) { S.rig.go(); return; } el.classList.contains('on') ? close() : open(); });   /* on the dark side the button sends the car (rig.js) */
+  btn.addEventListener('click', () => { if (S.M.is('pc') && !el.classList.contains('on')) return;   /* the toys are on their way */ if (!el.classList.contains('on') && S.rig && S.rig.wants()) { S.rig.go(); return; } el.classList.contains('on') ? close() : open(); });   /* on the dark side the button sends the car (rig.js) */
   function paintBtn() { const on = S.unlocked(); btn.classList.toggle('on', on && !el.classList.contains('on')); if (!on) return; const d = D(), n = R.me ? R.offers.filter(o => o.to_id === R.me.id && o.status === 'open').length : 0;
     btn.innerHTML = '<span>EXCHANGE</span><b>' + fmt(d.coins) + '</b><em>coins</em>' + (n ? '<i>' + n + '</i>' : ''); }
   const U = { tab: 'market', sel: null, q: '', tier: 'all', sort: 'value', who: null, want: new Set(), give: new Set(), coinsGive: 0, coinsWant: 0, open: null, offerAmt: {} };

@@ -223,15 +223,16 @@ export function install(S) {
   const tmpW = V(0, 0, 0);
   const cutAt = (yLocal, below) => { tmpW.set(0, yLocal, 0); root.localToWorld(tmpW); if (below) PJ.plane.set(V(0, -1, 0), tmpW.y); else PJ.plane.set(V(0, 1, 0), -tmpW.y); };
   async function project(slab) {
-    if (PJ.on || PJ.busy || !slab) return; PJ.on = true; PJ.busy = true; const el = mk(); if (el) el.classList.add('peek');
+    if (PJ.on || PJ.busy || !slab) return; PJ.on = true; PJ.busy = true; const gen = PJ.gen = (PJ.gen || 0) + 1, gone = () => PJ.gen !== gen; const el = mk(); if (el) el.classList.add('peek');
     snd('servo'); S.bloom.want = 1.1;
     await T.tween({ dur: 0.45, ease: E.inOutSine, tag: 'pj', update: e => { SM_.uDim.value = 1 - 0.82 * e; } });
-    const s = JSON.parse(JSON.stringify(slab)); let obj = null; try { obj = S.objFor(s); } catch (e) { console.error(e); }
+    if (gone()) return; const s = JSON.parse(JSON.stringify(slab)); let obj = null; try { obj = S.objFor(s); } catch (e) { console.error(e); }
     PJ.obj = obj; if (obj && obj.ready) obj.ready.catch(() => {});
     const pb = poleBase(); poleLen = Math.max(0.5, CARD.z - pb.z);
     await T.tween({ dur: 0.55, ease: E.outBack, tag: 'pj', update: e => setPole(e) }); snd('land');
     pole.userData.ring.material.color.set(0xbfe6ff); snd('charge');
     if (obj && obj.ready) { try { await Promise.race([obj.ready, T.wait(2.5)]); } catch (e) {} }
+    if (gone()) { if (obj && obj !== PJ.obj) { try { S.slabs.drop(obj); } catch (e) {} } return; }
     const w = (obj && obj.w) || 3.0, h = (obj && obj.h) || 4.4, K = Math.min(2.6 / h, 3.6 / w), cw = w * K, ch = h * K, y0 = CARD.y + ch / 2, y1 = CARD.y - ch / 2;
     if (obj) { root.add(obj.group); obj.group.position.copy(CARD); obj.group.scale.setScalar(K); obj.group.quaternion.identity(); clip(true); cutAt(y0 + 0.05); obj.group.visible = true; }
     PJ.yaw = 0; PJ.pitch = 0; PJ.z = 0; PJ.ch = ch;
@@ -244,12 +245,12 @@ export function install(S) {
     await T.tween({ dur: 0.35, ease: E.linear, tag: 'pj', update: e => { ghostMat.uniforms.uA.value = (e < 0.5 ? (Math.random() > 0.4 ? 1 : 0.2) : 1) * 0.9; ghostMat.uniforms.uCut.value = 1; } });
     scan.visible = true; scanGlow.visible = true; scan.scale.set(cw * 1.35, 1, 1); scanGlow.scale.set(cw * 1.5, 1, 1); snd('shimmer');
     await T.tween({ dur: 1.25, ease: E.inOutSine, tag: 'pj', update: e => { const y = y0 - (y0 - y1) * e; cutAt(y); scan.position.set(CARD.x, y, CARD.z + 0.12); scanGlow.position.set(CARD.x, y, CARD.z + 0.1); scanMat.opacity = 1; scanGlow.material.opacity = 0.9; ghostMat.uniforms.uCut.value = 1 - e; } });
-    cutAt(y1 - 1); clip(false);
+    if (gone()) return; cutAt(y1 - 1); clip(false);
     await T.tween({ dur: 0.38, ease: E.inOutSine, tag: 'pj', update: e => { const y = y1 + (y0 - y1) * e; scan.position.y = y; scanGlow.position.y = y; scanMat.opacity = 1 - e * 0.6; } });
     snd('chime', { tier: slab.tier });
     /* rendered: the beam goes clear, nothing left to project */
     await T.tween({ dur: 0.6, ease: E.inOutSine, tag: 'pj', update: e => { beamMat.uniforms.uA.value = 0.9 * (1 - e) + 0.06 * e; scanMat.opacity = 0.4 * (1 - e); scanGlow.material.opacity = 0.9 * (1 - e); ghostMat.uniforms.uA.value = 0.9 * (1 - e); spill.intensity = 30 * (1 - e) + 4 * e; } });
-    scan.visible = false; scanGlow.visible = false; ghost.visible = false; S.bloom.want = 0.35;
+    if (gone()) return; scan.visible = false; scanGlow.visible = false; ghost.visible = false; S.bloom.want = 0.35;
     PJ.busy = false; S.toast('Drag to turn it, scroll to bring it closer. Click away or press Esc to send it back.');
   }
   function dropCard() { if (PJ.obj) { clip(false); try { root.remove(PJ.obj.group); S.slabs.drop(PJ.obj); } catch (e) {} PJ.obj = null; } }
@@ -259,7 +260,7 @@ export function install(S) {
     const y0 = CARD.y + ch / 2, y1 = CARD.y - ch / 2;
     beamMat.uniforms.uA.value = 0.9; scan.visible = true; scanGlow.visible = true; snd('shimmer'); if (obj) clip(true);
     /* the scan runs back up and takes the card with it */
-    await T.tween({ dur: 0.75, ease: E.inOutSine, tag: 'pj', update: e => { const y = y1 + (y0 - y1) * e; scan.position.set(CARD.x, y, CARD.z + 0.12); scanGlow.position.set(CARD.x, y, CARD.z + 0.1); scanMat.opacity = 1; scanGlow.material.opacity = 0.9; cutAt(y, true); } });
+    await T.tween({ dur: 0.75, ease: E.inOutSine, tag: 'pj', update: e => { const y = y1 + (y0 - y1) * e; scan.position.set(CARD.x, y, CARD.z + 0.12); scanGlow.position.set(CARD.x, y, CARD.z + 0.1); scanMat.opacity = 1; scanGlow.material.opacity = 0.9; cutAt(y); } });
     scan.visible = false; scanGlow.visible = false; dropCard();
     if (beam) await T.tween({ dur: 0.25, ease: E.inCubic, tag: 'pj', update: e => { beam.scale.set(1, Math.max(0.01, 1 - e), 1); beamMat.uniforms.uA.value = 0.9 * (1 - e); spill.intensity = 30 * (1 - e); } });
     if (beam) beam.visible = false; pole.userData.ring.material.color.set(0x4fb8ff);
@@ -281,9 +282,11 @@ export function install(S) {
 
   /* ---------- the states ---------- */
   let pushed = false, scale0 = 1;
-  const hurry = kind => { if (kind === 'down' && !R.fast) { R.fast = true; scale0 = T.timeScale(); T.setTimeScale(scale0 * 3.5); } return true; };   /* a click hurries them up */
+  const hurry = kind => { if (kind === 'down' && !R.fast && R.moving) { R.fast = true; scale0 = T.timeScale(); T.setTimeScale(scale0 * 3.5); } return true; };   /* a click hurries them up */
   const fastOff = () => { if (R.fast) { R.fast = false; T.setTimeScale(scale0); } };
   async function assemble(run) {
+    R.moving = true; try { await assembleRun(run); } finally { R.moving = false; } }
+  async function assembleRun(run) {
     look(0, 1.2, -3.5, 36, 36, 0);
     await T.tween({ dur: 0.5, ease: E.outCubic, tag: 'rig', update: e => { R.awake = e; R.mAwake = e; carT(0); } });
     /* both set off; the car gets there first and starts on itself while the mech is still walking */
@@ -298,6 +301,8 @@ export function install(S) {
     snd('chime', { tier: 'legendary' });
   }
   async function disassemble(run) {
+    R.moving = true; try { await disassembleRun(run); } finally { R.moving = false; } }
+  async function disassembleRun(run) {
     look(MON.x, 2.4, MON.z + 2.4, 18, 22, 0.2);
     await T.tween({ dur: 0.5, ease: E.inCubic, tag: 'rig', update: e => { SM_.uBoot.value = 1 - e; } });
     await T.tween({ dur: 0.7, ease: E.linear, tag: 'rig', update: e => connectT(1 - e) }); connectT(0);
@@ -308,12 +313,13 @@ export function install(S) {
   }
   M.define('pc.go', { busy: true, on: { CLOSE: () => undefined }, pointer: hurry,
     async enter(d, run) { R.busy = true; if (!pushed) { S.cam.push(); pushed = true; } ctx.hideActs();
-      try { await assemble(run); } finally { fastOff(); } if (!run.alive()) return;
-      S.cam.set(screenView()); snd('rise', { dur: 1.2 }); await T.wait(1.3); if (!run.alive()) return;
-      R.busy = false; M.go('pc.view'); } });
+      const bail = () => { R.busy = false; if (pushed) { S.cam.pop(); pushed = false; } };
+      try { await assemble(run); } finally { fastOff(); } if (!run.alive()) { bail(); return; }
+      S.cam.set(screenView()); snd('rise', { dur: 1.2 }); await T.wait(1.3); if (!run.alive()) { bail(); return; }
+      fastOff(); R.busy = false; M.go('pc.view'); } });
   M.define('pc.view', {
     enter() { openExchange(); },
-    exit() { S.bloom.want = 0; if (PJ.on) { T.cancelAll('pj'); dropCard(); if (beam) beam.visible = false; scan.visible = false; scanGlow.visible = false; ghost.visible = false; setPole(0); SM_.uDim.value = 1; PJ.on = false; PJ.busy = false; } },
+    exit() { S.bloom.want = 0; if (PJ.on) { PJ.gen = (PJ.gen || 0) + 1; T.cancelAll('pj'); spill.intensity = 0; dropCard(); if (beam) beam.visible = false; scan.visible = false; scanGlow.visible = false; ghost.visible = false; setPole(0); SM_.uDim.value = 1; PJ.on = false; PJ.busy = false; } },
     on: { CLOSE: () => { if (PJ.on) { unproject(); return undefined; } return 'pc.back'; } },
     pointer(kind, e) { if (PJ.on) return projPointer(kind, e);
       /* the power button in the screen's bottom bezel turns it all back into the toys */
@@ -333,7 +339,8 @@ export function install(S) {
     go() { if (S.rig.wants()) M.go('pc.go'); },
     inPc: () => R.inPc, projecting: () => PJ.on, project,
     onClose() { if (R.closing) return; if (M.is('pc.view')) M.send('CLOSE'); },
-    pointer(kind, e) { if (R.busy || !S.under.on) return false;
+    spots: () => [{ x: CPARK.x, z: CPARK.z, r: 4 }, { x: MPARK.x, z: MPARK.z, r: 3 }, { x: MOUSE.x, z: MOUSE.z, r: 2 }],
+    pointer(kind, e) { if (R.busy || !S.under.on || (S.dragging && S.dragging())) return false;   /* a slab being dragged keeps the pointer */
       if (kind === 'move') { const h = hitAny(e); R.hover = h ? h.root : null; if (h) { ctx.canvas.style.cursor = 'pointer'; return true; } return false; }
       if (kind === 'down' && e.button === 0 && hitAny(e)) { snd('detent'); M.go('pc.go'); return true; }
       return false; },

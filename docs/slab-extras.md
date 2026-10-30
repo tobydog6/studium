@@ -57,6 +57,12 @@ Sixth round (30 Oct), from other games:
 - Note: Thermal, Cyanotype, Polychrome, Carved stone and Glass already exist as finishes (slabs.js); a pick of one of
   those means a depth-based refresh of the existing finish, not a new id.
 
+Seventh round (30 Oct), photo and acrylic ideas:
+- Amber (photo in golden resin, a tiny insect suspended in front), Terrarium (moss garden and a tiny fern along the
+  case bottom), Torn and taped (torn in half and taped back, the tape catches the light), Slow film (arrives blank,
+  develops a little more each real day owned, complete after a week).
+- One more batch, then Sam wants to start building.
+
 ## Structure (draft for Sam)
 A pull = one finish + up to a few extras, each from a different slot. Slots roll on their own, then a cap trims.
 

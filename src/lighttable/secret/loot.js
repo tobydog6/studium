@@ -228,7 +228,7 @@ export function install(S) {
     async enter(d, run) { const t = S.SL.tierOf(L.slab); S.toast(t.name + ' · ' + L.slab.title + '.');
       if (!(d && d.fresh)) { showBar('print'); return; }
       const obj = L.obj; if (!obj) { showBar('print'); return; }
-      S.slabs.adopt(obj); const sealed = !!obj.slab.graded; const r = await S.inspect.open(obj, { actions: (sealed ? [] : [{ id: 'grade', label: 'Send for grading' }]).concat([{ id: 'another', label: 'Open another' }, { id: 'ok', label: 'OK', primary: true }]), hint: S.specLine(obj.slab) + '\nDrag to turn it, scroll to zoom. OK puts it on the table.' });
+      S.slabs.adopt(obj); const sealed = !!obj.slab.graded; const r = await S.inspect.open(obj, { zoom: 1.3, actions: (sealed ? [] : [{ id: 'grade', label: 'Send for grading' }]).concat([{ id: 'another', label: 'Open another' }, { id: 'ok', label: 'OK', primary: true }]), hint: S.specLine(obj.slab) + '\nDrag to turn it, scroll to zoom. OK puts it on the table.' });
       /* it settles straight onto the table from the close view, no detour back to the rail */
       const to = landingSpot(), yaw = (Math.random() - 0.5) * 0.3, K = S.TABLE_K, y = (obj.th || S.SM.SLAB.th) * K / 2 + 0.004;
       const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2).premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw));

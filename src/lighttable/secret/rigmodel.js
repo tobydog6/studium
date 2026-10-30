@@ -290,6 +290,15 @@ export function buildMech(THREE, ENV) {
   const display = new THREE.Group();
   const glassM = new THREE.MeshPhysicalMaterial({ color: 0x030304, metalness: 0.3, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.03, envMap: ENV, side: THREE.DoubleSide });
   display.add(curved(DW + 0.1, DH + 0.1, -0.02, glassM)); const panelScr = curved(DW, DH, 0, screenMat, true); display.add(panelScr);
+  /* its body: a thin curved shell behind the glass, closed top, bottom and ends, and a rounded bulge in the middle of
+     its back where the neck meets it, with a light strip (Sam's Predator reference) */
+  { const sh = alu2, T0 = -0.02, T1 = -0.15, hw = (DW + 0.1) / 2 / DR, hh = (DH + 0.1) / 2;
+    display.add(curved(DW + 0.1, DH + 0.1, T1, sh));
+    [-1, 1].forEach(sv => display.add(new THREE.Mesh(grid(THREE, 64, 1, (i, j) => arc(-hw + 2 * hw * i, sv * hh, T0 + (T1 - T0) * j), false), sh)));
+    [-1, 1].forEach(sx => display.add(new THREE.Mesh(grid(THREE, 1, 1, (i, j) => arc(sx * hw, (j - 0.5) * 2 * hh, T0 + (T1 - T0) * i), false), sh)));
+    const bulge = new THREE.Mesh(new RB(2.9, 2.1, 0.42, 4, 0.18), sh); bulge.position.set(0, -0.25, DZ + T1 - 0.18); display.add(bulge);
+    for (let k = 0; k < 5; k++) { const v = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.025, 0.01), std(0x111215, 0.5, 0.6)); v.position.set(0, 0.45 - k * 0.09, DZ + T1 - 0.395); display.add(v); }
+    const led = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.03, 0.01), new THREE.MeshBasicMaterial({ color: 0x4fb8ff })); led.position.set(0, -1.05, DZ + T1 - 0.36); display.add(led); }
   /* a slim lip along the bottom bezel with the power button */
   const power = new THREE.Group(); { const p = arc(DA * 0.86, -DH / 2 - 0.035, -0.02); power.position.set(p[0], p[1], p[2]); power.rotation.y = -DA * 0.86; display.add(power); }
   { const ringM = new THREE.MeshBasicMaterial({ color: 0x4fb8ff }); const r = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.009, 8, 28), ringM); power.add(r); const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.03, 20), std(0x16171a, 0.3, 0.8)); cap.rotation.x = PI / 2; power.add(cap);

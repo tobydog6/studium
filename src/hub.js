@@ -140,7 +140,7 @@
         /* Sam: back to the launch page, signed in (its corner says so, its button carries on or starts fresh), not the old home screen */
         if(SI_DEMO_ONLY&&typeof rfShow==="function"&&!RF.failed){ siShow(); siWho(); toast("Kia ora "+first+". You're signed in, so your progress saves to your Google account."); return; }
         if(siDemoHasWork()){ showHub(); if(typeof hubRender==="function") hubRender(); toast("Kia ora "+first+". Your demo saves to your Google account now."); }
-        else { if(typeof saveSessionNow==="function") saveSessionNow(); qDemoStart(); toast("Kia ora "+first+". Your progress saves to your Google account as you go."); } };
+        else { if(typeof saveSessionNow==="function") saveSessionNow(); siDone(); qDemoStart(); toast("Kia ora "+first+". Your progress saves to your Google account as you go."); } };   /* siDone first, as the launch button does: without it the app sat on the hidden sign-in screen, black */
       Sync.cloudRestore().then(go, function(e){ console.warn("cloud restore", e); go(); }); }); }   /* a failed restore still lands you somewhere, never stuck on Signing you in */
   // ---- back from Google (Sync read the token from the address bar). Students: their class if they've joined one, else
   // the class code once. Teachers: their classes from the server, then the teacher view. Returns true when it takes over boot.

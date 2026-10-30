@@ -99,5 +99,6 @@ export function install(S) {
   });
   S.under = { get on() { return U.on; }, rect: RECT, group, doors: openDoors, flip(to) { if (M.is('idle') || M.is('under')) M.go('flipping', { to }); }, state: U,
     frame() { cover.visible = !/^vault/.test(M.state); if (U.on && M.is('idle')) M.go('under'); if (U.on && M.is('under') && binderRoot && !binderRoot.visible) binderRoot.visible = true; if (U.on && S.parcel && S.parcel.__boxes) S.parcel.__boxes().forEach(b => { if (b.group && !b.group.visible && !b.opening) b.group.visible = true; }); } };
+  S.under.binderAt = () => binderRoot ? binderRoot.getWorldPosition(new THREE.Vector3()) : null;   /* where a raw print flies to when it files itself */
   S.dev.action('Flip the table', () => S.under.flip(U.on ? 'idle' : 'under'), 'Try');
 }

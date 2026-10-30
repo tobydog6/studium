@@ -46,6 +46,7 @@ try {
   if (!(await ev(() => __lt.secret.S.unlocked()))) throw new Error('did not unlock');
   await ev((a) => { const S = __lt.secret.S; S.dev.set('reelLen', 'short'); S.dev.set('revealTheme', a.th); S.dev.set('odds', 'normal'); S.T.setTimeScale(3); window.__tier = a.tier;
     const roll = S.SL.roll; if (!S.SL.__r) { S.SL.__r = roll; } }, { th: THEME, tier: TIER });
+  await ev(() => __lt.secret.S.under.flip('under')); await until(() => __lt.secret.S.M.state === 'under', 'the dark side');   /* pulls happen on the dark side */
   console.log('  start', JSON.stringify(await st()));
   await ev(() => __lt.secret.S.M.send('LOOT'));
   await until(() => __lt.secret.S.M.is('loot.pick'), 'loot.pick'); console.log('  pick', JSON.stringify(await st()));
@@ -56,6 +57,15 @@ try {
   for (let i = 0; i < 12; i++) { await W(700); const s = await st(); console.log('  +' + ((Date.now() - tFlip) / 1000).toFixed(1) + 's', JSON.stringify(s)); if (i === 2 || i === 6 || i === 11) await shot('2-after-' + i); if (s.insp) break; }
   await until(() => __lt.secret.S.inspect.active(), 'the close view', 60000);
   await W(2500); await shot('3-inspect'); console.log('  inspect', JSON.stringify(await st()));
+  /* OK: it files itself (a slab into the case, a raw print into the binder) and the table stays clear */
+  const before = await ev(() => { const d = __lt.secret.S.store.get(); return { vault: d.vault.length, binder: d.binder.flat().filter(Boolean).length, table: __lt.secret.S.table.list.length }; });
+  await ev(() => __lt.secret.S.inspect.close('ok'));
+  for (let i = 0; i < 30; i++) { await W(4000); const m = await ev(() => { const S = __lt.secret.S; return S.M.state + ' insp:' + S.inspect.active() + ' table:' + S.table.list.length; }); console.log('  after OK', m); if (!/^loot/.test(m)) break; if (i % 3 === 2) console.log('    rail', JSON.stringify(await ev(() => __lt.secret.S.rail.state().phase)), 'closeP', await ev(() => !!__lt.secret.S.loot.state.closeP)); }
+  await until(() => !/^loot/.test(__lt.secret.S.M.state), 'the loot to close', 20000);
+  const after = await ev(() => { const S = __lt.secret.S, d = S.store.get(), last = d.pulls[d.pulls.length - 1]; return { vault: d.vault.length, binder: d.binder.flat().filter(Boolean).length, table: S.table.list.length, graded: !!last.graded, inVault: d.vault.includes(last.id), inBinder: d.binder.flat().includes(last.id) }; });
+  console.log('  filed', JSON.stringify(before), '->', JSON.stringify(after)); await shot('4-filed');
+  if (!(after.graded ? after.inVault : after.inBinder)) fail = fail || 'the pull did not file itself';
+  if (after.table > before.table) fail = fail || 'the pull was left on the table';
 } catch (e) { fail = e.message; }
 await browser.close(); server.close();
 console.log('  took ' + Math.round((Date.now() - t0) / 1000) + ' s');

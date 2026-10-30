@@ -39,9 +39,10 @@ export function install(S) {
   const stencil = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.62), new THREE.MeshBasicMaterial({ map: S.SM.tex(lab) })); stencil.rotation.x = -Math.PI / 2; stencil.position.set(1.7, lid + 0.14, 1.3); lidG.add(stencil);
   const perColInfo = () => perCol;
   /* open and shut: click the case (not a slab) to swing the lid; the rows show only while it is open */
-  const C = { open: true, busy: false, lidA: -2.35 }; lidG.rotation.x = C.lidA;   /* the lid lies well back so the rows show from the table camera */
-  async function setOpen(on) { if (C.busy || C.open === on) return; C.busy = true; C.open = on; S.sfx(on ? 'kitOpen' : 'kitClose'); if (on) rackGroup().visible = true;
-    await T.tween({ dur: 0.7, ease: on ? T.E.outCubic : T.E.inCubic, update: e => { lidG.rotation.x = C.lidA * (on ? e : 1 - e); } }); if (!on) rackGroup().visible = false; C.busy = false; }
+  const C = { open: false, want: false, busy: false, lidA: -2.35 }; lidG.rotation.x = 0;   /* Sam: shut at rest; click it and the camera comes down and the lid opens */
+  /* open or shut; a call while it is moving is remembered and played after (zooming in and straight out again stays in step) */
+  async function setOpen(on) { C.want = on; if (C.busy || C.open === on) return; C.busy = true; C.open = on; S.sfx(on ? 'kitOpen' : 'kitClose'); if (on) rackGroup().visible = true;
+    await T.tween({ dur: 0.7, ease: on ? T.E.outCubic : T.E.inCubic, update: e => { lidG.rotation.x = C.lidA * (on ? e : 1 - e); } }); if (!on) rackGroup().visible = false; C.busy = false; if (C.want !== C.open) setOpen(C.want); }
   const rackGroup = () => rack.group;
   g.add(S.shadow(w + 1.5, d + 1.5));
   /* the rack: a slab's place is its column and its spot from the front; store.caseCols keeps it, newcomers go where they fit */
@@ -58,13 +59,26 @@ export function install(S) {
     /* a landscape slab stands on its side in the wide bay (rolled), its photo still facing the front */
     return slots; };
   const target = (hit, obj) => { const lp = g.worldToLocal(new THREE.Vector3(hit.x, 0, hit.z)), lx = lp.x, lz = lp.z; const land = !!obj.land; let col = land ? 3 : Math.max(0, Math.min(2, Math.floor((lx + w / 2 - wall - 0.1) / PCOL))); const idx = Math.max(0, Math.round((d / 2 - wall - 0.35 - lz) / pitch)); return { col, idx }; };
-  const rack = makeRack(S, { parent: g, K, peek: 1.1, closed: () => !C.open, accept: slab => { if (!slab.graded) { S.toast('The case is for graded slabs. Send this one away for grading first.'); return false; } return true; }, ids: () => S.store.get().vault, add, placeOf, remove: id => { const cc = cols(); cc.forEach(c => { const i = c.indexOf(id); if (i >= 0) c.splice(i, 1); }); S.store.save(); },
+  const rack = makeRack(S, { parent: g, K, peek: 1.1, closed: () => !C.open, dropShut: true, accept: slab => { if (!slab.graded) { S.toast('The case is for graded slabs. Send this one away for grading first.'); return false; } return true; }, ids: () => S.store.get().vault, add, placeOf, remove: id => { const cc = cols(); cc.forEach(c => { const i = c.indexOf(id); if (i >= 0) c.splice(i, 1); }); S.store.save(); },
     bounds: [CASE.x - w / 2 - 1.2, CASE.z - d / 2 - 1.6, CASE.x + w / 2 + 1.2, CASE.z + d / 2 + 1.6], layout, target });
   S.dropPreviews.caseBox = rack.preview;
   const shellHit = e => S.hitAny(e, [shellMesh, lidG]);
   S.caseBox = { group: g, rack, rebuild: () => rack.rebuild(), frame: rack.frame, setOpen, isOpen: () => C.open,
-    pointer(kind, e) { if (rack.pointer(kind, e)) return true; if (S.dragging()) return false; if (kind === 'move') { const hh = shellHit(e); if (hh) S.ctx.canvas.style.cursor = 'pointer'; return !!hh; } if (kind === 'down' && e.button === 0 && shellHit(e)) { setOpen(!C.open); return true; } return false; } };
+    pointer(kind, e) { if (rack.pointer(kind, e)) return true; if (S.dragging()) return false; if (kind === 'move') { const hh = shellHit(e); if (hh) S.ctx.canvas.style.cursor = 'pointer'; return !!hh; } if (kind === 'down' && e.button === 0 && shellHit(e)) { if (S.M.is('under')) S.M.go('case.view'); return true; } return false; } };
+  /* the look: the camera comes down over the case and the lid opens; CLOSE (=, the bar) shuts it and goes back up */
+  const VIEW = () => { const c = new THREE.Vector3(0, h * 0.4, 0); g.localToWorld(c); return { tx: c.x, ty: c.y, tz: c.z + 0.8, pitch: 50, dT: S.ctx.fitDist(w + 2.2, d + 3.4, 50) }; };
+  let pushed = false;
+  S.M.define('case.view', {
+    enter() { if (!pushed) { S.cam.push(); pushed = true; } S.cam.set(VIEW()); S.ctx.hideActs(); setOpen(true); S.toast('Your case. Drag a slab out, or click one to look closer.'); },
+    exit(next) { if (!/^case/.test(next)) { setOpen(false); if (pushed) { S.cam.pop(); pushed = false; } } },
+    on: { CLOSE: () => 'under' },
+    pointer(kind, e) { if (rack.pointer(kind, e)) return true; if (S.tablePointer(kind, e, S.table.list.map(o => o.group))) return true; return kind !== 'wheel'; },
+    key() { return true; },
+    frame(dt) { rack.frame(dt); },
+  });
   S.dropTargets.caseBox = rack.drop;
-  rack.rebuild();
+  /* filed without a drag (a fresh pull, a parcel back from grading): the emptiest portrait column, or the landscape bay */
+  S.caseBox.file = id => { const slab = S.store.pull(id); const land = !!(slab && slab.photo && slab.photo.w > slab.photo.h * 1.05); const col = autoCol(land); add(id, { col, idx: cols()[col].length }); rack.rebuild(id); };
+  rack.rebuild(); rack.group.visible = false;   /* shut at rest: the rows are inside */
   S.dev.info(() => 'case holds ' + (4 * perCol) + ' · ' + S.store.get().vault.length + ' in it');
 }

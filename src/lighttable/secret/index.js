@@ -126,7 +126,7 @@ export function installSecret(ctx) {
   /* a small bar while the vault or binder is open: the way back to the case, and out */
   const nav = S.el('div', 'sk-nav', ''); nav.id = 'skNav'; document.body.appendChild(nav); nav.addEventListener('pointerdown', e => e.stopPropagation());
   nav.addEventListener('click', e => { const b = e.target.closest('[data-ev]'); if (b) M.send(b.dataset.ev); });
-  const NAV = { 'vault.case': [['CLOSE', 'Close the vault']], 'vault.keypad': [['CLOSE', 'Close the vault']], 'vault.lid': [['CLOSE', 'Close the vault']], 'vault.binder': [['CASE', 'Back to the case'], ['CLOSE', 'Close']], 'binder.open': [['CLOSE', 'Close the binder']], 'shelf.view': [['CLOSE', 'Back to the table']] };
+  const NAV = { 'vault.case': [['CLOSE', 'Close the vault']], 'vault.keypad': [['CLOSE', 'Close the vault']], 'vault.lid': [['CLOSE', 'Close the vault']], 'vault.binder': [['CASE', 'Back to the case'], ['CLOSE', 'Close']], 'binder.open': [['CLOSE', 'Close the binder']], 'shelf.view': [['CLOSE', 'Back to the table']], 'case.view': [['CLOSE', 'Close the case']] };
   M.onChange(st => { const b = NAV[st]; nav.innerHTML = b ? b.map(x => '<button type="button" data-ev="' + x[0] + '">' + x[1] + '</button>').join('') : ''; nav.classList.toggle('on', !!b); });
 
   /* ---------- the three diegetic buttons ---------- */
@@ -175,6 +175,18 @@ export function installSecret(ctx) {
   /* objects are built at slab scale; on the table they show card sized beside the prints (Sam: full size was massive) */
   S.TABLE_K = 0.42;
   const flatQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  /* Sam: everything files itself: a graded slab into the case, a raw print into the binder, so the table stays clear.
+     The card lifts and shrinks towards where it is going, then lands there (the case shows it arriving from above). */
+  S.fileAway = async function (obj) {
+    if (!obj || !obj.slab || obj.disposed) return false; const slab = obj.slab, g = obj.group, toCase = !!slab.graded;
+    if (toCase ? !(S.caseBox && S.caseBox.file) : !store.toBinder) return false;
+    const dest = toCase ? S.caseBox.group.getWorldPosition(new THREE.Vector3()) : (S.under && S.under.binderAt ? S.under.binderAt() : null);
+    if (dest && g) { dest.y += 1.6; if (g.parent !== ctx.scene) ctx.scene.attach(g); S.sfx('lift'); if (obj.tableShadow) obj.tableShadow.visible = false;
+      await T.par([T.to(g.position, dest, { dur: 0.75, ease: T.E.inOutCubic }), T.to(g.scale, { x: 0.22, y: 0.22, z: 0.22 }, { dur: 0.75, ease: T.E.inOutCubic })]); }
+    if (tableSlabs.includes(obj)) S.table.remove(obj, true); else S.slabs.drop(obj);
+    if (toCase) S.caseBox.file(slab.id); else { store.toBinder(slab.id); S.sfx('binder'); }
+    S.toast(toCase ? 'Filed in the case.' : 'Filed in the binder.'); hud(); return true;
+  };
   S.table = { list: tableSlabs,
     /* place(slab, x, z, yaw, { drop:true }) → the slab object; drop lets it fall onto the table */
     place(slab, x, z, yaw, o = {}) { return S.table.adopt(S.objFor(slab), x, z, yaw, o); },

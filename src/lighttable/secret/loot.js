@@ -236,8 +236,10 @@ export function install(S) {
       while (S.inspect.active()) await T.wait(0.05); if (!run.alive()) return;
       S.table.adopt(obj, to.x, to.z, yaw); S.sfx('ltPutDown');
       if (r === 'grade') { await T.wait(0.6); if (!run.alive()) return; L.obj = null; S.sendForGrading(obj); await T.wait(0.6); if (!run.alive()) return; M.send('CLOSE'); return; }
-      if (r === 'another') { await T.wait(0.5); if (!run.alive()) return; M.go('loot.rise'); return; }
-      await T.wait(0.5); if (!run.alive()) return; M.send('CLOSE'); },
+      /* Sam: it files itself (a slab into the case, a raw print into the binder); the table stays clear */
+      L.obj = null; if (S.fileAway) { await S.fileAway(obj).catch(e => console.error(e)); if (!run.alive()) return; }
+      if (r === 'another') { await T.wait(0.3); if (!run.alive()) return; M.go('loot.rise'); return; }
+      await T.wait(0.3); if (!run.alive()) return; M.send('CLOSE'); },
     pointer(kind, e) {
       const g = L.obj && L.obj.where === 'table' ? L.obj.group : null;
       if (kind === 'move') { const h = g && S.hit(e, g); ctx.canvas.style.cursor = h ? 'pointer' : 'default'; return true; }
@@ -260,7 +262,7 @@ export function install(S) {
     async enter(d, run) {
       T.cancelAll('loot'); hideBar(); setHot(-1); L.handX = null; L.lightT = 0; if (S.inspect.active()) S.inspect.close('back');
       /* closed while the print was still up: it still goes on the table */
-      if (L.obj && L.obj.where !== 'table') { const to = landingSpot(); S.table.adopt(L.obj, to.x, to.z, (Math.random() - 0.5) * 0.3, { drop: true }); } L.obj = null;
+      if (L.obj && L.obj.where !== 'table') { const o = L.obj, to = landingSpot(); S.table.adopt(o, to.x, to.z, (Math.random() - 0.5) * 0.3, { drop: true }); if (S.fileAway) S.fileAway(o).catch(e => console.error(e)); } L.obj = null;   /* closed while it was still up: it files itself too */
       closeRail(); if (L.closeP) await L.closeP;
       L.cans.forEach(c => { if (c.open > 0) c.group.visible = false; });
       if (pedsUp()) await sinkPeds(run);

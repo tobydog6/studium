@@ -48,20 +48,22 @@ export function makeRack(S, o) {
     if (kind === 'down') { if (e.button !== 0) return false; const s = find(S.hitAny(e, groups())); if (!s) return false; R.press = { s, x: e.clientX, y: e.clientY }; return true; }
     return false;
   };
-  const inside = t => { const b = o.bounds; return t && t.x >= b[0] && t.x <= b[2] && t.z >= b[1] && t.z <= b[3]; };
+  const inBounds = t => { const b = o.bounds; return t && t.x >= b[0] && t.x <= b[2] && t.z >= b[1] && t.z <= b[3]; };
+  /* over(e): a tall prop (the shelf) also counts when you point at it, since its face projects past its footprint */
+  let lastE = null; const inside = t => inBounds(t) || !!(lastE && o.over && o.over(lastE));
   function ghostMesh(obj, roll) { if (R.ghost) return R.ghost; const gw = roll ? obj.h * K : obj.w * K, gh = roll ? obj.w * K : obj.h * K; const m = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), new THREE.MeshBasicMaterial({ color: 0xffe9b0, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide })); m.position.y = gh / 2; const pv = new THREE.Group(); pv.add(m); group.add(pv); R.ghost = pv; return pv; }
   function clearGhost() { if (R.ghost) { group.remove(R.ghost); R.ghost.children[0].geometry.dispose(); R.ghost.children[0].material.dispose(); R.ghost = null; } if (R.ghostFor) { R.ghostFor = null; const en = entries(null); applySlots(en, o.layout(en), true); } }
   /* while a slab is dragged: the others part and a ghost sits where it would go */
-  R.preview = (obj, e) => { if (!obj) { clearGhost(); return; } const t = S.tableHit(e, 0); if (!inside(t) || (o.closed && o.closed()) || (o.accept && !o.accept(obj.slab, true))) { clearGhost(); return; }
-    const place = o.target(t, obj); const key = JSON.stringify(place); if (R.ghostFor === key) return; R.ghostFor = key;
+  R.preview = (obj, e) => { if (!obj) { clearGhost(); return; } lastE = e; const t = S.tableHit(e, 0); if (!inside(t) || (o.closed && o.closed()) || (o.accept && !o.accept(obj.slab, true))) { clearGhost(); return; }
+    const place = o.target(t, obj, e); const key = JSON.stringify(place); if (R.ghostFor === key) return; R.ghostFor = key;
     const g = { id: '__ghost', obj, land: !!obj.land, place, ghost: true }; const en = entries(g), slots = o.layout(en); const gs = slots[en.length - 1];
     applySlots(en.slice(0, -1), slots.slice(0, -1), true); const pv = ghostMesh(obj, gs && gs.roll); if (gs) { pv.position.set(gs.x, gs.y, gs.z); pv.rotation.set(gs.rx || 0, gs.ry || 0, 0); pv.visible = true; } };
   /* a table object let go over the prop: it lifts, shrinks and slides into the spot the ghost showed */
   R.drop = (obj, e) => {
-    const t = S.tableHit(e, 0); if (!inside(t)) { clearGhost(); return false; }
-    if (o.closed && o.closed()) { clearGhost(); S.toast('Open it first.'); return false; }
+    lastE = e; const t = S.tableHit(e, 0); if (!inside(t)) { clearGhost(); return false; }
+    if (o.closed && o.closed() && !o.dropShut) { clearGhost(); S.toast('Open it first.'); return false; }
     const slab = obj.slab; if (o.accept && !o.accept(slab)) { clearGhost(); return false; }
-    const place = o.target(t, obj); R.ghostFor = null; if (R.ghost) { group.remove(R.ghost); R.ghost = null; }
+    const place = o.target(t, obj, e); R.ghostFor = null; if (R.ghost) { group.remove(R.ghost); R.ghost = null; }
     (async () => { const g = obj.group, top = new THREE.Vector3((o.bounds[0] + o.bounds[2]) / 2, 2.2, (o.bounds[1] + o.bounds[3]) / 2); S.sfx('lift');
       await T.par([T.to(g.position, top, { dur: 0.35, ease: E.inOutCubic }), T.to(g.scale, { x: K, y: K, z: K }, { dur: 0.35, ease: E.inOutCubic })]);
       S.table.remove(obj, true); o.add(slab.id, place); S.hud(); await rebuild(slab.id); })();

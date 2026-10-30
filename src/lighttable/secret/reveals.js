@@ -48,7 +48,7 @@ const THEMES = {
 };
 const THEME_OF = {};
 [['fire', 'lava burn pyro raku thermal infrared duoEmber'], ['gold', 'gold gilt kintsugi coin bronze leaf sun keywarm'], ['silver', 'dag steel silver chrome'],
- ['water', 'rain puddles sunken tray mist cyanotype lensball glass keyblue'], ['void', 'blackhole eclipse prism droste vertigo window scan3d planet focus'],
+ ['water', 'rain puddles sunken tray mist cyanotype lensball glass keyblue polaroid'], ['void', 'blackhole eclipse prism droste vertigo window scan3d planet focus'],
  ['storm', 'storm terminal camcorder anaglyph depthscan holoplate latent solar'], ['jade', 'jade duoMoss'], ['china', 'porcelain duoInk riso'], ['stone', 'litho stone poster tritone'],
  ['frost', 'snow crystal seasons'], ['aurora', 'aurora lightpaint fireflies fireworks kaleido foil etch polychrome lenticular glitter xpro aero duoRose']]
   .forEach(([t, ids]) => ids.split(' ').forEach(id => { THEME_OF[id] = t; }));

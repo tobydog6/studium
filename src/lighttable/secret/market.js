@@ -145,7 +145,7 @@ export function install(S) {
   S.css(CSS);
   const btn = S.el('button', 'mk-btn', ''); btn.type = 'button'; btn.id = 'skMk'; document.body.appendChild(btn);
   const el = S.el('div', 'mk', ''); el.id = 'skMarket'; document.body.appendChild(el);
-  btn.addEventListener('click', () => (el.classList.contains('on') ? close() : open()));
+  btn.addEventListener('click', () => { if (S.M.is('pc') && !el.classList.contains('on')) return;   /* the toys are on their way */ if (!el.classList.contains('on') && S.rig && S.rig.wants()) { S.rig.go(); return; } el.classList.contains('on') ? close() : open(); });   /* on the dark side the button sends the car (rig.js) */
   function paintBtn() { const on = S.unlocked(); btn.classList.toggle('on', on && !el.classList.contains('on')); if (!on) return; const d = D(), n = R.me ? R.offers.filter(o => o.to_id === R.me.id && o.status === 'open').length : 0;
     btn.innerHTML = '<span>EXCHANGE</span><b>' + fmt(d.coins) + '</b><em>coins</em>' + (n ? '<i>' + n + '</i>' : ''); }
   const U = { tab: 'market', sel: null, q: '', tier: 'all', sort: 'value', who: null, want: new Set(), give: new Set(), coinsGive: 0, coinsWant: 0, open: null, offerAmt: {} };
@@ -185,7 +185,7 @@ export function install(S) {
 
   async function open(tab) { if (!S.unlocked()) return; earn(); refillKeys(); simulate(); if (tab) U.tab = tab; el.classList.add('on'); paintBtn(); render();
     if (live() && (U.tab === 'trade' || U.tab === 'offers')) { try { if (U.tab === 'trade') await loadShelves(); await loadOffers(); } catch (e) { R.err = SETUP; } render(); } }
-  function close() { el.classList.remove('on'); paintBtn(); }
+  function close() { el.classList.remove('on'); paintBtn(); if (S.rig && S.rig.onClose) S.rig.onClose(); }
   const SETUP = 'Trading with other players isn\'t switched on yet: the trade tables need setting up on the server (docs/supabase.sql).';
   /* what is selected, as a slab and where it came from */
   function selected() { const s = U.sel; if (!s) return null;
@@ -270,7 +270,7 @@ export function install(S) {
     else if (x.kind === 'theirs') { const on = U.want.has(s.id); h += '<button type="button" class="' + (on ? 'x-btn' : 'x-go') + '" data-a="want" data-id="' + esc(s.id) + '">' + (on ? 'Take it out of the offer' : 'Add to the offer') + '</button>'; }
     return h + '</div>'; }
   /* ---- inspect: any slab, yours or not, up in the close view; nothing in your collection moves ---- */
-  async function inspect(slab) { if (!slab || S.inspect.active()) return; const s = JSON.parse(JSON.stringify(slab)); el.classList.add('peek');
+  async function inspect(slab) { if (!slab || S.inspect.active()) return; if (S.rig && S.rig.inPc()) { S.rig.project(slab); return; }   /* on the computer: the projector */ const s = JSON.parse(JSON.stringify(slab)); el.classList.add('peek');
     let obj = null; try { obj = S.objFor(s); const cam = S.camera, g = obj.group, p = new THREE.Vector3(0, -0.6, -6).applyMatrix4(cam.matrixWorld); S.scene.add(g); g.position.copy(p); g.quaternion.copy(cam.quaternion); g.scale.setScalar(0.2);
       await Promise.race([obj.ready ? obj.ready.catch(() => null) : null, S.T.wait(4)]);
       const r = S.inspect.open(obj, { zoom: 1.3, actions: [{ id: 'back', label: 'Back to the exchange', primary: true }], hint: S.specLine(s) + '\nWorth about ' + fmt(value(s)) + ' coins. Drag to turn it, scroll to zoom.' }); await r;
@@ -313,7 +313,7 @@ export function install(S) {
           U.who = p; U.want = new Set(((o.give && o.give.cards) || []).map(c => c.id)); U.give = new Set(((o.want && o.want.cards) || []).map(c => c.id)); U.coinsGive = (o.want && o.want.coins) || 0; U.coinsWant = (o.give && o.give.coins) || 0; U.tab = 'trade'; U.sel = null; render(); } }
     } catch (err) { S.toast(err && err.message && !/^sync/.test(err.message) ? err.message : 'That didn\'t go through. Check you\'re online and try again.'); render(); } });
   ['pointerdown', 'wheel', 'keydown'].forEach(ev => el.addEventListener(ev, e => e.stopPropagation()));
-  window.addEventListener('keydown', e => { if (e.key === 'Escape' && el.classList.contains('on') && !S.inspect.active()) { if (U.sel) { U.sel = null; render(); } else close(); } }, true);
+  window.addEventListener('keydown', e => { if (e.key === 'Escape' && el.classList.contains('on') && !S.inspect.active() && !(S.rig && S.rig.projecting())) { if (U.sel) { U.sel = null; render(); } else close(); } }, true);
 
   /* ---------- the heartbeat ---------- */
   setInterval(() => { if (!S.unlocked()) { paintBtn(); return; } earn(); simulate(); if (el.classList.contains('on') && U.tab !== 'players') render(); }, 20000);
@@ -329,7 +329,7 @@ const CSS = `
 #skMk i{ font-style:normal; background:#e8574a; color:#fff; border-radius:999px; padding:2px 6px; }
 #skMarket{ --x-bg:#0d0c0b; --x-p:#141311; --x-p2:#1a1916; --x-ln:rgba(244,241,234,.08); --x-ln2:rgba(244,241,234,.14); --x-mut:rgba(244,241,234,.52); --x-up:#5fcf86; --x-dn:#ff7a6b;
   position:fixed; inset:0; z-index:14; display:grid; grid-template-columns:188px minmax(0,1fr) 400px; grid-template-rows:56px minmax(0,1fr); background:var(--x-bg); color:var(--text); font:400 13px/1.4 var(--f-ui); opacity:0; pointer-events:none; transition:opacity .2s; }
-#skMarket.on{ opacity:1; pointer-events:auto; } #skMarket.on.peek{ opacity:0 !important; visibility:hidden; pointer-events:none; }
+#skMarket.on{ opacity:1; pointer-events:auto; } #skMarket.inpc{ border-radius:6px; overflow:hidden; transition:opacity .5s; } #skMarket.on.peek{ opacity:0 !important; visibility:hidden; pointer-events:none; }
 #skMarket .m{ font-family:var(--f-mono); font-variant-numeric:tabular-nums; } #skMarket .r{ text-align:right; } #skMarket .dim{ color:var(--x-mut); }
 #skMarket h2{ margin:10px 0 2px; font:400 22px/1.15 var(--f-serif, Georgia, serif); } #skMarket h3{ margin:22px 0 10px; font:500 11px/1 var(--f-mono); letter-spacing:.18em; text-transform:uppercase; color:var(--x-mut); } #skMarket h4{ margin:0 0 8px; font:500 10px/1 var(--f-mono); letter-spacing:.16em; text-transform:uppercase; color:var(--x-mut); }
 #skMarket .x-top{ grid-column:1/-1; display:flex; align-items:center; gap:18px; padding:0 14px 0 18px; border-bottom:1px solid var(--x-ln); background:var(--x-p); }

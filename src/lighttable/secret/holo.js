@@ -92,6 +92,20 @@ export const GLOWS = {
   latent:     { color: 0xff2a1a, color2: 0x5a0e08, kind: 'steady',  flicker: 0.1 },
   thermal:    { color: 0xff9a1a, color2: 0x2a1aff, kind: 'cycle',   flicker: 0 },
 };
+/* the case extras' hints in the hover glow (fxcase.js draws the real thing): a colour, and what drifts up or down in it */
+export const CASE_GLOWS = {
+  dust:      { color: 0xfff0d8, rate: 10, vy: 0.05,  life: 2.2, size: 0.22, dots: [0xfff4e0, 0xffe2b0] },
+  bubble:    { color: 0xd8f4ff, rate: 6,  vy: 0.45,  life: 1.6, size: 0.4,  dots: [0xe8f8ff, 0xffffff] },
+  tinted:    { color: 0xc8b8a8, rate: 0,  vy: 0,     life: 1,   size: 0.2,  dots: [0xffffff] },
+  flower:    { color: 0xffc8d8, rate: 5,  vy: -0.2,  life: 2.4, size: 0.4,  dots: [0xffc0d0, 0xfff0f4, 0xd8e8a0] },
+  cracked:   { color: 0xe0f2ff, rate: 4,  vy: 0,     life: 0.8, size: 0.3,  dots: [0xff8ad8, 0x8ae0ff, 0xfff08a] },
+  liquid:    { color: 0x4fd0c0, rate: 8,  vy: 0.3,   life: 1.6, size: 0.3,  dots: [0xbff8f0, 0xffd27a], caustic: true },
+  globe:     { color: 0xffffff, rate: 18, vy: -0.35, life: 2.2, size: 0.3,  dots: [0xffffff, 0xeaf4ff] },
+  sand:      { color: 0xe8b860, rate: 16, vy: -0.6,  life: 1.4, size: 0.24, dots: [0xf0c870, 0xffe0a0, 0xc89040] },
+  terrarium: { color: 0x7fd07a, rate: 5,  vy: 0.18,  life: 2.2, size: 0.36, dots: [0x8fe07a, 0xc8f0a0] },
+  amber:     { color: 0xffa030, rate: 6,  vy: 0.1,   life: 2.0, size: 0.3,  dots: [0xffc060, 0xffe0a0] },
+  crystals:  { color: 0xc8a8ff, rate: 10, vy: 0,     life: 0.9, size: 0.34, dots: [0xe0d0ff, 0xffffff, 0xffd8f0] },
+};
 export const VARIANT_GLOWS = {
   negative: { color: 0x7fd0ff, color2: 0xdcf3ff, kind: 'cold',   flicker: 0 },
   clear:    { color: 0xd8eef8, color2: 0xffffff, kind: 'cold',   flicker: 0.08 },
@@ -379,12 +393,17 @@ export function install(S) {
       else if (v === 'full') { add('foil', { wide: true }); } else if (v === 'stamped') { add('soft', { color: g.color }); const s = add('soft', { color: 0xffd98a }); s.scale.setScalar(0.3); s.position.set(w / 2 - 0.1, h / 2 - 0.1, s.position.z + 0.0005); s.userData.pulse = true; }
       else if (fin === 'foil') add('foil'); else if (fin === 'etch') add('etch'); else if (fin === 'prism') add('prism', { normal: true }); else add('soft', { color: g.color, wide: fin === 'gold' }).userData.gain = fin === 'matte' ? 0.5 : 0.8;
       if (!v && (fin === 'glitter' || fin === 'gold')) { cl = cloud(fin === 'gold' ? 120 : 160, fin === 'gold' ? { ember: true, sway: 0.04, grav: 0 } : { grav: 0 }); cl.u.uGrav.value.set(0, 0, fin === 'gold' ? 0.08 : 0); fx.add(cl); }
+      /* a case extra hints in the glow, even on a raw print where the case isn't there yet: its colour, and what drifts in it */
+      const ce = CASE_GLOWS[S.SL.extrasOf(obj.slab || slabOf(obj) || {}).case], ccl = ce ? cloud(90, { grav: 0 }) : null; let cacc = 0;
+      if (ce) { if (ce.caustic) add('caustic'); else add('soft', { color: ce.color }).userData.gain = 0.45; if (ccl) fx.add(ccl); }
       let acc = 0; const rig = { group: fx, glow: g, set(a) { want = Math.max(0, Math.min(1, a)); },
         update(dt) { obj.group.updateMatrixWorld(true); obj.group.getWorldPosition(fx.position); obj.group.getWorldQuaternion(fx.quaternion); fx.scale.setScalar(obj.group.getWorldScale(new THREE.Vector3()).x || 1); t += dt; cur += (want - cur) * (1 - Math.exp(-dt * 7));
           const fl = g.flicker ? 1 - g.flicker * (0.5 + 0.5 * Math.sin(t * 37) * Math.sin(t * 11.3)) : 1, pulse = g.kind === 'pulse' ? 0.55 + 0.45 * Math.pow(0.5 + 0.5 * Math.sin(t * 2.4), 2) : 1;
           parts.forEach(m => { const u = m.material.uniforms; u.uTime.value = t; u.uH.value = cur * (m.userData.gain || 1) * fl * (m.userData.pulse ? pulse : 1); if (m.userData.jitter && Math.random() < 0.3) u.uOff.value.set(0.06 + Math.random() * 0.12, -(0.03 + Math.random() * 0.1)); });
           if (cl) { cl.u.uTime.value += dt; acc += dt * cur * (fin === 'gold' ? 26 : 40); const n = Math.floor(acc); if (n > 0) { acc -= n; cl.emit(n, () => fin === 'gold' ? new THREE.Vector3((Math.random() - 0.5) * w * 1.3, -h * 0.55 + Math.random() * h * 0.2, -0.02) : (() => { const a = Math.random() * Math.PI * 2, r = (0.6 + Math.random() * 0.7) * Math.hypot(w, h) * 0.5; return new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r * 0.8, -0.02); })(),
-            () => fin === 'gold' ? new THREE.Vector3(0, h * (0.25 + Math.random() * 0.2), 0) : new THREE.Vector3(0, 0, 0), () => new THREE.Color(fin === 'gold' ? (Math.random() < 0.5 ? 0xffb050 : 0xffe0a0) : 0xffffff).lerp(g.color2, 0.3), fin === 'gold' ? 2.6 : 1.4, fin === 'gold' ? 0.4 : 0.32); } } },
+            () => fin === 'gold' ? new THREE.Vector3(0, h * (0.25 + Math.random() * 0.2), 0) : new THREE.Vector3(0, 0, 0), () => new THREE.Color(fin === 'gold' ? (Math.random() < 0.5 ? 0xffb050 : 0xffe0a0) : 0xffffff).lerp(g.color2, 0.3), fin === 'gold' ? 2.6 : 1.4, fin === 'gold' ? 0.4 : 0.32); } }
+          if (ccl) { ccl.u.uTime.value += dt; cacc += dt * cur * ce.rate; const n = Math.floor(cacc); if (n > 0) { cacc -= n; ccl.emit(n, () => new THREE.Vector3((Math.random() - 0.5) * w * 1.2, (Math.random() - 0.5) * h * 1.1, 0.02),
+            () => new THREE.Vector3((Math.random() - 0.5) * 0.08, ce.vy * (0.6 + Math.random() * 0.8), 0), () => new THREE.Color(ce.dots[Math.floor(Math.random() * ce.dots.length)]), ce.life, ce.size); } } },
         dispose() { fx.traverse(m => { if (m.geometry) m.geometry.dispose(); if (m.material) m.material.dispose(); }); S.scene.remove(fx); } };
       return rig; },
     /* the edge-on moment of the flip: a plane of light along the print's edge and a radial flash that bloom and fade in about 0.35 s */

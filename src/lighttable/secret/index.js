@@ -134,7 +134,7 @@ export function installSecret(ctx) {
   S.hud = hud;
   /* where a dragged slab can be dropped: the open case or binder register here; a one line read of what a card is */
   S.dropTargets = { vault: null, binder: null }; S.dropPreviews = {};
-  S.specLine = slab => { const f = SL.FINISH[SL.finishOf(slab, S.testFinish())]; return [SL.tierOf(slab).name, f ? f.name + (S.fx && S.fx.fxLabel(slab, f.id) ? ' (' + S.fx.fxLabel(slab, f.id) + ')' : '') : '', slab.variant ? (SL.VARIANT[slab.variant] || {}).name : '', slab.graded ? 'Grade ' + slab.grade + ' ' + SL.gradeText(slab.grade) : 'Raw, ungraded', slab.title, slab.photo && (slab.photo.artist || slab.photo.by)].filter(Boolean).join('  ·  '); };
+  S.specLine = slab => { const f = SL.FINISH[SL.finishOf(slab, S.testFinish())]; return [SL.tierOf(slab).name, f ? f.name + (S.fx && S.fx.fxLabel(slab, f.id) ? ' (' + S.fx.fxLabel(slab, f.id) + ')' : '') : '', ...SL.lookNames(slab), slab.graded ? 'Grade ' + slab.grade + ' ' + SL.gradeText(slab.grade) : 'Raw, ungraded', slab.title, slab.photo && (slab.photo.artist || slab.photo.by)].filter(Boolean).join('  ·  '); };
   /* a small bar while the vault or binder is open: the way back to the case, and out */
   const nav = S.el('div', 'sk-nav', ''); nav.id = 'skNav'; document.body.appendChild(nav); nav.addEventListener('pointerdown', e => e.stopPropagation());
   nav.addEventListener('click', e => { const b = e.target.closest('[data-ev]'); if (!b) return; if (b.dataset.ev === 'INDEX') { if (S.collection) S.collection.open(); return; } M.send(b.dataset.ev); });   /* Index is the collection's encyclopedia over the binder */
@@ -221,8 +221,8 @@ export function installSecret(ctx) {
       if (pit && x > pit[0] - 1.2 && x < pit[2] + 1.2 && z > pit[1] - 1.2 && z < pit[3] + 1.2) { const sp = S.table.freeSpot(); x = sp.x; z = sp.z; S.table.place(slab, x, z, t.yaw); } else S.table.place(slab, x, z, t.yaw, { quiet: true }); }); },
   };
   /* a pull straight onto the table (the dev panel's Roll; loot.js lays its slab down the long way) */
-  S.rollToTable = function (o) { const slab = SL.roll({ graded: true, ...(o || {}) }); store.addPull(slab); const sp = S.table.freeSpot(); const obj = S.table.place(slab, sp.x, sp.z, (Math.random() - 0.5) * 0.5, { drop: true }); hud();
-    const t = SL.tierOf(slab); S.toast(t.name + (slab.graded ? ' · grade ' + slab.grade : ' · raw') + (slab.variant ? ' · ' + SL.VARIANT[slab.variant].name : '') + ' · ' + slab.title); return obj; };
+  S.rollToTable = function (o) { const xt = dev.opt('extraTest'); const slab = SL.roll({ graded: true, ...(xt && xt !== 'roll' ? { extras: { case: xt === 'fish' ? 'liquid' : xt, fish: xt === 'fish' } } : {}), ...(o || {}) }); store.addPull(slab); const sp = S.table.freeSpot(); const obj = S.table.place(slab, sp.x, sp.z, (Math.random() - 0.5) * 0.5, { drop: true }); hud();
+    const t = SL.tierOf(slab); S.toast(t.name + (slab.graded ? ' · grade ' + slab.grade : ' · raw') + SL.lookNames(slab).map(n => ' · ' + n).join('') + ' · ' + slab.title); return obj; };
   /* a raw print goes away for grading: it dissolves off the near edge of the table and comes back as a parcel (parcel.js) */
   S.sendForGrading = async function (obj) {
     const slab = obj.slab; if (slab.graded || slab.sentAt) return; SL.sendForGrading(slab, S.gradingWait()); S.sfx('binder');
@@ -307,7 +307,8 @@ export function installSecret(ctx) {
   const dev = createDev(S); S.dev = dev;
   const inspect = createInspect(S); S.inspect = inspect; S.fxTools = createTools(S);
   dev.on('finishTest', () => S.slabs.refreshFinish()); dev.on('speed', v => T.setTimeScale(+v || 1)); T.setTimeScale(+dev.opt('speed') || 1);
-  dev.action('Roll a raw print', () => S.rollToTable({ graded: false }), 'Try'); dev.action('Roll a slab', () => S.rollToTable(), 'Try'); dev.action('Roll a Mythic', () => S.rollToTable({ tier: 'mythic' }), 'Try'); dev.action('Roll a variant', () => S.rollToTable({ variant: SL.VARIANTS[Math.floor(Math.random() * SL.VARIANTS.length)].id }), 'Try');
+  dev.action('Roll a raw print', () => S.rollToTable({ graded: false }), 'Try'); dev.action('Roll a slab', () => S.rollToTable(), 'Try'); dev.action('Roll a Mythic', () => S.rollToTable({ tier: 'mythic' }), 'Try'); dev.action('Roll a variant', () => S.rollToTable({ variant: (V => V[Math.floor(Math.random() * V.length)].id)(SL.VARIANTS.filter(v => !v.legacy)) }), 'Try');
+  dev.define('extraTest', 'Test case extra (new rolls)', Object.assign({ roll: 'Roll as normal' }, Object.fromEntries(SL.EXTRAS.filter(x => x.slot === 'case').map(x => [x.id, x.name])), { fish: 'Liquid with a goldfish' }), 'roll');
   dev.action('Open vault', () => M.is('idle') && M.send('VAULT'), 'Try'); dev.action('Open loot', () => M.is('idle') && M.send('LOOT'), 'Try');
   /* grading wait per the dev panel: a real day, a minute, or none */
   S.gradingWait = () => ({ day: SL.GRADING_MS, minute: 60000, instant: 0 }[dev.opt('grading')] ?? SL.GRADING_MS);

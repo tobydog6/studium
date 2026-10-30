@@ -229,6 +229,7 @@ export function install(S) {
 
   /* ---------- landing: the theme, the per-pull rolls, the fx group on the hanger, the aura ---------- */
   function land(r) {
+    if (r.winner && r.winner.obj) { const ho = r.winner.obj; ho.holdCase = true; if (ho.caseFx) ho.caseFx.hold(); }   /* a case extra waits for the chime */
     pools(); const w = r.winner, o = w.obj, tier = (o.slab && o.slab.tier) || 'common', idx = TI[tier] ?? 0, L = LOOK[idx], tn = themeOf(o.slab), th = THEMES[tn];
     [r.flood, r.rim, r.burst, r.ring].forEach(m => { if (m) m.visible = false; });   /* the rail's own glow sprites give way */
     /* the palette: the theme's own (shifted a touch per pull) or the tier's */
@@ -375,6 +376,7 @@ export function install(S) {
   function settle(c) {
     const L = c.L, idx = c.idx, o = c.obj, P = c.P, th = c.th;
     snd('chime', { tier: idx >= 4 ? 'epic' : c.tier }); if (idx >= 4) snd('slam', { k: 0.5 });
+    if (o) setTimeout(() => { if (!o.disposed && o.caseFx) o.caseFx.reveal(); else if (o) o.holdCase = false; }, 450);   /* a case extra (fxcase.js) arrives just after the chime */
     if (o && o.inner) { const hw = (o.w || 2.9) / 2, hh = (o.h || 3.9) / 2, hx = hw * 1.45, hy = hh * 1.35, u = { uHalf: { value: new THREE.Vector2(hx, hy) }, uCard: { value: new THREE.Vector2(hw, hh) }, uTime: { value: 0 }, uAmt: { value: 0 }, uPrism: { value: idx >= 5 || th.burst === 'prism' ? 1 : 0 }, uB: { value: P.b }, uC: { value: P.c } };
       const rim = new THREE.Mesh(new THREE.PlaneGeometry(hx * 2, hy * 2), shader(RIM_F, u)); rim.position.z = -(o.th || 0.03) / 2 - 0.02; rim.renderOrder = 1; rim.userData.noParticles = true; S.bloom.glow(rim); o.inner.add(rim);
       const peak = 0.5 + 0.12 * idx, hold = 0.6 + 0.25 * idx, out = 1.6; let t = 0;
@@ -400,7 +402,8 @@ export function install(S) {
     const r = S.rail && S.rail.__r ? S.rail.__r() : null; if (r && r.blaze && r.phase !== 'done' && r.phase !== 'sink') frameLand(r.blaze, dt);
     for (const f of [...live]) { let keep = false; try { keep = f.update(dt); } catch (e) { console.error(e); } if (!keep) { live.delete(f); try { f.dispose(); } catch (e) {} } } }
   /* the rail closing: the aura and the hanger's group go with it; sparks already flying finish on their own */
-  function close(r) { const c = r && r.blaze; if (!c) return; if (c.aura) { const a = c.aura; if (a.parent) a.parent.remove(a); a.geometry.dispose(); a.material.dispose(); c.aura = null; } if (c.G.parent) c.G.parent.remove(c.G);
+  function close(r) { const ho = r && r.winner && r.winner.obj; if (ho && ho.holdCase) { ho.holdCase = false; if (ho.caseFx) ho.caseFx.reveal({ quiet: true }); }   /* closed before the chime: the extra just shows */
+    const c = r && r.blaze; if (!c) return; if (c.aura) { const a = c.aura; if (a.parent) a.parent.remove(a); a.geometry.dispose(); a.material.dispose(); c.aura = null; } if (c.G.parent) c.G.parent.remove(c.G);
     if (c.coverM) { const m = c.coverM; if (m.parent) m.parent.remove(m); m.geometry.dispose(); m.material.dispose(); c.coverM = null; } r.blaze = null; if (!live.size) S.bloom.want = 0; }
   S.reveals = { style: () => S.dev.opt('reveal') || 'blaze', land, run, frame, close, themeOf, THEMES: Object.keys(THEMES) };
 }

@@ -1,11 +1,11 @@
-// FXVARIANTS: the two variants Sam picked from the Slab Lab that sit over whatever finish a pull has.
+// FXVARIANTS: the variant Sam picked from the Slab Lab that sits over whatever finish a pull has (Liquid-filled, the
+// other one, became a case extra in fxcase.js).
 // Breakout: the photo sits behind a cream mount and the subject (cut out by its depth) climbs out over it, casting a
 // shadow; on a metal finish the subject comes out in that metal (so gold + breakout is the Gold breakout combo).
-// Liquid: the case is half full of oil and gold glitter that sloshes when the slab moves; a case variant, so a raw
-// print shows nothing of it until it is graded. Both return { dispose } to fxmount.js, which owns their lifetime.
+// It returns { dispose } to fxmount.js, which owns its lifetime.
 import * as THREE from 'three';
 import { depthFor } from './depth.js';
-import { photoMaps, blur, sstep, texOf, reliefGeo, setRelief, smoothHeight, cavityOf, normalOf, ALLOYS, GOLD_D, GOLD_L, mix, rngOf, studioEnvs } from './fxkit.js';
+import { photoMaps, blur, sstep, texOf, reliefGeo, setRelief, smoothHeight, cavityOf, normalOf, ALLOYS, GOLD_D, GOLD_L, mix, studioEnvs } from './fxkit.js';
 import { depthKey } from './fxfinishes.js';
 
 const NO_RAY = () => {};
@@ -14,11 +14,9 @@ function metalTone(id, label) { const m = METAL[id]; if (!m) return null; if (m 
 function disposeAll(g, keep) { g.traverse(o => { if (o.geometry) o.geometry.dispose(); [].concat(o.material || []).forEach(m => { for (const k in m) { const v = m[k]; if (v && v.isTexture && !keep.has(v)) v.dispose(); } if (m.uniforms) for (const k in m.uniforms) { const v = m.uniforms[k] && m.uniforms[k].value; if (v && v.isTexture && !keep.has(v)) v.dispose(); } m.dispose(); }); }); }
 
 export function variantFx(obj, S, rec, ctx) {
-  const v = obj.slab.variant; if (v !== 'breakout' && v !== 'liquid') return null;
-  if (v === 'liquid' && !obj.slab.graded) return null;
+  const v = obj.slab.variant; if (v !== 'breakout') return null;   /* Liquid-filled is a case extra now (fxcase.js) */
   const envs = studioEnvs(S.renderer), holder = new THREE.Group(); let gone = false, ownP = null; const keep = new Set([ctx.photoTex, obj.parts.photoTex, envs.studio, envs.bright]);
-  if (v === 'liquid') { holder.add(liquid(obj)); obj.inner.add(holder); }
-  else { holder.position.copy(obj.parts.photo.position); obj.inner.add(holder);
+  { holder.position.copy(obj.parts.photo.position); obj.inner.add(holder);
     const go = P => { if (gone) return; breakout(obj, S, holder, P, ctx, rec); holder.traverse(m => { if (m.isMesh) { m.userData.keepDepth = true; m.raycast = NO_RAY; if (m.userData.order == null) m.userData.order = 5; } }); if (obj.top) obj.setTop(true); };
     const fxP = rec.mesh && rec.mesh.userData.fx && rec.mesh.userData.fx.P;
     if (fxP) go(fxP); else depthFor(depthKey(obj.slab), obj.base).then(d => { if (gone) return; ownP = photoMaps(ctx.photoCanvas, d, ctx.photoTex, ctx.crop); go(ownP); }).catch(e => console.error(e)); }
@@ -46,32 +44,4 @@ function breakout(obj, S, holder, P, ctx, rec) {
   const fg = new THREE.Mesh(fgGeo, mat); setRelief(fgGeo, 0.05 * zk); fg.position.z = 0.075 * zk; fg.userData.order = 7; holder.add(fg);
   const sm = blur(mask, P.W, P.H, 8), shadow = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: texOf(P.W, P.H, false, i => [sm[i], sm[i], sm[i]]), transparent: true, opacity: 0.5, depthWrite: false }));
   shadow.position.set(0.04, -0.05, 0.071 * zk); shadow.userData.order = 6; holder.add(shadow);
-}
-
-/* the case half full of oil: a surface that sloshes with the slab's movement, glitter tumbling, bubbles rising */
-const LIQ_FRAG = `uniform float uLvl; uniform float uAng; uniform float uWob; uniform float uT; uniform vec2 uTilt; uniform float uAsp; varying vec2 vUv;
-  float h1(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
-  void main(){ vec2 A=vec2(uAsp,1.0); vec2 p=(vUv-0.5)*A; float surf=uLvl+p.x*tan(uAng)+sin(p.x*14.0-uT*3.0)*0.006*(0.3+uWob)+sin(p.x*31.0+uT*5.0)*0.004*uWob;
-    float below=smoothstep(0.003,-0.003,p.y-surf);
-    vec2 gq=vUv*A*70.0+vec2(sin(uT*0.3)*2.0,uT*0.4); vec2 gid=floor(gq); float gh=h1(gid); float gl=step(0.982,gh)*pow(0.5+0.5*sin(uT*2.0+gh*50.0+uTilt.x*25.0+uTilt.y*18.0),10.0)*smoothstep(0.4,0.0,length(fract(gq)-0.5))*below;
-    vec2 bq=vec2(vUv.x*uAsp*14.0,vUv.y*6.0-uT*0.35); vec2 bid=floor(bq); vec2 bf=fract(bq)-0.5; float br=0.06+0.08*h1(bid+5.0); float bl=length(bf*vec2(1.0,2.3));
-    float bub=(smoothstep(br,br*0.75,bl)-smoothstep(br*0.75,br*0.4,bl)*0.8)*step(0.55,h1(bid))*below;
-    float men=exp(-pow((p.y-surf)/0.006,2.0));
-    vec3 c=vec3(0.32,0.7,0.66)+vec3(1.0,0.8,0.4)*gl*2.0+vec3(0.8,0.95,1.0)*bub*0.8+vec3(0.9,1.0,1.0)*men*0.8; float a=clamp(below*0.2+gl*0.9+bub*0.5+men*0.55,0.0,0.95);
-    gl_FragColor=vec4(c,a);
-    #include <colorspace_fragment>
-  }`;
-function liquid(obj) {
-  const r = rngOf(((obj.slab.seed >>> 0) ^ 0x1f3d5b79) >>> 0), fill = 0.38 + r() * 0.24, w = obj.w - 0.14, h = obj.h - 0.14;
-  const m = new THREE.ShaderMaterial({ uniforms: { uLvl: { value: -0.5 + fill }, uAng: { value: 0 }, uWob: { value: 0 }, uT: { value: r() * 40 }, uTilt: { value: new THREE.Vector2() }, uAsp: { value: w / h } },
-    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }', fragmentShader: LIQ_FRAG, transparent: true, depthWrite: false });
-  m.toneMapped = false;
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); mesh.position.z = 0.07; mesh.userData.order = 8;
-  /* a small spring: how fast the slab turns pushes the surface over, it swings back and settles */
-  let th = 0, om = 0, last = null, lt = performance.now(); const lastT = new THREE.Vector2();
-  mesh.onBeforeRender = () => { const now = performance.now(), dt = Math.min(0.05, (now - lt) / 1000); lt = now; if (!dt) return; const tl = obj.tilt;
-    if (!last) { last = true; lastT.copy(tl); } const vx = (tl.x - lastT.x) / dt, vy = (tl.y - lastT.y) / dt; lastT.copy(tl);
-    om += (-th * 22 - om * 1.4 + vx * 2.2 - vy * 0.8) * dt; th = Math.max(-0.55, Math.min(0.55, th + om * dt));
-    const u = m.uniforms; u.uT.value += dt; u.uAng.value = th + Math.sin(u.uT.value * 0.7) * 0.015; u.uWob.value = Math.min(2, Math.abs(om) * 0.6); u.uTilt.value.copy(tl); };
-  return mesh;
 }

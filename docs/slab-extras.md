@@ -158,3 +158,13 @@ of it. Any new finish or extra that stands proud of the photo must stay under th
 Outside the game, the hardest to read are Inside the scan (shows the scan, not the photo), Crystal etch, Struck coin,
 Terminal, Kaleidoscope, Tiny planet and Event horizon: fine as rare looks.
 Flashing: Thunderstorm's strike flicker was about 11 a second, now about 2. Keep every new flash under 3 a second.
+
+## Built (30 Oct)
+- Batch 1, the extras system: `slabs.js` EXTRA_SLOTS, EXTRAS, rollExtras (slot chance, mythic x1.25, points cap 4 with
+  the variant counted, clash lists), extrasOf (the old Liquid-filled variant reads as the case extra), lookNames for
+  labels, spec line, collection and market; market value x(1 + 0.25 per point). Dev panel: Test case extra.
+- Batch 2, the case extras (`fxcase.js`): dust, bubble, tinted, pressed flower, cracked, liquid (+ goldfish), snow
+  globe, sand timer, terrarium, amber, growing crystals. Graded only; a raw print hints in its hover glow
+  (holo.js CASE_GLOWS). Back from grading, the extra arrives after the grade count (parcel.js → caseFx.reveal());
+  graded at the pull, it arrives just after the chime (reveals.js settle).
+- Test: `node tests/fx-shots.mjs --extras [--finish etch]`.

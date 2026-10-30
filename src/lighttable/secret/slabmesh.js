@@ -6,10 +6,11 @@ import * as THREE from 'three';
 import { backCanvases } from './print.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { TIER, GRADES, VARIANT, finishOf, pad } from './slabs.js';
+import { TIER, GRADES, VARIANT, finishOf, pad, lookNames } from './slabs.js';
 import { mountFinish, dropFinish, clickFinish, topWalk } from './fxmount.js';
 import { variantFx } from './fxvariants.js';
 import { studioEnvs } from './fxkit.js';
+import { caseFx } from './fxcase.js';
 
 let ENV = null;
 export function envMap(renderer) { if (!ENV) { const p = new THREE.PMREMGenerator(renderer); ENV = p.fromScene(new RoomEnvironment(), 0.04).texture; p.dispose(); } return ENV; }
@@ -107,7 +108,7 @@ function labelCanvas(slab) {
   g.fillStyle = ink; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.font = '700 112px "Geist", system-ui, sans-serif'; g.fillText('STUDIUM', 290, 190);
   g.font = '500 26px "Geist Mono", ui-monospace, monospace'; g.fillStyle = dim; g.fillText('G R A D E D   P H O T O G R A P H', 294, 232);
   g.fillStyle = ink; g.font = '600 34px "Geist", system-ui, sans-serif'; fitFill(g, 470, 16, slab.title || '', 292, 296);
-  g.fillStyle = dim; g.font = '500 24px "Geist Mono", ui-monospace, monospace'; fitFill(g, 470, 12, ['Studium · 2026 · NZ', t.name.toUpperCase(), slab.variant ? (VARIANT[slab.variant] || {}).name : '', serialOf(slab)].filter(Boolean).join(' · '), 294, 336);
+  g.fillStyle = dim; g.font = '500 24px "Geist Mono", ui-monospace, monospace'; fitFill(g, 470, 12, ['Studium · 2026 · NZ', t.name.toUpperCase(), lookNames(slab).join(' · '), serialOf(slab)].filter(Boolean).join(' · '), 294, 336);
   g.fillStyle = dim; g.fillRect(762, 70, 2, 260); g.fillRect(1052, 70, 2, 260);
   const subs = slab.subs || [slab.grade, slab.grade, slab.grade, slab.grade]; g.font = '600 30px "Geist Mono", ui-monospace, monospace';
   SUBS.forEach((k, i) => { const y = 122 + i * 62; g.fillStyle = ink; g.textAlign = 'left'; g.fillText(k, 796, y); g.textAlign = 'right'; g.fillText(slab.pending ? '·' : String(subs[i]), 1022, y); const kw = g.measureText(k).width; g.fillStyle = dim; g.fillRect(796 + kw + 18, y - 8, Math.max(0, 1022 - 60 - (796 + kw + 18)), 2); });
@@ -124,7 +125,7 @@ function labelCanvasVertical(slab) {
   g.fillStyle = dim; g.font = '500 20px "Geist Mono", ui-monospace, monospace'; g.fillText('G R A D E D  P H O T O G R A P H', W / 2, 382);
   g.fillStyle = ink; g.font = '600 27px "Geist", system-ui, sans-serif'; const parts = String(slab.title || '').split(' · '); fitFill(g, 360, 14, parts[0] || '', W / 2, 448); fitFill(g, 360, 14, parts.slice(1).join(' · '), W / 2, 486);
   g.fillStyle = dim; g.font = '500 19px "Geist Mono", ui-monospace, monospace'; fitFill(g, 360, 11, ['2026 · NZ', t.name.toUpperCase(), serialOf(slab)].filter(Boolean).join(' · '), W / 2, 524);
-  if (slab.variant) g.fillText(((VARIANT[slab.variant] || {}).name || '').toUpperCase(), W / 2, 552);
+  if (lookNames(slab).length) fitFill(g, 360, 10, lookNames(slab).join(' · ').toUpperCase(), W / 2, 552);
   g.fillStyle = dim; g.fillRect(50, 566, 300, 2);
   const subs = slab.subs || [slab.grade, slab.grade, slab.grade, slab.grade]; g.font = '600 27px "Geist Mono", ui-monospace, monospace';
   SUBS.forEach((k, i) => { const y = 626 + i * 58; g.fillStyle = ink; g.textAlign = 'left'; g.fillText(k, 56, y); g.textAlign = 'right'; g.fillText(slab.pending ? '·' : String(subs[i]), 344, y); const kw = g.measureText(k).width; g.fillStyle = dim; g.fillRect(56 + kw + 16, y - 7, Math.max(0, 344 - 46 - (56 + kw + 16)), 2); });
@@ -153,11 +154,11 @@ export function makeSlab(slab, S) {
   obj.ready = photoCanvas(slab, S).then(base => { obj.base = base; build(obj, S, env); return obj; });
   obj.setFinish = id => { if (!obj.built) return; applyFinish(obj, S, env, id); };
   obj.refresh = () => { if (obj.built) applyFinish(obj, S, env, obj.finishId); };
-  obj.update = (dt, pointer) => { obj.time += dt; if (pointer) obj.pointer.copy(pointer); if (obj.parts.sticker) { const u = obj.parts.sticker.userData.foil.material.uniforms; u.uTilt.value.copy(obj.tilt); u.uTime.value = obj.time; } if (obj.finish && obj.finish.def.update) try { obj.finish.def.update(obj.finish.mesh, { THREE, dt, time: obj.time, tilt: obj.tilt, pointer: obj.pointer, slab, obj }); } catch (e) { console.error(e); } };
+  obj.update = (dt, pointer) => { obj.time += dt; if (obj.caseFx) obj.caseFx.update(dt); if (pointer) obj.pointer.copy(pointer); if (obj.parts.sticker) { const u = obj.parts.sticker.userData.foil.material.uniforms; u.uTilt.value.copy(obj.tilt); u.uTime.value = obj.time; } if (obj.finish && obj.finish.def.update) try { obj.finish.def.update(obj.finish.mesh, { THREE, dt, time: obj.time, tilt: obj.tilt, pointer: obj.pointer, slab, obj }); } catch (e) { console.error(e); } };
   /* while inspected the slab draws over everything, like an inspected print */
   obj.setTop = on => { obj.top = on; topWalk(group, on); };
   obj.click = uv => clickFinish(obj, uv);
-  obj.dispose = () => { obj.disposed = true; dropFinish(obj); group.traverse(m => { if (m.isMesh) { m.geometry.dispose(); [].concat(m.material).forEach(mt => { if (mt.map && mt.map !== obj.parts.photoTex) mt.map.dispose(); mt.dispose(); }); } }); if (obj.parts.photoTex) obj.parts.photoTex.dispose(); if (group.parent) group.parent.remove(group); };
+  obj.dispose = () => { obj.disposed = true; dropFinish(obj); if (obj.caseFx) { obj.caseFx.dispose(); obj.caseFx = null; } group.traverse(m => { if (m.isMesh) { m.geometry.dispose(); [].concat(m.material).forEach(mt => { if (mt.map && mt.map !== obj.parts.photoTex) mt.map.dispose(); mt.dispose(); }); } }); if (obj.parts.photoTex) obj.parts.photoTex.dispose(); if (group.parent) group.parent.remove(group); };
   return obj;
 }
 function build(obj, S, env) {
@@ -204,6 +205,8 @@ function build(obj, S, env) {
   const acr = new THREE.Mesh(caseGeo, new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.06, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, ior: 1.49, envMap: caseEnv, envMapIntensity: clear ? 1.0 : 0.62, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   acr.userData.order = 6; acr.userData.noParticles = true; inner.add(acr); obj.parts.acrylic = acr;
   const edge = new THREE.Mesh(caseGeo, new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.06, metalness: 0, ior: 1.49, envMap: caseEnv, envMapIntensity: 0.35, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide })); edge.userData.order = 5; edge.userData.noParticles = true; inner.add(edge);
+  /* a case extra (dust, snow, sand, amber...) lives in the acrylic over everything else */
+  try { obj.caseFx = caseFx(obj, S); } catch (e) { console.error('case extra', e); obj.caseFx = null; }
   obj.built = true; applyFinish(obj, S, env, finishOf(slab, S.testFinish ? S.testFinish() : null));
 }
 function applyFinish(obj, S, env, id) {

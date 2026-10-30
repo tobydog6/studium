@@ -6,6 +6,7 @@
 //   node tests/fx-shots.mjs gold --tools             also the loupe, UV torch and composition on the inspected slab
 //   node tests/fx-shots.mjs gold --bin               also Bin it on the slab and the print (shatter, sand)
 //   --ai <ort dir> <model.onnx>                      AI depth from local copies of onnxruntime-web and the model
+//   node tests/fx-shots.mjs dust,globe --extras [--finish etch]   case extras (fxcase.js) instead of finishes
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
 import { createReadStream, existsSync, mkdirSync, statSync } from 'node:fs';
@@ -17,7 +18,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..'), WEB = join(
 mkdirSync(OUT, { recursive: true });
 const argv = process.argv.slice(2), flag = k => argv.includes(k), val = k => { const i = argv.indexOf(k); return i > -1 ? argv[i + 1] : null; };
 const ALL = 'gold,gilt,dag,bronze,porcelain,kintsugi,litho,crystal,focus,fireflies,depthscan,window,anaglyph,sun,rain,snow,mist,sunken,lava,aurora,seasons,puddles,storm,fireworks,lightpaint,holoplate,chrome,planet,droste,blackhole,polaroid,tray,burn,kaleido,riso,terminal,aero,coin,pyro,jade,vertigo,tiltshift,camcorder,lensball,scan3d';
-const LIST = (argv[0] && !argv[0].startsWith('--') ? argv[0] : ALL).split(','), VARIANT = val('--variant'), AI = flag('--ai') ? [val('--ai'), argv[argv.indexOf('--ai') + 2]] : null;
+const EXTRAS = flag('--extras'), FIN = val('--finish') || 'matte';
+const LIST = (argv[0] && !argv[0].startsWith('--') ? argv[0] : EXTRAS ? 'dust,bubble,tinted,flower,cracked,liquid,fish,globe,sand,terrarium,amber,crystals' : ALL).split(','), VARIANT = val('--variant'), AI = flag('--ai') ? [val('--ai'), argv[argv.indexOf('--ai') + 2]] : null;
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp' };
 const server = createServer((q, r) => { const u = decodeURIComponent(q.url.split('?')[0]);
   if (u.startsWith('/fxphotos/')) { const f = join(ROOT, 'assets', u.slice(10)); if (!existsSync(f)) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'content-type': 'image/jpeg' }); createReadStream(f).pipe(r); return; }
@@ -55,21 +57,25 @@ try {
   if (!(await fr.evaluate(() => __lt.secret.S.unlocked()))) { console.log('  state:', await fr.evaluate(() => { const s = __lt.secret; return s ? JSON.stringify({ st: s.S && s.S.M.state, box: !!document.querySelector('#sk.on') }) : 'no secret'; })); console.error(errors.join('\n')); throw new Error('did not unlock'); }
   await fr.evaluate(ai => { const S = __lt.secret.S; S.dev.set('depth', ai ? 'ai' : 'quick'); S.T.setTimeScale(1); }, !!AI);
   /* the slabs live on the dark side: flip the table over */
-  await fr.evaluate(() => __lt.secret.S.under.flip('under')); await fr.waitForFunction(() => __lt.secret.S.M.is('under'), null, { timeout: 60000, polling: 300 }); await page.waitForTimeout(800);
+  /* the flip only starts from the idle table: keep asking until it does */
+  await fr.waitForFunction(() => { const S = __lt.secret.S; if (!S.M.is('under') && !S.M.is('flipping')) S.under.flip('under'); return S.M.is('under'); }, null, { timeout: 120000, polling: 500 })
+    .catch(async e => { console.log('  state:', await fr.evaluate(() => __lt.secret.S.M.state)); throw e; }); await page.waitForTimeout(800);
   for (const id of LIST) {
     const t0 = Date.now();
-    const ok = await fr.evaluate(({ id, v }) => { const S = __lt.secret.S; S.table.list.slice().forEach(o => S.table.remove(o)); S.dev.set('finish', id);
+    const ok = await fr.evaluate(({ id: id0, v, ex, fin }) => { const S = __lt.secret.S, id = ex ? fin : id0, extras = ex ? { case: id0 === 'fish' ? 'liquid' : id0, fish: id0 === 'fish' } : undefined; S.table.list.slice().forEach(o => S.table.remove(o)); S.dev.set('finish', id);
       const tier = (S.fx.META[id] || {}).tier || 'rare';
       const n = S.table.list.length; window.__fxN = (window.__fxN || 0) + 1; const pk = { pack: 'fxtest' };
-      [true, false].forEach((g, i) => { const slab = S.SL.roll({ tier, finish: id, variant: v || null, graded: g, ...pk }); S.store.addPull(slab); S.table.place(slab, i ? 2.4 : -2.2, 8.6, 0); });
-      S.cam.set({ tx: 0, tz: 8.6, dT: 9.5 }); return S.table.list.length; }, { id, v: VARIANT });
+      [true, false].forEach((g, i) => { const slab = S.SL.roll({ tier, finish: id, variant: v || null, graded: g, extras, ...pk }); S.store.addPull(slab); S.table.place(slab, i ? 2.4 : -2.2, 8.6, 0); });
+      S.cam.set({ tx: 0, tz: 8.6, dT: 9.5 }); return S.table.list.length; }, { id, v: VARIANT, ex: EXTRAS, fin: FIN });
     /* wait for both finishes to land (depth, then the build queue) */
     await fr.waitForFunction(() => __lt.secret.S.table.list.every(o => o.built && o.finish && (o.finish.mesh || !__lt.secret.S.fx.isFx(o.finishId))), null, { timeout: 120000, polling: 300 }).catch(() => console.log('  ' + id + ': finish did not land in time'));
     await page.waitForTimeout(id === 'scan3d' ? 45000 : 1500); await shot(id + '-table');
+    if (EXTRAS) { /* close on the graded slab */
+      await fr.evaluate(() => { const S = __lt.secret.S, o = S.table.list.find(o => o.slab.graded); S.cam.set({ tx: o.group.position.x, tz: o.group.position.z, dT: 3.4 }); }); await page.waitForTimeout(2500); await shot(id + '-close'); }
     await fr.evaluate(() => { const S = __lt.secret.S, o = S.table.list.find(o => o.slab.graded) || S.table.list[0]; S.inspect.open(o, { actions: [{ id: 'back', label: 'Put back', primary: true }], hint: S.specLine(o.slab) }); });
     await fr.waitForFunction(() => __lt.secret.S.inspect.t > 0.97, null, { timeout: 60000, polling: 200 }).catch(() => {}); await page.mouse.move(430, 250); await page.waitForTimeout(1600); await shot(id + '-inspect');
     if (flag('--tools')) for (const t of ['loupe', 'uv', 'compose']) { await page.click('#skTools [data-tool="' + t + '"]').catch(() => {}); await page.mouse.move(560, 320); await page.waitForTimeout(1800); await shot(id + '-tool-' + t); }
-    const spec = await fr.evaluate(() => __lt.secret.S.specLine(__lt.secret.S.inspect.obj.slab));
+    const spec = await fr.evaluate(() => __lt.secret.S.specLine(__lt.secret.S.inspect.obj.slab)) + (EXTRAS ? '  [case: ' + await fr.evaluate(() => { const o = __lt.secret.S.table.list.find(o => o.slab.graded); return o && o.caseFx ? o.caseFx.id + (o.caseFx.group.visible ? '' : ' hidden') + ' ' + o.caseFx.group.children.length : 'none'; }) + ']' : '');
     await page.keyboard.press('Escape'); await page.waitForTimeout(1200);
     if (flag('--bin')) { await fr.evaluate(() => { const S = __lt.secret.S; S.table.list.slice().forEach(o => S.binSlab(o)); }); await page.waitForTimeout(700); await shot(id + '-bin'); await page.waitForTimeout(2500); }
     console.log('  ' + id + ': ' + spec + '  (' + Math.round((Date.now() - t0) / 1000) + ' s)');

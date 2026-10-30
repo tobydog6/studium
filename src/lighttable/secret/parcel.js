@@ -169,7 +169,7 @@ export function install(S) {
       rush = false; bx.opening = true; setHot(null); bx.body.position.y = 0; bx.card.emissiveIntensity = 0; ctx.hideActs(); ctx.canvas.style.cursor = 'default';
       const slab = bx.slab, g = bx.group, x = g.position.x, z = g.position.z, yaw = bx.yaw, PITCH = 52;
       /* the grade is committed the moment the box is opened; the slab builds (photo and label) while the tape is cut */
-      SL.receiveGraded(slab); slab.pending = true; const obj = S.objFor(slab); obj.group.visible = false; ctx.scene.add(obj.group);
+      SL.receiveGraded(slab); slab.pending = true; const obj = S.objFor(slab); obj.holdCase = true; if (obj.caseFx) obj.caseFx.hold(); obj.group.visible = false; ctx.scene.add(obj.group);
       const K = S.TABLE_K || DEF_K, yLand = (obj.th || S.SM.SLAB.th) / 2 + 0.004, landQ = flatQ().premultiply(yawQ(yaw));
       phase = 'cam'; S.cam.push(); S.cam.set({ pitch: PITCH }); S.cam.set({ tx: x, ty: 0.35, tz: z + 0.2, dT: S.cam.fit(6.2, 5.0) }); S.sfx('ltInspect');
       await T.wait(dur(0.6), TAG);
@@ -217,7 +217,9 @@ export function install(S) {
           await T.wait(dur(0.45), TAG); snd('pop'); await T.tween({ dur: dur(0.3), ease: E.outCubic, tag: TAG, update: e => ov.draw(n, 1, true, 1 + 0.35 * (1 - e)) }); }
         else await T.tween({ dur: STEP, ease: E.linear, tag: TAG, update: (e, u) => ov.draw(i, 1 + 0.3 * Math.max(0, 1 - u * STEP / 0.18), false, 1) });
       }
-      delete slab.pending; if (S.SM.relabel) S.SM.relabel(obj); ov.draw(n, 1, true, 1); S.toast(gradeLine(slab));
+      delete slab.pending; if (S.SM.relabel) S.SM.relabel(obj); ov.draw(n, 1, true, 1); const xn = SL.extraNames(slab).filter(nm => obj.caseFx && nm.indexOf(SL.EXTRA[obj.caseFx.id].name) === 0);
+      S.toast(gradeLine(slab).trim() + (xn.length ? ' Inside the case: ' + xn[0] + '.' : ''));
+      if (obj.caseFx) { await T.wait(dur(0.6), TAG); obj.caseFx.reveal({ toast: false }); await T.wait(dur(1.4), TAG); } else obj.holdCase = false;   /* the case extra arrives after the grade */
       await T.wait(dur(0.5), TAG); ov.remove();
       /* a normal table slab from here: inspect, vault, the lot */
       phase = 'done'; S.table.adopt(obj, x, z, yaw); S.hud(); if (!S.unlocked()) S.table.remove(obj, true); else if (S.fileAway) S.fileAway(obj).catch(e => console.error(e));   /* back from grading: into the case */

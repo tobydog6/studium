@@ -21,6 +21,13 @@ New ideas from Sam:
 Not picked (leave out unless Sam asks): Pop-out frame, Cut-out window, Double exposure, Misprint, Off-centre,
 Fingerprint, Day and night, Rare shimmer, Sleeper, Twin.
 
+Second round of picks (30 Oct):
+- Seals: Gold, Green, Blue, Purple (not Red, Silver, Black).
+- Tally: all of them (times inspected, days owned, Blades wins, photos shot since pulling, times traded).
+- Jump scare: pressed against the acrylic (1), moth or crow bursts out (2), foggy handprints inside the case (4).
+- Label variations: yes (black label 10, handwritten, error label).
+- Trade history on the back: yes, if it's etched nicely.
+
 ## Structure (draft for Sam)
 A pull = one finish + up to a few extras, each from a different slot. Slots roll on their own, then a cap trims.
 

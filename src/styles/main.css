@@ -3343,3 +3343,10 @@ body.la-warm #viewfinder,body.la-warm #crosshair{visibility:hidden!important}   
 #stAdvance .adv-frame{flex:1;display:flex;align-items:center;justify-content:space-between;padding:0 6vw;background:linear-gradient(90deg,#120f0c,#1a150f 50%,#120f0c)}
 #stAdvance .adv-frame span{font:500 12px var(--mono);letter-spacing:.2em;color:rgba(227,173,87,.55)}
 #stAdvance .adv-to{color:var(--accent)!important}
+/* watch: the DVD shelf. A card on the research page; the shelf itself is a 3D page in an iframe (src/dvd/) under the bar */
+.rs-whero{margin-top:18px!important}
+.rs-wshot{display:block;padding:0;border:0;border-radius:12px;background:none;overflow:hidden;cursor:pointer}
+.rs-wshot img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;transition:transform .6s cubic-bezier(.2,.7,.2,1),opacity .3s}
+.rs-wshot:hover img{transform:scale(1.03)}
+.rs-dvdhost{top:140px;border-radius:14px;overflow:hidden;background:#0b0908}
+.rs-dvdhost .lt-frame{display:block;width:100%;height:100%;border:0}

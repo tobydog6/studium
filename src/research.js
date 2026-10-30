@@ -126,6 +126,43 @@
         items.push({t:"text", role:"caption", x:15, y:274, w:390, h:14, text:"Photographs: "+packs.join(", ")});
         wsEnsure(); wsB.applyTemplate({id:"moodboard", name:"Moodboard", build:function(){ return {bg:"white", items:items}; }}); rs.moods=(rs.moods||0)+1; rs.mood=[]; stRoom("workshop"); }); }
 
+  // ---- watch: Sam's DVD shelf, photographers talking about their work ----
+  // Each entry is [YouTube id, title, start in seconds].
+  var RS_VIDS=[
+    {a:"Gregory Halpern", v:[["UoHzS5CzHiY","Quick-fire questions with Martin Parr · Magnum Photos"],["NopALbRxZ6Y","Artist talk"],["3kwcealoHgY","Fellowship lecture"],
+      ["M7_giEBdiHg","On sequence, with Stanley Wolukau-Wanambwa"],["mauzW11xjL0","A tour of my bookshelf"],["FFY0aH3EATo","What we choose not to see"]]},
+    {a:"Alec Soth", v:[["7TRO_k7rreg","A tour of my bookshelf"],["-Z_mdZ8uJX8","With C. Fausto Cabrera: the power of human connection"],["fUyzwFJe2-s","Sofa Sessions: conversations with Martin Parr"],
+      ["DVQ1u25C48c","Photography, dreams and chance · Aperture Conversations"],["w9aSFMVpi-w","10 favourite photobooks from 2022"],["b2T6ANvKpoo","Somewhere to Disappear (2010)"]]},
+    {a:"Paul Graham", v:[["H7H5LP_u81Y","“Photography lacks intentionality” · Louisiana Channel"],["dAVq7VoIb0U","On time, with Rebecca Bengal",1201],["O-lUMc5-S8g","A Shimmer of Possibility · Off the Shelf"]]},
+    {a:"Wolfgang Tillmans", v:[["aYIXGdoTwWA","What art does in me is beyond words · TateShots"],["f9RrmzUXnhA","Interview"],["29tzEZersvk","Are all photographs equal?"]]},
+    {a:"Sally Mann", v:[["T-fbu6b9LOE","Her intricate photographic techniques · Art21"]]},
+    {a:"Alessandra Sanguinetti", v:[["bp7a4qEISPY","The Adventures of Guille and Belinda, the exhibition"]]},
+    {a:"Stephen Gill", v:[["_LILn3WAJTs","“I want to lose control” · Louisiana Channel"]]},
+    {a:"Ideas", v:[["ON9pkhJaSPI","Real time vs. storytime"],["76I1Btwi5XY","Camera Lucida: Roland Barthes explained"],["zBxbnMcjGiM","I photograph to remember"]]}];
+  function rsVidCount(){ var n=0; RS_VIDS.forEach(function(g){ n+=g.v.length; }); return n; }
+  /* the shelf itself is its own three.js page (src/dvd/), opened in an iframe like the light table; it sits over the room
+     below the bar, so re-rendering the room never reloads it */
+  var DVD_B64="@@dvd-b64@@", dvdFrame=null, dvdHost=null;
+  window.DVD_BRIDGE={
+    data:function(){ var vids=[]; RS_VIDS.forEach(function(g){ g.v.forEach(function(x){ vids.push({id:x[0], a:g.a, t:x[1], s:x[2]||0}); }); });
+      return {vids:vids, canEmbed:/^https?:$/.test(location.protocol), styles:/[?&]dev/.test(location.search)}; },   /* ?dev shows the look switcher */   /* YouTube only plays embeds on a page with a web address (error 153 from a file) */
+    sfx:function(id){ return sfx(id); },
+    key:function(k){ if(k==="q"||k==="Q") stCycle(-1); else if(k==="e"||k==="E") stCycle(1); else if(k==="Escape"){ rsVidStop(); rs.view="shelf"; rs.pack=null; rsRender(); } }
+  };
+  function rsWatchCard(){ return '<section class="rs-hero rs-whero"><div class="rs-hero-t"><span class="eb">WATCH</span><h2>The DVD shelf</h2><p>'+rsVidCount()+' talks and short films picked by your teacher: Gregory Halpern, Alec Soth, Paul Graham, Wolfgang Tillmans and more. Take one off the shelf and put it on.</p><button class="rs-go2" data-rs-act="watch">Browse the shelf ›</button></div>'
+      +'<button class="rs-wshot" data-rs-act="watch" aria-label="Open the DVD shelf"><img src="asset:assets/research/dvd-shelf.jpg" alt="" draggable="false"></button></section>'; }
+  function rsWatchHTML(top){ return top+'<span class="rs-count">WATCH · '+rsVidCount()+' DVDS</span></div>'; }
+  function rsDvdShow(on){ var room=$("st-research");
+    if(on&&!dvdHost&&room){ dvdHost=document.createElement("div"); dvdHost.className="st-room rs-dvdhost"; room.parentNode.insertBefore(dvdHost, room.nextSibling); }
+    if(!dvdHost) return; dvdHost.classList.toggle("hidden", !on);
+    if(on&&!dvdFrame){ var html; try{ html=decodeURIComponent(escape(atob(DVD_B64))); }catch(e){ dvdHost.innerHTML='<p class="lt-err">The DVD shelf didn’t load. Try reloading Studium.</p>'; return; }
+      html=html.replace("</head>","<style>"+(typeof ltFonts==="function"?ltFonts():"")+"</style></head>");
+      dvdFrame=document.createElement("iframe"); dvdFrame.className="lt-frame"; dvdFrame.title="DVD shelf"; dvdFrame.setAttribute("allow","autoplay; encrypted-media; picture-in-picture; fullscreen"); dvdFrame.setAttribute("allowfullscreen","");
+      dvdFrame.srcdoc=html; dvdHost.appendChild(dvdFrame); dvdFrame.addEventListener("load", function(){ try{ dvdFrame.contentWindow.focus(); }catch(e){} }); }
+    else if(on&&dvdFrame){ try{ dvdFrame.contentWindow.DVDapp.pause(false); dvdFrame.contentWindow.focus(); }catch(e){} } }
+  /* leaving the shelf, the room or the studio: stop the video and rest the 3D */
+  function rsVidStop(){ if(dvdFrame&&document.activeElement===dvdFrame){ try{ dvdFrame.blur(); window.focus(); }catch(e){} }   /* keys come back to Studium */
+    if(dvdHost) dvdHost.classList.add("hidden"); try{ if(dvdFrame&&dvdFrame.contentWindow.DVDapp){ dvdFrame.contentWindow.DVDapp.stop(); dvdFrame.contentWindow.DVDapp.pause(true); } }catch(e){} }
   // ---- drawing ----
   function rsEsc(s){ return cbEsc(String(s==null?"":s)); }
   function rsDot(t){ return t?'<i class="rs-dot" style="left:'+(t.x*100).toFixed(2)+'%;top:'+(t.y*100).toFixed(2)+'%"></i>':''; }
@@ -143,7 +180,7 @@
       return '<div class="rs-pack" data-rs-pack="'+rsEsc(p.id)+'"><div class="rs-cover">'+p.imgs.slice(0,3).map(function(im){ return '<img src="'+rsEsc(im.url)+'" alt="" loading="lazy" draggable="false">'; }).join("")+'</div>'
         +'<div class="rs-meta"><b>'+rsEsc(p.name)+'</b><span>'+p.imgs.length+' photographs'+(ln.length?' · '+ln.map(function(l){ return '<a href="'+rsEsc(l.url)+'" target="_blank" rel="noopener">'+rsEsc(l.label)+'</a>'; }).join(' · '):'')+'</span></div>'
         +'<div class="rs-acts"><button class="'+(d2?'rs-go2':'rs-go')+'" data-rs-act="cull" data-rs-id="'+rsEsc(p.id)+'">'+(d2?'✓ PLAY AGAIN':'CULLING GAME')+'</button>'+(d2?'<button class="rs-go" data-rs-act="all" data-rs-id="'+rsEsc(p.id)+'">See all the photos ›</button>':'')+'</div></div>'; }).join("")+'</div>'
-      +(rs.offline?'<p class="rs-off">Couldn\'t reach your class packs right now, so here\'s what this computer has saved, and a sample pack.</p>':'')+'</div><div class="rs-sr">'+rsWall()+'</div></div>'; }
+      +(rs.offline?'<p class="rs-off">Couldn\'t reach your class packs right now, so here\'s what this computer has saved, and a sample pack.</p>':'')+'</div><div class="rs-sr">'+rsWall()+rsWatchCard()+'</div></div>'; }
   function rsRound(top){ var r=rs.round, im=r.imgs[r.k], tp=r.tap[im.id], n=r.notes[im.id]||{}, h=top+'<span class="rs-count">'+(r.k+1)+' / '+r.imgs.length+'</span></div><div class="rs-play"><div class="rs-stage'+(r.step==="tap"&&!tp?' tapping':'')+'"><div class="rs-imgw"><img class="rs-img" src="'+rsEsc(im.url)+'" alt="" draggable="false">'+rsDot(tp)+'</div></div><aside class="rs-side">';
     if(r.step==="ask") h+='<span class="eb">PUNCTUM</span><h3>Does anything in this photograph prick you?</h3><p class="rs-q">Barthes called it the punctum, a small detail that catches your eye and stays with you.</p>'
       +'<div class="rs-yn"><button class="rs-go" data-rs-act="yes">Yes, something</button><button class="rs-go2" data-rs-act="no">Not this one</button></div>';
@@ -217,9 +254,11 @@
     var fa=document.activeElement, fk=fa&&box.contains(fa)&&fa.getAttribute&&(fa.getAttribute("data-rs-why")||(fa.hasAttribute("data-rs-amwhy")?"*am":null)), fs=fk?fa.selectionStart:0;
     if(rs.view==="mood"&&!rs.pack) rs.pack={name:"Every pack", imgs:[]};
     if(rs.view==="all"&&!rs.pack) rs.pack={name:"All artists", imgs:[], id:"*"};
+    if(rs.view==="watch"&&!rs.pack) rs.pack={name:"The DVD shelf", imgs:[]};
     if(rs.view==="shelf"||!rs.pack){ if(!rs.packs&&!rs.loading) return rsLoad(); box.innerHTML=rsShelf(); return; }
     var top='<div class="rs-bar"><button class="rs-back" data-rs-act="shelf">‹ All packs</button><span class="rs-pn">'+rsEsc(rs.view==="all"?"The archive":rs.pack.name)+'</span>';
-    box.innerHTML=rs.view==="round"?rsRound(top):rs.view==="cull"?rsCullHTML(top):rs.view==="mood"?rsMoodHTML(top):rs.view==="all"?rsAllHTML(top):rsResults(top);
+    box.innerHTML=rs.view==="round"?rsRound(top):rs.view==="cull"?rsCullHTML(top):rs.view==="mood"?rsMoodHTML(top):rs.view==="all"?rsAllHTML(top):rs.view==="watch"?rsWatchHTML(top):rsResults(top);
+    rsDvdShow(rs.view==="watch");
     if(rs.view==="round") rsWireNotes(box);
     if(fk){ var re=box.querySelector(fk==="*am"?'[data-rs-amwhy]':'[data-rs-why="'+fk+'"]'); if(re){ re.focus(); try{ re.setSelectionRange(fs,fs); }catch(e){} } } }
   function rsWireNotes(box){ Array.prototype.forEach.call(box.querySelectorAll("[data-rs-note]"),function(t){ t.addEventListener("input",function(){ var r=rs.round, im=r.imgs[r.k]; (r.notes[im.id]||(r.notes[im.id]={}))[t.getAttribute("data-rs-note")]=t.value; }); t.addEventListener("keydown",function(e){ e.stopPropagation(); }); }); }
@@ -241,7 +280,8 @@
       if(rs.view==="round"&&r&&r.step==="tap"&&!r.tap[r.imgs[r.k].id]){ var w=e.target.closest(".rs-imgw"); if(w){ var b=w.getBoundingClientRect(); r.tap[r.imgs[r.k].id]={x:Math.max(0,Math.min(1,(e.clientX-b.left)/b.width)), y:Math.max(0,Math.min(1,(e.clientY-b.top)/b.height))}; rs.taps=(rs.taps||0)+1; rsRender(); var t0=box.querySelector("[data-rs-note]"); if(t0) t0.focus(); return; } }
       var lb=e.target.closest("[data-rs-lib]"); if(lb){ rs.lib=lb.getAttribute("data-rs-lib"); var m=box.querySelector(".rs-libm"); if(m) m.scrollTop=0; return rsRender(); }
       var t=e.target.closest("[data-rs-act]"); if(!t) return; var a=t.getAttribute("data-rs-act"), id=t.getAttribute("data-rs-id");
-      if(a==="shelf"){ rs.view="shelf"; rs.pack=null; return rsRender(); }
+      if(a==="shelf"){ rsVidStop(); rs.view="shelf"; rs.pack=null; return rsRender(); }
+      if(a==="watch"){ rsVidStop(); rs.view="watch"; rs.pack=null; box.scrollTop=0; return rsRender(); }
       if(a==="mood"){ rs.view="mood"; rs.pack=null; rs.moodOrder=null; box.scrollTop=0; return rsRender(); }
       if(a==="all"){ var pk=rsPack(id)||rs.pack; rs.pack=pk||rs.pack||null; rs.lib="*"; rs.q=""; rs.view="all"; box.scrollTop=0; return rsRender(); }
       if(a==="ampick") return rsAmToggle(t.getAttribute("data-rs-img")); if(a==="amclear"){ rs.am=[]; return rsRender(); } if(a==="amake") return rsAmMake(); if(a==="mpick") return rsMoodToggle(t.getAttribute("data-rs-url"));

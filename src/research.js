@@ -147,10 +147,13 @@
     data:function(){ var vids=[]; RS_VIDS.forEach(function(g){ g.v.forEach(function(x){ vids.push({id:x[0], a:g.a, t:x[1], s:x[2]||0}); }); });
       return {vids:vids, canEmbed:/^https?:$/.test(location.protocol), styles:/[?&]dev/.test(location.search)}; },   /* ?dev shows the look switcher */   /* YouTube only plays embeds on a page with a web address (error 153 from a file) */
     sfx:function(id){ return sfx(id); },
+    shot:function(url){ try{ localStorage.setItem("studium_dvd_shot", url); }catch(e){} var im=document.querySelector(".rs-wshot img"); if(im) im.src=url; },   /* the shelf with its real covers, for the card */
     key:function(k){ if(k==="q"||k==="Q") stCycle(-1); else if(k==="e"||k==="E") stCycle(1); else if(k==="Escape"){ rsVidStop(); rs.view="shelf"; rs.pack=null; rsRender(); } }
   };
+  /* the card's picture: the shelf as this computer last saw it with its real covers, or a stand-in until then */
+  function rsDvdShot(){ var u=null; try{ u=localStorage.getItem("studium_dvd_shot"); }catch(e){} return /^data:image\/jpeg/.test(u||"")?u:"asset:assets/research/dvd-shelf.jpg"; }
   function rsWatchCard(){ return '<section class="rs-hero rs-whero"><div class="rs-hero-t"><span class="eb">WATCH</span><h2>The DVD shelf</h2><p>'+rsVidCount()+' talks and short films picked by your teacher: Gregory Halpern, Alec Soth, Paul Graham, Wolfgang Tillmans and more. Take one off the shelf and put it on.</p><button class="rs-go2" data-rs-act="watch">Browse the shelf ›</button></div>'
-      +'<button class="rs-wshot" data-rs-act="watch" aria-label="Open the DVD shelf"><img src="asset:assets/research/dvd-shelf.jpg" alt="" draggable="false"></button></section>'; }
+      +'<button class="rs-wshot" data-rs-act="watch" aria-label="Open the DVD shelf"><img src="'+rsEsc(rsDvdShot())+'" alt="" draggable="false"></button></section>'; }
   function rsWatchHTML(top){ return top+'<span class="rs-count">WATCH · '+rsVidCount()+' DVDS</span></div>'; }
   function rsDvdShow(on){ var room=$("st-research");
     if(on&&!dvdHost&&room){ dvdHost=document.createElement("div"); dvdHost.className="st-room rs-dvdhost"; room.parentNode.insertBefore(dvdHost, room.nextSibling); }

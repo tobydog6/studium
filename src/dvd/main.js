@@ -264,9 +264,20 @@ rows.forEach((r, k) => { let x = -r.w / 2; const y = rowY(k);
 labels.forEach((l) => { const c = document.createElement('canvas'); c.width = 512; c.height = 64; l.c = c; l.t = ctex(c);
   const p = new THREE.Mesh(new THREE.PlaneGeometry(1.25, .16), new THREE.MeshStandardMaterial({ map: l.t, roughness: .4, metalness: .2 })); p.position.set(l.x + .62, l.y - ST / 2, -.4 + SD / 2 + .002); scene.add(p); });
 /* thumbnails arrive later: redraw the cover and the disc when each one lands */
+let thumbs = 0, thumbsOk = 0;
 cases.forEach((cs) => { const im = new Image(); im.crossOrigin = 'anonymous';
-  im.onload = () => { cs.im = im; redraw(cs); };
+  im.onload = () => { cs.im = im; redraw(cs); thumbs++; thumbsOk++; };
+  im.onerror = () => { thumbs++; };
   im.src = thumbUrl(cs.v.id); });
+/* once the real covers are in, a 16:9 picture of the wall as it first opens goes to Studium for the Research page's card
+   (only if nearly all of them loaded: offline, the card keeps the picture it has) */
+let shotDone = !(BR && BR.shot), shotWait = 0;
+function maybeShot(dt) { if (shotDone || thumbs < cases.length) return;
+  if (thumbsOk < cases.length * .8) { shotDone = true; return; }
+  if (modal || busy || hot != null || drag || tweens.length || Math.abs(view.z - view.tz) > .01 || Math.abs(view.x - view.tx) > .01) { shotWait = 0; return; }
+  if ((shotWait += dt) < .6) return; shotDone = true;
+  try { const W = canvas.width, H = canvas.height, ch = Math.min(H, W * 9 / 16), cw = ch * 16 / 9, o = document.createElement('canvas'); o.width = 960; o.height = 540;
+    o.getContext('2d').drawImage(canvas, (W - cw) / 2, (H - ch) / 2, cw, ch, 0, 0, 960, 540); BR.shot(o.toDataURL('image/jpeg', .82)); } catch (e) {} }
 function redraw(cs) { try { drawCover(cs.coverC, cs.v, cs.i, cs.im); cs.coverT.needsUpdate = true; drawDisc(cs.discC, cs.v, cs.im); cs.discT.needsUpdate = true; }
   catch (e) { cs.im = null; drawCover(cs.coverC, cs.v, cs.i, null); cs.coverT.needsUpdate = true; }
   drawSpine(cs.spC, cs.v, cs.i); cs.spT.needsUpdate = true; }
@@ -480,7 +491,7 @@ function frame() { raf = 0; if (paused) return; const real = Math.min(.5, clock.
     modal.cs.grp.quaternion.slerp(tq, k); modal.cs.grp.position.lerp(c.sub(mid.applyQuaternion(modal.cs.grp.quaternion)), k); }
   if (modal && modal.st === 'play') { const d = modal.cs.disc; if (d.parent === pTray) d.rotateZ(dt * 8); }
   if (view.tz < zOver - .3) nearestGroup();
-  composer.render(); raf = requestAnimationFrame(frame); }
+  composer.render(); maybeShot(dt); raf = requestAnimationFrame(frame); }
 function nearestGroup() { let best = 0, bd = 1e9; labels.forEach((l, k) => { const d = Math.hypot(l.x + l.w / 2 - view.x, l.y + H / 2 - view.y); if (d < bd) { bd = d; best = k; } }); navOn = best; return best; }
 frame();
 

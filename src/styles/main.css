@@ -1253,6 +1253,7 @@ body.st-legacy #galleryshow{top:64px;z-index:56}
 /* ===================== SIGN-IN ===================== */
 #signin.si{position:fixed;inset:0;z-index:70;display:block;place-items:normal;padding:0;color:var(--text);font-family:var(--sans);background:radial-gradient(ellipse 60% 55% at 50% 42%,#1c1811 0%,#0d0c0a 70%)}
 #signin.hidden{display:none}
+#signin.busy .si-g,#signin.busy .si-m,#signin.busy .si-or,#signin.busy .si-code,#signin.busy .si-name,#signin.busy .si-help,#signin.busy .si-demo,#signin.busy .si-foot{display:none}
 .si-top{position:absolute;left:64px;right:64px;top:34px;display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:var(--ink-5)}
 .si-mid{position:absolute;left:50%;top:18vh;transform:translateX(-50%);width:min(440px,90vw);display:flex;flex-direction:column;align-items:center}
 .si-mid h1{margin:0;font-family:var(--serif);font-weight:300;font-size:64px;letter-spacing:-.03em}
@@ -2882,6 +2883,8 @@ body.co-lens #bag .lensbtn{border-color:#e3ad57;box-shadow:0 0 22px rgba(227,173
 .la-dark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none}
 .la-dark b{font-family:var(--serif);font-weight:300;font-size:22px;letter-spacing:.04em;color:var(--ink-3)}
 #launch.p-dark .la-dark{animation:laDarkIn 1.6s ease-out .2s forwards}
+.la-dark{flex-direction:column;gap:14px}
+.la-ld{font-style:normal;font-family:var(--mono,ui-monospace,monospace);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3);opacity:.7;min-height:1em}
 #launch.p-detail .la-dark{opacity:1;animation:laFade .5s ease-out forwards}
 @keyframes laDarkIn{to{opacity:1}}
 /* the shot: the lens opens as nine blades (launch.js draws them), the real viewfinder is up underneath; then the shutter */

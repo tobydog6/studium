@@ -94,8 +94,8 @@
     App.on(function(next){ if(next==="hub") hubRender(); }); })();
 
   // ---- sign-in (a shared school computer) ----
-  function siShow(){ ["hub","landing","studio","punctum","teacher","hud"].forEach(hubHide); var s=$("signin"); if(!s) return;
-    if(SI_DEMO_ONLY&&!(typeof bootDemo!=="undefined"&&bootDemo)&&typeof rfShow==="function"&&!RF.failed){ s.classList.add("hidden"); App.go("signin"); rfShow(); return; }   /* the playtest build opens on the rack-focus launch page (src/rackin.js) */ s.classList.remove("hidden"); App.go("signin");
+  function siShow(force){ ["hub","landing","studio","punctum","teacher","hud"].forEach(hubHide); var s=$("signin"); if(!s) return; s.classList.remove("busy");
+    if(!force&&SI_DEMO_ONLY&&!(typeof bootDemo!=="undefined"&&bootDemo)&&typeof rfShow==="function"&&!RF.failed){ s.classList.add("hidden"); App.go("signin"); rfShow(); return; }   /* the playtest build opens on the rack-focus launch page (src/rackin.js) */ s.classList.remove("hidden"); App.go("signin");
     var cls=null; Object.keys(lsDB.classes).forEach(function(k){ cls=lsDB.classes[k]; });
     var pl=cls?lsPlanFor(cls.code):null;
     s.querySelector(".si-eb").textContent=cls?((cls.period?"PERIOD "+cls.period+" · ":"")+cls.name+" WITH "+(cls.teacher||"")).toUpperCase():"A PHOTOGRAPHY STUDIO FOR YEARS 11 TO 13";
@@ -132,17 +132,17 @@
     var h=location.hash||"", dm=/drive=(ok|error)/.exec(h);
     if(dm){ try{ history.replaceState(null,"",location.pathname+location.search); }catch(e){} setTimeout(function(){ toast(dm[1]==="ok"?"Google Drive connected. Workbooks will go into the Studium Workbooks folder.":"Google Drive didn't connect. Try again from the class menu."); }, 600); }
     var after=Sync.justBack(); if(!after) return false;
-    var s=$("signin"); ["hub","landing","studio","punctum","teacher","hud"].forEach(hubHide); if(s){ s.classList.remove("hidden","demo-only"); App.go("signin"); s.querySelector(".si-sub").textContent="Signing you in…"; }
+    var s=$("signin"); ["hub","landing","studio","punctum","teacher","hud"].forEach(hubHide); if(s){ s.classList.remove("hidden","demo-only"); s.classList.add("busy"); App.go("signin"); s.querySelector(".si-sub").textContent="Signing you in…"; }   /* busy: just the name and the message, not the old buttons */
     Sync.me().then(function(u){ if(!u) throw new Error("no user");
       if(after==="teacher") return Sync.myClasses().then(function(list){ (list||[]).forEach(function(c){ lsDB.classes[c.code]=c; });
         var cls=(list&&list[0])||null; if(!cls){ Object.keys(lsDB.classes).forEach(function(k){ cls=lsDB.classes[k]; }); }
         if(!cls){ var d=lsNow(); cls={code:lsCode(), name:"My class", teacher:u.name, period:"", start:Math.floor(lsMinOf(d)/5)*5}; lsDB.classes[cls.code]=cls; }
         if(!cls.teacher||cls.teacher==="Teacher") cls.teacher=u.name;
         lsSetWho({role:"teacher", name:cls.teacher, code:cls.code, google:true, email:u.email}); Sync.pushClass(cls);
-        if(s) s.classList.add("hidden"); openTeacher("plan"); });
+        if(s){ s.classList.add("hidden"); s.classList.remove("busy"); } openTeacher("plan"); });
       return Sync.myMembership().then(function(m){
         if(m) return Sync.joinClass(m.class_code).then(function(c){ if(!c) throw new Error("class gone"); lsDB.classes[c.code]=c; lsSetWho({role:"student", name:m.name, code:c.code, google:true}); if(s) s.classList.add("hidden"); siDone(); Sync.cloudRestore(); });
-        siGoogle=u; siShow(); var s2=$("signin"); s2.querySelector(".si-sub").textContent="Kia ora "+u.name.split(" ")[0]+". Type your class code to join your class."; s2.querySelector(".si-help").textContent="Your teacher has it on the board. You only need it once."; setTimeout(function(){ $("siCode").focus(); },30); }); })
+        siGoogle=u; siShow(true); s.classList.remove("demo-only"); var s2=$("signin"); s2.querySelector(".si-sub").textContent="Kia ora "+u.name.split(" ")[0]+". Type your class code to join your class."; s2.querySelector(".si-help").textContent="Your teacher has it on the board. You only need it once."; setTimeout(function(){ $("siCode").focus(); },30); }); })
       .catch(function(e){ console.warn(e); siShow(); toast("Google sign-in didn't finish. Try again, or join with a class code."); });
     return true; }
   // signing out on a shared computer: the workbook goes up (and the teacher's deck is rebuilt) before the session goes
@@ -150,7 +150,7 @@
     lsSetWho(null); then(); }
   function siAskName(){ var s=$("signin"); s.querySelector(".si-code").classList.add("hidden"); s.querySelector(".si-name").classList.remove("hidden");
     var c=lsDB.classes[siPending]; s.querySelector(".si-help").textContent="Joining "+c.name+(c.teacher?" with "+c.teacher:"")+"."; setTimeout(function(){ $("siName").focus(); },30); }
-  function siDone(){ var s=$("signin"); s.classList.add("hidden"); s.querySelector(".si-help").textContent="Your teacher has it on the board. You only need it once."; if(typeof launchStart==="function"&&!(lsWho()||{}).demo) launchStart(); else showHub(); }   /* the demo starts its own opening */
+  function siDone(){ var s=$("signin"); s.classList.add("hidden"); s.classList.remove("busy"); s.querySelector(".si-help").textContent="Your teacher has it on the board. You only need it once."; if(typeof launchStart==="function"&&!(lsWho()||{}).demo) launchStart(); else showHub(); }   /* the demo starts its own opening */
   (function wireSignIn(){ var s=$("signin"); if(!s) return;
     s.addEventListener("click",function(e){ var b=e.target.closest("[data-si]"); if(b) siAct(b.getAttribute("data-si")); });
     $("siCode").addEventListener("keydown",function(e){ e.stopPropagation(); if(e.key==="Enter") siAct("join"); });

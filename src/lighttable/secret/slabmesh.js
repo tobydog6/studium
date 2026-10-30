@@ -148,7 +148,7 @@ export function relabel(obj) { const l = obj.parts.label; if (!l) return; const 
 export const SLAB = { lw: 2.6, lab: 0.78, gap: 0.08, margin: 0.17, th: 0.19 };
 export function makeSlab(slab, S) {
   const group = new THREE.Group(); group.userData.slab = slab; const inner = new THREE.Group(); group.add(inner);
-  const obj = { group, inner, slab, w: 0, h: 0, th: SLAB.th, photoW: 0, photoH: 0, finish: null, tilt: new THREE.Vector2(), pointer: new THREE.Vector2(), time: Math.random() * 100, base: null, parts: {}, built: false, ready: null, top: false };
+  const obj = { group, inner, slab, w: 0, h: 0, th: finishDef(finishOf(slab, S.testFinish ? S.testFinish() : null)).th || SLAB.th, photoW: 0, photoH: 0, finish: null, tilt: new THREE.Vector2(), pointer: new THREE.Vector2(), time: Math.random() * 100, base: null, parts: {}, built: false, ready: null, top: false };
   const env = envMap(S.renderer);
   obj.ready = photoCanvas(slab, S).then(base => { obj.base = base; build(obj, S, env); return obj; });
   obj.setFinish = id => { if (!obj.built) return; applyFinish(obj, S, env, id); };

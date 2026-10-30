@@ -281,9 +281,9 @@ Object.assign(FR, {
 Object.assign(FR, {
   aperture: `uniform sampler2D uA; uniform sampler2D uB; uniform float uF;
     void main(){ vec3 a=texture2D(uA,vUv).rgb, b=texture2D(uB,vUv).rgb; vec3 c=mix(a,b,uF); gl_FragColor=vec4(c,1.0);`,
-  vertigo: `void main(){ float s=1.0+0.26*sin(uT*0.55)*min(uK,2.0); vec2 c=vec2(0.55,0.42);
+  vertigo: `void main(){ float s=1.0+0.2*sin(uT*0.55)*min(uK,2.0); vec2 c=vec2(0.55,0.42);
     vec2 uv=vUv; for(int i=0;i<3;i++){ float d=Dp(uv); uv=c+(vUv-c)*mix(1.0,1.0/s,pow(1.0-d,1.3)); }
-    vec3 col=texture2D(uTex,clamp(uv,0.0,1.0)).rgb; gl_FragColor=vec4(col,1.0);`,
+    vec3 col=texture2D(uTex,1.0-abs(1.0-mod(uv,2.0))).rgb; gl_FragColor=vec4(col,1.0);`,
   nightvis: `void main(){ vec3 p=texture2D(uTex,vUv).rgb; float l=luma(p); float d=Dp(vUv); vec2 A=vec2(uAsp,1.0);
     vec2 tp=mix(vec2(0.5+0.3*sin(uT*0.4),0.45+0.15*sin(uT*0.63)),uPtr,uHov); float spot=exp(-dot((vUv-tp)*A,(vUv-tp)*A)*9.0);
     float dist=0.35+(1.0-d)*2.6; float lit=l*(0.05+spot*2.4/(dist*dist))*(0.6+0.6*uK);

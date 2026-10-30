@@ -313,13 +313,13 @@ export function installSecret(ctx) {
       return M.key(e) || M.busy();
     },
     frame(dt, now) {
-      T.tick(dt); P.particleFrame(dt); placeLoot(); if (S.fx) S.fx.frame(dt); if (S.reveals) S.reveals.frame(dt * T.timeScale());
+      T.tick(dt); P.particleFrame(dt); placeLoot(); if (S.bloom) S.bloom.frame(dt); if (S.reveals) S.reveals.frame(dt * T.timeScale());
       if (S.unlocked()) { const pulse = 0.35 + 0.25 * Math.sin(now / 420);
         buttons.forEach(b => { const cap = b.userData.cap; if (!cap) return; const want = b.userData.hotT ? 1.4 : M.is('idle') ? pulse : 0.15; cap.material.emissiveIntensity += (want - cap.material.emissiveIntensity) * (1 - Math.exp(-dt * 10)); }); }
       M.frame(dt); inspect.frame(dt); if (S.parcel) S.parcel.frame(dt); if (S.under) S.under.frame(dt);
       slabObjs.forEach(o => { if (o.built) o.update(dt); });
     },
-    render(scene, camera) { return !!(S.fx && S.fx.render(scene, camera)); },
+    render(scene, camera) { return !!(S.bloom && S.bloom.render(scene, camera)); },
     pause(on) { if (on && inspect.active()) inspect.close('back'); if (S.blades && S.blades.pause) S.blades.pause(on); },
     /* the table is being torn down: an online duel says goodbye first */
     endDuel() { if (S.blades && S.blades.endDuel) S.blades.endDuel(); },

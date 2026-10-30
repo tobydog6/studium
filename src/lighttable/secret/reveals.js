@@ -60,6 +60,7 @@ float rvN(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
 float rvF(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 5; i++) { s += a * rvN(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return s; }
 float sdRB(vec2 p, vec2 b, float r){ vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }
 vec3 ramp(float I, vec3 a, vec3 b, vec3 c){ return mix(mix(a, b, smoothstep(0.08, 0.5, I)), c, smoothstep(0.55, 1.15, I)); }
+float edgeFade(vec2 uv){ vec2 e = min(uv, 1.0 - uv); return smoothstep(0.0, 0.14, min(e.x, e.y)); }   /* light never reaches a plane's edge: no box in the glow */
 vec3 hue(float h){ return clamp(abs(mod(h * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0); }
 /* cellular: x the gap to the nearest border, y a random per cell */
 vec2 vor(vec2 p){ vec2 i = floor(p), f = fract(p); float d1 = 8.0, d2 = 8.0; vec2 id = vec2(0.0);
@@ -94,7 +95,7 @@ void main(){ vec2 p = (vUv - 0.5) * 2.0 * uHalf; float d = sdRB(p, uCard, uCard.
     I = f * rays * 1.3 + edgeL * 0.5; col = mix(ramp(I, uA, uB, uC), hue(fract(cur * 0.7 + x * 0.08 + uTime * 0.04)) * 1.2, 0.55); }
   else { float n = rvF(q * 0.9 + vec2(uTime * 0.08, -uTime * 0.14)), f = exp(-dd / (uCard.x * 0.28 * uAmt + 1e-3));
     I = f * (0.25 + 0.85 * n) * (0.85 + 0.15 * sin(uTime * 1.5)) + edgeL * 0.65; col = ramp(I, uA, uB, uC); }
-  I *= d < 0.0 ? exp(d / (uCard.x * 0.08)) : 1.0;
+  I *= (d < 0.0 ? exp(d / (uCard.x * 0.08)) : 1.0) * edgeFade(vUv);
   gl_FragColor = vec4(col * I * uGain, 1.0);
   #include <colorspace_fragment>
 }`;
@@ -108,7 +109,7 @@ void main(){ vec2 p = (vUv - 0.5) * 2.0; float r = length(p); vec2 dv = p / max(
   float rays = pow(rvN(dv * 9.0 + uSeed), 4.0) * (1.0 - smoothstep(0.0, 1.0, r / (R * 1.25)));
   float fade = pow(1.0 - uK, 1.6), I = (dens * (0.5 + 0.9 * n) + rays * 0.9) * fade;
   float core = exp(-r * r * 30.0) * pow(1.0 - uK, 4.0) * 1.6;
-  gl_FragColor = vec4(ramp(I * (1.45 - 0.9 * uK), uA, uB, uC) * I * uGain + uC * core, 1.0);
+  gl_FragColor = vec4((ramp(I * (1.45 - 0.9 * uK), uA, uB, uC) * I * uGain + uC * core) * edgeFade(vUv), 1.0);
   #include <colorspace_fragment>
 }`;
 /* a ring of light (shock, splash, the void's lensing edge): radius uR, width uW, rippled by noise */
@@ -116,7 +117,7 @@ const RING_F = `uniform float uR; uniform float uW; uniform float uAmt; uniform 
 ${LIB}
 void main(){ vec2 p = (vUv - 0.5) * 2.0; float r = length(p); vec2 dv = p / max(r, 1e-3);
   float rr = uR * (1.0 + 0.06 * (rvN(dv * 4.0 + uSeed) - 0.5)); float I = exp(-pow((r - rr) / max(uW, 1e-3), 2.0)) * uAmt * (0.7 + 0.6 * rvN(dv * 11.0 + uSeed));
-  gl_FragColor = vec4(uCol * I, 1.0);
+  gl_FragColor = vec4(uCol * I * edgeFade(vUv), 1.0);
   #include <colorspace_fragment>
 }`;
 const DISC_F = `uniform float uR; uniform float uAmt; varying vec2 vUv;
@@ -124,7 +125,7 @@ void main(){ float r = length((vUv - 0.5) * 2.0); float a = (1.0 - smoothstep(uR
 /* the flare streak: a long thin line of light with a hot centre */
 const FLARE_F = `uniform float uAmt; uniform vec3 uCol; varying vec2 vUv;
 void main(){ float x = (vUv.x - 0.5) * 2.0, y = (vUv.y - 0.5) * 2.0;
-  float I = (exp(-y * y * 60.0) * pow(max(0.0, 1.0 - x * x), 3.0) + exp(-(x * x * 14.0 + y * y * 30.0)) * 1.5) * uAmt;
+  float I = smoothstep(1.0, 0.8, abs(y)) * (exp(-y * y * 60.0) * pow(max(0.0, 1.0 - x * x), 3.0) + exp(-(x * x * 14.0 + y * y * 30.0)) * 1.5) * uAmt;
   gl_FragColor = vec4(uCol * I, 1.0);
   #include <colorspace_fragment>
 }`;
@@ -164,7 +165,7 @@ void main(){ vec2 p = (vUv - 0.5) * 2.0 * uHalf; float d = sdRB(p, uCard, uCard.
   float I = (exp(-dd / (uCard.x * 0.022)) * 1.3 + exp(-dd / (uCard.x * 0.14)) * 0.45 * flow) * uAmt * (d < 0.0 ? exp(d / (uCard.x * 0.03)) : 1.0);
   vec3 col = mix(uB, uC, smoothstep(0.6, 1.3, I));
   col = mix(col, hue(fract(atan(p.y, p.x) / 6.2832 + uTime * 0.15)) * 1.4 + 0.2, uPrism * 0.75);
-  gl_FragColor = vec4(col * I * 1.8, 1.0);
+  gl_FragColor = vec4(col * I * 1.8 * edgeFade(vUv), 1.0);
   #include <colorspace_fragment>
 }`;
 /* GPU sparks: instanced quads, each a flight from its own start time with drag and gravity, stretched along its
@@ -205,7 +206,7 @@ export function install(S) {
     const at = { aP: new THREE.InstancedBufferAttribute(P, 3), aV: new THREE.InstancedBufferAttribute(V, 3), aC: new THREE.InstancedBufferAttribute(Cc, 4), aS: new THREE.InstancedBufferAttribute(Sx, 4) };
     Object.entries(at).forEach(([k, a]) => { a.setUsage(THREE.DynamicDrawUsage); g.setAttribute(k, a); }); g.instanceCount = max;
     const u = { uTime: { value: 0 }, uG: { value: new THREE.Vector3(0, o.grav ?? -3, 0) }, uStretch: { value: o.stretch ?? 0.035 }, uCool: { value: o.cool || new THREE.Vector3(1, 0.4, 0.15) } };
-    const m = new THREE.Mesh(g, new THREE.ShaderMaterial({ uniforms: u, vertexShader: SPARK_V, fragmentShader: SPARK_F, ...ADD, depthTest: false })); m.frustumCulled = false; m.renderOrder = 60; m.userData.noParticles = true; S.fx.glow(m); S.scene.add(m);
+    const m = new THREE.Mesh(g, new THREE.ShaderMaterial({ uniforms: u, vertexShader: SPARK_V, fragmentShader: SPARK_F, ...ADD, depthTest: false })); m.frustumCulled = false; m.renderOrder = 60; m.userData.noParticles = true; S.bloom.glow(m); S.scene.add(m);
     let head = 0;
     return { m, u,
       /* emit(n, fn(i) → { p, v, c (Color, HDR ok), life, size, drag }) */
@@ -242,10 +243,22 @@ export function install(S) {
     if (L.aura > 0) { const fire = th.fire, hx = hw * (1.5 + 0.4 * fire + (th.aura === 2 ? 0.5 : 0)), hy = hh * (1.25 + 0.5 * fire + (th.aura === 4 ? 0.6 : 0) + (th.aura === 2 ? 0.35 : 0));
       const u = { uHalf: { value: new THREE.Vector2(hx, hy) }, uCard: { value: new THREE.Vector2(hw, hh) }, uTime: { value: Math.random() * 50 }, uAmt: { value: 0 }, uFire: { value: fire }, uGain: { value: 1.1 + 0.7 * fire }, uMode: { value: th.aura }, uA: { value: P.a }, uB: { value: P.b }, uC: { value: P.c } };
       const lift = th.aura === 0 || th.aura === 4 ? (hy - hh) * 0.6 : 0;
-      c.aura = new THREE.Mesh(new THREE.PlaneGeometry(hx * 2, hy * 2), shader(AURA_F, u)); c.aura.position.set(0, lift, -0.06); c.aura.renderOrder = 2; S.fx.glow(c.aura); G.add(c.aura); }
-    S.fx.want = L.aura > 0 ? 0.3 + 0.3 * L.glow : 0;
+      c.aura = new THREE.Mesh(new THREE.PlaneGeometry(hx * 2, hy * 2), shader(AURA_F, u)); c.aura.position.set(0, lift, -0.06); c.aura.renderOrder = 2; S.bloom.glow(c.aura); G.add(c.aura); }
+    S.bloom.want = L.aura > 0 ? 0.3 + 0.3 * L.glow : 0;
+    warm();
     r.blaze = c; return c;
   }
+  /* compile every reveal shader while the card is still coming forward, not at the burst (that hitched the frame) */
+  let warmed = false;
+  function warm() { if (warmed) return; warmed = true; const sc = new THREE.Scene(), u = n => ({ value: n }), V2 = () => u(new THREE.Vector2(1, 1)), Cl = () => u(new THREE.Color());
+    const mats = [shader(AURA_F, { uHalf: V2(), uCard: V2(), uTime: u(0), uAmt: u(0), uFire: u(0), uGain: u(1), uMode: u(0), uA: Cl(), uB: Cl(), uC: Cl() }), shader(BALL_F, { uK: u(0), uSeed: u(0), uGain: u(1), uA: Cl(), uB: Cl(), uC: Cl() }),
+      shader(RING_F, { uR: u(0), uW: u(0.1), uAmt: u(0), uSeed: u(0), uCol: Cl() }), shader(FLARE_F, { uAmt: u(0), uCol: Cl() }), shader(RIM_F, { uHalf: V2(), uCard: V2(), uTime: u(0), uAmt: u(0), uPrism: u(0), uB: Cl(), uC: Cl() }),
+      shader(FACE_F, { uP: u(0), uTime: u(0), uAsp: u(1), uGain: u(1), uMode: u(0), uO: u(new THREE.Vector2()), uA: Cl(), uB: Cl(), uC: Cl() }, { blending: THREE.NormalBlending }),
+      new THREE.ShaderMaterial({ uniforms: { uR: u(0), uAmt: u(0) }, vertexShader: GV, fragmentShader: DISC_F, transparent: true })];
+    const geo = new THREE.PlaneGeometry(1, 1); mats.forEach(m => sc.add(new THREE.Mesh(geo, m)));
+    const done = () => {};   /* kept alive on purpose: disposing them would let three drop the compiled programs */
+    warm.keep = sc;
+    try { const p = S.renderer.compileAsync ? S.renderer.compileAsync(sc, S.camera) : (S.renderer.compile(sc, S.camera), null); if (p && p.then) p.then(done, done); else done(); } catch (e) { done(); } }
   /* each frame while it waits: the aura breathes and follows the hover, and the theme sheds a few motes */
   function frameLand(c, dt) {
     const r = c.r, hov = r.hoverT || 0, th = c.th, P = c.P; c.G.scale.copy(r.winner.spin.scale);
@@ -329,27 +342,27 @@ export function install(S) {
   function embers(c, F, k) { if (c.idx < 3) return; const P = c.P; DUST.emit(Math.round((500 + 300 * (c.idx - 3)) * k), () => ({ p: at(F, rnd(-1.2, 1.2), rnd(-1.1, 1.1), 0.2), v: vec(F, rnd(-1.1, 1.1), 0.3 + Math.random() * 1.6, Math.random()), c: hdr(Math.random() < 0.5 ? P.b : P.c, 2.2), life: 1.2 + Math.random() * 1.6, size: 0.02 + Math.random() * 0.035, drag: 1.4 })); }
   function glitter(c, F) { const P = c.P; DUST.emit(300 + 150 * c.idx, () => ({ p: at(F, rnd(-1.3, 1.3), rnd(-1.2, 1.2), rnd(0.1, 0.5)), v: vec(F, rnd(-0.3, 0.3), rnd(-0.2, 0.5), rnd(-0.1, 0.3)), c: hdr(Math.random() < 0.6 ? P.c : P.b, rnd(2, 3.5)), life: rnd(0.6, 1.6), size: rnd(0.01, 0.025), drag: 1 })); }
   function fireball(c, F, k) { const P = c.P, idx = c.idx; if (idx < 2) return; const size = F.hh * (idx >= 5 ? 2.6 : idx >= 4 ? 2.2 : 1.6) * k, u = { uK: { value: 0 }, uSeed: { value: Math.random() * 20 }, uGain: { value: (idx >= 4 ? 0.85 : 0.6) * (0.6 + 0.4 * k) }, uA: { value: P.a }, uB: { value: P.b }, uC: { value: P.c } };
-    const ball = new THREE.Mesh(new THREE.PlaneGeometry(size, size), shader(BALL_F, u, { depthTest: false })); ball.renderOrder = 55; ball.position.copy(at(F, 0, 0, 0.5)); ball.quaternion.copy(S.camera.quaternion); S.fx.glow(ball); S.scene.add(ball);
+    const ball = new THREE.Mesh(new THREE.PlaneGeometry(size, size), shader(BALL_F, u, { depthTest: false })); ball.renderOrder = 55; ball.position.copy(at(F, 0, 0, 0.5)); ball.quaternion.copy(S.camera.quaternion); S.bloom.glow(ball); S.scene.add(ball);
     const dur = idx >= 5 ? 0.85 : idx >= 4 ? 0.7 : 0.5; let t = 0; live.add({ update(dt) { t += dt; u.uK.value = Math.min(1, t / dur); ball.quaternion.copy(S.camera.quaternion); return t < dur; }, dispose() { S.scene.remove(ball); ball.geometry.dispose(); ball.material.dispose(); } }); }
   /* a ring facing the camera, growing to size (in card heights) over dur; delay in seconds */
   function ring(F, col, size, dur, gain, delay) { const u = { uR: { value: 0.1 }, uW: { value: 0.05 }, uAmt: { value: 0 }, uSeed: { value: Math.random() * 30 }, uCol: { value: col } }, D = F.hh * size * 2;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(D, D), shader(RING_F, u, { depthTest: false })); m.renderOrder = 56; m.position.copy(F.o).addScaledVector(F.z, 0.45); m.quaternion.copy(S.camera.quaternion); S.fx.glow(m); S.scene.add(m);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(D, D), shader(RING_F, u, { depthTest: false })); m.renderOrder = 56; m.position.copy(F.o).addScaledVector(F.z, 0.45); m.quaternion.copy(S.camera.quaternion); S.bloom.glow(m); S.scene.add(m);
     let t = -(delay || 0); live.add({ update(dt) { t += dt; if (t < 0) return true; const k = Math.min(1, t / dur); u.uR.value = 0.15 + 0.82 * E.outCubic(k); u.uW.value = 0.015 + 0.03 * k; u.uAmt.value = gain * 0.55 * Math.pow(1 - k, 1.8); m.quaternion.copy(S.camera.quaternion); return k < 1; }, dispose() { S.scene.remove(m); m.geometry.dispose(); m.material.dispose(); } }); }
   /* a black disc in front of the card (the void swallowing the light before it bursts) */
   function discAt(F, size) { const u = { uR: { value: 0 }, uAmt: { value: 0 } }, m = new THREE.Mesh(new THREE.PlaneGeometry(size * 2, size * 2), new THREE.ShaderMaterial({ uniforms: u, vertexShader: GV, fragmentShader: DISC_F, transparent: true, depthWrite: false, depthTest: false }));
     m.renderOrder = 54; m.position.copy(F.o).addScaledVector(F.z, 0.4); m.quaternion.copy(S.camera.quaternion); S.scene.add(m); return { u, dispose() { S.scene.remove(m); m.geometry.dispose(); m.material.dispose(); } }; }
   /* jagged bolts out from the card, flickering and re-forming for a moment */
-  function bolts(c, F, n) { const mat = new THREE.LineBasicMaterial({ color: hdr(c.P.c, 2.5), transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending }), grp = new THREE.Group(); grp.renderOrder = 57; S.fx.glow(grp); S.scene.add(grp);
+  function bolts(c, F, n) { const mat = new THREE.LineBasicMaterial({ color: hdr(c.P.c, 2.5), transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending }), grp = new THREE.Group(); grp.renderOrder = 57; S.bloom.glow(grp); S.scene.add(grp);
     const make = () => { grp.children.slice().forEach(l => { grp.remove(l); l.geometry.dispose(); }); for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, L = F.hh * rnd(1.2, 2.6), pts = []; let p = at(F, Math.cos(a) * 0.5, Math.sin(a) * 0.5, 0.35);
       for (let k = 0; k <= 10; k++) { pts.push(p.clone()); p = p.clone().addScaledVector(vec(F, Math.cos(a), Math.sin(a), 0), L / 10).addScaledVector(vec(F, -Math.sin(a), Math.cos(a), 0), rnd(-1, 1) * L * 0.07); }
-      const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat); l.layers.enable(S.fx.FX); l.renderOrder = 57; grp.add(l); } };
+      const l = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat); l.layers.enable(S.bloom.FX); l.renderOrder = 57; grp.add(l); } };
     let t = 0, next = 0; live.add({ update(dt) { t += dt; if (t >= next) { next = t + rnd(0.04, 0.08); make(); } mat.opacity = (0.5 + 0.5 * Math.random()) * Math.max(0, 1 - t / 0.45); return t < 0.45; }, dispose() { grp.children.forEach(l => l.geometry.dispose()); S.scene.remove(grp); mat.dispose(); } }); }
 
   /* the burst at edge-on: the theme's burst, the flare, the flash, the jolt; the face cover goes on while it is hidden */
   function burst(c) {
     const L = c.L, idx = c.idx, th = c.th, P = c.P, F = frameOf(c), o = c.obj;
     snd(th.snd === 'ignite' ? 'burst' : th.snd, { k: 0.5 + 0.12 * idx, dur: 0.5 }); if (th.snd === 'ignite' && idx >= 3) snd('ignite', { dur: 0.7 }); if (idx >= 4) snd('slam', { k: idx >= 5 ? 1 : 0.85 });
-    S.fx.want = 0.3 + 0.45 * L.glow; S.fx.shake = Math.max(S.fx.shake, L.shake);
+    S.bloom.want = 0.3 + 0.45 * L.glow; S.bloom.shake = Math.max(S.bloom.shake, L.shake);
     (BURSTS[th.burst] || BURSTS.spark)(c, F);
     flare(at(F, 0, 0, 0.55), F.hw * (idx >= 4 ? 16 : 9), F.hw * 0.5, c.roll.flare, hdr(P.c, 1.0), 0.3 + 0.08 * idx, 1.0 + 0.25 * idx);
     if (th.burst !== 'void') flare(at(F, 0, 0, 0.5), F.hh * 4.2, F.hw * 0.7, Math.PI / 2, hdr(P.c, 1.0), 0.22, 1.2 + 0.25 * idx);
@@ -363,23 +376,23 @@ export function install(S) {
     const L = c.L, idx = c.idx, o = c.obj, P = c.P, th = c.th;
     snd('chime', { tier: idx >= 4 ? 'epic' : c.tier }); if (idx >= 4) snd('slam', { k: 0.5 });
     if (o && o.inner) { const hw = (o.w || 2.9) / 2, hh = (o.h || 3.9) / 2, hx = hw * 1.45, hy = hh * 1.35, u = { uHalf: { value: new THREE.Vector2(hx, hy) }, uCard: { value: new THREE.Vector2(hw, hh) }, uTime: { value: 0 }, uAmt: { value: 0 }, uPrism: { value: idx >= 5 || th.burst === 'prism' ? 1 : 0 }, uB: { value: P.b }, uC: { value: P.c } };
-      const rim = new THREE.Mesh(new THREE.PlaneGeometry(hx * 2, hy * 2), shader(RIM_F, u)); rim.position.z = -(o.th || 0.03) / 2 - 0.02; rim.renderOrder = 1; rim.userData.noParticles = true; S.fx.glow(rim); o.inner.add(rim);
+      const rim = new THREE.Mesh(new THREE.PlaneGeometry(hx * 2, hy * 2), shader(RIM_F, u)); rim.position.z = -(o.th || 0.03) / 2 - 0.02; rim.renderOrder = 1; rim.userData.noParticles = true; S.bloom.glow(rim); o.inner.add(rim);
       const peak = 0.5 + 0.12 * idx, hold = 0.6 + 0.25 * idx, out = 1.6; let t = 0;
       live.add({ update(dt) { t += dt; u.uTime.value += dt; u.uAmt.value = peak * (t < 0.15 ? t / 0.15 : t < hold ? 1 : Math.max(0, 1 - (t - hold) / out)); return t < hold + out && !o.disposed; }, dispose() { if (rim.parent) rim.parent.remove(rim); rim.geometry.dispose(); rim.material.dispose(); } }); }
     if (idx >= 4) { let t = 0; live.add({ update(dt) { t += dt; if (Math.random() < dt * 60 && o && o.group) { o.group.updateMatrixWorld(true); const p = o.group.localToWorld(new THREE.Vector3((Math.random() - 0.5) * (o.w || 2.9), (Math.random() - 0.5) * (o.h || 3.9), 0.05));
       const pool = th.face === 1 || th.face === 3 || th.face === 5 ? DROP : DUST, up = pool === DROP ? 0.2 : 0.5 + Math.random() * 0.7;
       pool.emit(1, () => ({ p, v: new THREE.Vector3((Math.random() - 0.5) * 0.3, up, (Math.random() - 0.5) * 0.3), c: th.burst === 'prism' ? rainbow(2) : hdr(Math.random() < 0.5 ? P.b : P.c, 2.2), life: 1 + Math.random(), size: 0.02 + Math.random() * 0.03, drag: 0.8 })); } return t < 1.8; }, dispose() {} }); }
     if (idx >= 5 && o && o.inner) { const st = new THREE.Mesh(new THREE.PlaneGeometry((o.w || 2.9) * 0.78, (o.w || 2.9) * 0.78 * 0.4), new THREE.MeshBasicMaterial({ map: S.holo.tex.stamp(), transparent: true, opacity: 0, depthWrite: false, depthTest: false })); st.rotation.z = -0.09; st.position.set(0, -(o.h || 3.9) * 0.12, (o.th || 0.03) / 2 + 0.05); st.renderOrder = 50; o.inner.add(st);
-      let t = 0; live.add({ update(dt) { t += dt; const s = Math.min(1, Math.max(0, (t - 0.35) / 0.2)); if (s > 0 && !st.userData.hit) { st.userData.hit = true; snd('slam', { k: 0.7 }); S.fx.shake = Math.max(S.fx.shake, 0.06); const f = screen(0xffffff, true); f.material.opacity = 0.35; fadeOut(f, 0.4); }
+      let t = 0; live.add({ update(dt) { t += dt; const s = Math.min(1, Math.max(0, (t - 0.35) / 0.2)); if (s > 0 && !st.userData.hit) { st.userData.hit = true; snd('slam', { k: 0.7 }); S.bloom.shake = Math.max(S.bloom.shake, 0.06); const f = screen(0xffffff, true); f.material.opacity = 0.35; fadeOut(f, 0.4); }
         st.material.opacity = s * (1 - Math.max(0, (t - 2.6) / 0.6)); st.scale.setScalar(Math.max(0.001, 2.6 - 1.6 * E.outBack(s))); return t < 3.2 && !o.disposed; }, dispose() { if (st.parent) st.parent.remove(st); st.geometry.dispose(); st.material.dispose(); } }); }
-    let t = 0; const peak = 0.3 + 0.45 * c.L.glow; live.add({ update(dt) { t += dt; S.fx.want = t < 0.5 ? peak : Math.max(0, peak * (1 - (t - 0.5) / 2.2)); return t < 2.7; }, dispose() { S.fx.want = 0; } });
+    let t = 0; const peak = 0.3 + 0.45 * c.L.glow; live.add({ update(dt) { t += dt; S.bloom.want = t < 0.5 ? peak : Math.max(0, peak * (1 - (t - 0.5) / 2.2)); return t < 2.7; }, dispose() { S.bloom.want = 0; } });
   }
 
   /* ---------- small pieces ---------- */
   function screen(color, additive) { const cam = S.camera, m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthTest: false, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending }));
     const hh = 2 * 1.5 * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) * 1.1; m.position.z = -1.5; m.scale.set(hh * cam.aspect, hh, 1); m.renderOrder = additive ? 70 : 58; m.userData.noParticles = true; cam.add(m); return m; }
   function fadeOut(m, dur) { const a0 = m.material.opacity; let t = 0; live.add({ update(dt) { t += dt; m.material.opacity = a0 * Math.max(0, 1 - t / dur) * Math.max(0, 1 - t / dur); return t < dur; }, dispose() { if (m.parent) m.parent.remove(m); m.geometry.dispose(); m.material.dispose(); } }); }
-  function flare(pos, len, thick, rot, col, dur, gain) { const u = { uAmt: { value: gain }, uCol: { value: col } }, m = new THREE.Mesh(new THREE.PlaneGeometry(len, thick), shader(FLARE_F, u, { depthTest: false })); m.renderOrder = 62; m.position.copy(pos); S.fx.glow(m); S.scene.add(m); let t = 0;
+  function flare(pos, len, thick, rot, col, dur, gain) { const u = { uAmt: { value: gain }, uCol: { value: col } }, m = new THREE.Mesh(new THREE.PlaneGeometry(len, thick), shader(FLARE_F, u, { depthTest: false })); m.renderOrder = 62; m.position.copy(pos); S.bloom.glow(m); S.scene.add(m); let t = 0;
     live.add({ update(dt) { t += dt; m.quaternion.copy(S.camera.quaternion); m.rotateZ(rot); const k = t / dur; u.uAmt.value = gain * Math.pow(Math.max(0, 1 - k), 2); m.scale.set(0.6 + 0.6 * Math.min(1, k * 3), 1 - 0.6 * k, 1); return k < 1; }, dispose() { S.scene.remove(m); m.geometry.dispose(); m.material.dispose(); } }); }
 
   /* ---------- every frame (index.js), also after the rail has gone ---------- */
@@ -388,6 +401,6 @@ export function install(S) {
     for (const f of [...live]) { let keep = false; try { keep = f.update(dt); } catch (e) { console.error(e); } if (!keep) { live.delete(f); try { f.dispose(); } catch (e) {} } } }
   /* the rail closing: the aura and the hanger's group go with it; sparks already flying finish on their own */
   function close(r) { const c = r && r.blaze; if (!c) return; if (c.aura) { const a = c.aura; if (a.parent) a.parent.remove(a); a.geometry.dispose(); a.material.dispose(); c.aura = null; } if (c.G.parent) c.G.parent.remove(c.G);
-    if (c.coverM) { const m = c.coverM; if (m.parent) m.parent.remove(m); m.geometry.dispose(); m.material.dispose(); c.coverM = null; } r.blaze = null; if (!live.size) S.fx.want = 0; }
+    if (c.coverM) { const m = c.coverM; if (m.parent) m.parent.remove(m); m.geometry.dispose(); m.material.dispose(); c.coverM = null; } r.blaze = null; if (!live.size) S.bloom.want = 0; }
   S.reveals = { style: () => S.dev.opt('reveal') || 'blaze', land, run, frame, close, themeOf, THEMES: Object.keys(THEMES) };
 }

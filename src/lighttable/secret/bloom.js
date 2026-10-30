@@ -2,7 +2,7 @@
 // the reveal's own effects glow: they sit on layer FX as well as layer 0, a first pass draws just that layer on black
 // into a half-float target (effects can be brighter than white) and blurs it with an Unreal bloom, and the frame is
 // the table drawn exactly as it always is, with that glow added over it. The table, the prints and the room never bloom.
-// S.fx = { want, shake, FX, glow(obj) }: reveals.js sets want (0 off .. about 2) and shake (a camera jolt that decays);
+// S.bloom = { want, shake, FX, glow(obj) }: reveals.js sets want (0 off .. about 2) and shake (a camera jolt that decays);
 // glow(obj) puts an object and its children on the glow layer. While want is 0 nothing changes: main.js renders as
 // it always has (render() returns false).
 import * as THREE from 'three';
@@ -22,7 +22,7 @@ export function install(S) {
   let glowC = null, bloom = null, gPass = null, level = 0, w = 0, h = 0;
   const addM = new THREE.ShaderMaterial({ uniforms: { tGlow: { value: null }, uK: { value: 1 } }, vertexShader: ADD_V, fragmentShader: ADD_F, transparent: true, depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending });
   const addQ = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), addM), addS = new THREE.Scene(), addC = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1); addQ.frustumCulled = false; addS.add(addQ);
-  const fx = S.fx = { want: 0, shake: 0, FX, level: () => level,
+  const fx = S.bloom = { want: 0, shake: 0, FX, level: () => level,
     glow(o) { o.traverse(m => m.layers.enable(FX)); return o; } };
   const target = () => new THREE.WebGLRenderTarget(w, h, { type: THREE.HalfFloatType, samples: 4 });
   function build() {

@@ -140,6 +140,12 @@ function build(S) {
   const THREE_ = THREE, T = S.T, store = S.store;
   const env = S.SM.envMap(S.renderer);
   const root = new THREE.Group(); root.name = 'rareBinder'; root.position.set(B.x, 0, B.z); root.visible = false; S.scene.add(root);
+  /* a left hand holding it open (a game's chooser, Sam's sketch): fingers round the outer edge of the left cover, three over its top corner */
+  const glove = new THREE.MeshStandardMaterial({ color: 0x2b2724, roughness: 0.72 }), hands = new THREE.Group(); hands.visible = false; root.add(hands);
+  const finger = (len, x, z, along) => { const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, len, 6, 12), glove); if (along === 'x') m.rotation.z = Math.PI / 2; else m.rotation.x = Math.PI / 2; m.position.set(x, PAGE_TOP + 0.12, z); m.userData.noParticles = true; hands.add(m); };
+  const EDGE_X = PLX - B.pageW / 2 - 0.12;
+  [-1.25, -0.42, 0.42, 1.25].forEach((z, i) => finger(0.55 + (i === 1 || i === 2 ? 0.12 : 0), EDGE_X + 0.1, z, 'x'));
+  [0, 0.62, 1.24].forEach((dx, i) => finger(0.5 + (i === 1 ? 0.1 : 0), EDGE_X + 0.9 + dx, -B.pageD / 2 - 0.05, 'z'));
   const clothTex = S.SM.tex(clothCanvas(S)); clothTex.wrapS = clothTex.wrapT = THREE.RepeatWrapping; clothTex.repeat.set(3, 3);
   const cloth = new THREE.MeshLambertMaterial({ map: clothTex }), lining = new THREE.MeshLambertMaterial({ color: 0x2a2b31 });
   const edge = new THREE.MeshLambertMaterial({ map: S.SM.tex(edgeCanvas()) });
@@ -180,9 +186,9 @@ function build(S) {
     drawCover() { const n = b.pagesData().reduce((s, pg) => s + (pg ? pg.filter(Boolean).length : 0), 0); const c = coverCanvas(S, n); coverCv.getContext('2d').drawImage(c, 0, 0); coverTex.needsUpdate = true; },
     begin(fromTable) { b.gen++; b.mode = fromTable ? 'table' : 'vault'; b.spread = 0; b.pending = null; b.hot = null; b.busy = false; b.drawCover(); },
     /* held (a game's chooser): the binder slides up the mat from its spot and tilts up towards you, as if in your hands */
-    toHold(on) { const H = b.pick && b.pick.hold; if (!H) return Promise.resolve(); const p0 = root.position.clone(), r0 = root.rotation.clone(), p1 = on ? new THREE.Vector3(...H.pos) : new THREE.Vector3(B.x, 0, B.z);
+    toHold(on) { const H = b.pick && b.pick.hold; if (!H) return Promise.resolve(); if (on && H.hands) hands.visible = true; const p0 = root.position.clone(), r0 = root.rotation.clone(), p1 = on ? new THREE.Vector3(...H.pos) : new THREE.Vector3(B.x, 0, B.z);
       const r1 = on ? new THREE.Euler(H.tilt || 0.7, H.yaw || 0, 0) : new THREE.Euler(0, 0, 0); S.sfx('lift');
-      return T.tween({ dur: on ? 1.1 : 0.9, ease: T.E.inOutCubic, tag: 'binder', update: e => { root.position.lerpVectors(p0, p1, e); root.position.y += Math.sin(e * Math.PI) * 0.4; root.rotation.set(r0.x + (r1.x - r0.x) * e, r0.y + (r1.y - r0.y) * e, 0); } }); },
+      return T.tween({ dur: on ? 1.1 : 0.9, ease: T.E.inOutCubic, tag: 'binder', update: e => { root.position.lerpVectors(p0, p1, e); root.position.y += Math.sin(e * Math.PI) * 0.4; root.rotation.set(r0.x + (r1.x - r0.x) * e, r0.y + (r1.y - r0.y) * e, 0); } }).then(r => { if (!on) hands.visible = false; return r; }); },
     async openCover() { S.sfx('binder'); b.frameCam();
       await T.tween({ dur: 1.0, ease: flap, tag: 'binder', update: e => { spineG.rotation.z = e * Math.PI / 2; coverG.rotation.z = e * Math.PI / 2; } }); },
     async closeCover() { b.busy = true; b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; S.sfx('binder');
@@ -191,7 +197,7 @@ function build(S) {
     /* from above and in front, the open spread filling the view; wide pulls back a touch so a slab laid in front shows too */
     frameCam(wide) { if (b.pick && b.pick.hold) { S.cam.set(b.pick.hold.cam); return; } S.cam.set({ pitch: 58 }); if (wide) S.cam.set({ tx: B.x + AX + 0.6, ty: 0, tz: B.z + 1.6, dT: S.cam.fit(11.4, 9.2) }); else S.cam.set({ tx: B.x + AX + 0.4, ty: 0, tz: B.z + 0.3, dT: S.cam.fit(10.8, 6.2) }); },
     showSpread() { b.busy = false; b.loadSpread(); S.ctx.hint(b.pick ? b.pick.hint : HINT); },
-    leave(next) { if (/^(vault\.binder|binder)(\.|$)/.test(next)) return; S.dropTargets.binder = null; b.pick = null; root.position.set(B.x, 0, B.z); root.rotation.set(0, 0, 0); b.gen++; T.cancelAll('binder'); b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; b.busy = false; b.mode = null;
+    leave(next) { if (/^(vault\.binder|binder)(\.|$)/.test(next)) return; S.dropTargets.binder = null; b.pick = null; root.position.set(B.x, 0, B.z); root.rotation.set(0, 0, 0); hands.visible = false; b.gen++; T.cancelAll('binder'); b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; b.busy = false; b.mode = null;
       if (b.pushed) { S.cam.pop(); b.pushed = false; }
       if (/^vault\./.test(next)) { spineG.rotation.z = 0; coverG.rotation.z = 0; if (next === 'vault.closing') root.visible = false; } else { b.resetClosed(); root.visible = !!(S.under && S.under.on); } },
     /* ---------- pages ---------- */

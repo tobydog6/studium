@@ -23,7 +23,7 @@ const DEV = 20, LOCK = 5, HAND = 5, WRONG = 3, WIN_COINS = 30, WIN_CAP = 3, ARTI
 /* the layout on the dark table: centre-left, clear of the pit (right), the binder (front left) and the shelf */
 /* the layout, low on the dark table (the top is kept for the PC): your five along the front edge, theirs arriving in
    front of you, the portal standing behind that; past the portal (z < PORTAL_Z) is their room, not this table */
-const GX = 1.0, PORTAL_Z = 3.4, PR = 2.2, GAP = 2.3, HAND_Z = PORTAL_Z + 6.2, MINE_Z = PORTAL_Z + 3.0, THEIRS_Z = PORTAL_Z - 1.5, RIV_Z = PORTAL_Z - 3.3, RIV_GAP = 0.95;
+const GX = 1.0, PORTAL_Z = 1.2, PR = 5.6, GAP = 2.3, HAND_Z = PORTAL_Z + 8.0, MINE_Z = PORTAL_Z + 3.8, THEIRS_Z = PORTAL_Z - 4.6, RIV_Z = PORTAL_Z - 2.2, RIV_GAP = 2.3, THEIR_EDGE = PORTAL_Z - 0.8;
 const RIVALS = ['kiri.lens', 'tui_frames', 'harbourlight', 'ngaio.prints', 'fernfocus', 'southerly_slabs', 'te_awa_archive', 'flatwhite.film', 'kea_collects', 'lyttelton_light', 'gumboot_gallery', 'tarn_tones'];
 const DAY = 864e5, today = () => Math.floor(Date.now() / DAY);
 const h32 = s => { let h = 2166136261; s = String(s); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; };
@@ -109,22 +109,23 @@ export function install(S) {
   const VERT = 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
   function buildProps() { if (props) return props;
     const g = new THREE.Group(); g.userData.secret = true; g.position.set(GX, 0, PORTAL_Z); g.visible = false; ctx.scene.add(g);
-    const ring = new THREE.Group(); ring.position.y = PR; g.add(ring);
+    const ring = new THREE.Group(); g.add(ring);   /* the dome's centre is on the table: a half disc standing up */
     const rt = new THREE.WebGLRenderTarget(2, 2, { samples: 2 }); rt.texture.colorSpace = THREE.LinearSRGBColorSpace;
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(PR, 128), new THREE.ShaderMaterial({ uniforms: { map: { value: rt.texture }, res: { value: new THREE.Vector2(1, 1) }, time: { value: 0 }, k: { value: 0 } }, toneMapped: true, vertexShader: VERT, fragmentShader: PORTAL_FRAG }));
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(PR, 160, 0, Math.PI), new THREE.ShaderMaterial({ uniforms: { map: { value: rt.texture }, res: { value: new THREE.Vector2(1, 1) }, time: { value: 0 }, k: { value: 0 } }, toneMapped: true, vertexShader: VERT, fragmentShader: PORTAL_FRAG }));
     disc.onBeforeRender = r => { const t = r.getRenderTarget(); if (t) disc.material.uniforms.res.value.set(t.width, t.height); else r.getDrawingBufferSize(disc.material.uniforms.res.value); };
     /* a faint holographic halo just outside the clean edge */
-    const halo = new THREE.Mesh(new THREE.CircleGeometry(PR * 1.1, 128), new THREE.ShaderMaterial({ uniforms: { time: disc.material.uniforms.time, k: disc.material.uniforms.k }, vertexShader: VERT, fragmentShader: HALO_FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+    const halo = new THREE.Mesh(new THREE.CircleGeometry(PR * 1.1, 160, 0, Math.PI), new THREE.ShaderMaterial({ uniforms: { time: disc.material.uniforms.time, k: disc.material.uniforms.k }, vertexShader: VERT, fragmentShader: HALO_FRAG, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     halo.position.z = -0.01; ring.add(halo, disc);
-    /* their room: a walnut table under a warm lamp, dark walls */
+    /* their room: their own walnut table just past the portal (its front edge in view), a warm lamp, dark walls and floor */
     const room = new THREE.Scene(); room.background = new THREE.Color(0x0c0a10);
     const wc = document.createElement('canvas'); wc.width = 512; wc.height = 512; const w = wc.getContext('2d'); w.fillStyle = '#3b2416'; w.fillRect(0, 0, 512, 512);
     for (let i = 0; i < 90; i++) { w.strokeStyle = 'rgba(' + Math.round(20 + Math.random() * 40) + ',' + Math.round(10 + Math.random() * 20) + ',5,' + (0.15 + Math.random() * 0.2).toFixed(2) + ')'; w.lineWidth = 1 + Math.random() * 3; w.beginPath(); const y = Math.random() * 512; w.moveTo(0, y); w.bezierCurveTo(170, y + Math.random() * 20 - 10, 340, y + Math.random() * 20 - 10, 512, y + Math.random() * 16 - 8); w.stroke(); }
     const wood = new THREE.CanvasTexture(wc); wood.colorSpace = THREE.SRGBColorSpace; wood.wrapS = wood.wrapT = THREE.RepeatWrapping; wood.repeat.set(2, 1.4);
-    const top = new THREE.Mesh(new THREE.BoxGeometry(18, 0.4, 12), new THREE.MeshStandardMaterial({ map: wood, roughness: 0.55 })); top.position.set(GX, -0.2, PORTAL_Z - 5.6); room.add(top);
-    const mat = new THREE.Mesh(new THREE.PlaneGeometry(13, 7.4), new THREE.MeshStandardMaterial({ color: 0x1d2a24, roughness: 0.95 })); mat.rotation.x = -Math.PI / 2; mat.position.set(GX, 0.005, PORTAL_Z - 4.3); room.add(mat);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(22, 0.6, 10), new THREE.MeshStandardMaterial({ map: wood, roughness: 0.55 })); top.position.set(GX, -0.3, THEIR_EDGE - 5); room.add(top);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 60), new THREE.MeshStandardMaterial({ color: 0x0e0b0d, roughness: 1 })); floor.rotation.x = -Math.PI / 2; floor.position.set(GX, -3.6, PORTAL_Z - 10); room.add(floor);
+    const mat = new THREE.Mesh(new THREE.PlaneGeometry(15, 6.4), new THREE.MeshStandardMaterial({ color: 0x1d2a24, roughness: 0.95 })); mat.rotation.x = -Math.PI / 2; mat.position.set(GX, 0.005, THEIR_EDGE - 3.8); room.add(mat);
     const walls = new THREE.Mesh(new THREE.BoxGeometry(70, 30, 60), new THREE.MeshStandardMaterial({ color: 0x17121c, roughness: 1, side: THREE.BackSide })); walls.position.set(GX, 12, PORTAL_Z - 12); room.add(walls);
-    const lamp = new THREE.PointLight(0xffd7a0, 160, 26, 1.6); lamp.position.set(GX, 7, PORTAL_Z - 4.5); room.add(lamp);
+    const lamp = new THREE.PointLight(0xffd7a0, 260, 30, 1.6); lamp.position.set(GX, 8, THEIR_EDGE - 4); room.add(lamp);
     const rim = new THREE.PointLight(0x7d6bff, 40, 30, 1.6); rim.position.set(GX - 7, 4, PORTAL_Z - 10); room.add(rim);
     room.add(new THREE.HemisphereLight(0x8c7cff, 0x1a0f08, 0.55));
     [g, ring, disc, halo].forEach(o => { o.userData.secret = true; o.userData.noParticles = true; });
@@ -160,7 +161,7 @@ export function install(S) {
   /* flip where it lies */
   const flip = (obj, down) => slide(obj, logical(obj), { down, dur: 0.6, arc: 0.7, scale: obj.group.scale.x });
 
-  const hand = () => G.hand.map(h => h.obj.group), handSpot = i => v((i - (G.hand.length - 1) / 2) * GAP, HAND_Z), rivSpot = i => v((i - (HAND - 1) / 2) * RIV_GAP, RIV_Z - Math.abs(i - (HAND - 1) / 2) * 0.18);
+  const hand = () => G.hand.map(h => h.obj.group), handSpot = i => v((i - (G.hand.length - 1) / 2) * GAP, HAND_Z), rivSpot = i => v((i - (HAND - 1) / 2) * RIV_GAP, RIV_Z);
 
   /* the developer: a print over the slab's photo that comes up from black; it fades away to leave the slab's own finish */
   async function developer(obj) { await obj.ready; const ph = obj.parts && obj.parts.photo; if (!ph || !G) return null;
@@ -187,7 +188,7 @@ export function install(S) {
     const go = () => M.go('who.open');
     if (M.is('under')) go(); else if (M.is('idle') && S.under) { S.under.flip('under'); let n = 0; const w = setInterval(() => { if (M.is('under')) { clearInterval(w); go(); } else if (++n > 150 || !M.is('flipping') && n > 20) { clearInterval(w); G = null; paintBtn(); S.toast('Turn the table over to the dark side, then play again.'); } }, 150); }
     else { G = null; paintBtn(); S.toast('Close what is open first, then play.'); } }
-  const FRAME = () => ({ tx: GX - 1.0, ty: 0, tz: PORTAL_Z + 3.6, pitch: 40, dT: ctx.fitDist(19, 12, 40) });
+  const FRAME = () => ({ tx: GX, ty: 1.2, tz: PORTAL_Z + 4.2, pitch: 34, dT: ctx.fitDist(25, 17, 34) });
 
   function rival(r) { const a = r.ai; if (a.done) return;
     /* a wrong guess before it knows (now and then), then the right one once the print is far enough up */
@@ -227,14 +228,14 @@ export function install(S) {
       G.hid = S.table.list.filter(o => o.group.visible); G.hid.forEach(o => { o.group.visible = false; if (o.tableShadow) o.tableShadow.visible = false; }); paintHud('A portal is opening to ' + G.rival + '\'s table.');
       await portal(true); if (!run.alive()) return;
       /* their five come through and lie face down on their side */
-      G.riv.forEach((h, i) => { h.obj = S.slabs.make(h.slab); h.obj.lift = (HAND - Math.abs(i - (HAND - 1) / 2)) * 0.014; lay(h.obj, rivSpot(i).add(new THREE.Vector3(0, 0, -3)), true); });
+      G.riv.forEach((h, i) => { h.obj = S.slabs.make(h.slab); lay(h.obj, rivSpot(i).add(new THREE.Vector3(0, 0, -3)), true); });
       await T.par(G.riv.map((h, i) => T.wait(i * 0.12, 'who').then(() => slide(h.obj, rivSpot(i), { down: true, dur: 0.9, sfx: i === 0 })))); if (!run.alive()) return;
       M.go('who.choose'); } });
   M.define('who.choose', { busy: true, on: { CLOSE: () => undefined },
     enter() { paintHud('Choose five slabs from your binder.');
       const ids = mine().sort(rarer).map(s => s.id);
       hud.classList.add('choosing');
-      S.binder.pick({ ids, ret: 'who.hand', label: 'Play this one', hold: { pos: [GX - 3.2, 1.8, PORTAL_Z + 4.4], tilt: 0.72, yaw: 0.16, cam: { tx: GX - 3.0, ty: 0.8, tz: PORTAL_Z + 4.6, pitch: 44, dT: ctx.fitDist(16, 10, 44) } }, hint: 'Choose five slabs to play with. They sit face up in front of you.',
+      S.binder.pick({ ids, ret: 'who.hand', label: 'Play this one', hold: { pos: [GX + 2.45, 3.3, PORTAL_Z + 6.6], tilt: 1.0, yaw: 0, hands: true, cam: FRAME() }, hint: 'Choose five slabs to play with. They sit face up in front of you.',
         choose: (slab, at) => { if (!G || G.hand.length >= HAND) return false; const obj = S.objFor(slab), i = G.hand.length; G.hand.push({ slab, obj, used: false });
           lay(obj, at, false); obj.group.scale.setScalar(0.2); G.hand.forEach((h, k) => { if (h.obj !== obj) slide(h.obj, handSpot(k), { dur: 0.5, sfx: false }); }); slide(obj, handSpot(i), { dur: 1.0 });
           paintHud(G.hand.length < HAND ? 'Chosen ' + G.hand.length + ' of ' + HAND + '.' : 'Your five are on the table.'); return G.hand.length < HAND; } }); } });

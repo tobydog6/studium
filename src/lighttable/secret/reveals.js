@@ -69,9 +69,9 @@ vec2 vor(vec2 p){ vec2 i = floor(p), f = fract(p); float d1 = 8.0, d2 = 8.0; vec
 `;
 /* the aura round the waiting card, in the theme's light; it fades softly inside the card's outline (no hard box when
    the card turns), and the card hides the rest */
-const AURA_F = `uniform vec2 uHalf; uniform vec2 uCard; uniform float uTime; uniform float uAmt; uniform float uFire; uniform float uGain; uniform float uMode; uniform vec3 uA; uniform vec3 uB; uniform vec3 uC; varying vec2 vUv;
+const AURA_F = `uniform vec2 uHalf; uniform vec2 uCard; uniform float uLift; uniform float uTime; uniform float uAmt; uniform float uFire; uniform float uGain; uniform float uMode; uniform vec3 uA; uniform vec3 uB; uniform vec3 uC; varying vec2 vUv;
 ${LIB}
-void main(){ vec2 p = (vUv - 0.5) * 2.0 * uHalf; float d = sdRB(p, uCard, uCard.x * 0.06), dd = max(d, 0.0); vec2 q = p / uCard.x * 1.5;
+void main(){ vec2 p = (vUv - 0.5) * 2.0 * uHalf + vec2(0.0, uLift); float d = sdRB(p, uCard, uCard.x * 0.06), dd = max(d, 0.0); vec2 q = p / uCard.x * 1.5;   /* p is about the card's centre: the plane itself sits uLift higher */
   float edgeL = exp(-dd / (uCard.x * 0.025)) * min(uAmt, 1.2), I = 0.0; vec3 col;
   if (uMode < 0.5) { float sp = mix(0.45, 1.5, uFire);
     vec2 w = vec2(rvF(q * 0.7 + vec2(0.0, -uTime * sp * 0.55)), rvF(q * 0.7 + vec2(4.3, -uTime * sp * 0.55 + 2.1)));
@@ -241,8 +241,8 @@ export function install(S) {
     const G = new THREE.Group(); G.position.copy(w.spin.position); w.h.add(G);
     const c = { r, G, hw, hh, idx, L, P, tn, th, roll, tier, aura: null, auraAmt: 0, auraWant: L.aura, stoke: 0 };
     if (L.aura > 0) { const fire = th.fire, hx = hw * (1.5 + 0.4 * fire + (th.aura === 2 ? 0.5 : 0)), hy = hh * (1.25 + 0.5 * fire + (th.aura === 4 ? 0.6 : 0) + (th.aura === 2 ? 0.35 : 0));
-      const u = { uHalf: { value: new THREE.Vector2(hx, hy) }, uCard: { value: new THREE.Vector2(hw, hh) }, uTime: { value: Math.random() * 50 }, uAmt: { value: 0 }, uFire: { value: fire }, uGain: { value: 1.1 + 0.7 * fire }, uMode: { value: th.aura }, uA: { value: P.a }, uB: { value: P.b }, uC: { value: P.c } };
       const lift = th.aura === 0 || th.aura === 4 ? (hy - hh) * 0.6 : 0;
+      const u = { uHalf: { value: new THREE.Vector2(hx, hy) }, uCard: { value: new THREE.Vector2(hw, hh) }, uLift: { value: lift }, uTime: { value: Math.random() * 50 }, uAmt: { value: 0 }, uFire: { value: fire }, uGain: { value: 1.1 + 0.7 * fire }, uMode: { value: th.aura }, uA: { value: P.a }, uB: { value: P.b }, uC: { value: P.c } };
       c.aura = new THREE.Mesh(new THREE.PlaneGeometry(hx * 2, hy * 2), shader(AURA_F, u)); c.aura.position.set(0, lift, -0.06); c.aura.renderOrder = 2; S.bloom.glow(c.aura); G.add(c.aura); }
     S.bloom.want = L.aura > 0 ? 0.3 + 0.3 * L.glow : 0;
     warm();
@@ -251,7 +251,7 @@ export function install(S) {
   /* compile every reveal shader while the card is still coming forward, not at the burst (that hitched the frame) */
   let warmed = false;
   function warm() { if (warmed) return; warmed = true; const sc = new THREE.Scene(), u = n => ({ value: n }), V2 = () => u(new THREE.Vector2(1, 1)), Cl = () => u(new THREE.Color());
-    const mats = [shader(AURA_F, { uHalf: V2(), uCard: V2(), uTime: u(0), uAmt: u(0), uFire: u(0), uGain: u(1), uMode: u(0), uA: Cl(), uB: Cl(), uC: Cl() }), shader(BALL_F, { uK: u(0), uSeed: u(0), uGain: u(1), uA: Cl(), uB: Cl(), uC: Cl() }),
+    const mats = [shader(AURA_F, { uHalf: V2(), uCard: V2(), uLift: u(0), uTime: u(0), uAmt: u(0), uFire: u(0), uGain: u(1), uMode: u(0), uA: Cl(), uB: Cl(), uC: Cl() }), shader(BALL_F, { uK: u(0), uSeed: u(0), uGain: u(1), uA: Cl(), uB: Cl(), uC: Cl() }),
       shader(RING_F, { uR: u(0), uW: u(0.1), uAmt: u(0), uSeed: u(0), uCol: Cl() }), shader(FLARE_F, { uAmt: u(0), uCol: Cl() }), shader(RIM_F, { uHalf: V2(), uCard: V2(), uTime: u(0), uAmt: u(0), uPrism: u(0), uB: Cl(), uC: Cl() }),
       shader(FACE_F, { uP: u(0), uTime: u(0), uAsp: u(1), uGain: u(1), uMode: u(0), uO: u(new THREE.Vector2()), uA: Cl(), uB: Cl(), uC: Cl() }, { blending: THREE.NormalBlending }),
       new THREE.ShaderMaterial({ uniforms: { uR: u(0), uAmt: u(0) }, vertexShader: GV, fragmentShader: DISC_F, transparent: true })];

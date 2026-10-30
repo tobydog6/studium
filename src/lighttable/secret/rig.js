@@ -205,9 +205,10 @@ export function install(S) {
   const mk = () => document.getElementById('skMarket'), tw = V(0, 0, 0);
   function screenRect() { const cam = ctx.camera, r = ctx.canvas.getBoundingClientRect(), p = o => { o.getWorldPosition(tw); tw.project(cam); return [r.left + (tw.x + 1) / 2 * r.width, r.top + (1 - tw.y) / 2 * r.height]; };
     const L = p(mech.marks.left), Rr = p(mech.marks.right), Tp = p(mech.marks.top), B = p(mech.marks.bottom); return { l: L[0], r: Rr[0], t: Tp[1], b: B[1] }; }
-  function placeOverlay() { const el = mk(); if (!el || !R.inPc) return; const q = screenRect(); el.style.left = q.l + 'px'; el.style.top = q.t + 'px'; el.style.width = Math.max(10, q.r - q.l) + 'px'; el.style.height = Math.max(10, q.b - q.t) + 'px'; }
-  function openExchange() { const el = mk(); if (!el || !S.market) return; R.inPc = true; el.classList.add('inpc'); placeOverlay(); S.market.open(); }
-  function closeExchange() { const el = mk(); R.closing = true; try { if (S.market) S.market.close(); } finally { R.closing = false; } R.inPc = false; if (el) { el.classList.remove('peek'); setTimeout(() => { if (!R.inPc) { el.classList.remove('inpc'); ['left', 'top', 'width', 'height'].forEach(k => { el.style[k] = ''; }); } }, 450); } }
+  /* inside the screen with a margin (Sam: nothing cut off at the edges); the screen round it is black, so the page reads as the display */
+  function placeOverlay() { const el = mk(); if (!el || !R.inPc) return; const q = screenRect(), mx = (q.r - q.l) * 0.012, my = (q.b - q.t) * 0.02; el.style.left = (q.l + mx) + 'px'; el.style.top = (q.t + my) + 'px'; el.style.width = Math.max(10, q.r - q.l - 2 * mx) + 'px'; el.style.height = Math.max(10, q.b - q.t - 2 * my) + 'px'; }
+  function openExchange() { const el = mk(); if (!el || !S.market) return; R.inPc = true; SM_.uDim.value = 0; el.classList.add('inpc'); placeOverlay(); S.market.open(); }
+  function closeExchange() { const el = mk(); SM_.uDim.value = 1; R.closing = true; try { if (S.market) S.market.close(); } finally { R.closing = false; } R.inPc = false; if (el) { el.classList.remove('peek'); setTimeout(() => { if (!R.inPc) { el.classList.remove('inpc'); ['left', 'top', 'width', 'height'].forEach(k => { el.style[k] = ''; }); } }, 450); } }
 
   /* ---------- the projector: the arm slides out of the top of the monitor, and the card is built out of fine light ----------
      Sam: not big blocky lights, very fine particles like a high end CG hologram. Some 30,000 points stream down out of
@@ -240,7 +241,7 @@ export function install(S) {
         float a = soft * uA * (vE > 0.0 ? 1.0 : 0.0) * (0.35 + 0.65 * vR) * (1.0 - smoothstep(1.0, 1.0, vE) * 0.0);
         gl_FragColor = vec4(col * a, 1.0); }` });
   const pts = new THREE.Points(pGeo, pMat); pts.frustumCulled = false; pts.visible = false; root.add(pts);
-  const spill = new THREE.PointLight(0x7fd0ff, 0, 8, 2); root.add(spill);
+  const spill = { intensity: 0, position: new THREE.Vector3() };   /* no light: a light added to the scene costs every material (the points are bright enough) */
   const poleBase = () => { const w = V(0, 0, 0); pole.getWorldPosition(w); return root.worldToLocal(w); };
   let poleLen = 2;
   /* e 0: tucked inside the monitor; 1: all the way out over the card */
@@ -255,7 +256,7 @@ export function install(S) {
     const s = JSON.parse(JSON.stringify(slab)); let obj = null; try { obj = S.objFor(s); } catch (e) { console.error(e); } PJ.obj = obj; if (obj && obj.ready) obj.ready.catch(() => {});
     const pb = poleBase(); poleLen = Math.max(0.5, CARD.z - pb.z); snd('servo');
     /* the screen dims while the arm comes out */
-    await T.tween({ dur: 0.38, ease: E.outCubic, tag: 'pj', update: e => { SM_.uDim.value = 1 - 0.8 * e; setPole(e); } }); if (gone()) return; snd('land');
+    await T.tween({ dur: 0.38, ease: E.outCubic, tag: 'pj', update: e => { setPole(e); } }); if (gone()) return; snd('land');
     pole.userData.ring.material.color.set(0xbfe6ff);
     if (obj && obj.ready) { try { await Promise.race([obj.ready, T.wait(1.5)]); } catch (e) {} } if (gone()) return;
     const w = (obj && obj.w) || 3.0, h = (obj && obj.h) || 4.4, K = Math.min(2.6 / h, 3.6 / w), cw = w * K, ch = h * K; PJ.ch = ch;
@@ -278,7 +279,7 @@ export function install(S) {
     /* the card comes apart into points, bottom first, and they stream back up into the lens */
     await T.tween({ dur: 0.85, ease: E.inOutSine, tag: 'pj', update: e => { buildAt(1.02 * (1 - e), ch); pMat.uniforms.uTime.value = T.time(); } });
     if (PJ.gen !== gen) return; pts.visible = false; dropCard(); pole.userData.ring.material.color.set(0x4fb8ff);
-    await T.tween({ dur: 0.3, ease: E.inCubic, tag: 'pj', update: e => { setPole(1 - e); SM_.uDim.value = 0.2 + 0.8 * e; } }); snd('land');
+    await T.tween({ dur: 0.3, ease: E.inCubic, tag: 'pj', update: e => { setPole(1 - e); } }); snd('land');
     const el = mk(); if (el) el.classList.remove('peek'); PJ.on = false; PJ.busy = false;
   }
   function projPointer(kind, e) {
@@ -292,7 +293,7 @@ export function install(S) {
   }
   function projFrame(dt) { if (!PJ.on || PJ.busy || !PJ.obj) return; if (!PJ.drag) { PJ.yaw += PJ.vy; PJ.vy *= Math.exp(-dt * 3); PJ.pitch += (0 - PJ.pitch) * (1 - Math.exp(-dt * 1.2)); }
     PJ.obj.group.quaternion.setFromEuler(new THREE.Euler(PJ.pitch, PJ.yaw, 0)); PJ.obj.group.position.set(CARD.x, CARD.y + Math.sin(T.time() * 1.4) * 0.04, CARD.z + PJ.z); }
-  function projOff() { PJ.gen++; T.cancelAll('pj'); pts.visible = false; spill.intensity = 0; dropCard(); setPole(0); pole.userData.ring.material.color.set(0x4fb8ff); SM_.uDim.value = 1; PJ.on = false; PJ.busy = false; const el = mk(); if (el) el.classList.remove('peek'); }
+  function projOff() { PJ.gen++; T.cancelAll('pj'); pts.visible = false; spill.intensity = 0; dropCard(); setPole(0); pole.userData.ring.material.color.set(0x4fb8ff); SM_.uDim.value = R.inPc ? 0 : 1; PJ.on = false; PJ.busy = false; const el = mk(); if (el) el.classList.remove('peek'); }
 
   /* ---------- the states ----------
      'pc.go': the toys come over and become the computer (or, if it is already built, the camera just goes in);

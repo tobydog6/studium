@@ -60,9 +60,9 @@ const FX = {
       if (beads) beadRim(det, P);
       const A0 = alloy[1], A1 = alloy[2];
       const map = texOf(P.W, P.H, true, i => { const t = Math.pow(sstep(0.0, 0.95, P.L[i]), 0.85) * (1 - cav[i] * 0.55); return [mix(A0[0], A1[0], t), mix(A0[1], A1[1], t), mix(A0[2], A1[2], t)]; });
-      const orm = texOf(P.W, P.H, false, i => [1 - cav[i] * 0.7, clamp(0.12 + polish * 0.14 + 0.16 * P.L[i] + cav[i] * 0.25 + (1 - sub[i]) * bg.rough, 0.03, 1), 1]);
+      const orm = texOf(P.W, P.H, false, i => [1 - cav[i] * 0.7, clamp(0.12 + polish * 0.14 + 0.16 * P.L[i] + cav[i] * 0.25 + (1 - sub[i]) * bg.rough, 0.16, 1), 1]);   /* Sam: no blinding, jagged glare as it tilts */
       const geo = reliefGeo(P, w, h, Hf);
-      const mat = new THREE.MeshPhysicalMaterial({ map, roughnessMap: orm, metalnessMap: orm, aoMap: orm, aoMapIntensity: 1, roughness: 1, metalness: 1, normalMap: normalOf(det, P.W, P.H, 22), normalScale: new THREE.Vector2(1, 1), envMapIntensity: 1.6 });
+      const mat = new THREE.MeshPhysicalMaterial({ map, roughnessMap: orm, metalnessMap: orm, aoMap: orm, aoMapIntensity: 1, roughness: 1, metalness: 1, normalMap: normalOf(det, P.W, P.H, 15), normalScale: new THREE.Vector2(1, 1), envMapIntensity: 1.05 });
       g.add(new THREE.Mesh(geo, mat)); api.label([alloy[0], bgk + ' ground', rel[0]].concat(beads ? ['beaded rim'] : []));
       return { relief: k => setRelief(geo, k * 0.17 * rel[3]) };
     } },

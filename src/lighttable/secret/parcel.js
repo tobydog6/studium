@@ -23,7 +23,7 @@ export function install(S) {
   const box = (w, h, d, mat, x, y, z, parent, r) => { const m = new THREE.Mesh(r ? new S.RoundedBoxGeometry(w, h, d, 2, r) : new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); parent.add(m); return m; };
   const canvasTex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), c); return S.SM.tex(c); };
   const snd = (id, o) => { try { if (S.snd) S.snd.play(id, o); } catch (e) {} };
-  const boxes = []; let hot = null, poll = 0.6, rush = false, phase = 'idle';
+  const boxes = []; let hot = null, poll = 0.6, rush = false, phase = 'idle', cutGo = null, liftGo = null;
 
   /* ---------- the carton ---------- */
   function labelTex(slab) { return canvasTex(512, 256, g => { g.fillStyle = '#f4f1ea'; g.fillRect(0, 0, 512, 256); g.strokeStyle = '#1e1b18'; g.lineWidth = 4; g.strokeRect(14, 14, 484, 228); g.fillStyle = '#1e1b18'; g.textAlign = 'left';
@@ -31,6 +31,7 @@ export function install(S) {
     const r = T.rng((slab.seed || 7) + 11); for (let i = 0; i < 40; i++) g.fillRect(300 + i * 4.6, 196, r() < 0.5 ? 2 : 3, 34); }); }
   function stencilTex(t, sub, col) { return canvasTex(512, 160, g => { g.clearRect(0, 0, 512, 160); g.fillStyle = col; g.textAlign = 'center'; g.font = '700 64px "Geist", system-ui, sans-serif'; g.fillText(t, 256, 78); g.font = '500 26px "Geist Mono", ui-monospace, monospace'; g.fillText(sub, 256, 124); }); }
   /* a closed courier carton: base and walls, two end flaps under two long flaps that meet at a taped seam, a band of tape round it */
+  function dashTex() { const t = canvasTex(32, 256, g => { g.clearRect(0, 0, 32, 256); g.fillStyle = '#ffffff'; for (let y = 4; y < 256; y += 32) g.fillRect(6, y, 20, 18); }); t.wrapT = THREE.RepeatWrapping; return t; }
   function makeBox(slab) {
     const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
     const card = stdM(0xb98b5a, 0.92, 0, { emissive: 0xffffff, emissiveIntensity: 0 }), tape = stdM(0xd9cfbb, 0.5, 0, { transparent: true, opacity: 0.92 });
@@ -44,6 +45,8 @@ export function install(S) {
     const fr = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.25), new THREE.MeshBasicMaterial({ map: stencilTex('FRAGILE', 'THIS WAY UP', '#b8302a'), transparent: true })); fr.position.set(0.05, H * 0.5, D / 2 + 0.002); body.add(fr);
     /* the cut: a dark slit that opens along the seam behind a blade */
     const slit = box(0.03, 0.006, 1, stdM(0x100c08, 1), 0, H + T0 + 0.004, 0, body); slit.visible = false;
+    /* the guide: a dashed line down the tape that shows where to slice; it shortens as you cut */
+    const guide = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 1), new THREE.MeshBasicMaterial({ map: dashTex(), transparent: true, opacity: 0, depthWrite: false })); guide.rotation.x = -Math.PI / 2; guide.position.set(0, H + T0 + 0.03, 0); guide.visible = false; body.add(guide);
     const blade = new THREE.Group(); blade.visible = false; body.add(blade);
     const edge = box(0.012, 0.3, 0.3, stdM(0xe4e7ea, 0.2, 0.95, { envMap: ENV, envMapIntensity: 1.3 }), 0, 0.13, -0.02, blade); edge.rotation.x = -0.55;
     box(0.1, 0.13, 0.5, stdM(0xe3b32a, 0.5, 0.05), 0, 0.36, -0.3, blade, 0.025);
@@ -51,7 +54,7 @@ export function install(S) {
     const tissue = [-1, 1].map(sx => { const hg = new THREE.Group(); hg.position.set(sx * (W / 2 - 0.06), 0.3, 0); body.add(hg); const geo = new THREE.PlaneGeometry(flapW - 0.1, D - 0.3, 8, 18);
       const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color: 0xf7f4ee, transparent: true, opacity: 0.9, side: THREE.DoubleSide })); m.rotation.x = -Math.PI / 2; m.position.x = -sx * (flapW - 0.1) / 2; hg.add(m); return { hg, geo, base: geo.attributes.position.array.slice(), sx }; });
     const sh = S.shadow(W + 1.1, D + 1.1); sh.position.set(0.08, 0.004, 0.12); g.add(sh);
-    const bx = { group: g, body, slab, card, tissue, slit, blade, shadow: sh, yaw: 0, hotT: 0, ke: 0, kl: 0, arrived: false, opening: false,
+    const bx = { group: g, body, slab, card, tissue, slit, guide, blade, shadow: sh, yaw: 0, hotT: 0, ke: 0, kl: 0, arrived: false, opening: false,
       set(ke, kl) { bx.ke = ke; bx.kl = kl; ends.forEach(e => { e.hg.rotation.x = e.s * 2.0 * ke; }); longs.forEach(l => { l.hg.rotation.z = -l.s * 2.3 * kl; }); },
       /* the tissue parts: each sheet folds up and out while it crinkles */
       tissueTo(tk, t) { tissue.forEach(ts => { ts.hg.rotation.z = -ts.sx * 1.9 * tk; const p = ts.geo.attributes.position; for (let i = 0; i < p.count; i++) { const x = ts.base[i * 3], y = ts.base[i * 3 + 1]; p.setZ(i, 0.025 * Math.sin(x * 9 + y * 3) + 0.02 * Math.sin(y * 7 + t * 2.5 + x * 4) * (0.3 + tk)); } p.needsUpdate = true; ts.geo.computeVertexNormals(); }); } };
@@ -98,7 +101,26 @@ export function install(S) {
     if (!S.unlocked()) { if (boxes.length) boxes.slice().forEach(bx => { if (!bx.opening) disposeBox(bx); }); return; }
     poll += dt; if (poll > 1) { poll = 0; check(); }
     const k = 1 - Math.exp(-dt * 10);
+    if (cutGo) { const c = cutGo, t = T.time(); c.bx.guide.material.opacity = c.drag ? 0.35 : 0.55 + 0.3 * Math.sin(t * 5); if (!c.drag) c.bx.blade.position.y = H + T0 + 0.12 + 0.05 * Math.sin(t * 4); }
+    if (liftGo) { const L = liftGo; L.obj.group.position.y = L.y + 0.03 + 0.03 * Math.sin(T.time() * 3.5); }
     boxes.forEach(bx => { bx.hotT += ((hot === bx ? 1 : 0) - bx.hotT) * k; bx.card.emissiveIntensity = 0.1 * bx.hotT; if (bx.arrived && !bx.opening) bx.body.position.y = 0.035 * bx.hotT; });
+  }
+
+  /* ---------- the cut: where the knife and slit are (u 0 far end to 1 near end), and your drag along the seam ---------- */
+  function cutAt(bx, u, lift) { bx.cutU = u; bx.blade.position.set(0, H + T0 + lift, -D / 2 - 0.05 + (D + 0.1) * u); bx.slit.scale.z = Math.max(0.001, D * u); bx.slit.position.z = -D / 2 + bx.slit.scale.z / 2;
+    const left = Math.max(0.001, 1 - u); bx.guide.scale.y = D * left; bx.guide.position.z = D / 2 - D * left / 2; bx.guide.material.map.repeat.y = D * left * 2.2; }
+  function cutPointer(kind, e) {
+    const c = cutGo, bx = c.bx, w = S.tableHit(e, H + T0); if (!w) return true; const p = bx.body.worldToLocal(w.clone()), uz = (p.z + D / 2) / D;
+    if (kind === 'down') { if (e.button !== 0) return true; if (Math.abs(p.x) < 0.45 && uz > c.u - 0.25 && uz < c.u + 0.3) { c.drag = true; ctx.canvas.style.cursor = 'grabbing'; cutAt(bx, c.u, 0); } else S.toast('Grab the knife at the end of the cut.'); return true; }
+    if (kind === 'up') { if (c.drag) { c.drag = false; ctx.canvas.style.cursor = 'grab'; cutAt(bx, c.u, 0.12); } return true; }
+    if (kind !== 'move') return true;
+    if (!c.drag) { ctx.canvas.style.cursor = Math.abs(p.x) < 0.45 && Math.abs(uz - c.u) < 0.3 ? 'grab' : 'default'; return true; }
+    /* off the line: the knife slips out and you pick it up again where you left off */
+    if (Math.abs(p.x) > 0.5) { c.drag = false; ctx.canvas.style.cursor = 'default'; cutAt(bx, c.u, 0.12); S.sfx('detent'); ctx.hint('Oops, off the tape. Pick the knife up and keep going.'); return true; }
+    const u = Math.min(1, Math.max(c.u, Math.min(uz, c.u + 0.2)));   /* only forwards, and no jumping ahead */
+    if (u > c.u) { if (u - c.said > 0.12) { c.said = u; snd('tape'); } c.u = u; cutAt(bx, u, 0); bx.blade.rotation.z = Math.max(-0.12, Math.min(0.12, p.x * 0.4)); }
+    if (c.u >= 0.97) { cutAt(bx, 1, 0); S.sfx('ltPutDown'); c.done(); }
+    return true;
   }
 
   /* ---------- the count up: a small plane over the label's grade, so the number can tick up from 1 ---------- */
@@ -135,8 +157,12 @@ export function install(S) {
   /* ---------- the unboxing ---------- */
   M.define('parcel.open', { busy: true,
     /* CLOSE does not leave the box half open: the rest of the sequence runs fast and the slab still lands */
-    on: { CLOSE: () => { rush = true; T.cancelAll(TAG); return undefined; } },
-    pointer() { return true; },
+    on: { CLOSE: () => { rush = true; T.cancelAll(TAG); if (cutGo) cutGo.done(); if (liftGo) liftGo.done(); return undefined; } },
+    pointer(kind, e) {
+      if (cutGo) return cutPointer(kind, e);
+      if (liftGo) { const h = S.hitAny(e, [liftGo.obj.group]); if (kind === 'move') ctx.canvas.style.cursor = h ? 'pointer' : 'default';
+        if (kind === 'down' && e.button === 0 && h) { ctx.canvas.style.cursor = 'default'; liftGo.done(); } return true; }
+      return true; },
     async enter(d, run) {
       const bx = d && d.box; if (!bx || !boxes.includes(bx) || bx.opening) { M.go('idle'); return; }
       const dur = s => rush || !run.alive() ? Math.min(s, 0.1) : s;
@@ -148,9 +174,11 @@ export function install(S) {
       phase = 'cam'; S.cam.push(); S.cam.set({ pitch: PITCH }); S.cam.set({ tx: x, ty: 0.35, tz: z + 0.2, dT: S.cam.fit(6.2, 5.0) }); S.sfx('ltInspect');
       await T.wait(dur(0.6), TAG);
       /* the tape: a blade drops onto the far end of the seam and runs to the near end, the slit opening behind it */
-      phase = 'cut'; snd('tape'); bx.blade.visible = true; bx.slit.visible = true;
-      await T.tween({ dur: dur(1.1), ease: E.linear, tag: TAG, update: (e, u) => { const cut = T.sub(u, 0.15, 0.85), lift = u < 0.15 ? (0.15 - u) / 0.15 * 0.5 : u > 0.85 ? (u - 0.85) / 0.15 * 0.6 : 0;
-        bx.blade.position.set(0, H + T0 + lift, -D / 2 - 0.1 + (D + 0.2) * cut); bx.slit.scale.z = Math.max(0.001, D * cut); bx.slit.position.z = -D / 2 + bx.slit.scale.z / 2; } });
+      /* the tape: you slice it yourself (Sam): drag the knife from the far end of the seam down to the near end */
+      phase = 'cut'; bx.blade.visible = true; bx.slit.visible = true; bx.guide.visible = true; cutAt(bx, 0, 0.12);
+      if (!rush && run.alive()) { ctx.hint('Drag the knife down the tape to slice the box open.'); await new Promise(res => { cutGo = { bx, u: 0, drag: false, said: 0, done: () => { cutGo = null; res(); } }; }); ctx.hint(null); }
+      if (bx.slit.scale.z < D - 0.01) await T.tween({ dur: dur(0.3), ease: E.linear, tag: TAG, update: e => cutAt(bx, Math.max(bx.cutU || 0, e), 0) });
+      bx.guide.visible = false;
       bx.blade.visible = false; bx.slit.scale.z = D; bx.slit.position.z = 0;
       /* the flaps: the taped pair first, then the ends they were covering */
       phase = 'flaps'; snd('cardboard'); bx.slit.visible = false; bx.blade.visible = false;
@@ -163,6 +191,8 @@ export function install(S) {
       phase = 'tissue'; snd('tissue');
       await T.tween({ dur: dur(0.8), ease: E.inOutSine, tag: TAG, update: e => bx.tissueTo(e, T.time()) });
       bx.tissueTo(1, T.time());
+      /* it waits in the box until you click it to lift it out (Sam) */
+      if (!rush && run.alive()) { phase = 'lift'; ctx.hint('Click the slab to lift it out.'); const y0 = obj.group.position.y; await new Promise(res => { liftGo = { obj, y: y0, done: () => { liftGo = null; res(); } }; }); obj.group.position.y = y0; ctx.hint(null); }
       /* the slab rises to meet you: up, forward and turning to face the camera, growing to its table size */
       phase = 'rise'; snd('rise');
       const upQ = new THREE.Quaternion().setFromAxisAngle(X, -PITCH * Math.PI / 180), p0 = obj.group.position.clone(), p1 = new THREE.Vector3(x, 1.45, z + 0.8);
@@ -193,7 +223,7 @@ export function install(S) {
       phase = 'done'; S.table.adopt(obj, x, z, yaw); S.hud(); if (!S.unlocked()) S.table.remove(obj, true); else if (S.fileAway) S.fileAway(obj).catch(e => console.error(e));   /* back from grading: into the case */
       S.cam.pop(); if (run.alive()) M.go('idle');
     },
-    exit() { phase = 'idle'; rush = false; },
+    exit() { phase = 'idle'; rush = false; if (cutGo) cutGo.done(); if (liftGo) liftGo.done(); },
   });
 
   S.parcel = { check, pointer, frame, __boxes: () => boxes.slice(), __phase: () => phase };

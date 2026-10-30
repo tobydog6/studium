@@ -19,7 +19,7 @@
 // HUD (#skWhoHud). Needs ARTISTS_MIN artist packs and five of your slabs from them. Everything lives in d.who.
 import * as THREE from 'three';
 
-const DEV = 20, LOCK = 5, HAND = 5, WRONG = 3, WIN_COINS = 30, WIN_CAP = 3, ARTISTS_MIN = 6;
+const DEV = 13, LOCK = 5, HAND = 5, WRONG = 3, WIN_COINS = 30, WIN_CAP = 3, ARTISTS_MIN = 6;
 /* the layout on the dark table: centre-left, clear of the pit (right), the binder (front left) and the shelf */
 /* the layout, low on the dark table (the top is kept for the PC): your five along the front edge, theirs arriving in
    front of you, the portal standing behind that; past the portal (z < PORTAL_Z) is their room, not this table */
@@ -233,7 +233,7 @@ export function install(S) {
     const go = () => M.go('who.open');
     if (M.is('under')) go(); else if (M.is('idle') && S.under) { S.under.flip('under'); let n = 0; const w = setInterval(() => { if (M.is('under')) { clearInterval(w); go(); } else if (++n > 150 || !M.is('flipping') && n > 20) { clearInterval(w); G = null; paintBtn(); S.toast('Turn the table over to the dark side, then play again.'); } }, 150); }
     else { G = null; paintBtn(); S.toast('Close what is open first, then play.'); } }
-  const FRAME = () => ({ tx: GX, ty: 2.6, tz: PORTAL_Z + 3.4, pitch: 28, dT: ctx.fitDist(17.5, 12.5, 28) });
+  const FRAME = () => ({ tx: GX, ty: 1.6, tz: PORTAL_Z + 2.9, pitch: 36, dT: ctx.fitDist(19, 18, 36) });   /* your five near the camera stay in view (Sam) */
 
   function rival(r) { const a = r.ai; if (a.done) return;
     /* a wrong guess before it knows (now and then), then the right one once the print is far enough up */
@@ -332,6 +332,8 @@ export function install(S) {
      or action at the bottom (the count, the guess dock with what a right answer is worth right now, the reveal),
      the artist sheet over the bottom when you take a guess */
   function paintHud(say, count) { if (!G) return; const r = G.r, play = M.is('who.play'), reveal = M.is('who.reveal');
+    /* the guess panel sits on the right: slide the view over so the print sits left of it, and back after */
+    { const pk = !!(play && G.picker); if (pk !== !!G.pkCam) { G.pkCam = pk; T.to(ctx.cam, { tx: GX + (pk ? 3.4 : 0) }, { dur: 0.45, ease: T.E.inOutSine, tag: 'who' }); } }
     if (say !== undefined && say !== null) G.say = say; if (say === null) G.say = '';
     const now = Math.min(G.round + (reveal || M.is('who.return') ? 0 : 1), HAND);
     const pips = [...Array(HAND)].map((_, i) => { const x = G.rounds[i]; return '<i class="' + (x ? (x.mine > x.rival ? 'win' : x.mine < x.rival ? 'lose' : 'tie') : i === now - 1 ? 'now' : '') + '"></i>'; }).join('');
@@ -404,11 +406,11 @@ const CSS = `
 #skWhoHud .wh-k{ font:500 9px var(--f-mono); letter-spacing:.26em; text-transform:uppercase; color:var(--accent); } #skWhoHud .wh-reveal>b{ font:400 38px/1.1 var(--f-serif, Georgia, serif); font-weight:400; text-align:center; }
 #skWhoHud .wh-chips{ display:flex; gap:8px; margin:8px 0 10px; } #skWhoHud .wh-chips span{ padding:5px 11px; border-radius:999px; background:rgba(244,241,234,.07); font:500 11px var(--f-mono); color:var(--h-mut); } #skWhoHud .wh-chips .up{ color:var(--h-up); } #skWhoHud .wh-chips .dn{ color:var(--h-dn); }
 @keyframes whIn{ from{ opacity:0; transform:translate(-50%,14px); } to{ opacity:1; transform:translate(-50%,0); } }
-#skWhoHud .wh-pick{ position:absolute; left:0; right:0; bottom:0; padding:0 16px calc(18px + env(safe-area-inset-bottom,0px)); pointer-events:auto; z-index:3; }
-#skWhoHud .wh-pick-in{ max-width:1120px; margin:0 auto; padding:16px 18px 18px; background:rgba(14,13,12,.92); border:1px solid var(--h-ln); border-radius:18px; backdrop-filter:blur(14px); box-shadow:0 -10px 60px rgba(0,0,0,.6); animation:whUp .3s cubic-bezier(.2,.8,.2,1) both; }
-@keyframes whUp{ from{ transform:translateY(60px); opacity:0; } to{ transform:none; opacity:1; } }
+#skWhoHud .wh-pick{ position:absolute; top:84px; right:16px; bottom:calc(16px + env(safe-area-inset-bottom,0px)); width:min(380px,32vw); display:flex; pointer-events:auto; z-index:3; }   /* a side panel, so the print stays clear (Sam) */
+#skWhoHud .wh-pick-in{ display:flex; flex-direction:column; width:100%; min-height:0; max-height:100%; align-self:flex-start; padding:16px 18px 18px; background:rgba(14,13,12,.92); border:1px solid var(--h-ln); border-radius:18px; backdrop-filter:blur(14px); box-shadow:0 -10px 60px rgba(0,0,0,.6); animation:whUp .3s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes whUp{ from{ transform:translateX(40px); opacity:0; } to{ transform:none; opacity:1; } }
 #skWhoHud .wh-pick-top{ display:flex; align-items:center; gap:16px; margin-bottom:14px; } #skWhoHud .wh-pick-top h3{ margin:0; font:400 24px/1 var(--f-serif, Georgia, serif); } #skWhoHud .wh-pick-top .wh-ghost{ margin-left:auto; }
-#skWhoHud .wh-artists{ display:grid; grid-template-columns:repeat(auto-fill,minmax(128px,1fr)); gap:12px; max-height:40vh; overflow:auto; padding:2px; }
+#skWhoHud .wh-artists{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; min-height:0; overflow:auto; padding:2px; }
 #skWhoHud .wh-art{ position:relative; display:flex; flex-direction:column; gap:8px; padding:0; background:none; border:0; color:var(--text); text-align:left; cursor:pointer; transition:transform .15s; }
 #skWhoHud .wh-ph{ display:block; overflow:hidden; border-radius:10px; border:1px solid var(--h-ln); transition:border-color .15s, box-shadow .15s; } #skWhoHud .wh-ph img{ display:block; width:100%; aspect-ratio:4/5; object-fit:cover; background:#000; transition:transform .3s; }
 #skWhoHud .wh-an{ font:500 13px var(--f-ui); padding:0 2px; }

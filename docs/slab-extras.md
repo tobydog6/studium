@@ -34,6 +34,15 @@ Third round (30 Oct):
   weather from outside (the photo's weather matches Christchurch today), heavy parcel (shakes or glows when rare).
 - Sam wants emergent ideas next: systems that interact.
 
+Fourth round (30 Oct):
+- Corrupted slab: very rare and cursed. It glitches the light table (other slabs flicker, the UI tears); once you
+  "debug" it, it becomes one of the best finishes.
+- Class feed ("Mere just pulled a Mythic...") and a showcase shelf friends can visit.
+- Binder sets: empty grey outlines for what's missing, a progress bar, a reward for a finished page.
+- Pity: a guaranteed rare every so many pulls, but kept quiet. Sam: don't let them know it's pseudo random
+  (no visible pity counter).
+- Sam wants more slab looks in the same spirit as the finishes: cool, not game breaking.
+
 ## Structure (draft for Sam)
 A pull = one finish + up to a few extras, each from a different slot. Slots roll on their own, then a cap trims.
 

@@ -50,6 +50,13 @@ Fifth round (30 Oct), finishes and extras:
 - Extra: Prism edges (case edges throw a little rainbow on the table).
 - Sam wants ideas borrowed from other games next (Balatro and the like), spread wide.
 
+Sixth round (30 Oct), from other games:
+- Negative (dark inverted film with an oily shimmer), Galaxy foil (stars in the foil that twinkle on tilt),
+  Animated card (the whole photo gently moves), Walkout reveal (mythic: tier colour, then place, then finish, then card).
+- Sam already has most of the borrowed ideas in; he wants fresher ones.
+- Note: Thermal, Cyanotype, Polychrome, Carved stone and Glass already exist as finishes (slabs.js); a pick of one of
+  those means a depth-based refresh of the existing finish, not a new id.
+
 ## Structure (draft for Sam)
 A pull = one finish + up to a few extras, each from a different slot. Slots roll on their own, then a cap trims.
 

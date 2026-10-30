@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 
 export function install(S) {
-  const { T, M, ctx } = S, E = T.E, W = ctx.W_T, H = ctx.H_T, PIV_Y = -0.6, DARK_PITCH = 60, LIGHT_PITCH = 78;   /* LIGHT_PITCH is main.js's TOP */
+  const { T, M, ctx } = S, E = T.E, W = ctx.W_T, H = ctx.H_T, PIV_Y = -0.6, DARK_PITCH = 60, LIGHT_PITCH = 60;   /* LIGHT_PITCH is main.js's TOP */
   const RECT = S.loot && S.loot.rect ? S.loot.rect.slice() : [6, -11.7, 17, -7];
   const [X0, Z0, X1, Z1] = RECT, PW = X1 - X0, PD = Z1 - Z0, CX = (X0 + X1) / 2, CZ = (Z0 + Z1) / 2;
   const VAULT = { x: -0.3, z: 0.3, r: 2.15 };
@@ -79,7 +79,7 @@ export function install(S) {
       pivot.rotation.x = to ? Math.PI : 0; if (!flipped) { flipped = true; if (to) { takeVault(true); showSecret(true); } else { takeVault(false); } }
       if (!to) showLightSide();
       U.on = to; S.snd.play('slam'); S.sfx('ltPutDown'); S.cam.pop();
-      /* Sam: the dark side rests at a slight angle, not bird's eye; the light side goes back to looking straight down for laying out prints */
+      /* Sam: both sides rest at a slight angle, not bird's eye */
       if (to) S.cam.set({ tx: 0, tz: 1.4, pitch: DARK_PITCH, dT: ctx.fitDist(W + 2, H + 2, DARK_PITCH) }); else S.cam.set({ pitch: LIGHT_PITCH, tx: 0, tz: 0.3, dT: ctx.fitDist(W + 1.5, H + 1, LIGHT_PITCH) });
       if (to) { hum = S.snd.loop('hum'); S.toast('The underside. The big red button opens a pack. Space turns the table back over.'); } else { if (hum) { hum.stop(0.5); hum = null; } S.toast('Back the right way up.'); }
       if (run.alive()) M.go(to ? 'under' : 'idle');

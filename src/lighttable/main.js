@@ -11,7 +11,7 @@ const pick = { board:'B', marker:'A' };
 const HOST=(()=>{ try{ return window.parent!==window&&window.parent.LT_BRIDGE||null; }catch(e){ return null; } })();
 function SFX(id,o){ try{ if(HOST&&HOST.sfx) return HOST.sfx(id,o); }catch(e){} return null; }
 if(!HOST) try{ const s=JSON.parse(localStorage.getItem('lt_pick7')||'null'); if(s) Object.keys(pick).forEach(k=>{ if(s[k]&&OPTS[k][s[k]]) pick[k]=s[k]; }); }catch(e){}
-const TOP=78;
+const TOP=60;   /* Sam: the table at a slight angle, not bird's eye (it was 78) */
 const F={ lift:0.55, tiltK:0.10, maxTilt:0.32, k:170, c:13, follow:20, jitter:0.05, sag:0.035 };
 const SPEC=[0.10,46,0.035,6];
 const $=id=>document.getElementById(id);

@@ -43,6 +43,11 @@ export function install(S) {
   const SHARED = new Set([SOFT, RIM, BURST]);
 
   const group = new THREE.Group(); group.name = 'rail'; group.visible = false; ctx.scene.add(group);
+  /* the reel's lights live in the scene for good, dark until a pull: adding a light makes every material recompile, which
+     is what made the spin stutter as it came out (Sam). Set where the room is on each run. */
+  const LIT = { red: new THREE.PointLight(0xff3a1e, 0, 22, 1.5), key: new THREE.PointLight(0xfff0dc, 0, 12, 1.6), flash: new THREE.PointLight(0xffffff, 0, 9, 1.6) };
+  Object.values(LIT).forEach(l => { l.userData.secret = true; ctx.scene.add(l); });
+  const lv = new THREE.Vector3();
   const landing = new THREE.Vector3();
   /* R: everything about the current run; null between runs */
   let R = null, driver = null;
@@ -74,9 +79,7 @@ export function install(S) {
     /* the safelight: its housing on the back wall, the red lens, a halo, and the red light itself out over the rail */
     box(0.9, 0.3, 0.42, stdM(0x1a1a1a, 0.7), 0, -0.4, z0 + 0.28, room); const lens = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.3), new THREE.MeshBasicMaterial({ color: 0xff2a14 })); lens.rotation.x = Math.PI / 2; lens.position.set(0, -0.56, z0 + 0.28); room.add(lens);
     const halo = sprite(SOFT, 2.6, 1.5, 0xff3a20, 0.5); halo.position.set(0, -0.7, z0 + 0.5); room.add(halo);
-    const red = new THREE.PointLight(0xff3a1e, 0, 22, 1.5); red.position.set(0, 0.35, 1.4); room.add(red);
-    const redBack = new THREE.PointLight(0xff3a1e, 0, 14, 1.6); redBack.position.set(0, -0.8, z0 + 0.9); room.add(redBack);
-    const key = new THREE.PointLight(0xfff0dc, 0, 12, 1.6); key.position.set(0.8, 0.9, 3.2); room.add(key);
+    const red = LIT.red, key = LIT.key; red.position.set(cx, 0.35, cz + 1.4); key.position.set(cx + 0.8, 0.9, cz + 3.2);
     /* the line of prints still dripping, strung behind the rail; it drifts past slowly */
     const line = new THREE.Group(); line.position.set(0, -0.55, z0 + 1.0); room.add(line);
     const string = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, W + 2, 6), lam(0x7a6a60)); string.rotation.z = Math.PI / 2; line.add(string);
@@ -85,7 +88,7 @@ export function install(S) {
       const paper = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), lam(0xffffff, { map: S.SM.tex(ctx.paintPhoto(S.KINDS[(i * 5 + 1) % S.KINDS.length], 300 + i * 17, land ? 300 : 210, land ? 210 : 300)), side: THREE.DoubleSide })); paper.position.y = -0.06 - ph / 2; g.add(paper);
       [-0.3, 0.3].forEach(x => box(0.05, 0.12, 0.05, lam(0x6a4a3a), x * pw, -0.04, 0, g)); g.userData = { pw, ph, i }; line.add(g); hung.push(g);
       for (let k = 0; k < 2; k++) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.026, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffb0a0, transparent: true, opacity: 0.8 })); d.userData.noParticles = true; line.add(d); drops.push({ m: d, g, k, ph: (i * 0.37 + k * 0.5) % 1 }); } }
-    return { room, W, D, x0, x1, z0, z1, cx, cz, walls, halo, red, redBack, key, line, hung, drops, LN, LP, span: Math.min(W / 2 - 0.55, SHOW * 1.75) };
+    return { room, W, D, x0, x1, z0, z1, cx, cz, walls, halo, red, key, line, hung, drops, LN, LP, span: Math.min(W / 2 - 0.55, SHOW * 1.75) };
   }
 
   /* ---------- the rail: the bar, two posts, the marker, the hangers ---------- */
@@ -170,8 +173,10 @@ export function install(S) {
     /* the prints' photos arrive while it rises; the pitch of the slots fits the widest */
     await Promise.race([Promise.all(slots.map(s => s.obj.ready.catch(() => null))), T.wait(5, 'rail')]); if (!alive()) return;
     r.pitch = Math.max(1.1, ...slots.filter(s => s.obj.built).map(s => Math.min(s.obj.w, s.obj.h) * K)) + 0.12;
+    /* every print compiled now, the ones out of view too, so none of them stalls the reel when it comes round */
+    try { slots.forEach(s => { if (!s.placed && s.obj.built) placeHanger(s); }); const vis = slots.map(s => s.h.visible); slots.forEach(s => { s.h.visible = true; }); S.renderer.compile(rg.rig, S.camera, ctx.scene); slots.forEach((s, i) => { s.h.visible = vis[i]; }); } catch (e) {}
     /* a flash at the marker in the passing print's tier colour, and dust drifting in the pit */
-    r.flash = new THREE.PointLight(0xffffff, 0, 9, 1.6); r.flash.position.set(0, BAR_Y - 0.6, 1.4); rg.rig.add(r.flash);
+    r.flash = LIT.flash;
     { const n = 500, pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) { pos[i * 3] = rm.x0 + Math.random() * rm.W; pos[i * 3 + 1] = -4 + Math.random() * 5.5; pos[i * 3 + 2] = rm.z0 + Math.random() * rm.D; } const gm = new THREE.BufferGeometry(); gm.setAttribute('position', new THREE.BufferAttribute(pos, 3)); r.dust = new THREE.Points(gm, new THREE.PointsMaterial({ color: 0xffd2b0, size: 0.045, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending })); r.dust.userData.noParticles = true; group.add(r.dust); }
     await up; if (!alive()) return;
     S.snd && S.snd.play('servo'); await T.wait(0.35, 'rail'); if (!alive()) return;
@@ -226,7 +231,7 @@ export function install(S) {
       await T.to(r.rg.rig.position, { y: SUNK }, { dur: 1.3, ease: E.inCubic, tag: 'railsink' });
       r.slots.forEach(s => { if (!(r.handed && s === r.winner)) S.slabs.drop(s.obj); });
       group.remove(r.rg.rig); disposeAll(r.rg.rig); group.remove(r.rm.room); disposeAll(r.rm.room);
-      if (R === r) R = null; group.visible = false;
+      if (R === r) R = null; group.visible = false; Object.values(LIT).forEach(l => { l.intensity = 0; });
     })();
     return r.closing;
   }
@@ -237,7 +242,7 @@ export function install(S) {
     /* lights: the safelight, the key on the winner after it lands, the flash of the burst */
     const sink = r.sinking ? T.clamp((r.rg.rig.position.y - SUNK) / (UP - SUNK), 0, 1) : 1;
     const redK = r.redK * (r.landed ? 1 - 0.6 * T.clamp((t - r.landed) / 0.7, 0, 1) : 1);
-    rm.red.intensity = 26 * redK * (0.96 + 0.04 * Math.sin(t * 23)) * sink; rm.redBack.intensity = 14 * redK * sink; rm.halo.material.opacity = (0.4 + 0.06 * Math.sin(t * 7)) * r.redK * sink;
+    rm.red.intensity = 26 * redK * (0.96 + 0.04 * Math.sin(t * 23)) * sink; rm.halo.material.opacity = (0.4 + 0.06 * Math.sin(t * 7)) * r.redK * sink;
     if (r.keyFlash) r.keyFlash *= Math.exp(-dt * 6); rm.key.intensity = (16 * r.keyK + 40 * (r.keyFlash || 0)) * sink;
     /* the line of dripping prints drifts past */
     const span = rm.W / 2 + 0.6, tot = rm.LN * rm.LP, drift = t * 0.22;
@@ -252,7 +257,7 @@ export function install(S) {
       if (r.u >= reel.total + 0.1 && r.reelDone) { const f = r.reelDone; r.reelDone = null; r.pos = reel.target; f(); }
     } else r.blur *= Math.exp(-dt * 6);
     r.tick *= Math.exp(-dt * 14);
-    if (r.flash) { r.flash.intensity = 70 * r.tick; const near = slots.reduce((b, s) => { const dx = Math.abs(((s.i - r.pos) * r.pitch + slots.length * r.pitch * 1.5) % (slots.length * r.pitch) - slots.length * r.pitch / 2); return !b || dx < b.d ? { d: dx, s } : b; }, null); if (near) r.flash.color.set(S.SL.tierOf(near.s.obj.slab).color); }
+    if (r.flash) { rg.rig.localToWorld(lv.set(0, BAR_Y - 0.6, 1.4)); r.flash.position.copy(lv); r.flash.intensity = 70 * r.tick; const near = slots.reduce((b, s) => { const dx = Math.abs(((s.i - r.pos) * r.pitch + slots.length * r.pitch * 1.5) % (slots.length * r.pitch) - slots.length * r.pitch / 2); return !b || dx < b.d ? { d: dx, s } : b; }, null); if (near) r.flash.color.set(S.SL.tierOf(near.s.obj.slab).color); }
     if (r.dust) { const p = r.dust.geometry.attributes.position; for (let i = 0; i < p.count; i += 1) { p.setY(i, p.getY(i) + dt * (0.08 + 0.05 * Math.sin(i))); if (p.getY(i) > 1.6) p.setY(i, -4); } p.needsUpdate = true; r.dust.material.opacity = 0.25 + 0.4 * r.blur; }
     rg.marker.rotation.z = -r.tick * 0.45 * Math.sign(r.vel || 1); rg.mg.material.opacity = 0.35 + 0.65 * r.tick; rg.line.material.opacity = r.landed ? Math.max(0.08, 0.7 - (t - r.landed)) : 0.7;
     const n = slots.length, total = n * r.pitch, half = total / 2, lag = T.clamp(-r.vel * r.pitch / 30, -1, 1) * 0.05;

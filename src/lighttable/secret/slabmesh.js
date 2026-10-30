@@ -201,9 +201,9 @@ function build(obj, S, env) {
   const caseGeo = new RoundedBoxGeometry(obj.w, obj.h, th, 8, 0.05);
   /* it reflects the dark softbox studio, not the bright room the slab's own parts use: a bright room reflected additively reads as a white sheet */
   const caseEnv = studioEnvs(S.renderer).studio;
-  const acr = new THREE.Mesh(caseGeo, new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.02, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02, ior: 1.49, envMap: caseEnv, envMapIntensity: clear ? 1.4 : 1.0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const acr = new THREE.Mesh(caseGeo, new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.06, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, ior: 1.49, envMap: caseEnv, envMapIntensity: clear ? 1.0 : 0.62, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   acr.userData.order = 6; acr.userData.noParticles = true; inner.add(acr); obj.parts.acrylic = acr;
-  const edge = new THREE.Mesh(caseGeo, new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.03, metalness: 0, ior: 1.49, envMap: caseEnv, envMapIntensity: 0.5, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide })); edge.userData.order = 5; edge.userData.noParticles = true; inner.add(edge);
+  const edge = new THREE.Mesh(caseGeo, new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.06, metalness: 0, ior: 1.49, envMap: caseEnv, envMapIntensity: 0.35, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide })); edge.userData.order = 5; edge.userData.noParticles = true; inner.add(edge);
   obj.built = true; applyFinish(obj, S, env, finishOf(slab, S.testFinish ? S.testFinish() : null));
 }
 function applyFinish(obj, S, env, id) {

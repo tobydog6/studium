@@ -405,7 +405,7 @@ const CSS = `
 #skMarket .x-none{ grid-column:1/-1; color:var(--x-mut); padding:30px 0; }
 /* one slab: white stage left with the card big and bracketed, everything about it on the dark side */
 #skMarket .x-det{ position:relative; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); height:100%; }
-#skMarket .x-stage{ position:absolute; inset:0 auto 0 0; width:55%; background:var(--x-wh) linear-gradient(rgba(14,15,17,.06) 1px, transparent 1px) 0 0/34px 34px; clip-path:polygon(0 0, 100% 0, 78% 100%, 0 100%); overflow:hidden; }
+#skMarket .x-stage{ position:absolute; inset:0 auto 0 0; width:50%; background:var(--x-wh) linear-gradient(rgba(14,15,17,.06) 1px, transparent 1px) 0 0/34px 34px; clip-path:polygon(0 0, 100% 0, 78% 100%, 0 100%); overflow:hidden; }
 #skMarket .x-stage::before{ content:''; position:absolute; inset:0; background:linear-gradient(90deg, rgba(14,15,17,.06) 1px, transparent 1px) 0 0/34px 34px; }
 #skMarket .x-big{ position:absolute; left:4%; top:2%; font:800 min(34vh,300px)/.8 var(--x-cond); color:rgba(14,15,17,.07); letter-spacing:-.02em; }
 #skMarket .x-hold{ position:absolute; left:10%; top:9%; width:46%; height:72%; animation:xfloat 6s ease-in-out infinite; } #skMarket .x-hold img{ width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 30px 30px rgba(40,30,20,.3)); }
@@ -414,7 +414,7 @@ const CSS = `
 #skMarket .x-shadow{ position:absolute; left:16%; width:34%; bottom:10%; height:16px; border-radius:50%; background:radial-gradient(ellipse, rgba(40,30,20,.45), rgba(40,30,20,0) 70%); animation:xshadow 6s ease-in-out infinite; }
 #skMarket .x-hints{ position:absolute; left:4%; bottom:5%; margin:0; font:500 10.5px/1.7 var(--x-mono); letter-spacing:.14em; text-transform:uppercase; color:rgba(14,15,17,.5); }
 @keyframes xfloat{ 0%,100%{ transform:translateY(0) rotate(-1.5deg); } 50%{ transform:translateY(-12px) rotate(-.5deg); } } @keyframes xshadow{ 0%,100%{ transform:scale(1); opacity:.9; } 50%{ transform:scale(.82); opacity:.55; } }
-#skMarket .x-info{ grid-column:2; position:relative; display:flex; flex-direction:column; gap:14px; padding:26px 34px 26px 4%; overflow:auto; }
+#skMarket .x-info{ grid-column:2; position:relative; display:flex; flex-direction:column; gap:14px; padding:26px 34px 26px 6%; overflow:auto; }
 #skMarket .x-back{ align-self:flex-start; height:26px; padding:0; border:0; background:none; color:var(--x-mut); font:600 10.5px var(--x-mono); letter-spacing:.14em; text-transform:uppercase; cursor:pointer; } #skMarket .x-back:hover{ color:var(--x-wh); }
 #skMarket .x-tt{ margin:0; } #skMarket .x-tt b{ display:block; font:800 clamp(44px, 8vh, 92px)/.84 var(--x-cond); text-transform:uppercase; letter-spacing:.005em; } #skMarket .x-tt i{ display:block; margin-top:4px; font:italic 400 clamp(30px, 5vh, 54px)/1 var(--x-serif); }
 #skMarket .x-meta{ margin:0; font:500 12px var(--x-mono); letter-spacing:.1em; text-transform:uppercase; color:var(--x-mut); }

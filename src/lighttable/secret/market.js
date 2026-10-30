@@ -18,7 +18,7 @@ import { TIERS, TIER, FINISH, SEALED } from './slabs.js';
 
 const BASE = { common: 20, uncommon: 45, rare: 110, epic: 260, legendary: 700, mythic: 2200 };
 const GRADE_K = { 10: 3.2, 9: 1.9, 8: 1.35, 7: 1.1, 6: 0.95, 5: 0.85, 4: 0.75, 3: 0.66, 2: 0.58, 1: 0.5 };
-const KEY_PRICE = 150, FREE_KEYS = 3, FEE = 0.05, START = 300, PER_ACH = 60, PER_QUEST = 150;
+const KEY_PRICE = 150, FREE_KEYS = 3, FEE = 0.05, START = 0,   /* Sam: coins come only from quests and achievements */ PER_ACH = 60, PER_QUEST = 150;
 const DAY = 864e5, today = () => Math.floor(Date.now() / DAY);
 const BUYERS = ['kiri.lens', 'mōhio_photo', 'tui_frames', 'harbourlight', 'ngaio.prints', 'kererū_kollects', 'mt_eden_mono', 'fernfocus', 'pōhutukawa.pix', 'southerly_slabs', 'te_awa_archive', 'kumara_cam', 'flatwhite.film', 'raupō_reels', 'kea_collects', 'lyttelton_light', 'sandfly_snaps', 'gumboot_gallery', 'manuka_matte', 'tarn_tones'];
 const h32 = s => { let h = 2166136261; s = String(s); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; };
@@ -41,7 +41,8 @@ export function install(S) {
   /* ---------- coins and keys ---------- */
   const hud = () => { try { S.hud(); } catch (e) {} paintBtn(); };
   function earn(quiet) { const d = D(), h = H(); if (!h || !h.earnings) return; let e; try { e = h.earnings(); } catch (x) { return; } if (!e) return;
-    if (!d.coinsFrom) { d.coinsFrom = { ach: e.ach, quests: e.quests }; d.coins += START + e.ach * PER_ACH + e.quests * PER_QUEST; store.save(); if (!quiet) S.toast('Your coin purse: ' + fmt(d.coins) + ' coins from what you have done in Studium so far.'); hud(); return; }
+    if (!d.coinsFrom) { d.coinsFrom = { ach: e.ach, quests: e.quests }; d.coins += START + e.ach * PER_ACH + e.quests * PER_QUEST; store.save(); if (!quiet && d.coins) S.toast('Your coin purse: ' + fmt(d.coins) + ' coins from what you have done in Studium so far.'); hud(); return; }
+    if (e.ach < d.coinsFrom.ach || e.quests < d.coinsFrom.quests) { d.coinsFrom = { ach: Math.min(e.ach, d.coinsFrom.ach), quests: Math.min(e.quests, d.coinsFrom.quests) }; store.save(); }   /* quests reset, or another session: what you earn from here still pays */
     const da = Math.max(0, e.ach - d.coinsFrom.ach), dq = Math.max(0, e.quests - d.coinsFrom.quests); if (!da && !dq) return;
     const n = da * PER_ACH + dq * PER_QUEST; d.coins += n; d.coinsFrom = { ach: Math.max(e.ach, d.coinsFrom.ach), quests: Math.max(e.quests, d.coinsFrom.quests) }; store.save();
     if (!quiet) S.toast('+' + fmt(n) + ' coins' + (dq ? ' for finishing a quest' : ' for an achievement') + '.'); hud(); }
@@ -88,14 +89,15 @@ export function install(S) {
   const R = { me: null, lobby: null, shelves: [], offers: [], pubSig: '', busy: false, err: '' };
   const live = () => { const h = H(); return !!(h && h.can && h.can()); };
   const lean = s => { const o = JSON.parse(JSON.stringify(s)); delete o.pending; if (o.photo && o.photo.url && /^(data|blob):/.test(o.photo.url)) o.photo = { painted: true, plate: o.photo.plate || 1, title: o.photo.title, pack: o.photo.pack }; return o; };
-  async function whoami() { if (R.me) return R.me; const h = H(); R.me = await h.me(); R.lobby = h.lobby(); return R.me; }
+  async function whoami(fresh) { if (R.me && !fresh) return R.me; const h = H(), me = await h.me(), lob = h.lobby(); if (!R.me || !me || me.id !== R.me.id || lob !== R.lobby) R.pubSig = ''; R.me = me; R.lobby = lob; return R.me; }
   async function publish(force) { if (!live()) return; try { await whoami(); if (!R.me) return; const cards = owned().map(lean), sig = R.lobby + '|' + cards.map(c => c.id + c.grade + c.graded).join(',');
     if (!force && sig === R.pubSig) return; await H().rest('studium_trade_shelves?on_conflict=user_id', { method: 'POST', prefer: 'resolution=merge-duplicates', body: { user_id: R.me.id, lobby: R.lobby, name: R.me.name, cards, updated_at: new Date().toISOString() } }); R.pubSig = sig; R.err = ''; }
     catch (e) { R.err = 'Trading needs the market set up on the server (docs/supabase.sql).'; } }
   async function loadShelves() { if (!live()) return []; await whoami(); const lob = encodeURIComponent(R.lobby); R.shelves = ((await H().rest('studium_trade_shelves?lobby=eq.' + lob + '&select=user_id,name,cards,updated_at&order=updated_at.desc&limit=60')) || []).filter(x => !R.me || x.user_id !== R.me.id); return R.shelves; }
   async function loadOffers() { if (!live()) return []; await whoami(); if (!R.me) return []; const id = R.me.id;
     R.offers = (await H().rest('studium_trade_offers?or=(from_id.eq.' + id + ',to_id.eq.' + id + ')&order=created_at.desc&limit=60')) || []; return R.offers; }
-  const patch = (id, body) => H().rest('studium_trade_offers?id=eq.' + id, { method: 'PATCH', body: { ...body, updated_at: new Date().toISOString() } });
+  /* only from the status we expect (open, or accepted for done): a stale button can't undo the other player's answer; true when it changed */
+  const patch = (id, body, from) => H().rest('studium_trade_offers?id=eq.' + id + '&status=eq.' + (from || 'open'), { method: 'PATCH', prefer: 'return=representation', body: { ...body, updated_at: new Date().toISOString() } }).then(r => !!(r && r.length));
   /* send: my side goes into escrow first, so it can't be spent while it waits */
   async function send(to, give, want) { const d = D(); await whoami(); if (!R.me) throw new Error('not signed in');
     if ((give.coins || 0) > d.coins) throw new Error('You don\'t have that many coins.');
@@ -104,21 +106,26 @@ export function install(S) {
     const row = rows && rows[0]; if (!row) throw new Error('The offer didn\'t send.');
     d.coins -= give.coins || 0; d.escrow[row.id] = { coins: give.coins || 0, cards: gCards }; give.ids.forEach(lift); store.save(); reracks(); publish(true); hud(); return row; }
   /* their offer to me: check I still have what they want and the coins they ask for, then swap */
-  async function accept(o) { const d = D(), mine = new Set(owned().map(s => s.id)), wc = (o.want && o.want.cards) || [];
+  const acting = new Set();
+  async function accept(o) { if (acting.has(o.id)) return false; acting.add(o.id); try { return await acceptNow(o); } finally { acting.delete(o.id); } }
+  async function acceptNow(o) { const d = D(), mine = new Set(owned().map(s => s.id)), wc = (o.want && o.want.cards) || [];
     if (wc.some(c => !mine.has(c.id))) { S.toast('You no longer have everything they asked for.'); return false; }
     if ((o.want.coins || 0) > d.coins) { S.toast('You need ' + fmt(o.want.coins) + ' coins for this one.'); return false; }
-    await patch(o.id, { status: 'accepted' });
+    if (!(await patch(o.id, { status: 'accepted' }))) { S.toast('That offer has already ended.'); return false; }
     wc.forEach(c => { lift(c.id); store.discard(c.id); }); d.coins += (o.give.coins || 0) - (o.want.coins || 0); ((o.give && o.give.cards) || []).forEach(c => adopt(c, o.from_name)); d.seenOffers[o.id] = 'done';
     store.save(); reracks(); publish(true); hud(); S.sfx('ltPutDown'); S.toast('Trade done with ' + o.from_name + '.'); return true; }
-  async function decline(o) { await patch(o.id, { status: 'declined' }); D().seenOffers[o.id] = 'done'; store.save(); }
-  async function cancel(o) { await patch(o.id, { status: 'cancelled' }); settle(o, 'cancelled'); }
+  async function decline(o) { if (acting.has(o.id)) return; acting.add(o.id); try { await patch(o.id, { status: 'declined' }); D().seenOffers[o.id] = 'done'; store.save(); } finally { acting.delete(o.id); } }
+  /* cancel: only if it was still open; if they answered first, the next poll settles it their way */
+  async function cancel(o) { if (acting.has(o.id)) return; acting.add(o.id); try { if (await patch(o.id, { status: 'cancelled' })) settle(o, 'cancelled'); else { S.toast('They answered first.'); await poll(); } } finally { acting.delete(o.id); } }
   /* my offers that ended: accepted ones bring their side in; declined or cancelled ones give mine back */
   function settle(o, status) { const d = D(), e = d.escrow[o.id]; if (!e) return;
-    if (status === 'accepted') { ((o.want && o.want.cards) || []).forEach(c => adopt(c, o.to_name)); d.coins += (o.want && o.want.coins) || 0; e.cards.forEach(c => store.discard(c.id)); S.toast(o.to_name + ' accepted your offer.', 'Market', () => open('offers')); patch(o.id, { status: 'done' }).catch(() => {}); }
+    if (status === 'accepted') { ((o.want && o.want.cards) || []).forEach(c => adopt(c, o.to_name)); d.coins += (o.want && o.want.coins) || 0; e.cards.forEach(c => store.discard(c.id)); S.toast(o.to_name + ' accepted your offer.', 'Market', () => open('offers')); patch(o.id, { status: 'done' }, 'accepted').catch(() => {}); }
     else { d.coins += e.coins || 0; e.cards.forEach(c => { if (store.pull(c.id)) file(c.id); else adopt(c, 'you'); }); if (status === 'declined') S.toast(o.to_name + ' said no to your offer. Your side is back with you.'); }
     delete d.escrow[o.id]; store.save(); reracks(); publish(true); hud(); }
   async function poll() { if (!live() || R.busy) return; R.busy = true;
-    try { await publish(); const list = await loadOffers(), d = D(); let fresh = 0;
+    try { await whoami(true); await publish(); const list = await loadOffers(), d = D(); let fresh = 0;
+      const held = Object.keys(d.escrow).filter(id => !list.some(o => o.id === id));   /* older than the newest sixty: fetched by id */
+      if (held.length) { const more = (await H().rest('studium_trade_offers?id=in.(' + held.map(encodeURIComponent).join(',') + ')')) || []; more.forEach(o => { if (o.status !== 'open') settle(o, o.status === 'done' ? 'accepted' : o.status); }); }
       list.forEach(o => { if (R.me && o.from_id === R.me.id && d.escrow[o.id] && o.status !== 'open') settle(o, o.status === 'done' ? 'accepted' : o.status);
         if (R.me && o.to_id === R.me.id && o.status === 'open' && !d.seenOffers[o.id]) { d.seenOffers[o.id] = 'seen'; fresh++; } });
       if (fresh) { store.save(); S.toast(fresh === 1 ? 'You have a new trade offer.' : 'You have ' + fresh + ' new trade offers.', 'Look', () => open('offers')); } paintBtn(); }
@@ -208,10 +215,11 @@ export function install(S) {
       else if (a === 'send') { const p = U.who; t.disabled = true; await send(p, { ids: [...U.give], coins: U.coinsGive }, { cards: (p.cards || []).filter(s => U.want.has(s.id)), coins: U.coinsWant }); S.toast('Offer sent to ' + p.name + '. Your side waits safely until they answer.'); U.who = null; U.tab = 'offers'; await loadOffers(); render(); }
       else if (a === 'look') { U.look = U.look === t.dataset.o ? null : t.dataset.o; render(); }
       else { const o = R.offers.find(x => x.id === t.dataset.o); if (!o) return;
-        if (a === 'accept') { await accept(o); await loadOffers(); render(); }
+        if (a === 'accept') { t.disabled = true; await accept(o); await loadOffers(); render(); }
         else if (a === 'decline') { await decline(o); await loadOffers(); render(); }
         else if (a === 'cancel') { await cancel(o); await loadOffers(); render(); }
-        else if (a === 'counter') { await decline(o); await loadShelves(); const p = R.shelves.find(x => x.user_id === o.from_id) || { user_id: o.from_id, name: o.from_name, cards: [] };
+        else if (a === 'counter') { await decline(o); await loadShelves(); const sh = R.shelves.find(x => x.user_id === o.from_id) || { user_id: o.from_id, name: o.from_name, cards: [] }, have = new Set((sh.cards || []).map(c => c.id));
+          const p = { ...sh, cards: (sh.cards || []).concat(((o.give && o.give.cards) || []).filter(c => !have.has(c.id))) };   /* what they offered is held aside, off their shelf: ask for it from the offer */
           U.who = p; U.side = 'theirs'; U.want = new Set(((o.give && o.give.cards) || []).map(c => c.id)); U.give = new Set(((o.want && o.want.cards) || []).map(c => c.id)); U.coinsGive = (o.want && o.want.coins) || 0; U.coinsWant = (o.give && o.give.coins) || 0; U.tab = 'players'; render(); } }
     } catch (err) { S.toast(err && err.message && !/^sync/.test(err.message) ? err.message : 'That didn\'t go through. Check you\'re online and try again.'); render(); } });
   ['pointerdown', 'wheel', 'keydown'].forEach(ev => el.addEventListener(ev, e => e.stopPropagation()));

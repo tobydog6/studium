@@ -220,5 +220,22 @@ create policy "trade: see shelves in my lobby" on studium_trade_shelves for sele
 create policy "trade: my shelf" on studium_trade_shelves for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid() and studium_may_live(lobby));
 create policy "trade: see my offers" on studium_trade_offers for select to authenticated using (auth.uid() in (from_id, to_id));
 create policy "trade: make an offer" on studium_trade_offers for insert to authenticated
-  with check (from_id = auth.uid() and studium_may_live(lobby) and exists (select 1 from studium_trade_shelves s where s.user_id = to_id and s.lobby = studium_trade_offers.lobby));
+  with check (from_id = auth.uid() and to_id <> auth.uid() and status = 'open' and studium_may_live(lobby)
+              and exists (select 1 from studium_trade_shelves s where s.user_id = studium_trade_offers.to_id and s.lobby = studium_trade_offers.lobby));
 create policy "trade: answer my offers" on studium_trade_offers for update to authenticated using (auth.uid() in (from_id, to_id)) with check (auth.uid() in (from_id, to_id));
+-- An offer's terms never change once sent: only its status (and updated_at), and only along these steps, each by the
+-- right player: open to accepted or declined (the one it was sent to), open to cancelled (the sender), accepted to done
+-- (the sender, once their side has landed). RLS can't compare a row before and after, so a trigger does.
+revoke update on studium_trade_offers from authenticated, anon;
+grant update (status, updated_at) on studium_trade_offers to authenticated;
+create or replace function studium_trade_step() returns trigger language plpgsql as $$
+begin
+  if not ((old.status = 'open' and new.status in ('accepted', 'declined') and auth.uid() = old.to_id)
+       or (old.status = 'open' and new.status = 'cancelled' and auth.uid() = old.from_id)
+       or (old.status = 'accepted' and new.status = 'done' and auth.uid() = old.from_id)) then
+    raise exception 'studium: that offer can''t change like that';
+  end if;
+  return new;
+end $$;
+drop trigger if exists studium_trade_step on studium_trade_offers;
+create trigger studium_trade_step before update on studium_trade_offers for each row execute function studium_trade_step();

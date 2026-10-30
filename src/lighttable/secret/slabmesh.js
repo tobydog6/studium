@@ -165,7 +165,8 @@ function build(obj, S, env) {
   const land = aspect > 1.05, m = SLAB.margin, lab = SLAB.lab, gap = SLAB.gap;
   const pw = land ? SLAB.lw * aspect : SLAB.lw, ph = land ? SLAB.lw : SLAB.lw / aspect;
   obj.photoW = pw; obj.photoH = ph; obj.land = land; obj.w = land ? lab + gap + pw + m * 2 : pw + m * 2; obj.h = land ? ph + m * 2 : ph + lab + gap + m * 2;
-  const cw = pw, ch = ph, th = SLAB.th, z0 = -th / 2 + 0.03;
+  /* a sealed block finish (the crystal etch, the scan) brings its own thicker case */
+  const cw = pw, ch = ph, th = finishDef(finishOf(slab, S.testFinish ? S.testFinish() : null)).th || SLAB.th, z0 = -th / 2 + 0.03; obj.th = th;
   /* backing card */
   const gold = slab.tier === 'legendary', noir = slab.tier === 'mythic';
   if (!clear) { let m; if (gold) { const c = document.createElement('canvas'); c.width = 64; c.height = 256; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 64, 256); gr.addColorStop(0, '#8a6020'); gr.addColorStop(0.4, '#f3d48a'); gr.addColorStop(0.6, '#b07c25'); gr.addColorStop(1, '#ffe6a8'); g.fillStyle = gr; g.fillRect(0, 0, 64, 256); m = new THREE.MeshLambertMaterial({ map: tex(c) }); }

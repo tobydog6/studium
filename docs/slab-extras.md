@@ -117,3 +117,35 @@ More ideas:
 - Sound: something loose rattles in the case, a chime when tilted.
 - Specials: Time capsule (sealed until a date), Negative (inverted colours), Glow in the dark (charges under the lamp,
   glows when the dark side's lights go off).
+
+## Build notes and risks (30 Oct)
+Every new finish or extra gets its own glow (holo.js GLOWS / VARIANT_GLOWS) and reveal theme (reveals.js THEMES,
+THEME_OF) as it is built, not afterwards. New themes likely: amber, marble, glass (stained glass, mosaic), galaxy,
+corrupted, mimic.
+
+Already in the game: Negative, Full art, Misprint, Clear and Stamped (numbered, one of 50) are variants; Thermal,
+Cyanotype, Polychrome, Carved stone and Glass are finishes. Numbered = Stamped; Negative pick = refresh.
+
+Risks and the plan for each:
+- Flashing (Thunderstorm, Lightning in a bottle, Corrupted, jump scares): keep under 3 flashes a second, honour
+  prefers-reduced-motion, a gentle mode that turns scares and flashes soft.
+- Jump scares and Mimic: mild, never the first flip, never twice in a row, gentle mode.
+- Corrupted: the glitch stays inside the light table (never the workbook or the studio), always escapable, and reads
+  as deliberate so nobody thinks Studium is broken.
+- Stacking cost: extras simplified on the table, full detail only when inspected; a per-table budget.
+- Transparency inside the case: one case-contents extra per slab (Liquid, Snow globe, Sand timer, Amber, Terrarium,
+  dust, bubble...). Goldfish is a Liquid sub-variant, not its own extra.
+- Back slot: one thing on the back (Back art, UV message, Trade history or Two-faced).
+- Case shape: Geode, thick blocks (crystal, scan3d) exclude case-slot extras and case colours.
+- Real-time extras (Slow film, Growing crystals, Evolving, Dust, Anniversary): stamp times when pulled, clamp clock
+  jumps so changing the computer's clock can't skip them.
+- Slow film hides the finish for a week: excludes other photo-changing extras; the finish shows on the label.
+- Weather from outside: a weather service call that a school network may block; falls back to the photo's own weather.
+- Reacts to sound: Studium's own sounds only, never the microphone.
+- Seals change the economy (Gold doubles value, Green pays daily, Blue grade floor, Purple free pull): caps on Green
+  income and Purple chains.
+- Tally "photos shot since pulling": needs a bridge event from the studio to the light table.
+- Animated card: depth drift and sway only (no true video); animate only when inspected or near the camera.
+- Class feed, pop counts, trade history: need the server (Supabase) and show first name and initial only.
+- Slabs use the research packs' photos (real photographers' work): heavy alterations like Torn and taped are
+  derivatives of their photos; fine for class use, but keep credits on the label.

@@ -74,7 +74,7 @@ async function buildEngine() {
 const engine = await buildEngine();
 // the light table (src/lighttable/): its own three.js bundle and page, shipped as base64 and opened in an iframe by src/lighttable.js
 async function buildLightTable() {
-  const r = await esbuild.build({ entryPoints: [join(ROOT, 'src', 'lighttable', 'main.js')], bundle: true, minify: !process.env.LT_DEBUG, format: 'iife', write: false, logLevel: 'error' });
+  const r = await esbuild.build({ entryPoints: [join(ROOT, 'src', 'lighttable', 'main.js')], bundle: true, minify: !process.env.LT_DEBUG, format: 'iife', write: false, logLevel: 'error', loader: { '.glb': 'binary', '.woff2': 'dataurl' } });   /* .glb: the dark side's mech (tools/mech_blender.py) */
   const js = r.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
   const sh = readFileSync(join(ROOT, 'src', 'lighttable', 'shell.html'), 'utf8'), cut = sh.indexOf('</style>') + 8;
   const page = '<!doctype html><html lang="en-NZ"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'

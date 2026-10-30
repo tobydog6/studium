@@ -21,12 +21,15 @@ import * as rail from './rail.js';
 import * as reveals from './reveals.js';
 import * as bloom from './bloom.js';
 import * as market from './market.js';
+import * as rig from './rig.js';
 import * as parcel from './parcel.js';
 import * as sound from './sound.js';
 import * as under from './under.js';
 import * as casebox from './casebox.js';
 import * as shelf from './shelf.js';
 import * as blades from './blades.js';
+import * as collection from './collection.js';
+import * as whoshot from './whoshot.js';
 import * as fxfin from './fxfinishes.js';
 import { createTools, TOOLS_CSS } from './fxtools.js';
 import * as FXM from './fxmoments.js';
@@ -134,8 +137,8 @@ export function installSecret(ctx) {
   S.specLine = slab => { const f = SL.FINISH[SL.finishOf(slab, S.testFinish())]; return [SL.tierOf(slab).name, f ? f.name + (S.fx && S.fx.fxLabel(slab, f.id) ? ' (' + S.fx.fxLabel(slab, f.id) + ')' : '') : '', slab.variant ? (SL.VARIANT[slab.variant] || {}).name : '', slab.graded ? 'Grade ' + slab.grade + ' ' + SL.gradeText(slab.grade) : 'Raw, ungraded', slab.title, slab.photo && (slab.photo.artist || slab.photo.by)].filter(Boolean).join('  ·  '); };
   /* a small bar while the vault or binder is open: the way back to the case, and out */
   const nav = S.el('div', 'sk-nav', ''); nav.id = 'skNav'; document.body.appendChild(nav); nav.addEventListener('pointerdown', e => e.stopPropagation());
-  nav.addEventListener('click', e => { const b = e.target.closest('[data-ev]'); if (b) M.send(b.dataset.ev); });
-  const NAV = { 'vault.case': [['CLOSE', 'Close the vault']], 'vault.keypad': [['CLOSE', 'Close the vault']], 'vault.lid': [['CLOSE', 'Close the vault']], 'vault.binder': [['CASE', 'Back to the case'], ['CLOSE', 'Close']], 'binder.open': [['CLOSE', 'Close the binder']], 'shelf.view': [['CLOSE', 'Back to the table']], 'case.view': [['CLOSE', 'Close the case']] };
+  nav.addEventListener('click', e => { const b = e.target.closest('[data-ev]'); if (!b) return; if (b.dataset.ev === 'INDEX') { if (S.collection) S.collection.open(); return; } M.send(b.dataset.ev); });   /* Index is the collection's encyclopedia over the binder */
+  const NAV = { 'vault.case': [['CLOSE', 'Close the vault']], 'vault.keypad': [['CLOSE', 'Close the vault']], 'vault.lid': [['CLOSE', 'Close the vault']], 'vault.binder': [['CASE', 'Back to the case'], ['INDEX', 'Index'], ['CLOSE', 'Close']], 'binder.open': [['INDEX', 'Index'], ['CLOSE', 'Close the binder']], 'shelf.view': [['CLOSE', 'Back to the table']], 'case.view': [['CLOSE', 'Close the case']] };
   M.onChange(st => { const b = NAV[st]; nav.innerHTML = b ? b.map(x => '<button type="button" data-ev="' + x[0] + '">' + x[1] + '</button>').join('') : ''; nav.classList.toggle('on', !!b); });
 
   /* ---------- the three diegetic buttons ---------- */
@@ -207,8 +210,15 @@ export function installSecret(ctx) {
       return obj; },
     remove(obj, keepStore) { const i = tableSlabs.indexOf(obj); if (i >= 0) tableSlabs.splice(i, 1); if (obj.tableShadow) ctx.scene.remove(obj.tableShadow); if (!keepStore) store.detach(obj.slab.id); S.slabs.drop(obj); },
     /* a free patch of table for a new slab, left of the board and clear of the other slabs */
-    freeSpot() { const cx = 0, cz = 8.5; for (let k = 0; k < 40; k++) { const x = cx + (Math.random() - 0.5) * 18, z = cz + (Math.random() - 0.5) * 4; if (!tableSlabs.some(o => Math.hypot(o.group.position.x - x, o.group.position.z - z) < 3.4)) return { x, z }; } return { x: cx, z: cz }; },
-    restore() { store.get().table.forEach(t => { const slab = store.pull(t.id); if (slab) S.table.place(slab, t.x, t.z, t.yaw, { quiet: true }); }); },
+    /* a free patch of the dark side for a slab: between the computer and the pit, clear of the parked car and mech,
+       the mouse, and the other slabs (the old spot in front is the pit now) */
+    freeSpot() { const avoid = S.rig && S.rig.spots ? S.rig.spots() : [], pit = S.under && S.under.rect;
+      const ok = (x, z) => !tableSlabs.some(o => Math.hypot(o.group.position.x - x, o.group.position.z - z) < 3.4) && !avoid.some(a => Math.hypot(a.x - x, a.z - z) < (a.r || 3.2)) && !(pit && x > pit[0] - 1.2 && x < pit[2] + 1.2 && z > pit[1] - 1.2 && z < pit[3] + 1.2);
+      for (let k = 0; k < 60; k++) { const x = -4 + Math.random() * 12.5, z = -2.4 + Math.random() * 2.8; if (ok(x, z)) return { x, z }; }
+      for (let k = 0; k < 60; k++) { const x = (Math.random() - 0.5) * 34, z = -1.5 + Math.random() * 2.5; if (ok(x, z)) return { x, z }; } return { x: 2, z: -1 }; },
+    /* a slab saved where the pit is now (it used to be the middle) moves to a free spot */
+    restore() { const pit = S.under && S.under.rect; store.get().table.forEach(t => { const slab = store.pull(t.id); if (!slab) return; let x = t.x, z = t.z;
+      if (pit && x > pit[0] - 1.2 && x < pit[2] + 1.2 && z > pit[1] - 1.2 && z < pit[3] + 1.2) { const sp = S.table.freeSpot(); x = sp.x; z = sp.z; S.table.place(slab, x, z, t.yaw); } else S.table.place(slab, x, z, t.yaw, { quiet: true }); }); },
   };
   /* a pull straight onto the table (the dev panel's Roll; loot.js lays its slab down the long way) */
   S.rollToTable = function (o) { const slab = SL.roll({ graded: true, ...(o || {}) }); store.addPull(slab); const sp = S.table.freeSpot(); const obj = S.table.place(slab, sp.x, sp.z, (Math.random() - 0.5) * 0.5, { drop: true }); hud();
@@ -308,7 +318,7 @@ export function installSecret(ctx) {
 
   /* ---------- the modules (each owns one file) ---------- */
   const secretTop = new Set();
-  [sound, print, holo, fxfin, bloom, reveals, rail, arm, binder, parcel, loot, under, casebox, shelf, market, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  [sound, print, holo, fxfin, bloom, reveals, rail, arm, binder, parcel, loot, under, casebox, shelf, market, rig, collection, blades, whoshot].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
   ctx.scene.children.forEach(c => { if (!lightSide.has(c)) secretTop.add(c); });   /* the rigs the modules just added */
 
   /* ---------- boot ---------- */

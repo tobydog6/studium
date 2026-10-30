@@ -38,6 +38,28 @@ export function install(S) {
   const { store, M, T, SL, ctx } = S, K = S.TABLE_K || 0.42;
   const D = () => { const d = store.get(); if (!d.who) d.who = { streak: 0, best: 0, played: 0, won: 0, day: today(), paid: 0 }; if (d.who.day !== today()) { d.who.day = today(); d.who.paid = 0; } return d.who; };
 
+  /* ---------- test artists, for a browser with no packs (Sam: "there's no connected artist packs so I can't test it") ----------
+     Seven made-up artists, six painted photos each, every artist with a look of its own so they can be told apart.
+     Turned on from the lobby; nine test slabs from them go into your binder (marked test), and come out again with
+     the lobby's other button, which also turns the test artists off. */
+  const TEST = [['Mono Studio', 'grayscale(1) contrast(1.45)'], ['Sepia Days', 'sepia(0.85) contrast(1.1) brightness(1.05)'], ['Night Grain', 'grayscale(1) contrast(2.1) brightness(0.7)'],
+    ['Soft Focus', 'blur(1.6px) brightness(1.18) saturate(0.7)'], ['Vivid Colour', 'saturate(2.2) contrast(1.2)'], ['Cool Blue', 'hue-rotate(150deg) saturate(1.3) brightness(0.95)'], ['Warm Haze', 'sepia(0.35) saturate(1.5) hue-rotate(-18deg) brightness(1.1)']];
+  let testPacks = null;
+  function makeTestPacks() { if (testPacks) return testPacks; const c = document.createElement('canvas'); c.width = 480; c.height = 320; const g = c.getContext('2d');
+    testPacks = TEST.map(([name, look], a) => ({ id: 'test' + a, name: name + ' · Test artist', test: true, imgs: Array.from({ length: 6 }, (_, i) => { let src = null;
+      try { src = S.paintPhoto(S.KINDS[(a * 3 + i) % S.KINDS.length], 7000 + a * 31 + i, 480, 320); } catch (e) {}
+      g.filter = 'none'; g.fillStyle = '#222'; g.fillRect(0, 0, 480, 320); g.filter = look; if (src) g.drawImage(src, 0, 0, 480, 320); g.filter = 'none';
+      return { id: 'test' + a + '_' + i, url: c.toDataURL('image/jpeg', 0.72) }; }) }));
+    return testPacks; }
+  const realPacks = S.packs;
+  S.packs = () => (D().test ? makeTestPacks() : realPacks());
+  SL.setPhotoSource(S.packs);
+  function testOn() { const w = D(); w.test = true; const packs = makeTestPacks();
+    for (let i = 0; i < 9; i++) { const s = SL.roll({ graded: true, pack: packs[i % packs.length].id }); s.test = true; store.addPull(s); store.toBinder(s.id); }
+    store.save(); S.hud(); S.toast('Test artists on. Nine test slabs are in your binder.'); render(); }
+  function testOff() { const d = store.get(), gone = d.pulls.filter(p => p.test); gone.forEach(p => { d.points = Math.max(0, d.points - (p.points || 0)); store.discard(p.id); });
+    D().test = false; store.save(); S.hud(); S.toast(gone.length ? 'The ' + gone.length + ' test slabs are gone and the test artists are off.' : 'Test artists are off.'); render(); }
+
   /* ---------- who is in play ---------- */
   const artists = () => (S.packs() || []).filter(p => p && !p.sample && p.imgs && p.imgs.length).map(p => ({ id: String(p.id), name: artistName(p), imgs: p.imgs }));
   const mine = () => { const A = new Set(artists().map(a => a.id)), own = S.market && S.market.owned ? S.market.owned() : store.get().pulls;
@@ -55,7 +77,7 @@ export function install(S) {
   [el, hud].forEach(x => ['pointerdown', 'wheel', 'keydown'].forEach(ev => x.addEventListener(ev, e => e.stopPropagation())));
   window.addEventListener('keydown', e => { if (el.classList.contains('on') && e.key === 'Escape') { e.stopPropagation(); close(); } }, true);
   el.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b || b.disabled) return; const a = b.dataset.a;
-    if (a === 'close') close(); else if (a === 'play') start(); else if (a === 'lobby') { last = null; render(); } });
+    if (a === 'close') close(); else if (a === 'play') start(); else if (a === 'lobby') { last = null; render(); } else if (a === 'teston') testOn(); else if (a === 'testoff') testOff(); });
   hud.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b || b.disabled || !G) return; const a = b.dataset.a;
     if (a === 'guess') openPicker(); else if (a === 'pick') guess(b.dataset.id); else if (a === 'unpick') { G.picker = false; paintHud(); }
     else if (a === 'next') { if (M.is('who.reveal')) M.go('who.return'); } else if (a === 'leave') { G.leaving = true; G.picker = false; paintHud(); }
@@ -72,9 +94,10 @@ export function install(S) {
         + '<div class="ws-row"><button type="button" class="ws-go" data-a="play">Play again</button><button type="button" class="ws-ghost" data-a="lobby">Done</button></div></section>';
     } else {
       h += '<section class="ws-lobby"><h2>Name the photographer before the print comes up.</h2><p>Choose five of your slabs from the binder. Each round you send one across the table, face down, and theirs comes to you. Flip it and watch the print develop. Guess early for more points, but a wrong guess costs ' + WRONG + ' and locks you out for ' + LOCK + ' seconds.</p><p class="dim">A win pays ' + WIN_COINS + ' coins, ' + WIN_CAP + ' times a day. Nothing you own is at stake.</p>';
-      if (A.length < ARTISTS_MIN) h += '<p class="ws-warn">This needs at least ' + ARTISTS_MIN + ' artist packs, and there ' + (A.length === 1 ? 'is ' : 'are ') + A.length + '. Open Research once so the packs load.</p>';
+      if (A.length < ARTISTS_MIN) h += '<p class="ws-warn">This needs at least ' + ARTISTS_MIN + ' artist packs, and there ' + (A.length === 1 ? 'is ' : 'are ') + A.length + '. Open Research once so the packs load.</p><p class="dim">Or try it with made-up test artists. They come with nine test slabs, which you can take out again.</p><button type="button" class="ws-ghost" data-a="teston">Try it with test artists</button>';
       else if (Mn.length < HAND) h += '<p class="ws-warn">You need ' + HAND + ' slabs of artists\' photographs to play, and you have ' + Mn.length + '. Pull a few more first.</p>';
       else h += '<button type="button" class="ws-go" data-a="play">Play</button><p class="dim">' + A.length + ' artists in play · ' + Mn.length + ' of your slabs can play</p>';
+      if (w.test) h += '<p class="dim ws-test">Test artists are on.</p><button type="button" class="ws-ghost" data-a="testoff">Take the test slabs out</button>';
       h += '</section>'; }
     el.innerHTML = h + '</main>'; paintBtn(); }
 

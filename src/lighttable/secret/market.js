@@ -319,7 +319,9 @@ export function install(S) {
   setInterval(() => { if (!S.unlocked()) { paintBtn(); return; } earn(); simulate(); if (el.classList.contains('on') && U.tab !== 'players') render(); }, 20000);
   setInterval(() => { if (S.unlocked()) poll(); }, 30000);
   setTimeout(() => { if (S.unlocked()) { earn(true); refillKeys(); simulate(); poll(); } paintBtn(); }, 1500);
-  S.market = { value, history, spendKey, buyKey, open, close, earn, poll, keys: () => (S.dev.opt('keys') === 'free' ? '∞' : D().keys), coins: () => D().coins, paint: paintBtn,
+  /* coins from elsewhere in the layer (Who Shot It? wins): logged like the rest */
+  function award(n, text) { const d = D(); n = Math.max(0, Math.round(n)); if (!n) return; d.coins += n; logIt(text, n); store.save(); hud(); S.toast('+' + fmt(n) + ' coins. ' + text + '.'); }
+  S.market = { value, history, spendKey, buyKey, open, close, earn, poll, award, owned, keys: () => (S.dev.opt('keys') === 'free' ? '∞' : D().keys), coins: () => D().coins, paint: paintBtn,
     __sim: (hrs) => { D().listings.forEach(l => { l.t = Date.now() - hrs * 36e5; }); simulate(); } };
 }
 

@@ -2868,86 +2868,75 @@ body.co-lens #bag .lensbtn{border-color:#e3ad57;box-shadow:0 0 22px rgba(227,173
 .co-card.media.side .co-line{font-size:21px}
 .co-card.media.side .co-sub{font-size:13.5px}
 
-/* ---- the opening (launch.js): dark, in close and slow, the shot, the film strip, the big circle with the wordmark, the settle ---- */
-#launch{position:fixed;inset:0;z-index:1200;display:none;background:#0c0b0a;overflow:hidden;font-family:var(--sans);color:var(--text);cursor:default;--fw:84vw;--fh:70vh;--rb:2.9vh}
+/* ---- the opening (launch.js): a film of the glide, the shot and the spin, with the focus marks, the wordmark and the
+   skip live over it; it fades off the live scene at the end. Only transform and opacity move ---- */
+#launch{position:fixed;inset:0;z-index:1200;display:none;background:#0c0b0a;overflow:hidden;font-family:var(--sans);color:var(--text);cursor:default}
 #launch.on{display:block}
-#launch.p-detail{animation:laClear 1.2s ease-in-out forwards}
-#launch.p-shoot,#launch.p-film,#launch.p-spin,#launch.p-lock,#launch.out{background:transparent}
-#launch.out{pointer-events:none}
-#launch.p-detail::before,#launch.p-shoot::before,#launch.p-film::before,#launch.p-spin::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 50%,rgba(0,0,0,.55) 100%)}
-#launch.p-lock::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 50%,rgba(0,0,0,.55) 100%);animation:laFade 1.2s ease-out forwards}
-@keyframes laClear{from{background:#0c0b0a}to{background:rgba(12,11,10,0)}}
+#launch.out{background:transparent;pointer-events:none}
+.la-film{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;opacity:0;background:#0c0b0a;pointer-events:none}
+#launch.p-film .la-film,#launch.p-hold .la-film,#launch.p-live .la-film{opacity:1}
+#launch.out .la-film{opacity:0;transition:opacity .8s cubic-bezier(.4,0,.2,1)}
+#launch::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;z-index:1;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 50%,rgba(0,0,0,.55) 100%)}
+#launch.p-film::before,#launch.p-hold::before,#launch.p-live::before{opacity:1}
+#launch.out::before{animation:laFade 1.2s ease-out forwards;opacity:1}
 @keyframes laFade{to{opacity:0}}
-/* dark: the name, small and dim, while the scan loads */
-.la-dark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none}
+/* dark: the name, small and dim, while the film comes in */
+.la-dark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;z-index:2}
 .la-dark b{font-family:var(--serif);font-weight:300;font-size:22px;letter-spacing:.04em;color:var(--ink-3)}
 #launch.p-dark .la-dark{animation:laDarkIn 1.6s ease-out .2s forwards}
-#launch.p-detail .la-dark{opacity:1;animation:laFade .5s ease-out forwards}
+#launch.p-film .la-dark,#launch.p-hold .la-dark,#launch.p-live .la-dark{opacity:1;animation:laFade .7s ease-out forwards}
 @keyframes laDarkIn{to{opacity:1}}
-/* the shot: the lens opens as nine blades (launch.js draws them), the real viewfinder is up underneath; then the shutter */
-.la-iris{position:absolute;inset:0;opacity:0;pointer-events:none;z-index:3;--r:30%;--o:1;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) var(--r),rgba(4,3,2,calc(.92*var(--o))) calc(var(--r) + 34%))}
-.la-snap{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:3}
-#launch.snap .la-snap{animation:laSnap .4s ease-out forwards}
-@keyframes laSnap{0%{opacity:0}8%{opacity:1}30%{opacity:1}100%{opacity:0}}
-/* the still, full screen at first; on the film phase it shrinks into the first frame of the strip */
-.la-still{position:absolute;inset:0;display:none;z-index:2;overflow:hidden;background:#0c0b0a;transition:inset .95s cubic-bezier(.3,.75,.2,1)}
-#launch.held .la-still{display:block}
-#launch.p-film .la-still{inset:calc(50vh - var(--fh)/2) calc(50vw - var(--fw)/2);animation:laFade .01s linear 1s forwards}
-#launch.p-spin .la-still,#launch.p-lock .la-still,#launch.out .la-still{display:none}
-#launch.nofilm.p-spin .la-still{display:block;animation:laStillOut .9s cubic-bezier(.4,0,.2,1) both}
-@keyframes laStillOut{from{opacity:1;transform:none;filter:none}to{opacity:0;transform:scale(1.08);filter:blur(10px)}}
-.la-still img,.la-still canvas{width:100%;height:100%;object-fit:cover;display:block}
-/* the film: a strip of 35 mm, the sprocket holes punched through to the scan behind */
-.la-film{position:absolute;inset:0;display:none;pointer-events:none;overflow:hidden}
-.la-film::before{content:none}   /* the ember glow behind the strip */
-#launch.p-film .la-film{display:block;animation:laFilmIn .5s ease-out both}
-@keyframes laFilmIn{from{opacity:0}to{opacity:1}}
-.la-strip{position:absolute;left:0;top:calc(50vh - var(--fh)/2 - var(--rb));height:calc(var(--fh) + var(--rb)*2);padding:var(--rb) 3vw var(--rb) 100vw;box-sizing:border-box;display:flex;will-change:transform;--pitch:calc(var(--fw) + .15vw);background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='300'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.007' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 .9 0 0 0 0 .35 0 0 0 0 .1 0 0 0 .7 -.315'/%3E%3C/filter%3E%3Crect width='800' height='300' filter='url(%23m)'/%3E%3C/svg%3E") 0 0/800px 300px repeat,linear-gradient(rgba(38,9,4,.9),rgba(38,9,4,.9)) 0 50%/100% var(--fh) no-repeat;background-blend-mode:overlay,normal}   /* option K: near-black red, mottled, the orange in the halation and a sheen on the rebate */
-.la-strip::before,.la-strip::after{content:"";position:absolute;left:calc(100vw - 12*var(--pitch));right:0;height:var(--rb);background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 60' preserveAspectRatio='none'%3E%3Cpath fill='rgb(38,9,4)' fill-opacity='.9' fill-rule='evenodd' d='M0 0H1000V60H0ZM20.2 9.0H42.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H20.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM82.8 9.0H104.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H82.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM145.2 9.0H167.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H145.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM207.8 9.0H229.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H207.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM270.2 9.0H292.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H270.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM332.8 9.0H354.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H332.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM395.2 9.0H417.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H395.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM457.8 9.0H479.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H457.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM520.2 9.0H542.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H520.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM582.8 9.0H604.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H582.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM645.2 9.0H667.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H645.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM707.8 9.0H729.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H707.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM770.2 9.0H792.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H770.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM832.8 9.0H854.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H832.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM895.2 9.0H917.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H895.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM957.8 9.0H979.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H957.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3Z'/%3E%3C/svg%3E") 0 0/var(--pitch) var(--rb) repeat-x}
-.la-sh{position:absolute;left:0;right:0;height:var(--rb);background:linear-gradient(100deg,rgba(255,120,40,0) 0%,rgba(255,150,60,.5) 8%,rgba(255,200,120,.35) 11%,rgba(240,110,120,.3) 14%,rgba(255,120,40,0) 20%,rgba(255,120,40,0) 55%,rgba(255,160,70,.35) 60%,rgba(255,210,140,.25) 62%,rgba(255,120,40,0) 68%) 0 0/260% 100% repeat-x;mix-blend-mode:screen;opacity:.55;z-index:2;animation:laSh 9s linear infinite;pointer-events:none}
-.la-sh.t{top:0}
-.la-sh.b{bottom:0}
-@keyframes laSh{to{background-position:-260% 0}}
-.la-dm{position:absolute;inset:0;pointer-events:none;z-index:3;background:linear-gradient(90deg,transparent 23.80%,rgba(255,235,215,.12) 23.86%,transparent 23.94%),radial-gradient(circle at 37.0% 60.4%,rgba(255,250,240,.22) 0 1.0px,transparent 1.6px),radial-gradient(circle at 6.6% 1.3%,rgba(255,250,240,.22) 0 1.2px,transparent 1.8px),radial-gradient(circle at 25.9% 23.4%,rgba(255,250,240,.22) 0 1.3px,transparent 1.9px),radial-gradient(circle at 47.0% 83.6%,rgba(255,250,240,.22) 0 0.9px,transparent 1.5px),radial-gradient(circle at 63.9% 15.1%,rgba(255,250,240,.22) 0 1.0px,transparent 1.6px),radial-gradient(circle at 86.8% 52.3%,rgba(10,0,0,.45) 0 1.3px,transparent 2.1px),radial-gradient(circle at 67.1% 6.4%,rgba(10,0,0,.45) 0 1.4px,transparent 2.2px),radial-gradient(circle at 59.1% 30.1%,rgba(10,0,0,.45) 0 0.6px,transparent 1.4px)}
-.la-strip::before{top:0;transform:scaleY(-1)}
-.la-strip::after{bottom:0}
-.la-fr{position:relative;flex:none;width:var(--fw);height:var(--fh);margin-right:.15vw;margin-left:0;background:#000;border-radius:0}
-.la-fr::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(255,130,50,.5),inset 0 0 12px rgba(255,120,40,.3),inset 0 0 120px rgba(255,90,20,.12);mix-blend-mode:screen}   /* halation: the light bleeding in at the frame edges */
-.la-fr:first-child{margin-left:.15vw}
-.la-fr video,.la-fr img,.la-fr canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 42%;filter:brightness(.97) saturate(1.02) sepia(.06);display:block;border-radius:1px}
-.la-fr.still img,.la-fr.still canvas{filter:saturate(1.02) sepia(.06)}
-.la-fr>img{animation:laKen 5s ease-out both}
-@keyframes laKen{from{transform:scale(1.06)}to{transform:scale(1)}}
-.la-fr span{position:absolute;left:2.2vw;top:2.6vh;padding:7px 12px 6px 14px;border-radius:999px;background:rgba(14,8,4,.72);border:1px solid rgba(255,150,70,.22);font-family:var(--mono);font-size:10.5px;letter-spacing:.34em;color:#e9b27a;z-index:1;backdrop-filter:blur(6px)}
-.la-fr i{position:absolute;left:.3vw;bottom:calc(var(--rb)*-1 + .5vh);font-style:normal;font-family:var(--sans);font-weight:700;font-size:1.25vh;color:#2b2160;opacity:.75;white-space:nowrap;z-index:2}
-.la-fr i::after{content:"A"}
-.la-fr em{display:none}
-.la-fr u{display:none}
-.la-fr u::after{content:"STUDIUM 400";margin-left:5vw;opacity:.9}
-.la-fr i::before{content:"\2192  "}
-/* the wordmark: a mask reveal on the big circle, big, held through the settle, then it lets the scene through */
+/* the viewfinder's marks over the shot: its corners and the focus square, which hunts amber and locks green (as #vfAF) */
+.la-vf{position:absolute;inset:6vh 5vw;opacity:0;transition:opacity .2s;pointer-events:none;z-index:2;filter:drop-shadow(0 0 1px rgba(0,0,0,.95)) drop-shadow(0 0 4px rgba(0,0,0,.45))}
+#launch.vf .la-vf{opacity:1}
+.la-vf i{position:absolute;width:26px;height:26px;border:0 solid rgba(255,255,255,.85)}
+.la-vf .tl{left:0;top:0;border-width:1.5px 0 0 1.5px}.la-vf .tr{right:0;top:0;border-width:1.5px 1.5px 0 0}
+.la-vf .bl{left:0;bottom:0;border-width:0 0 1.5px 1.5px}.la-vf .br{right:0;bottom:0;border-width:0 1.5px 1.5px 0}
+.la-vf b{--afc:#fff;position:absolute;left:50%;top:50%;width:72px;height:48px;transform:translate(-50%,-50%);transition:transform .15s ease;background:
+    linear-gradient(var(--afc),var(--afc)) 0 0/12px 2px no-repeat, linear-gradient(var(--afc),var(--afc)) 0 0/2px 12px no-repeat,
+    linear-gradient(var(--afc),var(--afc)) 100% 0/12px 2px no-repeat, linear-gradient(var(--afc),var(--afc)) 100% 0/2px 12px no-repeat,
+    linear-gradient(var(--afc),var(--afc)) 0 100%/12px 2px no-repeat, linear-gradient(var(--afc),var(--afc)) 0 100%/2px 12px no-repeat,
+    linear-gradient(var(--afc),var(--afc)) 100% 100%/12px 2px no-repeat, linear-gradient(var(--afc),var(--afc)) 100% 100%/2px 12px no-repeat}
+#launch.af-hunt .la-vf b{--afc:var(--accent);animation:afHunt .18s ease-in-out infinite alternate}
+#launch.af-ok .la-vf b{--afc:#5fe08a;transform:translate(-50%,-50%) scale(.92)}
+/* the game's capture over the film: the blade, the flash, the photo flying to the corner (as #shutterBlade, #flash, #captureFly) */
+.la-blade{position:absolute;inset:0;z-index:3;background:#000;transform:scaleY(0);transform-origin:top;pointer-events:none}
+.la-blade.fire{animation:blade .22s ease-in-out}
+.la-flash{position:absolute;inset:0;z-index:3;background:#fff;opacity:0;pointer-events:none}
+.la-flash.fire{animation:flash .3s ease-out}
+.la-fly{position:absolute;inset:0;width:100%;height:100%;z-index:3;opacity:0;pointer-events:none;border-radius:4px;box-shadow:0 8px 30px rgba(0,0,0,.6);transform-origin:center}
+/* the wordmark: a mask reveal on the big circle, big, held through the handover, then it lets the scene through */
 .la-word{position:absolute;left:0;right:0;top:50%;transform:translateY(-54%);text-align:center;opacity:0;pointer-events:none;z-index:2}
 .la-kick,.la-tag{display:block;font-family:var(--mono);letter-spacing:.42em;color:var(--accent);text-shadow:0 1px 8px rgba(0,0,0,.8);opacity:0}
 .la-kick{font-size:12px;margin-bottom:10px}
-.la-tag{font-size:11px;margin-top:14px;letter-spacing:.34em}
-.la-word b{display:block;font-family:var(--serif);font-weight:300;font-size:clamp(84px,13vw,176px);line-height:1;letter-spacing:-.02em;text-shadow:0 4px 40px rgba(0,0,0,.85);overflow:hidden;padding:.06em 0}
+.la-tag{font-size:11px;margin-top:14px;letter-spacing:.34em;padding:0 16px}
+.la-word b{display:block;font-family:var(--serif);font-weight:300;font-size:clamp(64px,13vw,176px);line-height:1;letter-spacing:-.02em;text-shadow:0 4px 40px rgba(0,0,0,.85);overflow:hidden;padding:.06em 0}
 .la-word b i{display:inline-block;font-style:normal;transform:translateY(110%);opacity:0}
-.la-word em{display:block;width:0;height:1px;margin:14px auto 0;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
-#launch.p-spin .la-word,#launch.p-lock .la-word,#launch.out .la-word{opacity:1}
-#launch.p-spin .la-kick,#launch.p-lock .la-kick,#launch.out .la-kick{animation:laUp .7s cubic-bezier(.2,.7,.2,1) .5s both}
-#launch.p-spin .la-word b i,#launch.p-lock .la-word b i,#launch.out .la-word b i{animation:laLetter .9s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(.7s + var(--n)*60ms)}
-#launch.p-spin .la-word em,#launch.p-lock .la-word em,#launch.out .la-word em{animation:laLine 1.1s cubic-bezier(.2,.7,.2,1) 1.3s both}
-#launch.p-spin .la-tag,#launch.p-lock .la-tag,#launch.out .la-tag{animation:laUp .8s cubic-bezier(.2,.7,.2,1) 1.55s both}
+.la-word em{display:block;width:min(52vw,520px);height:1px;margin:14px auto 0;background:linear-gradient(90deg,transparent,var(--accent),transparent);transform:scaleX(0)}
+#launch.word .la-word{opacity:1}
+#launch.word .la-kick{animation:laUp .7s cubic-bezier(.2,.7,.2,1) .5s both}
+#launch.word .la-word b i{animation:laLetter .9s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(.7s + var(--n)*60ms)}
+#launch.word .la-word em{animation:laLine 1.1s cubic-bezier(.2,.7,.2,1) 1.3s both}
+#launch.word .la-tag{animation:laUp .8s cubic-bezier(.2,.7,.2,1) 1.55s both}
 #launch.out .la-word{animation:laWordOut .6s ease-in 1s forwards}
 @keyframes laUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes laLetter{from{opacity:0;transform:translateY(110%)}to{opacity:1;transform:none}}
-@keyframes laLine{to{width:min(52vw,520px)}}
-@keyframes laWordOut{to{opacity:0;transform:translateY(-54%) scale(1.04);filter:blur(6px)}}
-.la-skip{position:absolute;right:28px;bottom:24px;font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;color:var(--ink-4);opacity:0;transition:opacity .4s;z-index:4}
+@keyframes laLine{to{transform:scaleX(1)}}
+@keyframes laWordOut{to{opacity:0;transform:translateY(-54%) scale(1.04)}}
+.la-skip{position:absolute;right:28px;bottom:24px;font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;color:rgba(244,241,234,.55);opacity:0;transition:opacity .4s;z-index:4;text-shadow:0 1px 6px rgba(0,0,0,.8)}
 #launch.skip .la-skip{opacity:1}
-#launch.p-lock .la-skip,#launch.out .la-skip{opacity:0}
+#launch.out .la-skip,#launch.p-live .la-skip{opacity:0}
+.la-credit{position:absolute;left:28px;bottom:24px;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:rgba(244,241,234,.38);opacity:0;transition:opacity .6s;z-index:4;text-shadow:0 1px 6px rgba(0,0,0,.8);pointer-events:none}
+#launch.bush.p-film .la-credit,#launch.bush.p-hold .la-credit{opacity:1}
+#launch.out .la-credit{opacity:0}   /* the birdsong's credit (Crown Copyright, licenses/doc-birdsong-crown-copyright.txt), shown only when it plays */
 /* the viewfinder under the opening shows only its corners and the focus mark */
-body.launching #vfTop,body.launching #vfHints,body.launching #vfStrip,body.launching #vfBar,body.launching #vfGuideChip,body.launching #vfBriefChip,body.launching #vfCompLbl,body.launching #vfComp,body.launching #vfLevel,body.launching #vfBrief,body.launching #crosshair{visibility:hidden!important}
+/* the game's own viewfinder comes up over the opening film for the shot (launch.js laCam): lifted above it, with its blade, flash and
+   flying photo; the parts that talk about controls stay hidden, since a click here only skips */
+body.la-cam #viewfinder{z-index:1210}
+body.la-cam #flash{z-index:1212}
+body.la-cam #shutterBlade{z-index:1213}
+body.la-cam #captureFly{z-index:1214}
+body.launching #vfHints,body.launching #vfBrief,body.launching #vfBriefChip,body.launching #vfToast,body.launching #vfTop,body.launching #crosshair{visibility:hidden!important}
 body.launching #loader,body.launching #hud,body.launching #navTop,body.launching #navActs,body.launching #prompt,body.launching .q-hud,body.launching #chCard,body.launching #chGlow,body.launching #chFlash,body.launching #chMarks,body.launching #chTitle,body.launching #vfToast,body.launching #coCard,body.launching #coRing,body.launching #toast,body.launching .ach-card,body.launching #tutorial,body.launching #fadeover{visibility:hidden!important}
 
 /* ---- Lighting B: the lighting panel wears the editing window's own styles (mirrored from #editor; edit both together) ---- */

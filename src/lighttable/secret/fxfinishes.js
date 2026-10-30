@@ -25,7 +25,7 @@ FR.window = `uniform vec2 uSize; uniform float uDepth; varying vec3 vVo;
 const VS_WIN = 'varying vec2 vUv; varying vec3 vVo; void main(){ vUv=uv; vec3 camO=(inverse(modelMatrix)*vec4(cameraPosition,1.0)).xyz; vVo=position-camO; gl_Position=projectionMatrix*viewMatrix*modelMatrix*vec4(position,1.0); }';
 
 function coin(P, g, w, h, api) {
-  const r = api.rng(), alloy = pick(r, ALLOYS), S = 512, R = h * 0.47, th = 0.07; api.label([alloy[0], 'proof coin']);
+  const r = api.rng(), alloy = pick(r, ALLOYS), S = 512, R = Math.min(w, h) * 0.47, th = 0.07;   /* the short side: on a portrait slab the height overhung both edges */ api.label([alloy[0], 'proof coin']);
   let sx = 0, sy = 0, sw = 0; for (let y = 0; y < P.H; y += 3) for (let x = 0; x < P.W; x += 3) { const m = P.R[y * P.W + x]; sx += x * m; sy += y * m; sw += m; }
   const cxp = sw ? sx / sw : P.W / 2, cyp = sw ? sy / sw : P.H / 2, half = P.H * 0.5;
   const lc = document.createElement('canvas'); lc.width = lc.height = S; const lg = lc.getContext('2d'); lg.fillStyle = '#000'; lg.fillRect(0, 0, S, S); lg.fillStyle = '#fff'; lg.font = '700 ' + Math.round(S * 0.05) + 'px Geist, sans-serif'; lg.textAlign = 'center'; lg.textBaseline = 'middle';

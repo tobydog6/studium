@@ -279,7 +279,12 @@ function build(S) {
       S.toast('Onto the table, in front of the binder.');
     },
     /* a spot on the table in front of the open binder (the sequence board is hard against its right side), stepping along as more come out */
-    tableSpot() { const x0 = B.x + AX + 0.4, z0 = B.z + B.d / 2 + 2.9; const n = S.table.list.filter(o => Math.abs(o.group.position.x - x0) < 3 && Math.abs(o.group.position.z - z0) < 3).length; return { x: x0 + n * 0.45, z: z0 + n * 0.25, yaw: (Math.random() - 0.5) * 0.3 }; },
+    tableSpot() { const ctx = S.ctx, W = (ctx.W_T || 40) / 2 - 1.6, Hh = (ctx.H_T || 24) / 2 - 1.6;
+      /* the dark side: beside the binder prop, towards the middle and kept on the top (the light side's spot fell off its edge, under the table) */
+      if (S.under && S.under.on && S.under.binderAt) { const p = S.under.binderAt(); if (p) { const len = Math.hypot(p.x, p.z) || 1, x1 = p.x - p.x / len * 3.2, z1 = p.z - p.z / len * 3.2;
+        const n = S.table.list.filter(o => Math.abs(o.group.position.x - x1) < 3 && Math.abs(o.group.position.z - z1) < 3).length;
+        return { x: Math.max(-W, Math.min(W, x1 + n * 0.45)), z: Math.max(-Hh, Math.min(Hh, z1 + n * 0.25)), yaw: (Math.random() - 0.5) * 0.3 }; } }
+      const x0 = B.x + AX + 0.4, z0 = B.z + B.d / 2 + 2.9; const n = S.table.list.filter(o => Math.abs(o.group.position.x - x0) < 3 && Math.abs(o.group.position.z - z0) < 3).length; return { x: x0 + n * 0.45, z: z0 + n * 0.25, yaw: (Math.random() - 0.5) * 0.3 }; },
     /* swap two pockets (either may be empty): the store pages trade ids, the slabs lift, cross and land, then the pages redraw */
     async swap(from, to) {
       const pages = store.get().binder; while (pages.length <= Math.max(from.page, to.page)) pages.push(new Array(9).fill(null));

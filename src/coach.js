@@ -148,14 +148,16 @@
       target:'#camback [data-cb-row="'+row+'"]', place:"side", need:"back", dwell:1200,   /* beside the screen, level with its row: the slider and the needle stay clear */
       prep:function(){ cbTab="shoot"; cbRow=row; if(cbOpen) cbRender(); }, start:function(){ CO.s.v=coDialVal(key); },
       done:function(){ return Math.abs(coDialVal(key)-CO.s.v)>=2; }, bar:function(){ return Math.min(1,Math.abs(coDialVal(key)-CO.s.v)/2); }}; }
+  function coLearn(media,row,key,line,sub){ var s=coDial(row,key,"",sub); s.media=media; s.dwell=1800; s.line=function(){ return line; }; return s; }
   var CO_TOURS={
     basics:{where:function(){ return loaded&&!App.is("hub")&&!(typeof st!=="undefined"&&st.open); }, steps:[
-      {ch:"MOVE", line:function(){ return 'Click, then move the mouse to look around'; }, sub:"Esc lets go of the mouse. The sharp thing in front of you is the subject; if you lose it, a gold ring points the way back.",
-        done:function(){ return CO.look>1.6; }, bar:function(){ return CO.look/1.6; }},
+      {ch:"MOVE", line:function(){ return FL.orbit?'<kbd class="co-drag">DRAG</kbd> to go round '+coSubj():'Click, then move the mouse to look around'; },
+        sub:function(){ return FL.orbit?"Side to side takes you round it, up and down raises and lowers you. If you lose it, a gold ring points the way back.":"Esc lets go of the mouse. The sharp thing in front of you is the subject; if you lose it, a gold ring points the way back."; },
+        start:function(){ CO.s.o0=FLX.orb; }, done:function(){ return CO.look+FLX.orb-CO.s.o0>1.6; }, bar:function(){ return (CO.look+FLX.orb-CO.s.o0)/1.6; }},
       {ch:"MOVE", line:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return isFinite(d)&&d>4.5?'Head for the gold ring: that\'s '+(typeof chSubjectName==="function"?chSubjectName():"the subject")+', your subject':coK("W")+coK("A")+coK("S")+coK("D")+' to walk'; },
-        sub:"Just a few steps, and stay close. A scan is only sharp near the thing it was made of; the edges always go soft.",
-        start:function(){ CO.s.d0=typeof chSubjectDist==="function"?chSubjectDist():Infinity; },   /* a scene that starts you far from its subject only asks you to head its way */
-        done:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return CO.walked>1.2&&(!isFinite(d)||d<4.5||d<CO.s.d0-1); }, bar:function(){ return Math.min(1,CO.walked/1.2); }},
+        sub:function(){ return (FL.orbit?"Now the mouse looks around as you walk. Drag any time to go round again. ":"")+"Just a few steps, and stay close: a scan is only sharp near the thing it was made of."; },
+        start:function(){ CO.s.d0=typeof chSubjectDist==="function"?chSubjectDist():Infinity; CO.s.w0=CO.walked; },   /* a scene that starts you far from its subject only asks you to head its way; going round it in the step before doesn't count as walking */
+        done:function(){ var d=typeof chSubjectDist==="function"?chSubjectDist():Infinity; return CO.walked-CO.s.w0>1.2&&(!isFinite(d)||d<4.5||d<CO.s.d0-1); }, bar:function(){ return Math.min(1,(CO.walked-CO.s.w0)/1.2); }},
       {ch:"MOVE", line:function(){ return coK("Q")+' to crouch, '+coK("E")+' to stand tall'; }, sub:"Try shooting from low down and up high.",
         done:function(){ return CO.keys.Q&&CO.keys.E; }},
       {ch:"SHOOT", line:function(){ return '<kbd>RIGHT CLICK</kbd> raises the camera to your eye'; }, sub:"Right click again to lower it. "+coK("P")+" does the same.",
@@ -173,21 +175,17 @@
       {ch:"BAG", line:function(){ return 'Choose <b>one of these</b>'; }, sub:"Each lens sees differently: a wide one takes in more, a long one pulls far things close. Watch it twist off and the new one click on.",
         target:'#bag .bg-tray', targets:function(){ return Array.prototype.filter.call(document.querySelectorAll('#bag [data-bg-lens]'),function(c){ return c.getAttribute("data-bg-lens")!==CO.s.l0; }); },
         start:function(){ CO.s.l0=lensId; }, done:function(){ return bg.lens!==CO.s.l0&&!bg.busy; }, need:"lens", nodim:true},
-      {ch:"BAG", line:function(){ return '<b>Lock it in</b>'; }, sub:"",
-        target:'#bag [data-bg="done"]', done:function(){ return bg.stage==="choose"&&lensId===bg.lens; }, need:"lens"},
-      {ch:"BAG", line:function(){ return coK("SPACE")+' closes the bag'; }, sub:"",
-        done:function(){ return !bg.open; }},
+      {ch:"BAG", line:function(){ return bg.stage==="lens"?'<b>Lock it in</b>, then '+coK("SPACE")+' closes the bag':coK("SPACE")+' closes the bag'; }, sub:"",   /* one step, not two chores */
+        target:function(){ return bg.stage==="lens"?document.querySelector('#bag [data-bg="done"]'):null; }, done:function(){ return !bg.open&&lensId===bg.lens; }},
       {ch:"SETTINGS", line:function(){ return coK("SPACE")+' opens the menu: choose <b>Settings</b>'; }, sub:"The back of the camera: shutter, aperture and ISO.",
         kit:"back", done:function(){ return cbOpen; }},
-      {ch:"SETTINGS", media:"shutter", info:true, need:"back", line:function(){ return 'The <b>shutter speed</b> is how long the camera looks'; },
-        sub:"Fast, like 1/1000, freezes everything but lets in less light. Slow, like 1/15, lets in lots of light, but any wobble in your hands smears the photo. With a longer lens you need a faster shutter."},
-      coDial(0,"sh","shutter speed","Or click any number on it. Watch the needle at the bottom swing as you go."),
-      {ch:"SETTINGS", media:"aperture", info:true, need:"back", line:function(){ return 'The <b>aperture</b> is how wide the lens opens'; },
-        sub:"A small number, like f/2, is a wide hole: lots of light, and a soft background, so your subject stands out. A big number, like f/16, is a pinhole: darker, but sharp from front to back."},
-      coDial(1,"ap","aperture","Small numbers open it up, big numbers close it down."),
-      {ch:"SETTINGS", media:"iso", info:true, need:"back", line:function(){ return '<b>ISO</b> is how sensitive the sensor is'; },
-        sub:"Low, like 100, is clean and smooth but needs plenty of light. Turn it up when it's dark, but the photo gets grainy. Most photographers change shutter and aperture before ISO."},
-      coDial(2,"iso","ISO","Higher sees in the dark, lower keeps it clean."),
+      /* each setting: the clip shows what it does while you drag it yourself, so there's nothing to sit and read */
+      coLearn("shutter",0,"sh",'The <b>shutter speed</b> is how long the camera looks. '+'<kbd class="co-drag">DRAG</kbd> it',
+        "Fast, like 1/1000, freezes everything but lets in less light. Slow, like 1/15, lets in lots, but any wobble in your hands smears the photo."),
+      coLearn("aperture",1,"ap",'The <b>aperture</b> is how wide the lens opens. '+'<kbd class="co-drag">DRAG</kbd> it',
+        "A small number, like f/2, is a wide hole: lots of light and a soft background. A big number, like f/16, is darker but sharp front to back."),
+      coLearn("iso",2,"iso",'<b>ISO</b> is how sensitive the sensor is. '+'<kbd class="co-drag">DRAG</kbd> it',
+        "Low, like 100, is clean but needs plenty of light. Higher sees in the dark, but the photo gets grainy. Change shutter and aperture first."),
       {ch:"SETTINGS", media:"meter", info:true, need:"back", line:function(){ return 'The <b>light meter</b> adds them all up'; },
         sub:"Every setting moves the needle. Left of the middle is too dark, right is too bright. Get it near the middle, then trade one setting against another for the look you want."},
       /* a clear break: the explaining's over, now it's a challenge with three lights to expose for */
@@ -470,10 +468,17 @@
     var s=coSteps()[CO.i]; if(!s){ coFinish(false); return; }   // each prompt stays up long enough to read (dwell) before it ticks
     if(CO.seen!==CO.i){ CO.seen=CO.i; CO.lockTo=s.info?performance.now()+READ_MS:0; if(s.prep) s.prep(); }   // the read timer starts when the card first shows
     var isDone=(s.info||s.click||s.finish||CO.s.pre)?CO.s.ok:s.done();
-    if(!CO.ticking&&performance.now()-CO.t0>(s.info?0:(s.dwell||900))&&isDone){ coTicked(); return; }   // one tick per prompt, however late the timer runs
+    if(!CO.ticking&&performance.now()-CO.t0>(s.info?0:(s.dwell||600))&&isDone){ coTicked(); return; }   /* one tick per prompt, however late the timer runs */
     coRender(s); }
   function coTicked(){ CO.ticking=true; var e=coEl(); e.classList.add("ok"); setTimeout(function(){ CO.ticking=false; e.classList.remove("ok"); CO.i++; Q.tourStep[CO.tour]=CO.i; qSave();
-      if(CO.i>=coSteps().length){ coFinish(false); return; } coEnter(); }, 600); }
+      if(CO.i>=coSteps().length){ coFinish(false); return; } coEnter(); }, 480); }
+  /* the mouse moves in the prompt, drawn as a mouse doing them: dragging side to side, a button flashing */
+  var CO_MOUSE='<svg viewBox="0 0 16 22" aria-hidden="true"><path class="l" d="M8 1.5A6.5 6.5 0 0 0 1.5 8V9.5H8z"/><path class="r" d="M8 1.5A6.5 6.5 0 0 1 14.5 8V9.5H8z"/><rect class="b" x="1.5" y="1.5" width="13" height="19" rx="6.5"/><path class="s" d="M8 1.5v8M1.5 9.5h13"/></svg>';
+  function coMouse(h){ return String(h).replace(/<kbd( class="co-drag")?>DRAG<\/kbd>/g,'<kbd class="co-mouse m-drag">'+CO_MOUSE+'DRAG</kbd>')
+      .replace(/<kbd>RIGHT CLICK<\/kbd>/g,'<kbd class="co-mouse m-r">'+CO_MOUSE+'RIGHT CLICK</kbd>').replace(/<kbd>CLICK<\/kbd>/g,'<kbd class="co-mouse m-l">'+CO_MOUSE+'CLICK</kbd>'); }
+  /* the subject in a sentence: "The Stump" reads "the stump" */
+  function coSubj(){ var n=chSubjectName(); return /^The /.test(n)?"the "+n.slice(4).toLowerCase():n; }
+  function coSub(s){ return typeof s.sub==="function"?s.sub():s.sub; }
   function coRender(s){ var e=coEl(), ring=$("coRing"), steps=coSteps(); if(CO.sndStep!==s){ CO.sndStep=s; sfx("tour"); }
     var chs=[], prev=null; steps.forEach(function(x,i){ if(x.ch!==prev){ chs.push({ch:x.ch, first:i}); prev=x.ch; } });
     var inCh=steps.filter(function(x){ return x.ch===s.ch; }), k=inCh.indexOf(s);
@@ -484,11 +489,14 @@
     else if(s.need==="back"&&!cbOpen) pre='Open the settings again: '+coK("SPACE")+', then <b>Settings</b>';
     else if(s.need==="crop"&&!cropActive()) pre='Open the crop again: click <b>Crop</b> or press '+coK("C");
     var b=s.bar?Math.max(0,Math.min(1,s.bar())):null;
-    var html='<div class="co-top">'+chs.map(function(c){ var on=c.ch===s.ch, past=CO.i>c.first&&!on; return '<span class="co-ch'+(on?' on':'')+(past?' past':'')+'">'+c.ch+'</span>'; }).join('<i></i>')
+    /* the whole tour as one strip along the card's top edge: a segment per chapter, filling as you go */
+    var N=steps.length, prog='<div class="co-prog">'+chs.map(function(c,j){ var end=j+1<chs.length?chs[j+1].first:N, n=end-c.first, f=Math.max(0,Math.min(1,(CO.i-c.first)/n));   /* no re-render while it ticks, so the gold tick can stamp in */
+      return '<i style="flex:'+n+'"><b style="width:'+(f*100).toFixed(1)+'%"></b></i>'; }).join("")+'</div>';
+    var html=prog+'<i class="co-tick"></i><div class="co-top">'+chs.map(function(c){ var on=c.ch===s.ch, past=CO.i>c.first&&!on; return '<span class="co-ch'+(on?' on':'')+(past?' past':'')+'">'+c.ch+'</span>'; }).join('<i></i>')
       +(CO.skipped?'<button class="co-skip all" data-co-skipall title="Skip the rest of this tour">SKIP ALL</button>':'')+'<button class="co-skip" data-co-skip title="Skip this step">SKIP STEP</button></div>'
       +(s.media&&!pre?'<canvas class="co-media" data-co-media="'+s.media+'"></canvas>':'')
-      +'<div class="co-line">'+(pre||s.line())+'</div>'+((pre?'':s.sub)?'<div class="co-sub">'+s.sub+'</div>':'')+(!pre&&CO.s.pre?'<div class="co-sub co-again">You\'ve already done this one. Have another go, or press GOT IT.</div>':'')
-      +'<div class="co-foot"><div class="co-dots">'+inCh.map(function(_,j){ return '<i class="'+(j<k?'d':j===k?'c':'')+'"></i>'; }).join("")+'</div>'
+      +'<div class="co-line">'+coMouse(pre||s.line())+'</div>'+((pre?'':coSub(s))?'<div class="co-sub">'+coSub(s)+'</div>':'')+(!pre&&CO.s.pre?'<div class="co-sub co-again">You\'ve already done this one. Have another go, or press GOT IT.</div>':'')
+      +'<div class="co-foot"><span class="co-n">'+(CO.i+1)+' <i>OF '+N+'</i></span>'
       +(s.finish&&!pre?'<button class="co-next" data-co-next>FINISHED ✓</button>':(s.info||CO.s.pre)?(performance.now()<CO.lockTo?'<button class="co-next rl" data-co-next disabled style="--rl:'+Math.round(CO.lockTo-performance.now())+'ms">GOT IT ›</button>':'<button class="co-next" data-co-next>GOT IT ›</button>'):'')+'</div>'
       +(b!=null?'<div class="co-bar"><b style="width:'+(b*100).toFixed(0)+'%"></b></div>':'');
     if(html!==CO.html){ e.innerHTML=html; CO.html=html; }

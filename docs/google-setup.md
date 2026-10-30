@@ -74,6 +74,24 @@ studium.nz is unchanged (except playtesters' finish-card answers now save to `st
 - If you or a student edit a deck in Slides, the next rebuild replaces it. Make a copy first if you want to mark on it.
 - Changing the Drive account (*Change account*) starts fresh folders and decks in the new Drive.
 
+## The demo: sign in to save, and Blades duels
+
+- **Signing in on the demo.** The launch page at studium.nz has *Sign in with Google to save your progress* in the top
+  right. Signed in, a player's demo (photos, edits, quests, and their Blades slabs) saves to their Google account at
+  `<user id>/demo.json` in `studium-saves`, apart from any real class work. Next time, *Carry on* picks it up on any
+  computer. *Sign out* (top right, or the name on the hub) saves first.
+- **Blades duels.** Anyone signed in with Google who has Studium open is in a live lobby: a class's students and
+  teacher share their class's own lobby, and demo players share the open one, so a stranger on the public demo never
+  sees or invites a school student. In Blades (the light table:
+  `=`, type `secret`, Space to turn the table over, then the ripper), **Duel online** lists who's on by first name and
+  initial. An invite pops up wherever the other player is in Studium; *Let's go* takes them straight to the stadium,
+  even if they've never found the secret layer. Each player builds their own blade, both rip, first to 4 wins.
+  Players can untick *Show me in other players' lists* to stay hidden.
+- **Setup:** run all of `docs/supabase.sql` again (the new part at the end lets only signed-in players into the lobby,
+  and only the two players into a duel). Nothing else to switch on: Realtime is on by default.
+- Each duel sends about 12 live messages a second. Supabase's free plan caps live messages per second across the
+  project (check Realtime quotas in the dashboard), so a whole class duelling at once may need the Pro plan.
+
 ## For schools (Burnside IT and anyone else)
 
 Google Workspace for Education blocks students under 18 from signing in to apps the school hasn't approved.

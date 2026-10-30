@@ -20,7 +20,8 @@
 // not there to forward it), S.rail.state().
 import * as THREE from 'three';
 
-const K = 0.4;                 /* prints on the rail at the table's card scale */
+const K = 0.54;                /* Sam: bigger prints on the rail, fewer across, closer to you */
+const SHOW = 3.3;              /* how many slots either side of the marker are in view */
 const BAR_Y = 0.55, HANG = 0.2;   /* the rail bar above the table top; clip and string down to the top of a print */
 const DEEP = -5.0, BENCH_Y = -1.95, SUNK = -4.6, UP = 1.55;   /* risen, the whole rail hangs above the table top so nothing is cut off */   /* the darkroom floor, the bench, where the rail waits in the dark */
 const ROLLBACK = 0.3;          /* how often the reel passes the winner and rolls back */
@@ -84,7 +85,7 @@ export function install(S) {
       const paper = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), lam(0xffffff, { map: S.SM.tex(ctx.paintPhoto(S.KINDS[(i * 5 + 1) % S.KINDS.length], 300 + i * 17, land ? 300 : 210, land ? 210 : 300)), side: THREE.DoubleSide })); paper.position.y = -0.06 - ph / 2; g.add(paper);
       [-0.3, 0.3].forEach(x => box(0.05, 0.12, 0.05, lam(0x6a4a3a), x * pw, -0.04, 0, g)); g.userData = { pw, ph, i }; line.add(g); hung.push(g);
       for (let k = 0; k < 2; k++) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.026, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffb0a0, transparent: true, opacity: 0.8 })); d.userData.noParticles = true; line.add(d); drops.push({ m: d, g, k, ph: (i * 0.37 + k * 0.5) % 1 }); } }
-    return { room, W, D, x0, x1, z0, z1, cx, cz, walls, halo, red, redBack, key, line, hung, drops, LN, LP, span: W / 2 - 0.55 };
+    return { room, W, D, x0, x1, z0, z1, cx, cz, walls, halo, red, redBack, key, line, hung, drops, LN, LP, span: Math.min(W / 2 - 0.55, SHOW * 1.75) };
   }
 
   /* ---------- the rail: the bar, two posts, the marker, the hangers ---------- */
@@ -122,14 +123,15 @@ export function install(S) {
   function mk(slab) { const o = (!slab.graded || slab.decoy) && S.print && S.print.make ? S.print.make(slab) : null; return o ? S.slabs.adopt(o) : S.slabs.make(slab); }
 
   /* ---------- the camera ---------- */
-  const FRAME = rm => ({ tx: rm.cx, ty: UP - 0.35, tz: rm.cz + 0.2, pitch: 24, dT: Math.max(9, ctx.fitDist(rm.W + 1.2, 4.5, 24)) });
+  const FRAME = rm => ({ tx: rm.cx, ty: UP - 0.55, tz: rm.cz + 0.2, pitch: 22, dT: Math.max(8, ctx.fitDist(rm.span * 2 + 1.0, 5.2, 22)) });   /* framed on the slots in view, not the whole pit */
 
   /* ---------- the reel plan: slots over time, with the long deceleration, the near miss or the roll-back ---------- */
   function plan(n, win) {
     const laps = Math.max(2, Math.round(34 / n)), target = win + laps * n, rollback = Math.random() < ROLLBACK, back = 1 + Math.floor(Math.random() * BACK_MAX);
     const A = rollback ? target + 0.78 : target - 0.42, B = rollback ? target - 0.1 : target + 0.07;
     const PAUSE = rollback ? 0.35 : 0.3, BD = rollback ? 1.9 : 1.2;
-    return { target, rollback, back, RUN: 7.0, PAUSE, BD, CD: 0.5, A, B, total: 7.0 + PAUSE + BD + 0.5 };
+    const RUN = S.dev && S.dev.opt && S.dev.opt('reelLen') === 'short' ? 2.2 : 7.0;   /* dev panel: a short reel for trying the reveals over and over */
+    return { target, rollback, back, RUN, PAUSE, BD, CD: 0.5, A, B, total: RUN + PAUSE + BD + 0.5 };
   }
   function reelPos(p, u) {
     if (u <= 0) return 0;
@@ -184,6 +186,7 @@ export function install(S) {
     r.rim = sprite(RIM, winner.obj.w * K * 1.65, winner.obj.h * K * 1.55, r.glow.color, 0); r.rim.position.set(0, winner.spin.position.y, -0.05); winner.h.add(r.rim);
     r.burst = sprite(BURST, 3.2, 3.2, 0xffffff, 0); r.burst.position.set(0, winner.spin.position.y, 0.25); winner.h.add(r.burst);
     r.ring = new THREE.Mesh(new THREE.RingGeometry(0.94, 1.0, 72), new THREE.MeshBasicMaterial({ color: 0xffe0a8, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); r.ring.position.copy(r.burst.position); r.ring.position.z = 0.3; winner.h.add(r.ring);
+    r.style = S.reveals ? S.reveals.style() : 'flip'; if (r.style !== 'flip') S.reveals.land(r);   /* the new reveal (reveals.js) lights the card itself from here */
     T.to(winner.h.position, { z: 1.25, y: BAR_Y + 0.32 }, { dur: 0.8, ease: E.outBack, tag: 'rail' });
     T.tween({ dur: 0.8, ease: E.outBack, tag: 'rail', update: e => winner.spin.scale.setScalar(1 + 0.32 * e) });
     T.to(ctx.cam, { dT: ctx.cam.dT * 0.72, ty: UP - 0.5, pitch: 24 }, { dur: 1.6, ease: E.inOutCubic, tag: 'rail' });
@@ -192,15 +195,18 @@ export function install(S) {
     r.prompt = true; r.phase = 'prompt'; S.toast('Face down. Hover it, then click to turn it over.');
     await new Promise(res => { r.flipNow = res; }); if (!alive()) return;
     /* the flip: a turn on the vertical axis, the burst at the edge-on moment, then the tier-scaled landing */
-    r.prompt = false; r.phase = 'flip'; r.hover = false; ctx.canvas.style.cursor = 'default'; S.snd && S.snd.play('flip');
-    const sp = winner.spin, y0 = sp.rotation.y;
-    await T.tween({ dur: 0.42, ease: E.inCubic, tag: 'rail', update: e => { sp.rotation.y = y0 + Math.PI / 2 * e; sp.position.z = 0.5 * Math.sin(e * Math.PI / 2); } }); if (!alive()) return;
-    r.burstT = T.time(); r.ring.scale.setScalar(0.55); r.keyFlash = 1;
-    const holoBurst = S.holo && S.holo.burst ? S.holo.burst(winner.obj, {}).catch(() => null) : (S.snd && S.snd.play('burst'), null);
-    await T.par([T.tween({ dur: 0.42, ease: E.outCubic, tag: 'rail', update: e => { sp.rotation.y = y0 + Math.PI / 2 + Math.PI / 2 * e; sp.position.z = 0.5 * Math.cos(e * Math.PI / 2); } }), holoBurst]); if (!alive()) return;
-    sp.rotation.y = y0 + Math.PI; sp.position.z = 0; r.phase = 'reveal'; r.wobble = T.time();
-    if (S.holo && S.holo.reveal) await S.holo.reveal(winner.obj, {}).catch(() => null); else await T.wait(0.4, 'rail');
-    if (!alive()) return;
+    r.prompt = false; r.phase = 'flip'; r.hover = false; ctx.canvas.style.cursor = 'default';
+    const sp = winner.spin, y0 = sp.rotation.y, style = r.style || 'flip';
+    /* the other reveal styles (dev panel: Reveal style) bring their own moment and payoff; they leave the print face up */
+    if (style !== 'flip') { await S.reveals.run(style, { r, slot: winner, obj: winner.obj, spin: sp, y0, alive }); if (!alive()) return; }
+    else { S.snd && S.snd.play('flip');
+      await T.tween({ dur: 0.42, ease: E.inCubic, tag: 'rail', update: e => { sp.rotation.y = y0 + Math.PI / 2 * e; sp.position.z = 0.5 * Math.sin(e * Math.PI / 2); } }); if (!alive()) return;
+      r.burstT = T.time(); r.ring.scale.setScalar(0.55); r.keyFlash = 1;
+      const holoBurst = S.holo && S.holo.burst ? S.holo.burst(winner.obj, {}).catch(() => null) : (S.snd && S.snd.play('burst'), null);
+      await T.par([T.tween({ dur: 0.42, ease: E.outCubic, tag: 'rail', update: e => { sp.rotation.y = y0 + Math.PI / 2 + Math.PI / 2 * e; sp.position.z = 0.5 * Math.cos(e * Math.PI / 2); } }), holoBurst]); if (!alive()) return;
+      sp.rotation.y = y0 + Math.PI; sp.position.z = 0; r.phase = 'reveal'; r.wobble = T.time();
+      if (S.holo && S.holo.reveal) await S.holo.reveal(winner.obj, {}).catch(() => null); else await T.wait(0.4, 'rail');
+      if (!alive()) return; }
     /* the hand-off: the print slides to the right end of the pit and lies face up above the table top, where the arm
        can reach it (its hand only gets to about x 9 and up; loot keeps the rect's right end in reach) */
     r.phase = 'done'; const g = winner.obj.group; ctx.scene.attach(g); r.handed = true; winner.h.visible = false;
@@ -214,7 +220,7 @@ export function install(S) {
     const r = R; if (!r) return Promise.resolve(); if (r.closing) return r.closing;
     r.closing = (async () => {
       r.prompt = false; r.rumbleOn = false; if (r.hum) { try { r.hum.stop(); } catch (e) {} r.hum = null; } if (r.reelDone) { const f = r.reelDone; r.reelDone = null; f(); }
-      ctx.canvas.style.cursor = 'default'; T.cancelAll('rail');
+      ctx.canvas.style.cursor = 'default'; T.cancelAll('rail'); if (S.holo && S.holo.cancel) S.holo.cancel(); if (S.reveals && S.reveals.close) S.reveals.close(r);   /* the reveal's effects stop with it, nothing left hanging in the room */
       if (!r.done) { r.alive = false; r.done = true; if (r.resolve) r.resolve(null); }
       S.snd && S.snd.play('sink'); r.sinking = true; r.phase = 'sink';
       await T.to(r.rg.rig.position, { y: SUNK }, { dur: 1.3, ease: E.inCubic, tag: 'railsink' });
@@ -271,7 +277,7 @@ export function install(S) {
       const c = r.rim.material.color; if (r.glow.kind === 'cycle') c.setHSL((t * 0.12) % 1, 0.75, 0.72); else c.copy(r.glow.color); if (r.glow.kind === 'sparkle') c.multiplyScalar(0.7 + 0.3 * Math.random());
       r.rim.material.opacity = (0.1 + 0.16 * p) * (1 + 1.4 * r.hoverT) * on; const b = (1 + 0.05 * p) * (1 + 0.06 * r.hoverT); r.rim.scale.set(b, b, 1);
       if (r.phase === 'prompt') w.spin.scale.setScalar(1.32 * (1 + 0.02 * p + 0.025 * r.hoverT));
-      if (w.obj.setGlow) { try { w.obj.setGlow(r.phase === 'prompt' ? 0.25 + 0.75 * r.hoverT : 0); } catch (e) {} } }
+      if (w.obj.setGlow) { try { w.obj.setGlow(r.phase === 'prompt' && !r.blaze ? 0.25 + 0.75 * r.hoverT : 0);   /* the new reveal's aura replaces the print's box-shaped hover glow */ } catch (e) {} } }
     if (r.burst && r.burstT) { const k = t - r.burstT, b = Math.exp(-k * k * 18); r.burst.material.opacity = b; r.burst.scale.setScalar(0.8 + 1.2 * Math.min(1, k * 3)); const rk = T.clamp(k / 0.8, 0, 1); r.ring.scale.setScalar(0.55 + 1.6 * rk); r.ring.material.opacity = (1 - rk) * (1 - rk) * 0.9; }
     if (r.wobble && r.phase === 'reveal') { const k = t - r.wobble, e = Math.exp(-k * 2.6); w.spin.rotation.z = e * Math.sin(k * 12) * 0.08; w.spin.rotation.x = e * Math.sin(k * 9 + 0.8) * 0.06; }
   }
@@ -286,7 +292,7 @@ export function install(S) {
   function key(e) { if (R && R.prompt && (e.key === ' ' || e.key === 'Enter')) { flip(); return true; } return false; }
 
   S.rail = { group, landing, run, pointer, key, frame, close,
-    __flip: flip, __spin: () => (R && R.winner ? R.winner.spin : null),
+    __flip: flip, __spin: () => (R && R.winner ? R.winner.spin : null), __r: () => R,
     /* the table loop calls update(dt) on everything in S.slabs; while loot.js is not forwarding frame(), this stand-in object is the driver */
     __drive(on) { if (on && !driver) { driver = { built: true, update: dt => frame(dt), setFinish() {}, dispose() {}, group: new THREE.Group(), slab: {} }; S.slabs.adopt(driver); } else if (!on && driver) { S.slabs.drop(driver); driver = null; } },
     state() { const r = R; return r ? { phase: r.phase, rigY: +r.rg.rig.position.y.toFixed(2), pos: +r.pos.toFixed(2), idx: r.idx, target: r.reel ? r.reel.target : null, rollback: r.reel ? r.reel.rollback : null, back: r.reel ? r.reel.back : null, pitch: +r.pitch.toFixed(2), prompt: r.prompt, hover: r.hover, built: r.slots.filter(s => s.obj.built).length, slots: r.slots.length, winner: r.winner.i, handed: r.handed } : { phase: 'off' }; },

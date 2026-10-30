@@ -198,7 +198,7 @@ export function install(S) {
     async enter(d, run) {
       const packs = S.packs(), pk = packs.length ? packs[Math.floor(Math.random() * packs.length)] : null;
       const slab = rollFor(pk && pk.id != null ? { pack: pk.id } : {}); store.addPull(slab); S.hud(); L.slab = slab;
-      const decoys = Array.from({ length: 14 }, () => Object.assign(rollFor({}), { decoy: true }));
+      const decoys = Array.from({ length: 10 }, () =>   /* fewer to build while it rises (Sam: the reel lagged) */ Object.assign(rollFor({}), { decoy: true }));
       L.railLive = true; L.railUp = true;
       const obj = await S.rail.run(slab, { rect: RECT.slice(), decoys }); if (!run.alive()) return;
       M.go('loot.lay', { obj });
@@ -228,7 +228,7 @@ export function install(S) {
     async enter(d, run) { const t = S.SL.tierOf(L.slab); S.toast(t.name + ' · ' + L.slab.title + '.');
       if (!(d && d.fresh)) { showBar('print'); return; }
       const obj = L.obj; if (!obj) { showBar('print'); return; }
-      S.slabs.adopt(obj); const sealed = !!obj.slab.graded; const r = await S.inspect.open(obj, { actions: (sealed ? [] : [{ id: 'grade', label: 'Send for grading' }]).concat([{ id: 'another', label: 'Open another' }, { id: 'ok', label: 'OK', primary: true }]), hint: S.specLine(obj.slab) + '\nDrag to turn it, scroll to zoom. OK puts it on the table.' });
+      S.slabs.adopt(obj); const sealed = !!obj.slab.graded; const r = await S.inspect.open(obj, { zoom: 1.3, actions: (sealed ? [] : [{ id: 'grade', label: 'Send for grading' }]).concat([{ id: 'another', label: 'Open another' }, { id: 'ok', label: 'OK', primary: true }]), hint: S.specLine(obj.slab) + '\nDrag to turn it, scroll to zoom. OK puts it on the table.' });
       /* it settles straight onto the table from the close view, no detour back to the rail */
       const to = landingSpot(), yaw = (Math.random() - 0.5) * 0.3, K = S.TABLE_K, y = (obj.th || S.SM.SLAB.th) * K / 2 + 0.004;
       const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2).premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw));
@@ -236,8 +236,10 @@ export function install(S) {
       while (S.inspect.active()) await T.wait(0.05); if (!run.alive()) return;
       S.table.adopt(obj, to.x, to.z, yaw); S.sfx('ltPutDown');
       if (r === 'grade') { await T.wait(0.6); if (!run.alive()) return; L.obj = null; S.sendForGrading(obj); await T.wait(0.6); if (!run.alive()) return; M.send('CLOSE'); return; }
-      if (r === 'another') { await T.wait(0.5); if (!run.alive()) return; M.go('loot.rise'); return; }
-      await T.wait(0.5); if (!run.alive()) return; M.send('CLOSE'); },
+      /* Sam: it files itself (a slab into the case, a raw print into the binder); the table stays clear */
+      L.obj = null; if (S.fileAway) { await S.fileAway(obj).catch(e => console.error(e)); if (!run.alive()) return; }
+      if (r === 'another') { await T.wait(0.3); if (!run.alive()) return; if (S.market && !S.market.spendKey()) { M.send('CLOSE'); return; } M.go('loot.rise'); return; }   /* another pull, another key */
+      await T.wait(0.3); if (!run.alive()) return; M.send('CLOSE'); },
     pointer(kind, e) {
       const g = L.obj && L.obj.where === 'table' ? L.obj.group : null;
       if (kind === 'move') { const h = g && S.hit(e, g); ctx.canvas.style.cursor = h ? 'pointer' : 'default'; return true; }
@@ -248,7 +250,7 @@ export function install(S) {
   async function act(id) {
     if (!M.is('loot.result')) return;
     if (id === 'done') { M.send('CLOSE'); return; }
-    if (id === 'another') { M.go('loot.rise'); return; }
+    if (id === 'another') { if (S.market && !S.market.spendKey()) return; M.go('loot.rise'); return; }
     const obj = L.obj; if (!obj || obj.where !== 'table') return;
     if (id === 'look') { hideBar(); const r = await S.inspect.open(obj, { actions: obj.slab.graded ? [{ id: 'back', label: 'Put down', primary: true }] : [{ id: 'back', label: 'Put down' }, { id: 'grade', label: 'Send for grading', primary: true }], hint: 'Drag to turn it, scroll to zoom. Click the room to put it down.' });
       while (S.inspect.active()) await T.wait(0.05); if (!M.is('loot.result')) return; if (r === 'grade') { await T.wait(0.3); if (!M.is('loot.result')) return; id = 'grade'; } else { showBar('print'); return; } }
@@ -260,7 +262,7 @@ export function install(S) {
     async enter(d, run) {
       T.cancelAll('loot'); hideBar(); setHot(-1); L.handX = null; L.lightT = 0; if (S.inspect.active()) S.inspect.close('back');
       /* closed while the print was still up: it still goes on the table */
-      if (L.obj && L.obj.where !== 'table') { const to = landingSpot(); S.table.adopt(L.obj, to.x, to.z, (Math.random() - 0.5) * 0.3, { drop: true }); } L.obj = null;
+      if (L.obj && L.obj.where !== 'table') { const o = L.obj, to = landingSpot(); S.table.adopt(o, to.x, to.z, (Math.random() - 0.5) * 0.3, { drop: true }); if (S.fileAway) S.fileAway(o).catch(e => console.error(e)); } L.obj = null;   /* closed while it was still up: it files itself too */
       closeRail(); if (L.closeP) await L.closeP;
       L.cans.forEach(c => { if (c.open > 0) c.group.visible = false; });
       if (pedsUp()) await sinkPeds(run);

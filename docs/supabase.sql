@@ -161,3 +161,81 @@ drop policy if exists "studium: own saves" on storage.objects;
 create policy "studium: own saves" on storage.objects for all to authenticated
   using (bucket_id = 'studium-saves' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'studium-saves' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------- live: the Blades duel lobbies and each duel (src/duel.js), on Supabase Realtime ----------
+-- Private channels only. studium-lobby:<class code> is for that class's students and teacher; studium-lobby:open is the
+-- public demo's (any signed-in player); a duel's channel, studium-duel:<host id>:<guest id>, is only for those two.
+create or replace function studium_may_live(t text) returns boolean language sql stable security definer set search_path = public as $$
+  select case
+    when t = 'studium-lobby:open' then true
+    when t like 'studium-lobby:%' then exists (select 1 from studium_members m where m.class_code = split_part(t, ':', 2) and m.user_id = auth.uid())
+                                    or exists (select 1 from studium_classes c where c.code = split_part(t, ':', 2) and c.teacher_id = auth.uid())
+    when t like 'studium-duel:%' then auth.uid()::text in (split_part(t, ':', 2), split_part(t, ':', 3))
+    else false end;
+$$;
+grant execute on function studium_may_live(text) to authenticated;
+drop policy if exists "studium: duel lobby and duels, read" on realtime.messages;
+drop policy if exists "studium: duel lobby and duels, send" on realtime.messages;
+create policy "studium: duel lobby and duels, read" on realtime.messages for select to authenticated
+  using ( realtime.messages.extension in ('broadcast','presence') and studium_may_live(realtime.topic()) );
+create policy "studium: duel lobby and duels, send" on realtime.messages for insert to authenticated
+  with check ( realtime.messages.extension in ('broadcast','presence') and studium_may_live(realtime.topic()) );
+
+-- ---------- trading: slabs and coins between players in the same lobby (src/lighttable/secret/market.js) ----------
+-- A lobby is the same string the Blades duels use (studium-lobby:<class code>, or studium-lobby:open for the public demo),
+-- and the same rule decides who may see it (studium_may_live above): a class trades only inside its class, the demo only
+-- with the demo. Each player publishes their shelf (the slabs they have, no photos of their own, only the artist pack
+-- prints the slabs are made from); an offer names what the sender gives and what they want, coins and slabs, and only
+-- the two players can read it. The client holds the sender's side in escrow until the offer is accepted or ends.
+create table if not exists studium_trade_shelves (
+  user_id uuid primary key default auth.uid(),
+  lobby text not null,
+  name text not null,
+  cards jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+create table if not exists studium_trade_offers (
+  id uuid primary key default gen_random_uuid(),
+  lobby text not null,
+  from_id uuid not null default auth.uid(),
+  from_name text not null,
+  to_id uuid not null,
+  to_name text not null,
+  give jsonb not null default '{}'::jsonb,
+  want jsonb not null default '{}'::jsonb,
+  status text not null default 'open' check (status in ('open','accepted','declined','cancelled','done')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists studium_trade_offers_to on studium_trade_offers (to_id, status);
+create index if not exists studium_trade_offers_from on studium_trade_offers (from_id, status);
+alter table studium_trade_shelves enable row level security;
+alter table studium_trade_offers enable row level security;
+drop policy if exists "trade: see shelves in my lobby" on studium_trade_shelves;
+drop policy if exists "trade: my shelf" on studium_trade_shelves;
+drop policy if exists "trade: see my offers" on studium_trade_offers;
+drop policy if exists "trade: make an offer" on studium_trade_offers;
+drop policy if exists "trade: answer my offers" on studium_trade_offers;
+create policy "trade: see shelves in my lobby" on studium_trade_shelves for select to authenticated using (studium_may_live(lobby));
+create policy "trade: my shelf" on studium_trade_shelves for all to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid() and studium_may_live(lobby));
+create policy "trade: see my offers" on studium_trade_offers for select to authenticated using (auth.uid() in (from_id, to_id));
+create policy "trade: make an offer" on studium_trade_offers for insert to authenticated
+  with check (from_id = auth.uid() and to_id <> auth.uid() and status = 'open' and studium_may_live(lobby)
+              and exists (select 1 from studium_trade_shelves s where s.user_id = studium_trade_offers.to_id and s.lobby = studium_trade_offers.lobby));
+create policy "trade: answer my offers" on studium_trade_offers for update to authenticated using (auth.uid() in (from_id, to_id)) with check (auth.uid() in (from_id, to_id));
+-- An offer's terms never change once sent: only its status (and updated_at), and only along these steps, each by the
+-- right player: open to accepted or declined (the one it was sent to), open to cancelled (the sender), accepted to done
+-- (the sender, once their side has landed). RLS can't compare a row before and after, so a trigger does.
+revoke update on studium_trade_offers from authenticated, anon;
+grant update (status, updated_at) on studium_trade_offers to authenticated;
+create or replace function studium_trade_step() returns trigger language plpgsql as $$
+begin
+  if not ((old.status = 'open' and new.status in ('accepted', 'declined') and auth.uid() = old.to_id)
+       or (old.status = 'open' and new.status = 'cancelled' and auth.uid() = old.from_id)
+       or (old.status = 'accepted' and new.status = 'done' and auth.uid() = old.from_id)) then
+    raise exception 'studium: that offer can''t change like that';
+  end if;
+  return new;
+end $$;
+drop trigger if exists studium_trade_step on studium_trade_offers;
+create trigger studium_trade_step before update on studium_trade_offers for each row execute function studium_trade_step();

@@ -32,7 +32,7 @@ export function install(S) {
   void stripe;
   const doors = [-1, 1].map(s => { const d = new THREE.Group(); d.position.set(CX, 0, CZ); group.add(d);
     const leaf = new THREE.Mesh(new THREE.PlaneGeometry(PW / 2, PD), plate.material); leaf.rotation.x = -Math.PI / 2; leaf.position.set(s * PW / 4, 0.001, 0); d.add(leaf);
-    const seam = new THREE.Mesh(new THREE.PlaneGeometry(0.03, PD), new THREE.MeshBasicMaterial({ color: 0x000000 })); seam.rotation.x = -Math.PI / 2; seam.position.set(s * 0.015, 0.002, 0); d.add(seam);
+    const seam = new THREE.Mesh(new THREE.PlaneGeometry(0.03, PD), new THREE.MeshBasicMaterial({ color: 0x000000 })); seam.rotation.x = -Math.PI / 2; seam.position.set(s * 0.015, 0.002, 0); seam.visible = false; d.add(seam); d.userData.seam = seam;   /* shut, the top is whole (Sam: no line down the middle); the edge only shows as it opens */
     d.userData.s = s; return d; });
   { const uv = doors[0].children[0].geometry.attributes.uv, uv2 = doors[1].children[0].geometry.attributes.uv; const fix = (a, s) => { for (let i = 0; i < a.count; i++) a.setXY(i, (CX + s * PW / 4 + (a.getX(i) - 0.5) * PW / 2) / W + 0.5, (CZ - (a.getY(i) - 0.5) * PD) / H + 0.5); a.needsUpdate = true; }; fix(uv, -1); fix(uv2, 1); }
   /* the big loot button and a cool light or two */
@@ -50,7 +50,7 @@ export function install(S) {
     const id = obj.slab.id, g = obj.group; S.sfx('binder'); (async () => { await T.to(g.position, new THREE.Vector3(p.x, 1.2, p.z), { dur: 0.35, ease: E.inOutCubic }); S.table.remove(obj, true); S.store.toBinder(id); S.hud(); S.binder.mesh(); S.toast('Filed in the binder.'); })(); return true; };
   [S.buttons.vault, S.buttons.key].forEach(b => { if (b) b.userData.secret = true; });   /* ours: the flip moves the case itself and leaves the keyhole alone */
 
-  function setDoors(k) { U.doorK = k; doors.forEach(d => { d.position.x = CX + d.userData.s * (PW / 2 + 0.5) * k; }); }
+  function setDoors(k) { U.doorK = k; doors.forEach(d => { d.position.x = CX + d.userData.s * (PW / 2 + 0.5) * k; d.userData.seam.visible = k > 0.002; }); }
   async function openDoors(open) {
     if (open) { S.snd.play('blind', { dur: 1.5 }); S.hole.open(X0, Z0, X1, Z1); await T.tween({ dur: 1.5, ease: E.inOutCubic, tag: 'under', update: e => setDoors(e) }); S.snd.play('land'); }
     else { S.snd.play('sink', { dur: 1.3 }); await T.tween({ dur: 1.3, ease: E.inOutCubic, tag: 'under', update: e => setDoors(1 - e) }); S.hole.close(); S.snd.play('land'); }
@@ -84,7 +84,7 @@ export function install(S) {
     },
   });
   M.define('under', {
-    on: { VAULT: (p, M) => M.defined('vault.open') ? 'vault.open' : undefined, LOOT: (p, M) => M.defined('loot.open') ? 'loot.open' : undefined, BLADES: (p, M) => M.defined('blades.open') ? 'blades.open' : undefined, BINDER: (p, M) => M.defined('binder.open') ? 'binder.open' : undefined, CLOSE: () => undefined },
+    on: { VAULT: (p, M) => M.defined('vault.open') ? 'vault.open' : undefined, LOOT: (p, M) => M.defined('loot.open') && (!S.market || S.market.spendKey()) ? 'loot.open' : undefined,   /* a pull takes a key (market.js) */ BLADES: (p, M) => M.defined('blades.open') ? 'blades.open' : undefined, BINDER: (p, M) => M.defined('binder.open') ? 'binder.open' : undefined, CLOSE: () => undefined },
     enter() { ctx.hideActs(); },
     pointer(kind, e) {
       if (U.pan) { if (kind === 'move') { const h = panHit(e); if (h) { ctx.cam.tx += U.pan.x - h.x; ctx.cam.tz += U.pan.z - h.z; if (ctx.clampCam) ctx.clampCam(); } return true; } if (kind === 'up') { U.pan = null; ctx.canvas.style.cursor = 'default'; } return true; }
@@ -99,5 +99,6 @@ export function install(S) {
   });
   S.under = { get on() { return U.on; }, rect: RECT, group, doors: openDoors, flip(to) { if (M.is('idle') || M.is('under')) M.go('flipping', { to }); }, state: U,
     frame() { cover.visible = !/^vault/.test(M.state); if (U.on && M.is('idle')) M.go('under'); if (U.on && M.is('under') && binderRoot && !binderRoot.visible) binderRoot.visible = true; if (U.on && S.parcel && S.parcel.__boxes) S.parcel.__boxes().forEach(b => { if (b.group && !b.group.visible && !b.opening) b.group.visible = true; }); } };
+  S.under.binderAt = () => binderRoot ? binderRoot.getWorldPosition(new THREE.Vector3()) : null;   /* where a raw print flies to when it files itself */
   S.dev.action('Flip the table', () => S.under.flip(U.on ? 'idle' : 'under'), 'Try');
 }

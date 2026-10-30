@@ -29,7 +29,9 @@ export function install(S) {
   sheet(w - 0.1, h - 0.06, 0.06, (w - 0.1) / 2, h / 2, 0.04, doorG, 7);
   [0.22, 0.78].forEach(k => { const hinge = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.5, 16), chrome); hinge.position.set(0, h * k, 0.06); doorG.add(hinge); box(0.2, 0.42, 0.04, chrome, 0.1, h * k, 0.08, doorG); box(0.04, 0.42, 0.2, chrome, -0.02, h * k, -0.08, g); });
   [[0.35, 0.3], [w - 0.45, 0.3], [0.35, h - 0.35], [w - 0.45, h - 0.35]].forEach(([x, y]) => { const s = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.04, 16), chrome); s.rotation.x = Math.PI / 2; s.position.set(x, y, 0.09); doorG.add(s); });
-  const DOOR_A = 0.42; doorG.rotation.y = DOOR_A;
+  /* the door: shut, a little open, or wide (Sam: click it when you're looking at the shelf); it opens towards the front */
+  const DOORS = [0, -0.42, -1.75], DOOR_N = ['shut', 'a little open', 'wide open']; let doorI = 1; const DOOR_A = DOORS[doorI]; doorG.rotation.y = DOOR_A;
+  function door(i) { doorI = i; const a0 = doorG.rotation.y, a1 = DOORS[i]; S.sfx(i ? 'kitOpen' : 'kitClose'); S.T.tween({ dur: 0.6, ease: S.T.E.inOutCubic, update: e => { doorG.rotation.y = a0 + (a1 - a0) * e; } }); }
   /* light: a cool strip along the top inside and two warm points in front */
   const strip = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.6, 0.08), new THREE.MeshBasicMaterial({ color: 0xe8f0ff })); strip.rotation.x = Math.PI / 2; strip.position.set(0, h - t - 0.01, d / 2 - 0.35); g.add(strip);
   const l1 = new THREE.PointLight(0xfff0dc, 30, 14, 1.6); l1.position.set(-2.5, h + 0.8, d + 2.2); g.add(l1); const l2 = new THREE.PointLight(0xdfe8ff, 22, 14, 1.6); l2.position.set(2.5, h * 0.4, d + 2.6); g.add(l2);
@@ -41,16 +43,22 @@ export function install(S) {
     ids: () => store.get().display, add: (id, place) => { store.detach(id); const list = store.get().display; list.splice(Math.min(place ? place.idx : list.length, list.length), 0, id); store.save(); }, placeOf: id => { const i = store.get().display.indexOf(id); return i >= 0 ? { idx: i } : null; },
     bounds: [SHELF.x - w / 2 - 2.0, SHELF.z - d / 2 - 1.5, SHELF.x + w / 2 + 2.0, SHELF.z + d / 2 + 3.0],
     layout: entries => { const order = entries.filter(e => !e.ghost); const gh = entries.find(e => e.ghost); if (gh) order.splice(Math.min(gh.place.idx, order.length), 0, gh); const slots = new Array(entries.length); order.forEach((en, i) => { slots[entries.indexOf(en)] = slotAt(i); }); return slots; },
-    target: (hit, obj) => { const lp = g.worldToLocal(new THREE.Vector3(hit.x, 0, hit.z)); const col = Math.max(0, Math.min(COLS - 1, Math.floor((lp.x + w / 2 - t - 0.15) / cw))); return { idx: col + (lp.z > 1.0 ? COLS : 0) }; } });
+    over: e => !!S.hitAny(e, [g]),
+    target: (hit, obj, e) => { const sh = e && S.hitAny(e, [g]); if (sh) { const q = g.worldToLocal(sh.point.clone()); const col = Math.max(0, Math.min(COLS - 1, Math.floor((q.x + w / 2 - t - 0.15) / cw))); return { idx: col + (q.y < TIERS[0] ? COLS : 0) }; }
+      const lp = g.worldToLocal(new THREE.Vector3(hit.x, 0, hit.z)); const col = Math.max(0, Math.min(COLS - 1, Math.floor((lp.x + w / 2 - t - 0.15) / cw))); return { idx: col + (lp.z > 1.0 ? COLS : 0) }; } });
   S.dropPreviews.shelf = rack.preview;
   /* the look: the camera comes down in front of the shelf; CLOSE (=, the bar) goes back up */
   const FRAME = () => { const c = new THREE.Vector3(0, h * 0.5, d / 2); g.localToWorld(c); return { tx: c.x, ty: c.y - 0.2, tz: c.z + 0.4, pitch: 14, dT: ctx.fitDist(w + 2.5, h + 1.2, 14) }; };
   let pushed = false;
   M.define('shelf.view', {
-    enter() { if (!pushed) { S.cam.push(); pushed = true; } S.cam.set(FRAME()); ctx.hideActs(); S.toast('Your six. Drag one off, or click one to look closer.'); },
-    exit(next) { if (pushed && !/^shelf/.test(next)) { S.cam.pop(); pushed = false; } },
+    enter() { if (!pushed) { S.cam.push(); pushed = true; } S.cam.set(FRAME()); ctx.hideActs(); S.toast('Your six. Drag round to look, click the door to open or shut it, or click a slab to look closer.'); },
+    exit(next) { if (pushed && !/^shelf/.test(next)) { S.ctx.cam.yaw = 0; S.cam._o = null; S.cam.pop(); pushed = false; } },
     on: { CLOSE: () => 'under' },
-    pointer(kind, e) { if (S.shelf.pointer(kind, e)) return true; if (S.tablePointer(kind, e, S.table.list.map(o => o.group))) return true; return kind !== 'wheel'; },
+    pointer(kind, e) { if (S.cam._o) { if (kind === 'up' && S.cam._o.door && Math.abs(e.clientX - S.cam._o.x) + Math.abs(e.clientY - S.cam._o.y) < 6) { S.cam._o = null; door((doorI + 1) % DOORS.length); S.toast('The door, ' + DOOR_N[doorI] + '.'); return true; } return S.cam.orbit(kind, e); }
+      if (rack.pointer(kind, e)) return true; if (S.tablePointer(kind, e, S.table.list.map(o => o.group))) return true;
+      if (kind === 'move') { S.ctx.canvas.style.cursor = S.hitAny(e, [doorG]) ? 'pointer' : 'grab'; }
+      if (kind === 'down' && e.button === 0) { const onDoor = !!S.hitAny(e, [doorG]); S.cam.orbit(kind, e); S.cam._o.door = onDoor; return true; }   /* a click on the door sets it; a drag anywhere orbits */
+      if (S.cam.orbit(kind, e)) return true; return kind !== 'wheel'; },
     key() { return true; },
     frame(dt) { rack.frame(dt); },
   });

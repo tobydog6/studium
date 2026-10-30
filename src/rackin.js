@@ -11,7 +11,7 @@
     e.innerHTML='<canvas class="rf-cv"></canvas><div class="rf-dark"></div>'
       +'<h1 class="rf-sr">Studium. '+RF_SUB+'.</h1>'
       +'<button class="rf-go" type="button"><span class="face sharp"><span class="t">Launch the demo</span><span class="s">ABOUT 40 MIN</span></span><span class="face soft" aria-hidden="true"><span class="t">Launch the demo</span><span class="s">ABOUT 40 MIN</span></span></button>'
-      +'<div class="rf-hint">MOVE TO FOCUS</div><div class="rf-wait">OPENING THE STUMP</div>';
+      +'<button class="rf-fresh" type="button" title="Start the demo as if you have never opened Studium on this computer">START FRESH<span>FIRST VISIT AGAIN</span></button><div class="rf-hint">MOVE TO FOCUS</div><div class="rf-wait">OPENING THE STUMP</div><div class="rf-acct"></div>';
     document.body.appendChild(e);
     e.addEventListener("pointermove",function(ev){ RF.px=ev.clientX; RF.py=ev.clientY; RF.idle=false; });
     e.addEventListener("pointerleave",function(){ RF.px=-1; });
@@ -19,7 +19,10 @@
     b.addEventListener("pointerenter",function(){ RF.over="btn"; }); b.addEventListener("pointerleave",function(){ RF.over=null; });
     b.addEventListener("focus",function(){ RF.over="btn"; }); b.addEventListener("blur",function(){ RF.over=null; });
     b.addEventListener("click",function(ev){ ev.stopPropagation(); rfPlay(); });
-    window.addEventListener("keydown",function(ev){ if(!RF.on) return; ev.stopImmediatePropagation(); if(ev.key==="Enter"&&!ev.repeat){ ev.preventDefault(); rfPlay(); } else if(ev.key!=="Tab") ev.preventDefault(); },true);
+    e.querySelector(".rf-acct").addEventListener("click",function(ev){ var a=ev.target.closest("[data-rf]"); if(!a) return; ev.stopPropagation();
+      if(a.getAttribute("data-rf")==="in") siDemoSignIn(); else siSignOut(function(){ rfAcct(e); }); });
+    window.addEventListener("keydown",function(ev){ if(!RF.on) return; ev.stopImmediatePropagation(); if(ev.key==="Enter"&&!ev.repeat){ ev.preventDefault(); var f=document.activeElement; if(f&&f.closest&&f.closest(".rf-acct")) f.click(); else rfPlay(); } else if(ev.key!=="Tab") ev.preventDefault(); },true);
+    e.querySelector(".rf-fresh").addEventListener("click",function(ev){ ev.stopPropagation(); rfFresh(); });
     window.addEventListener("keyup",function(ev){ if(RF.on) ev.stopImmediatePropagation(); },true);
     return e; }
 
@@ -74,8 +77,13 @@
       var dc=document.createElement("canvas"); dc.width=r[1].width; dc.height=r[1].height; var dx=dc.getContext("2d",{willReadFrequently:true}); dx.drawImage(r[1],0,0); RF.dd=dx.getImageData(0,0,dc.width,dc.height).data; RF.dw=dc.width; RF.dh=dc.height;
       G.ready=true; }); }
 
+  /* top right: sign in with Google so the demo saves to their account, or who's signed in. A signed-in player with progress carries on */
+  function rfAcct(e){ var a=e.querySelector(".rf-acct"), on=typeof Sync!=="undefined"&&Sync.providers().indexOf("google")>=0, inn=typeof siDemoSignedIn==="function"&&siDemoSignedIn(), w=lsWho()||{};
+    var nm=String(w.name||"").trim().split(/\s+/), short=nm[0]?nm[0]+(nm.length>1?" "+nm[nm.length-1].charAt(0)+".":""):"You";
+    a.innerHTML=!on?"":inn?'<span>'+short.replace(/[<>&"]/g,"")+' · saving to Google</span><button type="button" data-rf="out">Sign out</button>':'<button type="button" data-rf="in">Sign in with Google to save your progress</button>';
+    var carry=inn&&typeof siDemoHasWork==="function"&&siDemoHasWork(); e.querySelectorAll(".rf-go .t").forEach(function(t){ t.textContent=carry?"Carry on":"Launch the demo"; }); }
   function rfShow(){ if(RF.on) return; RF.on=true; RF.going=false; RF.idle=true; RF.f=RF.ft=0.9; RF.over=null; RF.last=0;
-    var e=rfEl(); RF.el=e; e.className="on"; document.body.classList.add("rackin");
+    var e=rfEl(); RF.el=e; e.className="on"+(typeof laSeen==="function"&&laSeen()?" been":"");   /* START FRESH only shows once there's something to forget */ document.body.classList.add("rackin"); rfAcct(e);
     ["hub","landing","studio","punctum","signin","teacher","hud"].forEach(function(k){ try{ hubHide(k); }catch(x){} });
     rfLoad().then(function(){ if(!RF.on) return; RF.t0=performance.now(); e.classList.add("ready"); },function(err){ console.warn("rack-in",err); if(!RF.on) return; rfClose(); RF.failed=true; siShow(); var h=$("signin")&&$("signin").querySelector(".si-sub"); if(h) h.textContent="(The title page couldn't start: "+String(err&&err.message||err).slice(0,80)+")"; });
     /* the scan loads behind the page, so the demo's opening doesn't have to wait for it; drawn at a fraction of the pixels meanwhile */
@@ -84,6 +92,12 @@
     cancelAnimationFrame(RF.raf); RF.raf=requestAnimationFrame(rfTick); }
   /* leave without the fade (a ?demo link, or the demo starting some other way) */
   function rfClose(){ if(!RF.on) return; RF.on=false; cancelAnimationFrame(RF.raf); document.body.classList.remove("rackin"); if(RF.el) RF.el.className=""; if(RF.scaled&&typeof setScale==="function"&&typeof dynTop==="function"){ RF.scaled=false; try{ setScale(dynTop()); }catch(x){} } }
+  /* START FRESH: forget the "already seen it" marks on this computer (the long opening and welcome card, the hints, the
+     lighting tour's pop-up, walk or fly, hidden frames), then launch. The demo already starts its work and quests over;
+     a student's saved work, sign-in, presets, the detail setting and the FEEL switches stay */
+  var RF_SEEN=["studium_launch_seen","studium_looked","studium_lighttour","studium_lighttourB","studium_frames_off","studium_move","splat_tut_v1","studium_guide_v1","studium_quests_demo_v1"];
+  function rfFresh(){ if(!RF.on||RF.going) return; RF_SEEN.forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
+    if(typeof CH!=="undefined") CH.hidden=false; if(typeof WK!=="undefined"){ WK.mode="walk"; } rfPlay(); }
   function rfPlay(){ if(!RF.on||RF.going) return; RF.going=true; RF.over="word"; RF.el.classList.add("going"); RF.fadeT=performance.now()+450; }
   /* pointer to the still's coordinates, the same cover fit the shader uses */
   function rfToImg(x,y){ var w=innerWidth, h=innerHeight, sa=w/h, u=x/w, v=y/h; if(sa>RF_IA) v=(v-0.5)*RF_IA/sa+0.5; else u=(u-0.5)*sa/RF_IA+0.5; return [u,v]; }

@@ -200,7 +200,7 @@
   function menuOpen(){ return (typeof KIT!=="undefined"&&KIT.open)||(typeof cbOpen!=="undefined"&&cbOpen)||(typeof bg!=="undefined"&&bg.open)||(typeof st!=="undefined"&&st.open)||!menu.classList.contains("hidden")||!gallery.classList.contains("hidden")||!landing.classList.contains("hidden")||!editor.classList.contains("hidden")||anyOutputOpen(); }
   var toastTimer=null;
   function toast(m){ toastEl.textContent=m; toastEl.classList.add("show"); clearTimeout(toastTimer); toastTimer=setTimeout(function(){toastEl.classList.remove("show");},3200); }
-  function updatePrompt(){ if(loaded && !looking && !viewfinderOn && !menuOpen()) show(prompt); else hide(prompt); }
+  function updatePrompt(){ if(loaded && !looking && !viewfinderOn && !menuOpen() && !(FL.orbit&&FLX.look+FLX.orb>0.6)) show(prompt); else hide(prompt); }   /* the pill goes once you have looked or gone round */
   function updateCrosshair(){ crosshair.classList.toggle("hidden", !(looking && !viewfinderOn)); }
 
   // ---- camera-sim math ----
@@ -209,7 +209,6 @@
      slowing down or raising the ISO brings it back to a normal exposure */
   function sceneLightLin(){ var lv=1;
     try{
-      if(typeof LA!=="undefined"&&LA&&LA.tod) return 1;   /* the opening's film of a night into day is a title sequence, not a light to meter */
       if(typeof RLB!=="undefined"&&RLB&&RLB.gpu&&RL.gpu===RLB.gpu){   /* lightb.js: light is linear, and the same level it judges your eyes by */
         if(RLB.gpu.U.on.value<0.5) return 1;
         lv=rbLum(RLB.sunMode?RLB.amb:[1,1,1]); if(RLB.sunMode&&RL.sunPow>0) lv+=rbLum(RLB.sunLin)*0.55;
@@ -490,9 +489,10 @@
   }
   var _fwdH=new THREE.Vector3();   /* flat forward for walking, reused every frame */
   function updateCamera(dt){
+    if(dt>0) flTick(dt);   /* the eased look and any glide (feel.js) */
     basis();
     if(dt>0){
-      var moving=((looking||(typeof rlbWalk==="function"&&rlbWalk())) && !menuOpen() && !chHold());
+      var moving=((looking||flWalks()||(typeof rlbWalk==="function"&&rlbWalk())) && !menuOpen() && !chHold());
       var maxV=sceneMaxDim*(0.02+moveScale*1.0); if(moving && (keys["ShiftLeft"]||keys["ShiftRight"])) maxV*=3.0;
       _mv.set(0,0,0);
       if(moving){
@@ -578,6 +578,7 @@
     fsMat.uniforms.gBloom.value=gBloom; fsMat.uniforms.gDof.value=gDof; fsMat.uniforms.gGrain.value=gGrain;
     var cap=typeof CH!=="undefined"&&CH&&CH.capturing; if(cap&&viewfinderOn) fsMat.uniforms.grain.value=isoGrain;   /* the photo gets the real sensor, not the eased one */
     var nf=NZ.lum>1e-6?Math.min(1,fsMat.uniforms.grain.value/NZ.lum):0; fsMat.uniforms.nChr.value=NZ.chr*nf; fsMat.uniforms.nX.value=NZ.x*nf; fsMat.uniforms.nFilm.value=NZ.film; fsMat.uniforms.nSize.value=NZ.size;
+    if(typeof FC!=="undefined"&&FC.on) fsMat.uniforms.grain.value=0;   /* no sensor noise in the film: it would only become video noise */
     if(!cap) seedCounter=(seedCounter+1)%9973; fsMat.uniforms.seed.value=seedCounter;   /* grain moves every frame you watch, and holds still for the one the shutter records */
     if(dt>0){ var nowT=performance.now(); if(nowT-(renderFrame._lt||0)>250){ renderFrame._lt=nowT; if(Math.abs(Math.log(sceneLightLin())/Math.LN2-lightStops)>0.02) computeCam(); } }   /* the light changed (time of day, a lamp): the meter follows */
     renderer.render(fsScene,fsCam);
@@ -595,13 +596,14 @@
     var sp=viewer&&viewer.spark, cv=renderer.domElement, rt=sceneRT;
     PF.el.textContent=Math.round(PF.n*1000/PF.t)+" fps   worst "+Math.round(PF.worst)+" ms   stalls "+PF.stalls+"\nscene "+rt.width+"×"+rt.height+" of "+cv.width+"×"+cv.height+"   detail "+sceneDetail+
       (sp?"\nsplats "+((sp.activeSplats||0)/1e6).toFixed(2)+"M   budget ×"+(sp.lodSplatScale||1).toFixed(2)+(sp.lodSplatCount?" of "+(sp.lodSplatCount/1e6).toFixed(2)+"M":""):"")+
-      (typeof WE!=="undefined"?"\nwind "+(WE.wind||0)+"  fog "+(WE.fog||0)+"  rain "+(WE.rain||0):"")+(PF.noShad?"\nshadows OFF (F10)":"\nF10: shadows on/off");
+      (typeof WE!=="undefined"?"\nwind "+(WE.wind||0)+"  fog "+(WE.fog||0)+"  rain "+(WE.rain||0):"")+(PF.noShad?"\nshadows OFF (F10)":"\nF10: shadows on/off")+(typeof LA!=="undefined"&&LA.quality?"\nopening film: "+LA.quality.dropped+" of "+LA.quality.total+" frames dropped":"");
     PF.n=0; PF.t=0; PF.worst=0; }
   (function pfCount(){ var n=0, t0=performance.now(); (function f(){ requestAnimationFrame(f); n++; var t=performance.now(); if(t-t0>=1000){ PF.fps=n*1000/(t-t0); n=0; t0=t; } })(); })();
   if(/[?&]dev/.test(location.search)) window.__pf={ spin:function(v){ PF.spin=v; }, fps:function(){ return PF.fps||0; }, sorting:function(){ var sp=viewer&&viewer.spark; return sp?{active:sp.activeSplats, sorting:sp.sorting}:null; } };
-  function animate(){ requestAnimationFrame(animate); pfTick(); if(PF.spin&&loaded) yaw+=PF.spin; var dt=Math.min(clock.getDelta(),0.1);
+  function animate(){ requestAnimationFrame(animate); if(typeof FC!=="undefined"&&FC.on) return;   /* the opening film's recorder draws every frame itself */ pfTick(); if(PF.spin&&loaded) yaw+=PF.spin; var dt=Math.min(clock.getDelta(),0.1);
     if((typeof cbOpen!=="undefined" && cbOpen) || (typeof bg!=="undefined" && bg.open) || (typeof st!=="undefined" && st.open)) return;   // the camera back covers the scene: stop drawing it (big win on school PCs)
     if(typeof RF!=="undefined"&&RF.on){ if(!loaded&&(RF.bg=(RF.bg||0)+1)%3===0) renderFrame(dt); return; }   /* the launch page is a still with its own lens; Spark only finishes building the scan while it's being drawn, so it's drawn now and then, small, under the still, until it's in */
+    if(typeof laBehind==="function"&&laBehind()){ var lt=performance.now(); if(lt-(animate.lt||0)>=200){ animate.lt=lt; if(loaded) updateCamera(dt); renderFrame(dt); } return; }   /* the opening film covers the scene: drawn five times a second, just enough for the scan to finish building, so the graphics card is left to the film */
     if(!(typeof LA!=="undefined"&&LA.on)&&(App.is("hub")||App.is("signin")||document.body.classList.contains("la-wel-on"))){ if(!loaded&&viewer&&(animate.bg=(animate.bg||0)+1)%3===0) renderFrame(dt); return; }   /* the hub, sign-in and the welcome card cover the scene: don't draw it (a scan still loading is drawn now and then so Spark finishes building it) */
     if(loaded) updateCamera(dt); renderFrame(dt); dynTick(dt); if(viewfinderOn) vfLevelTick(); }
   animate();
@@ -708,7 +710,7 @@
          did nothing until it fell below half. Set it so the base scale draws what it did before (same look),
          and every step down really draws fewer splats */
       try{ var nSp=viewer.P?viewer.P.length/3:0; if(nSp>0&&viewer.spark){ var dflt=viewer.spark.defaultSplatTarget?viewer.spark.defaultSplatTarget():2.5e6; viewer.spark.lodSplatCount=Math.max(2e5, Math.min(dflt, nSp/Math.max(0.1,dynLodBase())));   /* at the base scale: the scan's own size or the device cap, whichever is less, exactly as before */ } }catch(e){}
-      chAttach(); loaded=true; if(!(typeof RF!=="undefined"&&RF.on)&&!(typeof LA!=="undefined"&&LA.on)) sfx("arrive"); updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(wxLoadOthers,1500); hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
+      chAttach(); loaded=true; if(!(typeof RF!=="undefined"&&RF.on)&&!(typeof LA!=="undefined"&&LA.on)) sfx("arrive"); updateCamera(0); ptDispose(); wxHome(ownLoaded?null:CH.spec); if(!ownLoaded) setTimeout(function wxLater(){ if(typeof LA!=="undefined"&&(LA.on||Date.now()-(LA.welcome||0)<LA_T.word*1000+600)){ setTimeout(wxLater,1000); return; } wxLoadOthers(); },1500);   /* the other scans wait until the opening is over */ hideLoader(); show(hud); App.go("scene"); updateCamera(0); computeCam(); refreshCount(); updateCrosshair(); updatePrompt(); updateBriefUI();
       var fo=$("fadeover"); if(fo){ fo.style.transition="none"; fo.style.opacity="1"; requestAnimationFrame(function(){ fo.style.transition=""; fo.style.opacity="0"; }); }
       /* no toast on arrival: the coach's first prompt and the look-around pill already say it (ux-scene) */
     }).catch(function(err){ if(err===LOAD_STALE||tok!==loadTok) return;   /* a newer load took over: it owns the loader and the scene now */
@@ -744,7 +746,7 @@
   // resolution first (down to 60%); if that's not enough, trim Spark's splat budget a little too. Both come back with headroom.
   function dynLod(){ var sp=viewer&&viewer.spark; return sp?sp.lodSplatScale:1; }
   function dynLodBase(){ var b=(DETAIL[sceneDetail]||DETAIL.balanced).lod||1; return CH.spec&&CH.spec.fullRes?Math.max(b,1.3):b; }
-  function dynTick(dt){ if(!loaded||!(dt>0)) return; if(typeof CH!=="undefined"&&CH.intro) return;   /* no resolution steps mid-spin: each one reallocates the scene target and hitches the glide */ dyn.ema=dyn.ema*0.9+dt*100; dyn.t+=dt; var mx=dynTop(), sp=viewer&&viewer.spark; if(dyn.scale>mx+0.001){ setScale(mx); return; }
+  function dynTick(dt){ if(!loaded||!(dt>0)) return; if(typeof CH!=="undefined"&&CH.intro) return;   /* no resolution steps mid-spin: each one reallocates the scene target and hitches the glide */ if(typeof laHolds==="function"&&laHolds()) return;   /* nor in the opening: it finds its level in the dark */ dyn.ema=dyn.ema*0.9+dt*100; dyn.t+=dt; var mx=dynTop(), sp=viewer&&viewer.spark; if(dyn.scale>mx+0.001){ setScale(mx); return; }
     if(dyn.t<0.6) return; dyn.t=0; var fps=1000/dyn.ema;
     /* when it's slow, thin the distant splats first (barely visible), and only then drop resolution, never below 0.85:
        a blurry picture looks far worse than a little less far-off detail */
@@ -862,6 +864,7 @@
     quests:(typeof Q!=="undefined"?Q:null), presets:(typeof prData==="function"?prData():null),
     workshop:(typeof st!=="undefined"?st.wsPages:[]), wsBoard:(typeof st!=="undefined"?st.wsBoard:null), foBoard:(typeof st!=="undefined"?st.foBoard:null), projects:(typeof st!=="undefined"?st.projects:[]), lightTable:(typeof st!=="undefined"?st.lightTable||null:null), galleryPrefs:(typeof ga!=="undefined"?{frame:ga.frame,gap:ga.gap,sizes:ga.sizes,pos:ga.pos,title:ga.title,list:ga.list,label:ga.label}:null), book:(typeof bk!=="undefined"&&bk.pages.length?{size:bk.size,pages:bk.pages}:null),
     folio:(typeof foItems!=="undefined"&&foItems?foItems.map(function(it){ return {url:it.url,size:it.size}; }):[]),
+    secret:(function(){ try{ return JSON.parse(localStorage.getItem(typeof ltSecretKey==="function"?ltSecretKey():"studium_secret_v1")||"null"); }catch(e){ return null; } })(),   /* the light table's secret collection (slabs, points), so it follows a signed-in player too */
     pbPages:(typeof pbPages!=="undefined"&&pbPages&&pbPages.length?pbPages.map(function(pg){ return pg.cover?{cover:true}:{frames:(pg.frames||[]).map(function(f){ return {url:f.url,x:f.x,y:f.y,w:f.w,h:f.h}; })}; }):null) }; }
   function saveSessionNow(){ if(!photos.length && !(typeof foItems!=="undefined"&&foItems&&foItems.length)) return;
     var edited=_sessEdit; _sessEdit=false; if(edited||!sessionSavedAt) sessionSavedAt=Date.now();   /* looking round without changing anything never makes an old copy look newest */
@@ -869,6 +872,7 @@
     /* work done while not signed in to Google is this computer's, not the last Google student's */
     var wh=(typeof lsWho==="function")?lsWho():null;
     if(edited&&typeof lsDB!=="undefined"&&lsDB.csOwner&&!(typeof Sync!=="undefined"&&Sync.signedIn())&&!(wh&&(wh.google||wh.demo))){   /* a Google student whose sign-in lapsed is still that student */ delete lsDB.csOwner; lsSave(); }
+    if(edited&&typeof lsDB!=="undefined"&&lsDB.csDemoOwner&&wh&&wh.demo&&!wh.google){ delete lsDB.csDemoOwner; lsSave(); }   /* an anonymous demo here isn't the last Google player's */
     if(typeof Sync!=="undefined"&&Sync.cloudSoon) Sync.cloudSoon(); }
   function saveSession(){ _sessEdit=true; clearTimeout(_saveT); _saveT=setTimeout(saveSessionNow, 700); }
   function loadSession(cb0){ var cb=function(a,b){ sessionLocalAt=sessionSavedAt; sessionLoaded=true; if(cb0) cb0(a,b); };   /* sessionLocalAt: when this computer's saved work was last current, before anything saves over it */ idb(function(db){ if(!db){ cb&&cb(false); return; } try{ var rq=db.transaction("state","readonly").objectStore("state").get(sessKey());
@@ -882,6 +886,7 @@
     if(d.workshop&&d.workshop.length&&typeof st!=="undefined") st.wsPages=d.workshop;
     if(d.book&&d.book.pages&&typeof bk!=="undefined"){ bk.size=d.book.size||"20x25"; bk.pages=d.book.pages; }
     if(d.galleryPrefs&&typeof ga!=="undefined"){ ga.frame=d.galleryPrefs.frame||"black"; ga.gap=d.galleryPrefs.gap||250; ga.sizes=d.galleryPrefs.sizes||{}; ga.pos=d.galleryPrefs.pos||{}; ga.title=d.galleryPrefs.title||""; ga.list=d.galleryPrefs.list||null; ga.label=d.galleryPrefs.label||{x:null,y:null,style:"card",size:1}; }
+    if(cloud&&d.secret&&d.secret.v===1){ try{ localStorage.setItem(typeof ltSecretKey==="function"?ltSecretKey():"studium_secret_v1", JSON.stringify(d.secret)); }catch(e){} }   /* before the table reloads, so it reads the collection back */
     if(typeof st!=="undefined"){ st.lightTable=d.lightTable||null; if(typeof ltReset==="function") ltReset(); }
     if(d.wsBoard&&typeof st!=="undefined"){ st.wsBoard=d.wsBoard; wsB.reset(d.wsBoard); }
     if(d.foBoard&&typeof st!=="undefined"){ st.foBoard=d.foBoard; foB.reset(d.foBoard); }
@@ -942,7 +947,7 @@
   function endTutorial(){ var e=$("tutorial"); if(e) e.classList.add("hidden"); setTutSeen(); }
 
   // ---- viewfinder + photos ----
-  function raiseCamera(){ if(!loaded) return; if(soundOn){ try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); shutterLoad(); }catch(e){} } App.note("viewfinder"); sfx("raise"); afPending=true; viewfinderOn=true; viewfinder.classList.add("on"); updateCrosshair(); updatePrompt(); computeCam(); applyFinder(); drawComp(); }
+  function raiseCamera(){ if(!loaded) return; flLockForCamera(); if(soundOn){ try{ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); shutterLoad(); }catch(e){} } App.note("viewfinder"); sfx("raise"); afPending=true; viewfinderOn=true; viewfinder.classList.add("on"); updateCrosshair(); updatePrompt(); computeCam(); applyFinder(); drawComp(); }
   function lowerCamera(){ if(App.state==="viewfinder") App.note("scene"); var was=viewfinderOn; viewfinderOn=false; viewfinder.classList.remove("on"); updateCrosshair(); updatePrompt(); applyFinder(); if(was) computeCam(); }
   // ---- composition / framing guides (in-frame, teach composition in any scene) ----
   var COMP=["off","thirds","phi","center","diagonal","grid"], compIdx=1;
@@ -1239,6 +1244,7 @@
 @@include research.js@@
 @@include nav.js@@
 @@include walk.js@@
+@@include feel.js@@
 @@include sky.js@@
 @@include relight.js@@
 @@include weather.js@@
@@ -1259,6 +1265,7 @@
 @@include achieve.js@@
 @@include launch.js@@
 @@include rackin.js@@
+@@include duel.js@@
   function toggleGrid(){ grid.classList.toggle("hidden"); var s=$("mGrid"); if(s)s.classList.toggle("on",!grid.classList.contains("hidden")); }
 
   // ---- wire: landing ----
@@ -1393,14 +1400,14 @@
   window.addEventListener("resize",function(){ if(!editor.classList.contains("hidden")) queueRender(); });
 
   // ---- wire: look / shutter (pointer lock) ----
-  viewport.addEventListener("click",function(){ if(menuOpen()||!loaded) return; if(document.pointerLockElement!==renderer.domElement){ try{renderer.domElement.requestPointerLock();}catch(e){} } });
-  document.addEventListener("mousedown",function(e){ if(looking && viewfinderOn && e.button===0) shutter(); });
+  viewport.addEventListener("click",function(){ if(menuOpen()||!loaded||FL.orbit) return;   /* drag goes round the subject: the pointer locks on W A S D or when the camera comes up (feel.js) */ if(document.pointerLockElement!==renderer.domElement){ try{renderer.domElement.requestPointerLock();}catch(e){} } });
+  document.addEventListener("mousedown",function(e){ if(looking && viewfinderOn && e.button===0) shutter(); });   /* without the lock (a trackpad, a browser setting) a click that isn't a drag shoots: feel.js */
   // right click raises and lowers the camera, like aiming in a game (P does the same)
   function rcScene(){ return loaded&&(App.is("scene")||App.is("viewfinder"))&&!cbOpen&&!bg.open&&!(typeof st!=="undefined"&&st.open)&&!menuOpen(); }
   document.addEventListener("mousedown",function(e){ if(e.button===2&&rcScene()){ e.preventDefault(); toggleViewfinder(); } });
   document.addEventListener("contextmenu",function(e){ if(rcScene()) e.preventDefault(); });
   document.addEventListener("pointerlockchange",function(){ looking=(document.pointerLockElement===renderer.domElement); if(!looking) lowerCamera(); updateCrosshair(); updatePrompt(); });
-  document.addEventListener("mousemove",function(e){ if(!looking||chHold()) return; var fb=(viewfinderOn?curBody().finder:""), ys=(fb==="waist"||fb==="ground")?-1:1, ps=(fb==="ground")?-1:1; yaw-=e.movementX*sens*ys; var dp=e.movementY*sens*ps; pitch+=invertY?dp:-dp; var lim=1.553; if(pitch>lim)pitch=lim; if(pitch<-lim)pitch=-lim; });
+  document.addEventListener("mousemove",function(e){ if(!looking||chHold()) return; var fb=(viewfinderOn?curBody().finder:""), ys=(fb==="waist"||fb==="ground")?-1:1, ps=(fb==="ground")?-1:1; var dp=e.movementY*sens*ps; flLook(-e.movementX*sens*ys, invertY?dp:-dp); });   /* eased and pulled in feel.js */
   document.addEventListener("wheel",function(e){ if(!looking||menuOpen()) return; e.preventDefault(); },{passive:false});   /* walking: scroll does nothing (it used to change speed without telling you); the viewfinder's own wheel zooms (finder.js), speed is the slider */
 
   // ---- keyboard ----

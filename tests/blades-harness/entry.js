@@ -21,7 +21,7 @@ const l2 = new THREE.PointLight(0xff7a3a, 70, 36, 1.6); l2.position.set(11.5, 6,
 const cam = { tx: 0, ty: 0, tz: 0, d: 30, dT: 30, pitch: 55, cx: 0, cy: 0, cz: 0 };
 function fitDist(w, h, pitch) { const vf = THREE.MathUtils.degToRad(camera.fov), hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect); return Math.max(h / 2 / Math.tan(vf / 2), w / 2 / Math.tan(hf / 2)) * 1.05; }
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
-const ctx = { scene, camera, renderer, canvas, cam, fitDist, ray, ndc, hideActs() {}, setNDC(e) { const r = canvas.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); } };
+const ctx = { HOST: window.TEST_HOST || null, scene, camera, renderer, canvas, cam, fitDist, ray, ndc, hideActs() {}, setNDC(e) { const r = canvas.getBoundingClientRect(); ndc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1); } };
 const M = createMachine(), dev = { action() {}, info() {}, opt() { return null; }, define() {} };
 const under = { rect: [6, -11.7, 17, -7], group: new THREE.Group(), on: true, frame() {}, async doors(open) { await T.wait(0.3); } };
 scene.add(under.group);

@@ -190,7 +190,7 @@ export function install(S) {
       delete slab.pending; if (S.SM.relabel) S.SM.relabel(obj); ov.draw(n, 1, true, 1); S.toast(gradeLine(slab));
       await T.wait(dur(0.5), TAG); ov.remove();
       /* a normal table slab from here: inspect, vault, the lot */
-      phase = 'done'; S.table.adopt(obj, x, z, yaw); S.hud(); if (!S.unlocked()) S.table.remove(obj, true);
+      phase = 'done'; S.table.adopt(obj, x, z, yaw); S.hud(); if (!S.unlocked()) S.table.remove(obj, true); else if (S.fileAway) S.fileAway(obj).catch(e => console.error(e));   /* back from grading: into the case */
       S.cam.pop(); if (run.alive()) M.go('idle');
     },
     exit() { phase = 'idle'; rush = false; },

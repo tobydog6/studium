@@ -35,12 +35,13 @@ function assetBuf(rel) { if (_bufs[rel]) return _bufs[rel]; const f = join(ROOT,
 const PART = 8 * 1024 * 1024, BIG = 4 * 1024 * 1024;   // web build: files over 4 MB ship as 8 MB pieces
 if (WEB) { rmSync(WEBDIR, { recursive: true, force: true }); mkdirSync(join(WEBDIR, 'assets'), { recursive: true }); }
 
-const MIME = { '.woff2': 'font/woff2', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4' };
+const MIME = { '.woff2': 'font/woff2', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4', '.webm': 'video/webm' };
 const stripNl = (s) => (s.endsWith('\n') ? s.slice(0, -1) : s);
 
 function resolveAssets(text) {
   return text.replace(/\b(asset|asset-b64):([A-Za-z0-9_./-]+)/g, (_, kind, rel) => {
     if (SWAP[rel]) rel = SWAP[rel];
+    if (!WEB && /\.webm$/.test(rel)) return '';   /* one file: the opening film goes in once, as H.264 (every desktop browser plays it); the web build also ships the VP9 copy */
     if (ONLY && /^assets\/scenes\//.test(rel) && !ONLY.includes(basename(rel).split(/[-.]/)[0])) return '';   // a scene left out of this build
     /* web build: anything sizeable ships as its own file, not base64 inside the page. The page parses in a fraction of the
        time (it was ~20 MB), files load in parallel and cache, and an image used twice downloads once */

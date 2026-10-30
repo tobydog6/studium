@@ -18,6 +18,9 @@ import * as loot from './loot.js';
 import * as arm from './arm.js';
 import * as print from './print.js';
 import * as rail from './rail.js';
+import * as reveals from './reveals.js';
+import * as bloom from './bloom.js';
+import * as market from './market.js';
 import * as parcel from './parcel.js';
 import * as sound from './sound.js';
 import * as under from './under.js';
@@ -56,6 +59,8 @@ export function installSecret(ctx) {
     shadow(w, d) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ map: SHADOW_TEX(), transparent: true, depthWrite: false, opacity: 0.55 })); m.rotation.x = -Math.PI / 2; m.position.y = 0.004; m.userData.noParticles = true; return m; },
   };
   SL.setPhotoSource(S.packs);
+  if (ctx.HOST && ctx.HOST.secretKey) try { store.key = ctx.HOST.secretKey(); } catch (e) {}   /* the demo's collection is its own */
+  store.onSave = () => { if (ctx.HOST && ctx.HOST.secretSaved) ctx.HOST.secretSaved(); };
   let shadowTex = null; const SHADOW_TEX = () => { if (shadowTex) return shadowTex; const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 20, 64, 64, 64); gr.addColorStop(0, 'rgba(0,0,0,0.55)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); shadowTex = new THREE.CanvasTexture(c); return shadowTex; };
 
   /* ---------- camera: push a framing for a sequence, pop it after ---------- */
@@ -64,6 +69,14 @@ export function installSecret(ctx) {
     push(t) { const c = ctx.cam; camStack.push({ tx: c.tx, ty: c.ty, tz: c.tz, dT: c.dT, pitch: c.pitch, view: c.view }); if (c.view !== 'table') ctx.focus('table'); if (t) Object.assign(c, t); },
     set(t) { Object.assign(ctx.cam, t); },
     pop() { const s = camStack.pop(); if (!s) return; if (s.view === 'wall' && ctx.cam.view !== 'wall') { ctx.focus('wall'); return; } Object.assign(ctx.cam, { tx: s.tx, ty: s.ty, tz: s.tz, dT: s.dT, pitch: s.pitch }); },
+    /* orbit a prop while looking at it (case, shelf): drag anywhere empty turns round it and tilts; the wheel zooms.
+       orbit(kind, e) → true when it used the event; the view's exit sets yaw back to 0 */
+    orbit(kind, e) { const c = ctx.cam, O = S.cam._o;
+      if (kind === 'down' && e.button === 0) { S.cam._o = { x: e.clientX, y: e.clientY, yaw: c.yaw || 0, pitch: c.pitch }; ctx.canvas.style.cursor = 'grabbing'; return true; }
+      if (kind === 'move' && O) { c.yaw = O.yaw - (e.clientX - O.x) * 0.008; c.pitch = T.clamp(O.pitch + (e.clientY - O.y) * 0.25, 12, 82); return true; }
+      if (kind === 'up' && O) { S.cam._o = null; ctx.canvas.style.cursor = 'default'; return true; }
+      if (kind === 'wheel') { c.dT = T.clamp(c.dT * Math.exp(e.deltaY * 0.0012), 4, 40); return true; }
+      return false; },
     /* how far back the camera sits to frame a w × d patch of table at the current pitch */
     fit(w, d) { return ctx.fitDist(w, d, ctx.cam.pitch); },
   };
@@ -111,7 +124,7 @@ export function installSecret(ctx) {
   skipBtn.addEventListener('pointerdown', e => e.stopPropagation());
   skipBtn.addEventListener('click', () => { let n = 0; store.get().pulls.forEach(p => { if (p.sentAt && !p.graded && Date.now() < p.readyAt) { SL.skipGrading(p); n++; } }); S.toast(n ? 'The lab worked through the night. ' + n + ' parcel' + (n === 1 ? '' : 's') + ' on the way.' : 'Nothing is away for grading.'); hud(); if (S.parcel) S.parcel.check(); });
   function hud() { const d = store.get(), away = d.pulls.filter(p => SL.gradingState(p) === 'away').length;
-    pts.textContent = d.points.toLocaleString('en-NZ') + ' PTS  ·  KEYS ∞  ·  ' + d.pulls.length + ' PULL' + (d.pulls.length === 1 ? '' : 'S') + (away ? '  ·  ' + away + ' AWAY' : ''); pts.classList.toggle('on', !!d.unlocked);
+    pts.textContent = d.points.toLocaleString('en-NZ') + ' PTS  ·  KEYS ' + (S.market ? S.market.keys() : '∞') + '  ·  ' + d.pulls.length + ' PULL' + (d.pulls.length === 1 ? '' : 'S') + (away ? '  ·  ' + away + ' AWAY' : ''); pts.classList.toggle('on', !!d.unlocked);
     skipBtn.hidden = !(d.unlocked && away); dev.refresh(); }
   /* the HUD keeps up with the clock so AWAY turns into a parcel without a click */
   setInterval(() => { if (S.unlocked()) hud(); }, 5000);
@@ -122,7 +135,7 @@ export function installSecret(ctx) {
   /* a small bar while the vault or binder is open: the way back to the case, and out */
   const nav = S.el('div', 'sk-nav', ''); nav.id = 'skNav'; document.body.appendChild(nav); nav.addEventListener('pointerdown', e => e.stopPropagation());
   nav.addEventListener('click', e => { const b = e.target.closest('[data-ev]'); if (b) M.send(b.dataset.ev); });
-  const NAV = { 'vault.case': [['CLOSE', 'Close the vault']], 'vault.keypad': [['CLOSE', 'Close the vault']], 'vault.lid': [['CLOSE', 'Close the vault']], 'vault.binder': [['CASE', 'Back to the case'], ['CLOSE', 'Close']], 'binder.open': [['CLOSE', 'Close the binder']], 'shelf.view': [['CLOSE', 'Back to the table']] };
+  const NAV = { 'vault.case': [['CLOSE', 'Close the vault']], 'vault.keypad': [['CLOSE', 'Close the vault']], 'vault.lid': [['CLOSE', 'Close the vault']], 'vault.binder': [['CASE', 'Back to the case'], ['CLOSE', 'Close']], 'binder.open': [['CLOSE', 'Close the binder']], 'shelf.view': [['CLOSE', 'Back to the table']], 'case.view': [['CLOSE', 'Close the case']] };
   M.onChange(st => { const b = NAV[st]; nav.innerHTML = b ? b.map(x => '<button type="button" data-ev="' + x[0] + '">' + x[1] + '</button>').join('') : ''; nav.classList.toggle('on', !!b); });
 
   /* ---------- the three diegetic buttons ---------- */
@@ -171,6 +184,18 @@ export function installSecret(ctx) {
   /* objects are built at slab scale; on the table they show card sized beside the prints (Sam: full size was massive) */
   S.TABLE_K = 0.42;
   const flatQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2);
+  /* Sam: everything files itself: a graded slab into the case, a raw print into the binder, so the table stays clear.
+     The card lifts and shrinks towards where it is going, then lands there (the case shows it arriving from above). */
+  S.fileAway = async function (obj) {
+    if (!obj || !obj.slab || obj.disposed) return false; const slab = obj.slab, g = obj.group, toCase = !!slab.graded;
+    if (toCase ? !(S.caseBox && S.caseBox.file) : !store.toBinder) return false;
+    const dest = toCase ? S.caseBox.group.getWorldPosition(new THREE.Vector3()) : (S.under && S.under.binderAt ? S.under.binderAt() : null);
+    if (dest && g) { dest.y += 1.6; if (g.parent !== ctx.scene) ctx.scene.attach(g); S.sfx('lift'); if (obj.tableShadow) obj.tableShadow.visible = false;
+      await T.par([T.to(g.position, dest, { dur: 0.75, ease: T.E.inOutCubic }), T.to(g.scale, { x: 0.22, y: 0.22, z: 0.22 }, { dur: 0.75, ease: T.E.inOutCubic })]); }
+    if (tableSlabs.includes(obj)) S.table.remove(obj, true); else S.slabs.drop(obj);
+    if (toCase) S.caseBox.file(slab.id); else { store.toBinder(slab.id); S.sfx('binder'); }
+    S.toast(toCase ? 'Filed in the case.' : 'Filed in the binder.'); hud(); return true;
+  };
   S.table = { list: tableSlabs,
     /* place(slab, x, z, yaw, { drop:true }) → the slab object; drop lets it fall onto the table */
     place(slab, x, z, yaw, o = {}) { return S.table.adopt(S.objFor(slab), x, z, yaw, o); },
@@ -216,7 +241,7 @@ export function installSecret(ctx) {
   M.define('idle', {
     exit() { sd = null; setHot(null); },
     on: { VAULT: (p, M) => M.defined('vault.open') ? 'vault.open' : (S.toast('The vault is still being built. Soon.'), undefined),
-          LOOT: (p, M) => M.defined('loot.open') ? 'loot.open' : (S.toast('The loot board is still being built. Soon.'), undefined),
+          LOOT: (p, M) => M.defined('loot.open') ? (!S.market || S.market.spendKey() ? 'loot.open' : undefined) : (S.toast('The loot board is still being built. Soon.'), undefined),   /* a pull takes a key (market.js) */
           ROOM: 'room.knock' },
     pointer(kind, e, M) {
       /* a print, wall group or string being dragged keeps the table's own handling; the buttons only take a free pointer */
@@ -283,7 +308,7 @@ export function installSecret(ctx) {
 
   /* ---------- the modules (each owns one file) ---------- */
   const secretTop = new Set();
-  [sound, print, holo, fxfin, rail, arm, binder, parcel, loot, under, casebox, shelf, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
+  [sound, print, holo, fxfin, bloom, reveals, rail, arm, binder, parcel, loot, under, casebox, shelf, market, blades].forEach(m => { try { if (m.install) m.install(S); } catch (e) { console.error('secret module', e); } });
   ctx.scene.children.forEach(c => { if (!lightSide.has(c)) secretTop.add(c); });   /* the rigs the modules just added */
 
   /* ---------- boot ---------- */
@@ -309,14 +334,32 @@ export function installSecret(ctx) {
       return M.key(e) || M.busy();
     },
     frame(dt, now) {
-      T.tick(dt); P.particleFrame(dt); placeLoot();
+      T.tick(dt); P.particleFrame(dt); placeLoot(); if (S.bloom) S.bloom.frame(dt); if (S.reveals) S.reveals.frame(dt * T.timeScale());
       if (S.unlocked()) { const pulse = 0.35 + 0.25 * Math.sin(now / 420);
         buttons.forEach(b => { const cap = b.userData.cap; if (!cap) return; const want = b.userData.hotT ? 1.4 : M.is('idle') ? pulse : 0.15; cap.material.emissiveIntensity += (want - cap.material.emissiveIntensity) * (1 - Math.exp(-dt * 10)); }); }
       M.frame(dt); inspect.frame(dt); if (S.parcel) S.parcel.frame(dt); if (S.under) S.under.frame(dt);
       slabObjs.forEach(o => { if (o.built) o.update(dt); });
     },
+    render(scene, camera) { return !!(S.bloom && S.bloom.render(scene, camera)); },
     pause(on) { if (on && inspect.active()) inspect.close('back'); if (S.blades && S.blades.pause) S.blades.pause(on); },
+    /* the table is being torn down: an online duel says goodbye first */
+    endDuel() { if (S.blades && S.blades.endDuel) S.blades.endDuel(); },
+    /* an online duel (the page's duel.js): from wherever the layer is, to the Blades build card, then blades.js takes it.
+       Someone invited who hasn't found the secret yet is let in: the invite is the way in. True once it has the duel. */
+    duel(info) { if (!S.blades || !S.blades.duel || duelGoing) return !!duelGoing;
+      duelGoing = info; const t0 = performance.now(), pause = () => new Promise(r => setTimeout(r, 250));
+      (async () => { try {
+          if (inspect.active()) inspect.close('back');
+          if (!S.unlocked()) unlock();
+          while (performance.now() - t0 < 30000) {
+            if (M.is('blades.build')) { S.blades.duel(info); return; }
+            if (!M.busy()) { if (M.is('blades')) M.go('blades.build'); else if (M.is('under')) M.send('BLADES'); else if (M.is('idle')) S.under.flip('under'); else if (M.active()) M.send('CLOSE'); }
+            await pause(); }
+          S.toast('The stadium didn\u2019t open in time, so the duel is off.'); if (ctx.HOST && ctx.HOST.duel) ctx.HOST.duel.end();
+        } finally { duelGoing = null; } })();
+      return true; },
   };
+  let duelGoing = null;
   return api;
 }
 

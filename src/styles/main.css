@@ -2868,86 +2868,75 @@ body.co-lens #bag .lensbtn{border-color:#e3ad57;box-shadow:0 0 22px rgba(227,173
 .co-card.media.side .co-line{font-size:21px}
 .co-card.media.side .co-sub{font-size:13.5px}
 
-/* ---- the opening (launch.js): dark, in close and slow, the shot, the film strip, the big circle with the wordmark, the settle ---- */
-#launch{position:fixed;inset:0;z-index:1200;display:none;background:#0c0b0a;overflow:hidden;font-family:var(--sans);color:var(--text);cursor:default;--fw:84vw;--fh:70vh;--rb:2.9vh}
+/* ---- the opening (launch.js): a film of the glide, the shot and the spin, with the focus marks, the wordmark and the
+   skip live over it; it fades off the live scene at the end. Only transform and opacity move ---- */
+#launch{position:fixed;inset:0;z-index:1200;display:none;background:#0c0b0a;overflow:hidden;font-family:var(--sans);color:var(--text);cursor:default}
 #launch.on{display:block}
-#launch.p-detail{animation:laClear 1.2s ease-in-out forwards}
-#launch.p-shoot,#launch.p-film,#launch.p-spin,#launch.p-lock,#launch.out{background:transparent}
-#launch.out{pointer-events:none}
-#launch.p-detail::before,#launch.p-shoot::before,#launch.p-film::before,#launch.p-spin::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 50%,rgba(0,0,0,.55) 100%)}
-#launch.p-lock::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 50%,rgba(0,0,0,.55) 100%);animation:laFade 1.2s ease-out forwards}
-@keyframes laClear{from{background:#0c0b0a}to{background:rgba(12,11,10,0)}}
+#launch.out{background:transparent;pointer-events:none}
+.la-film{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;opacity:0;background:#0c0b0a;pointer-events:none}
+#launch.p-film .la-film,#launch.p-hold .la-film,#launch.p-live .la-film{opacity:1}
+#launch.out .la-film{opacity:0;transition:opacity .8s cubic-bezier(.4,0,.2,1)}
+#launch::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;z-index:1;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 50%,rgba(0,0,0,.55) 100%)}
+#launch.p-film::before,#launch.p-hold::before,#launch.p-live::before{opacity:1}
+#launch.out::before{animation:laFade 1.2s ease-out forwards;opacity:1}
 @keyframes laFade{to{opacity:0}}
-/* dark: the name, small and dim, while the scan loads */
-.la-dark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none}
+/* dark: the name, small and dim, while the film comes in */
+.la-dark{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;z-index:2}
 .la-dark b{font-family:var(--serif);font-weight:300;font-size:22px;letter-spacing:.04em;color:var(--ink-3)}
 #launch.p-dark .la-dark{animation:laDarkIn 1.6s ease-out .2s forwards}
-#launch.p-detail .la-dark{opacity:1;animation:laFade .5s ease-out forwards}
+#launch.p-film .la-dark,#launch.p-hold .la-dark,#launch.p-live .la-dark{opacity:1;animation:laFade .7s ease-out forwards}
 @keyframes laDarkIn{to{opacity:1}}
-/* the shot: the lens opens as nine blades (launch.js draws them), the real viewfinder is up underneath; then the shutter */
-.la-iris{position:absolute;inset:0;opacity:0;pointer-events:none;z-index:3;--r:30%;--o:1;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) var(--r),rgba(4,3,2,calc(.92*var(--o))) calc(var(--r) + 34%))}
-.la-snap{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:3}
-#launch.snap .la-snap{animation:laSnap .4s ease-out forwards}
-@keyframes laSnap{0%{opacity:0}8%{opacity:1}30%{opacity:1}100%{opacity:0}}
-/* the still, full screen at first; on the film phase it shrinks into the first frame of the strip */
-.la-still{position:absolute;inset:0;display:none;z-index:2;overflow:hidden;background:#0c0b0a;transition:inset .95s cubic-bezier(.3,.75,.2,1)}
-#launch.held .la-still{display:block}
-#launch.p-film .la-still{inset:calc(50vh - var(--fh)/2) calc(50vw - var(--fw)/2);animation:laFade .01s linear 1s forwards}
-#launch.p-spin .la-still,#launch.p-lock .la-still,#launch.out .la-still{display:none}
-#launch.nofilm.p-spin .la-still{display:block;animation:laStillOut .9s cubic-bezier(.4,0,.2,1) both}
-@keyframes laStillOut{from{opacity:1;transform:none;filter:none}to{opacity:0;transform:scale(1.08);filter:blur(10px)}}
-.la-still img,.la-still canvas{width:100%;height:100%;object-fit:cover;display:block}
-/* the film: a strip of 35 mm, the sprocket holes punched through to the scan behind */
-.la-film{position:absolute;inset:0;display:none;pointer-events:none;overflow:hidden}
-.la-film::before{content:none}   /* the ember glow behind the strip */
-#launch.p-film .la-film{display:block;animation:laFilmIn .5s ease-out both}
-@keyframes laFilmIn{from{opacity:0}to{opacity:1}}
-.la-strip{position:absolute;left:0;top:calc(50vh - var(--fh)/2 - var(--rb));height:calc(var(--fh) + var(--rb)*2);padding:var(--rb) 3vw var(--rb) 100vw;box-sizing:border-box;display:flex;will-change:transform;--pitch:calc(var(--fw) + .15vw);background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='300'%3E%3Cfilter id='m'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.007' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 .9 0 0 0 0 .35 0 0 0 0 .1 0 0 0 .7 -.315'/%3E%3C/filter%3E%3Crect width='800' height='300' filter='url(%23m)'/%3E%3C/svg%3E") 0 0/800px 300px repeat,linear-gradient(rgba(38,9,4,.9),rgba(38,9,4,.9)) 0 50%/100% var(--fh) no-repeat;background-blend-mode:overlay,normal}   /* option K: near-black red, mottled, the orange in the halation and a sheen on the rebate */
-.la-strip::before,.la-strip::after{content:"";position:absolute;left:calc(100vw - 12*var(--pitch));right:0;height:var(--rb);background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 60' preserveAspectRatio='none'%3E%3Cpath fill='rgb(38,9,4)' fill-opacity='.9' fill-rule='evenodd' d='M0 0H1000V60H0ZM20.2 9.0H42.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H20.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM82.8 9.0H104.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H82.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM145.2 9.0H167.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H145.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM207.8 9.0H229.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H207.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM270.2 9.0H292.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H270.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM332.8 9.0H354.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H332.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM395.2 9.0H417.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H395.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM457.8 9.0H479.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H457.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM520.2 9.0H542.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H520.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM582.8 9.0H604.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H582.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM645.2 9.0H667.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H645.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM707.8 9.0H729.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H707.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM770.2 9.0H792.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H770.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM832.8 9.0H854.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H832.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM895.2 9.0H917.2a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H895.2a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3ZM957.8 9.0H979.8a3 3 0 0 1 3 3V48.0a3 3 0 0 1-3 3H957.8a3 3 0 0 1-3-3V12.0a3 3 0 0 1 3-3Z'/%3E%3C/svg%3E") 0 0/var(--pitch) var(--rb) repeat-x}
-.la-sh{position:absolute;left:0;right:0;height:var(--rb);background:linear-gradient(100deg,rgba(255,120,40,0) 0%,rgba(255,150,60,.5) 8%,rgba(255,200,120,.35) 11%,rgba(240,110,120,.3) 14%,rgba(255,120,40,0) 20%,rgba(255,120,40,0) 55%,rgba(255,160,70,.35) 60%,rgba(255,210,140,.25) 62%,rgba(255,120,40,0) 68%) 0 0/260% 100% repeat-x;mix-blend-mode:screen;opacity:.55;z-index:2;animation:laSh 9s linear infinite;pointer-events:none}
-.la-sh.t{top:0}
-.la-sh.b{bottom:0}
-@keyframes laSh{to{background-position:-260% 0}}
-.la-dm{position:absolute;inset:0;pointer-events:none;z-index:3;background:linear-gradient(90deg,transparent 23.80%,rgba(255,235,215,.12) 23.86%,transparent 23.94%),radial-gradient(circle at 37.0% 60.4%,rgba(255,250,240,.22) 0 1.0px,transparent 1.6px),radial-gradient(circle at 6.6% 1.3%,rgba(255,250,240,.22) 0 1.2px,transparent 1.8px),radial-gradient(circle at 25.9% 23.4%,rgba(255,250,240,.22) 0 1.3px,transparent 1.9px),radial-gradient(circle at 47.0% 83.6%,rgba(255,250,240,.22) 0 0.9px,transparent 1.5px),radial-gradient(circle at 63.9% 15.1%,rgba(255,250,240,.22) 0 1.0px,transparent 1.6px),radial-gradient(circle at 86.8% 52.3%,rgba(10,0,0,.45) 0 1.3px,transparent 2.1px),radial-gradient(circle at 67.1% 6.4%,rgba(10,0,0,.45) 0 1.4px,transparent 2.2px),radial-gradient(circle at 59.1% 30.1%,rgba(10,0,0,.45) 0 0.6px,transparent 1.4px)}
-.la-strip::before{top:0;transform:scaleY(-1)}
-.la-strip::after{bottom:0}
-.la-fr{position:relative;flex:none;width:var(--fw);height:var(--fh);margin-right:.15vw;margin-left:0;background:#000;border-radius:0}
-.la-fr::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 1px rgba(255,130,50,.5),inset 0 0 12px rgba(255,120,40,.3),inset 0 0 120px rgba(255,90,20,.12);mix-blend-mode:screen}   /* halation: the light bleeding in at the frame edges */
-.la-fr:first-child{margin-left:.15vw}
-.la-fr video,.la-fr img,.la-fr canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 42%;filter:brightness(.97) saturate(1.02) sepia(.06);display:block;border-radius:1px}
-.la-fr.still img,.la-fr.still canvas{filter:saturate(1.02) sepia(.06)}
-.la-fr>img{animation:laKen 5s ease-out both}
-@keyframes laKen{from{transform:scale(1.06)}to{transform:scale(1)}}
-.la-fr span{position:absolute;left:2.2vw;top:2.6vh;padding:7px 12px 6px 14px;border-radius:999px;background:rgba(14,8,4,.72);border:1px solid rgba(255,150,70,.22);font-family:var(--mono);font-size:10.5px;letter-spacing:.34em;color:#e9b27a;z-index:1;backdrop-filter:blur(6px)}
-.la-fr i{position:absolute;left:.3vw;bottom:calc(var(--rb)*-1 + .5vh);font-style:normal;font-family:var(--sans);font-weight:700;font-size:1.25vh;color:#2b2160;opacity:.75;white-space:nowrap;z-index:2}
-.la-fr i::after{content:"A"}
-.la-fr em{display:none}
-.la-fr u{display:none}
-.la-fr u::after{content:"STUDIUM 400";margin-left:5vw;opacity:.9}
-.la-fr i::before{content:"\2192  "}
-/* the wordmark: a mask reveal on the big circle, big, held through the settle, then it lets the scene through */
+/* the viewfinder's marks over the shot: its corners and the focus square, which hunts amber and locks green (as #vfAF) */
+.la-vf{position:absolute;inset:6vh 5vw;opacity:0;transition:opacity .2s;pointer-events:none;z-index:2;filter:drop-shadow(0 0 1px rgba(0,0,0,.95)) drop-shadow(0 0 4px rgba(0,0,0,.45))}
+#launch.vf .la-vf{opacity:1}
+.la-vf i{position:absolute;width:26px;height:26px;border:0 solid rgba(255,255,255,.85)}
+.la-vf .tl{left:0;top:0;border-width:1.5px 0 0 1.5px}.la-vf .tr{right:0;top:0;border-width:1.5px 1.5px 0 0}
+.la-vf .bl{left:0;bottom:0;border-width:0 0 1.5px 1.5px}.la-vf .br{right:0;bottom:0;border-width:0 1.5px 1.5px 0}
+.la-vf b{--afc:#fff;position:absolute;left:50%;top:50%;width:72px;height:48px;transform:translate(-50%,-50%);transition:transform .15s ease;background:
+    linear-gradient(var(--afc),var(--afc)) 0 0/12px 2px no-repeat, linear-gradient(var(--afc),var(--afc)) 0 0/2px 12px no-repeat,
+    linear-gradient(var(--afc),var(--afc)) 100% 0/12px 2px no-repeat, linear-gradient(var(--afc),var(--afc)) 100% 0/2px 12px no-repeat,
+    linear-gradient(var(--afc),var(--afc)) 0 100%/12px 2px no-repeat, linear-gradient(var(--afc),var(--afc)) 0 100%/2px 12px no-repeat,
+    linear-gradient(var(--afc),var(--afc)) 100% 100%/12px 2px no-repeat, linear-gradient(var(--afc),var(--afc)) 100% 100%/2px 12px no-repeat}
+#launch.af-hunt .la-vf b{--afc:var(--accent);animation:afHunt .18s ease-in-out infinite alternate}
+#launch.af-ok .la-vf b{--afc:#5fe08a;transform:translate(-50%,-50%) scale(.92)}
+/* the game's capture over the film: the blade, the flash, the photo flying to the corner (as #shutterBlade, #flash, #captureFly) */
+.la-blade{position:absolute;inset:0;z-index:3;background:#000;transform:scaleY(0);transform-origin:top;pointer-events:none}
+.la-blade.fire{animation:blade .22s ease-in-out}
+.la-flash{position:absolute;inset:0;z-index:3;background:#fff;opacity:0;pointer-events:none}
+.la-flash.fire{animation:flash .3s ease-out}
+.la-fly{position:absolute;inset:0;width:100%;height:100%;z-index:3;opacity:0;pointer-events:none;border-radius:4px;box-shadow:0 8px 30px rgba(0,0,0,.6);transform-origin:center}
+/* the wordmark: a mask reveal on the big circle, big, held through the handover, then it lets the scene through */
 .la-word{position:absolute;left:0;right:0;top:50%;transform:translateY(-54%);text-align:center;opacity:0;pointer-events:none;z-index:2}
 .la-kick,.la-tag{display:block;font-family:var(--mono);letter-spacing:.42em;color:var(--accent);text-shadow:0 1px 8px rgba(0,0,0,.8);opacity:0}
 .la-kick{font-size:12px;margin-bottom:10px}
-.la-tag{font-size:11px;margin-top:14px;letter-spacing:.34em}
-.la-word b{display:block;font-family:var(--serif);font-weight:300;font-size:clamp(84px,13vw,176px);line-height:1;letter-spacing:-.02em;text-shadow:0 4px 40px rgba(0,0,0,.85);overflow:hidden;padding:.06em 0}
+.la-tag{font-size:11px;margin-top:14px;letter-spacing:.34em;padding:0 16px}
+.la-word b{display:block;font-family:var(--serif);font-weight:300;font-size:clamp(64px,13vw,176px);line-height:1;letter-spacing:-.02em;text-shadow:0 4px 40px rgba(0,0,0,.85);overflow:hidden;padding:.06em 0}
 .la-word b i{display:inline-block;font-style:normal;transform:translateY(110%);opacity:0}
-.la-word em{display:block;width:0;height:1px;margin:14px auto 0;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
-#launch.p-spin .la-word,#launch.p-lock .la-word,#launch.out .la-word{opacity:1}
-#launch.p-spin .la-kick,#launch.p-lock .la-kick,#launch.out .la-kick{animation:laUp .7s cubic-bezier(.2,.7,.2,1) .5s both}
-#launch.p-spin .la-word b i,#launch.p-lock .la-word b i,#launch.out .la-word b i{animation:laLetter .9s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(.7s + var(--n)*60ms)}
-#launch.p-spin .la-word em,#launch.p-lock .la-word em,#launch.out .la-word em{animation:laLine 1.1s cubic-bezier(.2,.7,.2,1) 1.3s both}
-#launch.p-spin .la-tag,#launch.p-lock .la-tag,#launch.out .la-tag{animation:laUp .8s cubic-bezier(.2,.7,.2,1) 1.55s both}
+.la-word em{display:block;width:min(52vw,520px);height:1px;margin:14px auto 0;background:linear-gradient(90deg,transparent,var(--accent),transparent);transform:scaleX(0)}
+#launch.word .la-word{opacity:1}
+#launch.word .la-kick{animation:laUp .7s cubic-bezier(.2,.7,.2,1) .5s both}
+#launch.word .la-word b i{animation:laLetter .9s cubic-bezier(.16,1,.3,1) both;animation-delay:calc(.7s + var(--n)*60ms)}
+#launch.word .la-word em{animation:laLine 1.1s cubic-bezier(.2,.7,.2,1) 1.3s both}
+#launch.word .la-tag{animation:laUp .8s cubic-bezier(.2,.7,.2,1) 1.55s both}
 #launch.out .la-word{animation:laWordOut .6s ease-in 1s forwards}
 @keyframes laUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes laLetter{from{opacity:0;transform:translateY(110%)}to{opacity:1;transform:none}}
-@keyframes laLine{to{width:min(52vw,520px)}}
-@keyframes laWordOut{to{opacity:0;transform:translateY(-54%) scale(1.04);filter:blur(6px)}}
-.la-skip{position:absolute;right:28px;bottom:24px;font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;color:var(--ink-4);opacity:0;transition:opacity .4s;z-index:4}
+@keyframes laLine{to{transform:scaleX(1)}}
+@keyframes laWordOut{to{opacity:0;transform:translateY(-54%) scale(1.04)}}
+.la-skip{position:absolute;right:28px;bottom:24px;font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;color:rgba(244,241,234,.55);opacity:0;transition:opacity .4s;z-index:4;text-shadow:0 1px 6px rgba(0,0,0,.8)}
 #launch.skip .la-skip{opacity:1}
-#launch.p-lock .la-skip,#launch.out .la-skip{opacity:0}
+#launch.out .la-skip,#launch.p-live .la-skip{opacity:0}
+.la-credit{position:absolute;left:28px;bottom:24px;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:rgba(244,241,234,.38);opacity:0;transition:opacity .6s;z-index:4;text-shadow:0 1px 6px rgba(0,0,0,.8);pointer-events:none}
+#launch.bush.p-film .la-credit,#launch.bush.p-hold .la-credit{opacity:1}
+#launch.out .la-credit{opacity:0}   /* the birdsong's credit (Crown Copyright, licenses/doc-birdsong-crown-copyright.txt), shown only when it plays */
 /* the viewfinder under the opening shows only its corners and the focus mark */
-body.launching #vfTop,body.launching #vfHints,body.launching #vfStrip,body.launching #vfBar,body.launching #vfGuideChip,body.launching #vfBriefChip,body.launching #vfCompLbl,body.launching #vfComp,body.launching #vfLevel,body.launching #vfBrief,body.launching #crosshair{visibility:hidden!important}
+/* the game's own viewfinder comes up over the opening film for the shot (launch.js laCam): lifted above it, with its blade, flash and
+   flying photo; the parts that talk about controls stay hidden, since a click here only skips */
+body.la-cam #viewfinder{z-index:1210}
+body.la-cam #flash{z-index:1212}
+body.la-cam #shutterBlade{z-index:1213}
+body.la-cam #captureFly{z-index:1214}
+body.launching #vfHints,body.launching #vfBrief,body.launching #vfBriefChip,body.launching #vfToast,body.launching #vfTop,body.launching #crosshair{visibility:hidden!important}
 body.launching #loader,body.launching #hud,body.launching #navTop,body.launching #navActs,body.launching #prompt,body.launching .q-hud,body.launching #chCard,body.launching #chGlow,body.launching #chFlash,body.launching #chMarks,body.launching #chTitle,body.launching #vfToast,body.launching #coCard,body.launching #coRing,body.launching #toast,body.launching .ach-card,body.launching #tutorial,body.launching #fadeover{visibility:hidden!important}
 
 /* ---- Lighting B: the lighting panel wears the editing window's own styles (mirrored from #editor; edit both together) ---- */
@@ -3164,6 +3153,11 @@ body.rackin #loader,body.rackin #hud,body.rackin #navTop,body.rackin #navActs,bo
 #rackin.wait .rf-wait{opacity:1}
 #rackin.ready .rf-hint{opacity:1}#rackin.going .rf-hint{opacity:0;transition-delay:0s}
 @media (max-width:640px){#rackin .rf-go{height:72px;padding:0 30px;gap:18px}#rackin .rf-go .t{font-size:28px}}
+#rackin .rf-acct{position:absolute;top:calc(18px + env(safe-area-inset-top,0px));right:max(18px,env(safe-area-inset-right,0px));display:flex;align-items:center;gap:12px;font:500 10.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:rgba(244,241,234,.7);text-shadow:0 1px 8px rgba(0,0,0,.6);opacity:0;transition:opacity 1s ease 1.2s}
+#rackin.ready .rf-acct{opacity:1}#rackin.going .rf-acct{opacity:0;transition-delay:0s;pointer-events:none}
+#rackin .rf-acct button{appearance:none;font:inherit;letter-spacing:inherit;text-transform:inherit;color:var(--text);background:rgba(18,16,12,.55);border:1px solid rgba(227,173,87,.45);border-radius:999px;padding:9px 14px;cursor:pointer;transition:border-color .2s,background .2s}
+#rackin .rf-acct button:hover,#rackin .rf-acct button:focus-visible{border-color:var(--accent);background:rgba(18,16,12,.8);outline:0}
+@media (max-width:640px){#rackin .rf-acct{left:16px;right:16px;justify-content:flex-end;flex-wrap:wrap}}
 
 
 /* the opening: a soft warm haze where the sun breaks through the fog */
@@ -3345,3 +3339,74 @@ body.la-warm #viewfinder,body.la-warm #crosshair{visibility:hidden!important}   
 .rs-wshot:hover img{transform:scale(1.03)}
 .rs-dvdhost{top:140px;border-radius:14px;overflow:hidden;background:#0b0908}
 .rs-dvdhost .lt-frame{display:block;width:100%;height:100%;border:0}
+/* ---- FEEL: looking and moving (feel.js) ---- */
+body.fl-orbit[data-state="scene"] #viewport canvas{cursor:grab}
+body.fl-dragging #viewport canvas{cursor:grabbing!important}
+/* the FEEL switches, for Sam (?dev) */
+#flBtn{position:fixed;left:12px;bottom:12px;z-index:2100;font:500 11px var(--mono);letter-spacing:.14em;padding:7px 10px;border-radius:6px;border:1px solid rgba(227,173,87,.5);background:rgba(23,20,15,.9);color:var(--accent);cursor:pointer}
+#flPanel{position:fixed;left:12px;bottom:48px;z-index:2100;width:330px;display:none;flex-direction:column;gap:8px;padding:14px;border-radius:10px;background:rgba(18,16,12,.96);border:1px solid rgba(227,173,87,.3);color:var(--text);font:400 13px var(--sans);box-shadow:0 20px 50px rgba(0,0,0,.5)}
+#flPanel.show{display:flex}
+#flPanel>b{font:400 18px var(--serif);font-weight:400}
+#flPanel label{display:flex;gap:9px;align-items:flex-start;cursor:pointer;line-height:1.3}
+#flPanel input{accent-color:var(--accent);margin-top:2px}
+#flPanel .fl-row{display:flex;gap:6px}
+#flPanel .fl-row button{flex:1;font:500 10.5px var(--mono);letter-spacing:.1em;padding:7px 6px;border-radius:6px;border:1px solid rgba(244,241,234,.18);background:transparent;color:var(--text);cursor:pointer}
+#flPanel .fl-row button:hover{border-color:var(--accent);color:var(--accent)}
+#flPanel em{font-style:normal;font-size:11.5px;color:rgba(244,241,234,.55);line-height:1.35}
+/* START FRESH on the launch page: quiet, bottom right, only once you've been before */
+#rackin .rf-fresh{position:absolute;right:calc(24px + env(safe-area-inset-right,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));display:none;flex-direction:column;align-items:flex-end;gap:3px;padding:9px 12px;border-radius:8px;border:1px solid rgba(244,241,234,.16);background:rgba(18,16,12,.45);color:rgba(244,241,234,.75);font:500 11px var(--mono);letter-spacing:.16em;cursor:pointer;opacity:0;transition:opacity .6s,border-color .2s,color .2s}
+#rackin .rf-fresh span{font-size:9.5px;letter-spacing:.14em;color:rgba(244,241,234,.45)}
+#rackin.been .rf-fresh{display:flex}
+#rackin.ready .rf-fresh{opacity:1;transition-delay:1.4s}
+#rackin .rf-fresh:hover{border-color:var(--accent);color:var(--accent)}
+#rackin.going .rf-fresh{opacity:0!important;pointer-events:none;transition-delay:0s}
+/* ---- the warm-up card, redesigned: a progress strip along the top, real key caps that press themselves to show the
+       move, the mouse drawn doing what it asks, and a gold tick that stamps in as each step is done ---- */
+.co-card{padding:24px 24px 18px;border-radius:16px;overflow:hidden;background:linear-gradient(180deg,rgba(32,28,21,.95),rgba(15,13,10,.95));border:1px solid rgba(var(--gold-rgb),.26);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 30px 60px -24px rgba(0,0,0,.9),0 0 50px -24px rgba(var(--gold-rgb),.4)}
+.co-prog{position:absolute;left:0;right:0;top:0;height:5px;display:flex;gap:3px;background:rgba(0,0,0,.35)}
+.co-prog i{position:relative;height:100%;background:rgba(var(--bone-rgb),.16);overflow:hidden}
+.co-prog b{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#b3843f,var(--accent));transition:width .45s cubic-bezier(.2,.8,.2,1)}
+.co-top{gap:9px}
+.co-top i{width:14px;background:rgba(var(--bone-rgb),.12)}
+.co-ch{transition:color .3s}
+.co-ch.on{display:inline-flex;align-items:center;gap:6px}
+.co-ch.on::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px rgba(var(--gold-rgb),.8)}
+.co-n{font:500 11px var(--mono);letter-spacing:.14em;color:var(--accent)}
+.co-n i{font-style:normal;color:var(--ink-5)}
+.co-foot{min-height:20px}
+/* key caps: raised, and the ones you haven't pressed yet press themselves in turn, so the move is shown, not described */
+.co-line kbd{background:linear-gradient(#3b362c,#27231c);border:1px solid rgba(var(--bone-rgb),.2);border-bottom:0;border-radius:8px;color:var(--text);
+  box-shadow:0 4px 0 #13110d,0 6px 10px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.12);transform:translateY(-3px);margin:0 5px 0 0;vertical-align:4px}
+.co-line kbd.on{background:linear-gradient(#f0c06e,var(--accent));color:var(--accent-ink);border-color:var(--accent);box-shadow:0 1px 0 #7a5826,0 0 18px rgba(var(--gold-rgb),.5);transform:translateY(0)}
+.co-line kbd[data-co-k]:not(.on){animation:coKey 2.6s ease-in-out infinite}
+.co-line kbd[data-co-k]:nth-of-type(2){animation-delay:.32s}.co-line kbd[data-co-k]:nth-of-type(3){animation-delay:.64s}.co-line kbd[data-co-k]:nth-of-type(4){animation-delay:.96s}
+@keyframes coKey{0%,55%,80%,100%{transform:translateY(-3px);box-shadow:0 4px 0 #13110d,0 6px 10px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.12);border-color:rgba(var(--bone-rgb),.2)}
+  64%,70%{transform:translateY(0);box-shadow:0 1px 0 #13110d,0 2px 4px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.08);border-color:rgba(var(--gold-rgb),.75)}}
+/* the mouse */
+.co-line kbd.co-mouse{display:inline-flex;align-items:center;gap:8px;padding:0 11px 0 9px;animation:none}
+.co-mouse svg{width:15px;height:21px;flex:none;overflow:visible}
+.co-mouse .b{fill:none;stroke:currentColor;stroke-width:1.4}
+.co-mouse .s{fill:none;stroke:currentColor;stroke-width:1.1;opacity:.6}
+.co-mouse .l,.co-mouse .r{fill:transparent}
+.co-mouse.m-l .l,.co-mouse.m-drag .l{animation:coBtn 1.3s ease-in-out infinite}
+.co-mouse.m-r .r{animation:coBtn 1.3s ease-in-out infinite}
+.co-mouse.m-drag svg{animation:coSwing 2.2s ease-in-out infinite}
+@keyframes coBtn{0%,30%{fill:transparent}40%,85%{fill:var(--accent)}100%{fill:transparent}}
+@keyframes coSwing{0%,100%{transform:translateX(-4px) rotate(-6deg)}50%{transform:translateX(4px) rotate(6deg)}}
+/* done: a gold tick stamps in beside the prompt */
+.co-card.ok .co-line::after{content:none}
+.co-tick{position:absolute;right:22px;top:50%;width:46px;height:46px;margin-top:-23px;border-radius:50%;background:var(--accent);box-shadow:0 0 30px rgba(var(--gold-rgb),.7);opacity:0;transform:scale(.3) rotate(-25deg);pointer-events:none;transition:opacity .15s,transform .35s cubic-bezier(.2,1.7,.4,1)}
+.co-tick::after{content:"";position:absolute;left:16px;top:10px;width:11px;height:20px;border:solid var(--accent-ink);border-width:0 4px 4px 0;transform:rotate(45deg)}
+.co-card.ok .co-tick{opacity:1;transform:scale(1) rotate(0)}
+.co-card.ok .co-line,.co-card.ok .co-sub{opacity:.45;transition:opacity .2s}
+@media (prefers-reduced-motion:reduce){.co-line kbd[data-co-k]:not(.on),.co-mouse .l,.co-mouse .r,.co-mouse svg{animation:none!important}}
+
+/* who's signed in: a pill in the studio bar, and its card (hub.js siWho) */
+.st-who{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;border-radius:999px;border:1px solid rgba(244,241,234,.18);background:rgba(244,241,234,.04);color:var(--text);font:500 10.5px var(--mono);letter-spacing:.1em;cursor:pointer;white-space:nowrap}
+.st-who:hover{border-color:var(--accent);color:var(--accent)}
+.st-who i{width:7px;height:7px;border-radius:50%;background:#6fd08a;box-shadow:0 0 0 3px rgba(111,208,138,.18)}
+.st-whopop{position:fixed;top:64px;right:24px;z-index:3000;width:260px;display:flex;flex-direction:column;gap:8px;padding:14px 16px;border-radius:10px;background:rgba(20,18,15,.97);border:1px solid rgba(244,241,234,.16);box-shadow:0 18px 40px rgba(0,0,0,.45);color:var(--text);font:400 13px/1.4 var(--sans)}
+.st-whopop b{font:400 17px var(--serif)} .st-whopop span{color:rgba(244,241,234,.65)}
+.st-whopop button{align-self:flex-start;margin-top:4px;padding:8px 12px;border-radius:7px;border:1px solid rgba(244,241,234,.22);background:transparent;color:var(--text);font:500 11px var(--mono);letter-spacing:.1em;cursor:pointer}
+.st-whopop button:hover{border-color:var(--accent);color:var(--accent)}

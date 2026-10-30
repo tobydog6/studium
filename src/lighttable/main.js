@@ -488,7 +488,7 @@ function restack(){ const L=prints.filter(p=>p!==drag.p && p.inspT===0 && !p.rej
 /* ================= camera ================= */
 const cam={ tx:0, ty:0, tz:0.3, d:30, dT:30, pitch:TOP, view:'table' };
 const ray=new THREE.Raycaster(), ndc=new THREE.Vector2(), tmpV=new THREE.Vector3(), tmpCam=new THREE.PerspectiveCamera();
-function placeCam(c, s){ const p=THREE.MathUtils.degToRad(s.pitch); c.position.set(s.tx, s.ty+s.d*Math.sin(p), s.tz+s.d*Math.cos(p)); c.up.set(0,1,0); if(s.pitch>89) c.up.set(0,0,-1); c.lookAt(s.tx,s.ty,s.tz); c.updateMatrixWorld(); }
+function placeCam(c, s){ const p=THREE.MathUtils.degToRad(s.pitch), yw=s.yaw||0; c.position.set(s.tx+s.d*Math.cos(p)*Math.sin(yw), s.ty+s.d*Math.sin(p), s.tz+s.d*Math.cos(p)*Math.cos(yw));   /* yaw: the secret layer's orbit round a prop (0 everywhere else) */ c.up.set(0,1,0); if(s.pitch>89) c.up.set(0,0,-1); c.lookAt(s.tx,s.ty,s.tz); c.updateMatrixWorld(); }
 function setNDC(e){ const r=canvas.getBoundingClientRect(); ndc.set((e.clientX-r.left)/r.width*2-1, -((e.clientY-r.top)/r.height)*2+1); }
 function planeHit(c, n, y){ ray.setFromCamera(n, c); const t=(y-ray.ray.origin.y)/ray.ray.direction.y; if(!(t>0)) return null; return ray.ray.origin.clone().addScaledVector(ray.ray.direction,t); }
 function wallHit(c, n){ ray.setFromCamera(n, c); const t=(WALL_Z-ray.ray.origin.z)/ray.ray.direction.z; if(!(t>0)) return null; return ray.ray.origin.clone().addScaledVector(ray.ray.direction,t); }
@@ -1236,9 +1236,9 @@ function frame(now){
   const k6=1-Math.exp(-dt*5.5), snap=pan.on||zoomAnchor;
   cam.d+=(cam.dT-cam.d)*k6;
   if(cam.curPitch===undefined){ cam.curPitch=cam.pitch; cam.cx=cam.tx; cam.cy=cam.ty; cam.cz=cam.tz; }
-  cam.curPitch+=(cam.pitch-cam.curPitch)*k6;
+  cam.curPitch+=(cam.pitch-cam.curPitch)*k6; cam.curYaw=(cam.curYaw||0)+((cam.yaw||0)-(cam.curYaw||0))*k6;
   cam.cx+=(cam.tx-cam.cx)*(snap?1:k6); cam.cy+=(cam.ty-cam.cy)*(snap?1:k6); cam.cz+=(cam.tz-cam.cz)*(snap?1:k6);
-  const s={ tx:cam.cx, ty:cam.cy, tz:cam.cz, d:cam.d, pitch:cam.curPitch }; placeCam(camera,s);
+  const s={ tx:cam.cx, ty:cam.cy, tz:cam.cz, d:cam.d, pitch:cam.curPitch, yaw:cam.curYaw||0 }; placeCam(camera,s);
   if(zoomAnchor&&zoomAnchor.w){ const h=viewHit(camera,zoomAnchor.n); if(h){ cam.tx+=zoomAnchor.w.x-h.x; if(cam.view==='wall') cam.ty+=zoomAnchor.w.y-h.y; else cam.tz+=zoomAnchor.w.z-h.z; clampCam(); cam.cx=cam.tx; cam.cy=cam.ty; cam.cz=cam.tz; s.tx=cam.tx; s.ty=cam.ty; s.tz=cam.tz; placeCam(camera,s); } if(Math.abs(cam.d-cam.dT)<0.002) zoomAnchor=null; }
   let lt;
   if(cam.view==='wall'){ const h=mouse.in?wallHit(camera,mouse.n):null; lt=h?h.clone().add(V(-0.6,0.9,3.2)):V(0,9,WALL_Z+4); }
@@ -1299,7 +1299,7 @@ function frame(now){
   dim.material.opacity+=(dimTarget-dim.material.opacity)*(1-Math.exp(-dt*8));
   if(dim.material.opacity>0.002){ const hh=2*dimDist*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*1.1; dim.position.set(0,0,-dimDist); dim.scale.set(hh*camera.aspect,hh,1); dim.visible=true; } else dim.visible=false;
   threads.visible=!inspected;
-  renderer.setRenderTarget(null); renderer.render(scene,camera);
+  renderer.setRenderTarget(null); if(!(SECRET&&SECRET.render&&SECRET.render(scene,camera))) renderer.render(scene,camera);   /* the secret reveal draws through its bloom while it runs */
   if(loupe.on&&mouse.in){
     const R=118, mag=3.1, D=R*2, vh=window.innerHeight;
     zoomCam.fov=2*THREE.MathUtils.radToDeg(Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov/2))*(D/vh)/mag)); zoomCam.aspect=1; zoomCam.updateProjectionMatrix();
@@ -1735,8 +1735,10 @@ function finishBoot(){ restack(); updateChains(false); drawBoxBtn(); applyOpts()
   if(library.every(i=>i.sample||i.copyOf)) try{ if(localStorage.getItem('lt_tour_done')) TOUR.done=true; }catch(e){}
   if(!TOUR.done||WANT_TOUR) setTimeout(()=>{ WANT_TOUR=false; if(!TOUR.on) tourStart(); },900); }
 let WANT_TOUR=false;
-window.LTapp={ tour(){ if(READY){ if(!TOUR.on) tourStart(); } else WANT_TOUR=true; }, kill(){ READY=false; PAUSED=true; clearTimeout(saveT); },
+window.LTapp={ tour(){ if(READY){ if(!TOUR.on) tourStart(); } else WANT_TOUR=true; }, kill(){ if(SECRET&&SECRET.endDuel) try{ SECRET.endDuel(); }catch(e){} READY=false; PAUSED=true; clearTimeout(saveT); },
   sync(d){ if(!READY||LOADING) return; hostLibrary(d); },
+  /* an online Blades duel from the page (duel.js); false until the table and its secret layer are ready for it */
+  duel(info){ if(!READY||LOADING||!SECRET||!SECRET.duel) return false; return SECRET.duel(info); },
   pause(on){ on=!!on; if(on===PAUSED) return; PAUSED=on; if(SECRET) SECRET.pause(on); if(on){ clearTimeout(saveT); saveNow(); recordHist(); closeBinder(); dropString(); }
     else if(READY&&!looping){ last=performance.now(); looping=true; requestAnimationFrame(frame); } } };
 drawBoxLabel(0); buildPanel(); buildSwatches(); buildWallPick(); setStringsOn(stringsOn);

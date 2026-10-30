@@ -1253,6 +1253,12 @@ body.st-legacy #galleryshow{top:64px;z-index:56}
 /* ===================== SIGN-IN ===================== */
 #signin.si{position:fixed;inset:0;z-index:70;display:block;place-items:normal;padding:0;color:var(--text);font-family:var(--sans);background:radial-gradient(ellipse 60% 55% at 50% 42%,#1c1811 0%,#0d0c0a 70%)}
 #signin.hidden{display:none}
+#signin.busy .si-g,#signin.busy .si-m,#signin.busy .si-or,#signin.busy .si-code,#signin.busy .si-name,#signin.busy .si-help,#signin.busy .si-demo,#signin.busy .si-foot{display:none}
+#signin.gjoin .si-g,#signin.gjoin .si-m,#signin.gjoin .si-or,#signin.gjoin .si-demo,#signin.gjoin .si-foot{display:none}
+.si-who{display:none}
+#signin.gjoin .si-who{display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;margin:2px 0 22px;padding:8px 10px 8px 16px;border:1px solid rgba(227,173,87,.35);border-radius:999px;background:rgba(227,173,87,.07);font-size:13px;color:var(--ink-3)}
+.si-who b{font-weight:500;color:var(--text)}
+.si-who button{border:0;background:none;color:#e3ad57;font:inherit;font-size:12px;cursor:pointer;padding:4px 6px;text-decoration:underline;text-underline-offset:3px}
 .si-top{position:absolute;left:64px;right:64px;top:34px;display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;color:var(--ink-5)}
 .si-mid{position:absolute;left:50%;top:18vh;transform:translateX(-50%);width:min(440px,90vw);display:flex;flex-direction:column;align-items:center}
 .si-mid h1{margin:0;font-family:var(--serif);font-weight:300;font-size:64px;letter-spacing:-.03em}

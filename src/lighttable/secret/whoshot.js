@@ -213,7 +213,9 @@ export function install(S) {
     /* the slab's own loaded photo (CORS-safe, or its painted stand-in), so the canvas never taints */
     let img = null; try { img = await S.SM.photoCanvas(obj.slab, S); } catch (e) {} if (!G) return null; const pr = ph.geometry.parameters || { width: 1, height: 1 };
     const c = document.createElement('canvas'); c.width = 512; c.height = Math.max(2, Math.round(512 * pr.height / pr.width)); const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-    const m = new THREE.Mesh(ph.geometry, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false })); m.position.z = 0.004; m.userData.order = 3; m.userData.noParticles = true; ph.add(m);
+    const m = new THREE.Mesh(ph.geometry, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false })); m.position.z = 0.004; m.userData.noParticles = true;
+    /* over everything on the slab while it develops: relief finishes, Breakout's cut-out and the scan stand in front of the photo plane */
+    m.material.depthTest = false; m.userData.keepDepth = true; m.userData.order = 45; m.renderOrder = obj.top ? 65 : 45; ph.add(m);
     const dv = { c, g: c.getContext('2d'), tex, m, img, at: 0 }; paintDev(dv, 0, true); return dv; }
   function paintDev(dv, p, now) { const t = performance.now(); if (!now && t - dv.at < 80) return; dv.at = t; const { c, g, img } = dv, e = p * p * (3 - 2 * p);
     g.fillStyle = '#050404'; g.fillRect(0, 0, c.width, c.height); const iw = img && (img.naturalWidth || img.width), ih = img && (img.naturalHeight || img.height); if (iw) { const k = Math.max(c.width / iw, c.height / ih), w = iw * k, h = ih * k;

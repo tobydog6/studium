@@ -149,3 +149,12 @@ Risks and the plan for each:
 - Class feed, pop counts, trade history: need the server (Supabase) and show first name and initial only.
 - Slabs use the research packs' photos (real photographers' work): heavy alterations like Torn and taped are
   derivatives of their photos; fine for class use, but keep credits on the label.
+
+## Who Shot It and readability (30 Oct)
+Sam: students must be able to read the photo at least a little, because of Who Shot It. In a round the developing
+print covers the slab until the round ends, so players always guess from the plain photo, whatever the finish.
+The print now draws over everything on the slab (relief finishes, Breakout, the scan); before, relief stood in front
+of it. Any new finish or extra that stands proud of the photo must stay under the developer (order 45, no depth test).
+Outside the game, the hardest to read are Inside the scan (shows the scan, not the photo), Crystal etch, Struck coin,
+Terminal, Kaleidoscope, Tiny planet and Event horizon: fine as rare looks.
+Flashing: Thunderstorm's strike flicker was about 11 a second, now about 2. Keep every new flash under 3 a second.

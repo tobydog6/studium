@@ -539,12 +539,12 @@ export function install(S) {
   const LAUNCH_H = 2.4, CORD_MAX = 4.2;
   function launcherPose(L, x, z, side, cordLen, k) { const r = Math.hypot(x, z); L.g.position.set(x + 0.15 * side, hB(r) + LAUNCH_H * k, z); L.g.rotation.y = side > 0 ? 0 : Math.PI; L.g.scale.setScalar(0.62 * k); L.setCord(cordLen); }
   M.define('blades.ready', {
-    enter() { hideBar(); newRound(); ctx.canvas.style.cursor = 'grab'; B.aimDrag = null; B.shake = 0; B.stop = 0; B.slowT = 0; camTo(CX, CZ + R * 0.6, 10.5, 0, 36);
+    enter() { hideBar(); newRound(); ctx.canvas.style.cursor = 'grab'; B.aimDrag = null; B.shake = 0; B.stop = 0; B.slowT = 0; camTo(CX, CZ + R * 0.35, 9, 0, 30);   /* Sam: from behind your launcher, looking into the bowl, not at its back */
       tip.innerHTML = 'Drag the launcher (or A and D) to aim. Grab the ripcord and yank it out fast: the faster the pull, the better the rip.'; tip.classList.add('on'); hud.classList.add('on'); hudFrame(0, true);
       [B.myL, B.rvL].forEach(L => { if (L) L.dispose(); }); B.myL = makeLauncher(new THREE.Color().setHSL(dnaOf(B.slots[0]).hue, 0.8, 0.28)); B.rvL = makeLauncher(0xb3261e); stadium.add(B.myL.g, B.rvL.g);
       B.me.root.scale.setScalar(B.me.st.radius); B.lx = 0; B.pull = null; B.ripK = 1;
       const rs = B.rivalParts[0]; if (B.net) { const N = B.net; N.rd++; N.rip = null; if (N.theirRip && N.theirRip.rd < N.rd) N.theirRip = null; N.launched = false; }
-      banner(B.score[0] + B.score[1] ? 'Round ' + (B.roundN = (B.roundN || 1) + 1) : 'Ready, set', B.net ? esc(foeName()) + ': ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip' : 'Your rival: ' + esc((rs.photo && rs.photo.pack || 'Sample pack').replace(/\s*·.*$/, '')) + ' blade, ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip', 0); rimTo(tierCol(B.slots[0])); },
+      banner(B.score[0] + B.score[1] ? 'Round ' + (B.roundN = (B.roundN || 1) + 1) : 'Ready, set', B.net ? esc(foeName()) + ': ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip' : 'Your rival: ' + esc((rs.photo && rs.photo.pack || 'Sample pack').replace(/\s*·.*$/, '')) + ' blade, ' + BS.TIPS[BS.statsOf(B.rivalParts).tip].name.toLowerCase() + ' tip', 0); clearTimeout(banT); banT = setTimeout(hideBanner, 2200);   /* out of the ripper's way once you've read it */ rimTo(tierCol(B.slots[0])); },
     pointer(kind, e) {
       const P = B.pull, A = B.aimDrag;
       if (B.net && B.net.rip) return kind !== 'wheel';   /* ripped: waiting on the other player */
@@ -566,6 +566,7 @@ export function install(S) {
       /* the cord winds the blade up as it comes out */
       a.w = dir * (6 + (P ? P.len : 0) * 16); a.ang += a.w * dt; b.ang += b.w * dt; pose(B.me, a, dt); pose(B.rival, b, dt);
       launcherPose(B.myL, a.p.x, a.p.y, 1, P ? P.len : 0, 1); launcherPose(B.rvL, b.p.x, b.p.y, -1, 0, 1);
+      if (!(B.cine && B.cine.t > 0)) camTo(CX + a.p.x * 0.5, CZ + R * 0.35, 9, dt, 30);   /* the camera follows your aim */
       B.me.root.position.y = hB(Math.hypot(a.p.x, a.p.y)) + LAUNCH_H - 0.75; B.rival.root.position.y = hB(Math.hypot(b.p.x, b.p.y)) + LAUNCH_H - 0.75; },
   });
   /* how fast the cord came out over the last tenth of a second, in px per ms */
@@ -774,7 +775,7 @@ const BLADES_CSS = `
 .bl-meter.burst em{ background:linear-gradient(90deg, #7a160c, #ff5a3a) !important; box-shadow:0 0 8px rgba(255,80,50,.5); } .bl-meter.sp em{ background:linear-gradient(90deg, #2a4fc0, #8fd0ff) !important; } .bl-meter.sp.full em{ background:#fff !important; box-shadow:0 0 14px #9fd8ff; animation:blPulse .6s ease-in-out infinite alternate; } .bl-meter.sp.full span{ color:#fff; }
 @keyframes blPulse{ to{ filter:brightness(1.6); } }
 .bl-side.rv .bl-meter em{ background:linear-gradient(90deg, #8a2a1a, #ff8a6a 70%, #fff) !important; }
-#skBlBan{ position:fixed; left:50%; top:24%; transform:translate(-50%,-50%) scale(1.25); text-align:center; color:var(--text); opacity:0; pointer-events:none; transition:opacity .18s, transform .35s cubic-bezier(.2,1.4,.3,1); z-index:9; }
+#skBlBan{ position:fixed; left:50%; top:20%; transform:translate(-50%,-50%) scale(1.25); text-align:center; color:var(--text); opacity:0; pointer-events:none; transition:opacity .18s, transform .35s cubic-bezier(.2,1.4,.3,1); z-index:9; }
 #skBlBan::before{ content:''; position:absolute; left:50%; top:46%; width:140%; height:62%; transform:translate(-50%,-50%) skewX(-18deg); background:linear-gradient(90deg, transparent, rgba(0,0,0,.75) 18%, rgba(0,0,0,.75) 82%, transparent); border-top:2px solid rgba(255,216,137,.8); border-bottom:2px solid rgba(255,216,137,.8); z-index:-1; }
 #skBlBan.on{ opacity:1; transform:translate(-50%,-50%) scale(1); }
 #skBlBan b{ display:block; padding:0 28px; font:italic 900 clamp(32px, 6vw, 68px)/1.05 var(--f-ui); letter-spacing:.01em; text-transform:uppercase; transform:skewX(-8deg); background:linear-gradient(180deg, #fff 30%, #ffd889 60%, #d8922a); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 3px 0 rgba(0,0,0,.85)) drop-shadow(0 0 18px rgba(255,190,90,.45)); }

@@ -133,17 +133,20 @@
   // ---- the demo with a Google sign-in: progress saves to their account (Sync, <uid>/demo.json) and comes back next time
   function siDemoSignedIn(){ var w=lsWho(); return !!(w&&w.demo&&w.google&&typeof Sync!=="undefined"&&Sync.signedIn()); }
   function siDemoHasWork(){ return photos.length>0||!!(typeof Q!=="undefined"&&Q&&Q.quests&&Object.keys(Q.quests).some(function(k){ var q=Q.quests[k]; return q&&((q.stepDone&&q.stepDone.some(Boolean))||q.done); })); }
-  function siDemoResume(){ if(!siDemoSignedIn()||!siDemoHasWork()) return false;
-    $("signin").classList.add("hidden"); showHub(); if(typeof hubRender==="function") hubRender(); Sync.cloudRestore(); return true; }
+  /* signed in with work saved: the opening plays and drops you back into the Stump with everything where you left it
+     (Sam, 31 Oct: never the old home screen) */
+  function siDemoResume(restored){ if(!siDemoSignedIn()||!siDemoHasWork()) return false;
+    var s=$("signin"); s.classList.add("hidden"); s.classList.remove("busy"); if(typeof rfClose==="function") rfClose();
+    var go=function(){ if(typeof launchStart==="function") launchStart(); else showHub(); };
+    if(restored) go(); else Sync.cloudRestore().then(go, function(e){ console.warn("cloud restore", e); go(); }); return true; }
   function siDemoSignIn(){ if(typeof Sync==="undefined"||Sync.providers().indexOf("google")<0){ toast("Google sign-in isn't switched on here yet."); return; } Sync.signIn("google", "demo"); }
   /* back from Google into the demo: this computer's demo is set aside for theirs (from the cloud if it's newer), or a fresh one starts */
   function siDemoBack(u){ var s=$("signin");
     if(typeof sessionLoaded!=="undefined"&&!sessionLoaded){ setTimeout(function(){ siDemoBack(u); }, 100); return; }   /* the boot load finishes first, so it can't land on top of theirs */
     lsSetWho({role:"solo", name:u.name, demo:true, google:true}); wipeWorkspace(); if(typeof qLoad==="function") Q=qLoad();
     loadSession(function(){ var go=function(){ if(s) s.classList.add("hidden"); var first=u.name.split(" ")[0];
-        /* Sam: back to the launch page, signed in (its corner says so, its button carries on or starts fresh), not the old home screen */
-        if(SI_DEMO_ONLY&&typeof rfShow==="function"&&!RF.failed){ siShow(); siWho(); toast("Kia ora "+first+". You're signed in, so your progress saves to your Google account."); return; }
-        if(siDemoHasWork()){ showHub(); if(typeof hubRender==="function") hubRender(); toast("Kia ora "+first+". Your demo saves to your Google account now."); }
+        /* Sam, 31 Oct: straight into the opening, not the title page or the old home screen. With work saved it carries on from there */
+        if(siDemoHasWork()){ siDemoResume(true); toast("Kia ora "+first+". Welcome back, your work is where you left it."); }
         else { if(typeof saveSessionNow==="function") saveSessionNow(); siDone(); qDemoStart(); toast("Kia ora "+first+". Your progress saves to your Google account as you go."); } };   /* siDone first, as the launch button does: without it the app sat on the hidden sign-in screen, black */
       Sync.cloudRestore().then(go, function(e){ console.warn("cloud restore", e); go(); }); }); }   /* a failed restore still lands you somewhere, never stuck on Signing you in */
   // ---- back from Google (Sync read the token from the address bar). Students: their class if they've joined one, else

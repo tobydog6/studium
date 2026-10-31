@@ -9,8 +9,10 @@
     var BUCKET="studium-workbooks";
     function on(){ return !!(cfg&&cfg.url&&cfg.anonKey); }
     function providers(){ return on()?(cfg.providers||["google"]):[]; }
-    function keep(){ try{ if(session) sessionStorage.setItem("studium_sb", JSON.stringify(session)); else sessionStorage.removeItem("studium_sb"); }catch(e){} }
-    try{ session=JSON.parse(sessionStorage.getItem("studium_sb")||"null"); }catch(e){}
+    /* kept in localStorage, so the sign-in survives closing the tab or the browser (it was sessionStorage: gone every time).
+       Signing out clears it. The refresh token keeps it going past the hour */
+    function keep(){ try{ if(session) localStorage.setItem("studium_sb", JSON.stringify(session)); else localStorage.removeItem("studium_sb"); sessionStorage.removeItem("studium_sb"); }catch(e){} }
+    try{ session=JSON.parse(localStorage.getItem("studium_sb")||sessionStorage.getItem("studium_sb")||"null"); if(session) keep(); }catch(e){}
     // OAuth comes back with the token in the hash
     (function readHash(){ if(!on()) return; var h=location.hash||""; if(h.indexOf("access_token=")<0) return; var q={};
       h.slice(1).split("&").forEach(function(kv){ var p=kv.split("="); q[p[0]]=decodeURIComponent(p[1]||""); });
@@ -21,9 +23,10 @@
     function fresh(){ if(!session||!session.refresh_token||Date.now()<session.expires_at-60000) return Promise.resolve();
       if(refreshing) return refreshing;
       refreshing=fetch(cfg.url+"/auth/v1/token?grant_type=refresh_token",{method:"POST", headers:{apikey:cfg.anonKey, "Content-Type":"application/json"}, body:JSON.stringify({refresh_token:session.refresh_token})})
-        .then(function(r){ return r.ok?r.json():null; }).then(function(j){ refreshing=null;
+        .then(function(r){ return r.ok?r.json():(r.status>=400&&r.status<500?null:"later"); }).then(function(j){ refreshing=null;
+          if(j==="later") return;   /* the server hiccuped: keep the sign-in and try again next time */
           if(j&&j.access_token){ session={access_token:j.access_token, refresh_token:j.refresh_token, expires_at:Date.now()+(+j.expires_in||3600)*1000}; keep(); }
-          else { session=null; user=null; keep(); } },function(){ refreshing=null; });
+          else { session=null; user=null; keep(); } },function(){ refreshing=null; });   /* offline: keep the sign-in */
       return refreshing; }
     function req(path, opt){ opt=opt||{};
       return fresh().then(function(){ var h={apikey:cfg.anonKey, Authorization:"Bearer "+(session?session.access_token:cfg.anonKey)};

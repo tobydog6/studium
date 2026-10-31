@@ -7,6 +7,7 @@
 // Built with the face along +z and the top up +y, like a slab: the caller lays it flat or turns it face down.
 import * as THREE from 'three';
 import { mountFinish, dropFinish, clickFinish, topWalk } from './fxmount.js';
+import { sidesFx } from './fxsides.js';
 import { variantFx } from './fxvariants.js';
 
 export const PRINT = { border: 0.03, th: 0.03 };
@@ -87,11 +88,11 @@ export function makePrint(slab, S) {
   obj.update = (dt, pointer) => { obj.time += dt; if (pointer) obj.pointer.copy(pointer);
     if (obj.parts.band) { const u = obj.parts.band.material.uniforms; u.uTilt.value.copy(obj.tilt); u.uTime.value = obj.time; }
     if (obj.finish && obj.finish.mesh && obj.finish.def.update) try { obj.finish.def.update(obj.finish.mesh, { THREE, dt, time: obj.time, tilt: obj.tilt, pointer: obj.pointer, slab, obj }); } catch (e) { console.error(e); }
-    if (obj.glow > 0 && obj.parts.halo) animateGlow(obj, S); };
+    if (obj.glow > 0 && obj.parts.halo) animateGlow(obj, S); if (obj.sidesFx) obj.sidesFx.update(dt); };
   /* while inspected the print draws over everything, like an inspected slab */
   obj.setTop = on => { obj.top = on; topWalk(group, on); };
   obj.click = uv => clickFinish(obj, uv);
-  obj.dispose = () => { obj.disposed = true; dropFinish(obj); group.traverse(m => { if (m.isMesh) { m.geometry.dispose(); [].concat(m.material).forEach(mt => { ['map', 'emissiveMap', 'normalMap'].forEach(k => { if (mt[k] && mt[k] !== obj.parts.photoTex) mt[k].dispose(); }); mt.dispose(); }); } }); if (obj.parts.photoTex) obj.parts.photoTex.dispose(); if (group.parent) group.parent.remove(group); };
+  obj.dispose = () => { obj.disposed = true; dropFinish(obj); if (obj.sidesFx) { obj.sidesFx.dispose(); obj.sidesFx = null; } group.traverse(m => { if (m.isMesh) { m.geometry.dispose(); [].concat(m.material).forEach(mt => { ['map', 'emissiveMap', 'normalMap'].forEach(k => { if (mt[k] && mt[k] !== obj.parts.photoTex) mt[k].dispose(); }); mt.dispose(); }); } }); if (obj.parts.photoTex) obj.parts.photoTex.dispose(); if (group.parent) group.parent.remove(group); };
   return obj;
 }
 const GLOSS = { roughness: 0.4, clearcoat: 0.45, clearcoatRoughness: 0.2, envMapIntensity: 0.18 };   /* the room env map washed the photo out at full strength */
@@ -124,6 +125,7 @@ function build(obj, S, env) {
   /* the hover rim: a halo plane through the middle of the sheet, so only the part past the edges shows */
   const pad = 0.5, halo = new THREE.Mesh(new THREE.PlaneGeometry(obj.w + pad * 2, obj.h + pad * 2), new THREE.MeshBasicMaterial({ map: S.SM.tex(haloCanvas(obj.w, obj.h, pad)), color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
   halo.userData.order = 0; halo.userData.noParticles = true; halo.visible = obj.glow > 0; inner.add(halo); obj.parts.halo = halo;
+  try { obj.sidesFx = sidesFx(obj, S, 'print'); } catch (e) { console.error('back extra', e); }   /* a back extra (the edges and the case wait for grading) */
   obj.built = true;
   return applyFinish(obj, S, env, S.SL.finishOf(slab, S.testFinish ? S.testFinish() : null));
 }

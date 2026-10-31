@@ -11,6 +11,7 @@ import { mountFinish, dropFinish, clickFinish, topWalk } from './fxmount.js';
 import { variantFx } from './fxvariants.js';
 import { studioEnvs } from './fxkit.js';
 import { caseFx } from './fxcase.js';
+import { sidesFx, joinRigs } from './fxsides.js';
 
 let ENV = null;
 export function envMap(renderer) { if (!ENV) { const p = new THREE.PMREMGenerator(renderer); ENV = p.fromScene(new RoomEnvironment(), 0.04).texture; p.dispose(); } return ENV; }
@@ -205,8 +206,9 @@ function build(obj, S, env) {
   const acr = new THREE.Mesh(caseGeo, new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.06, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, ior: 1.49, envMap: caseEnv, envMapIntensity: clear ? 1.0 : 0.62, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
   acr.userData.order = 6; acr.userData.noParticles = true; inner.add(acr); obj.parts.acrylic = acr;
   const edge = new THREE.Mesh(caseGeo, new THREE.MeshPhysicalMaterial({ color: 0x000000, roughness: 0.06, metalness: 0, ior: 1.49, envMap: caseEnv, envMapIntensity: 0.35, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide })); edge.userData.order = 5; edge.userData.noParticles = true; inner.add(edge);
-  /* a case extra (dust, snow, sand, amber...) lives in the acrylic over everything else */
-  try { obj.caseFx = caseFx(obj, S); } catch (e) { console.error('case extra', e); obj.caseFx = null; }
+  /* the extras: a case extra (dust, snow, sand, amber...) in the acrylic over everything else, an edge on the case, the back */
+  let cf = null, sf = null; try { cf = caseFx(obj, S); } catch (e) { console.error('case extra', e); } try { sf = sidesFx(obj, S, 'slab'); } catch (e) { console.error('edge or back extra', e); }
+  obj.caseFx = joinRigs([cf, sf]);   /* the extras as one: held back and revealed together */
   obj.built = true; applyFinish(obj, S, env, finishOf(slab, S.testFinish ? S.testFinish() : null));
 }
 function applyFinish(obj, S, env, id) {

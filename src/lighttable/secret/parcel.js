@@ -217,8 +217,8 @@ export function install(S) {
           await T.wait(dur(0.45), TAG); snd('pop'); await T.tween({ dur: dur(0.3), ease: E.outCubic, tag: TAG, update: e => ov.draw(n, 1, true, 1 + 0.35 * (1 - e)) }); }
         else await T.tween({ dur: STEP, ease: E.linear, tag: TAG, update: (e, u) => ov.draw(i, 1 + 0.3 * Math.max(0, 1 - u * STEP / 0.18), false, 1) });
       }
-      delete slab.pending; if (S.SM.relabel) S.SM.relabel(obj); ov.draw(n, 1, true, 1); const xn = SL.extraNames(slab).filter(nm => obj.caseFx && nm.indexOf(SL.EXTRA[obj.caseFx.id].name) === 0);
-      S.toast(gradeLine(slab).trim() + (xn.length ? ' Inside the case: ' + xn[0] + '.' : ''));
+      delete slab.pending; if (S.SM.relabel) S.SM.relabel(obj); ov.draw(n, 1, true, 1); const xn = obj.caseFx ? obj.caseFx.ids.filter(i => SL.EXTRA[i] && SL.EXTRA[i].slot !== 'back').map(i => SL.EXTRA[i].name + (i === 'liquid' && (slab.x || {}).fish ? ' with a goldfish' : '')) : [];
+      S.toast(gradeLine(slab).trim() + (xn.length ? ' With ' + xn.join(' and ') + '.' : ''));
       if (obj.caseFx) { await T.wait(dur(0.6), TAG); obj.caseFx.reveal({ toast: false }); await T.wait(dur(1.4), TAG); } else obj.holdCase = false;   /* the case extra arrives after the grade */
       await T.wait(dur(0.5), TAG); ov.remove();
       /* a normal table slab from here: inspect, vault, the lot */

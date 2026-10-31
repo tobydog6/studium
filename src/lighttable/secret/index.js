@@ -221,7 +221,7 @@ export function installSecret(ctx) {
       if (pit && x > pit[0] - 1.2 && x < pit[2] + 1.2 && z > pit[1] - 1.2 && z < pit[3] + 1.2) { const sp = S.table.freeSpot(); x = sp.x; z = sp.z; S.table.place(slab, x, z, t.yaw); } else S.table.place(slab, x, z, t.yaw, { quiet: true }); }); },
   };
   /* a pull straight onto the table (the dev panel's Roll; loot.js lays its slab down the long way) */
-  S.rollToTable = function (o) { const xt = dev.opt('extraTest'); const slab = SL.roll({ graded: true, ...(xt && xt !== 'roll' ? { extras: { case: xt === 'fish' ? 'liquid' : xt, fish: xt === 'fish' } } : {}), ...(o || {}) }); store.addPull(slab); const sp = S.table.freeSpot(); const obj = S.table.place(slab, sp.x, sp.z, (Math.random() - 0.5) * 0.5, { drop: true }); hud();
+  S.rollToTable = function (o) { const xt = dev.opt('extraTest'), xe = xt === 'fish' ? 'liquid' : xt, xs = SL.EXTRA[xe]; const slab = SL.roll({ graded: true, ...(xs ? { extras: { [xs.slot]: xe, fish: xt === 'fish' } } : {}), ...(o || {}) }); store.addPull(slab); const sp = S.table.freeSpot(); const obj = S.table.place(slab, sp.x, sp.z, (Math.random() - 0.5) * 0.5, { drop: true }); hud();
     const t = SL.tierOf(slab); S.toast(t.name + (slab.graded ? ' · grade ' + slab.grade : ' · raw') + SL.lookNames(slab).map(n => ' · ' + n).join('') + ' · ' + slab.title); return obj; };
   /* a raw print goes away for grading: it dissolves off the near edge of the table and comes back as a parcel (parcel.js) */
   S.sendForGrading = async function (obj) {
@@ -308,7 +308,7 @@ export function installSecret(ctx) {
   const inspect = createInspect(S); S.inspect = inspect; S.fxTools = createTools(S);
   dev.on('finishTest', () => S.slabs.refreshFinish()); dev.on('speed', v => T.setTimeScale(+v || 1)); T.setTimeScale(+dev.opt('speed') || 1);
   dev.action('Roll a raw print', () => S.rollToTable({ graded: false }), 'Try'); dev.action('Roll a slab', () => S.rollToTable(), 'Try'); dev.action('Roll a Mythic', () => S.rollToTable({ tier: 'mythic' }), 'Try'); dev.action('Roll a variant', () => S.rollToTable({ variant: (V => V[Math.floor(Math.random() * V.length)].id)(SL.VARIANTS.filter(v => !v.legacy)) }), 'Try');
-  dev.define('extraTest', 'Test case extra (new rolls)', Object.assign({ roll: 'Roll as normal' }, Object.fromEntries(SL.EXTRAS.filter(x => x.slot === 'case').map(x => [x.id, x.name])), { fish: 'Liquid with a goldfish' }), 'roll');
+  dev.define('extraTest', 'Test extra (new rolls)', Object.assign({ roll: 'Roll as normal' }, Object.fromEntries(SL.EXTRAS.map(x => [x.id, x.name])), { fish: 'Liquid with a goldfish' }), 'roll');
   dev.action('Open vault', () => M.is('idle') && M.send('VAULT'), 'Try'); dev.action('Open loot', () => M.is('idle') && M.send('LOOT'), 'Try');
   /* grading wait per the dev panel: a real day, a minute, or none */
   S.gradingWait = () => ({ day: SL.GRADING_MS, minute: 60000, instant: 0 }[dev.opt('grading')] ?? SL.GRADING_MS);

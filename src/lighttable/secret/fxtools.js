@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { GLH, OUT, photoMaps } from './fxkit.js';
 import { depthFor } from './depth.js';
 import { depthKey } from './fxfinishes.js';
+import { extrasOf } from './slabs.js';
 
 const TOOL_FR = {
   loupe: `uniform sampler2D uMicro;
@@ -42,11 +43,21 @@ function microText(P, slab) { const W = 2048, H = Math.round(2048 / P.aspect), c
   const line = ('STUDIUM GRADED PHOTOGRAPH · CERT ' + certOf(slab) + ' · ' + (slab.graded ? 'GRADE ' + slab.grade : 'RAW PRINT') + ' · OTAUTAHI · ').repeat(14); for (let y = 12; y < H; y += 26) g.fillText(line, -((y * 7) % 300), y);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.NoColorSpace; return t; }
 /* hidden ink: red is pink ink, green is green ink */
+/* the Hidden message extra's notes (a slab keeps one, slabs.js x.note) */
+const NOTES = ['Kept this one for years. Look after it.', 'The light was perfect that morning. I nearly missed it.', 'Second try. The first one was blurry.', 'Cold hands, early start, worth it.',
+  'If you can read this, you look closer than most.', 'For whoever has this next: take more photos.', 'I almost threw this one out. Glad I didn\'t.', 'Shot it on the way home. Best accident all year.',
+  'Trade it if you like, but you\'ll miss it.', 'Somebody stood right here once. Now you have.'];
 function uvInk(P, slab) { const W = 1024, H = Math.round(1024 / P.aspect), c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
   g.strokeStyle = '#00ff00'; g.fillStyle = '#00ff00'; g.lineWidth = 5; const cx = W * 0.78, cy = H * 0.28, R = H * 0.16; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke(); g.beginPath(); g.arc(cx, cy, R * 0.8, 0, 7); g.stroke();
   g.font = '400 ' + Math.round(R * 1.1) + 'px Fraunces, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('S', cx, cy + R * 0.05);
   g.font = '600 ' + Math.round(R * 0.16) + 'px "Geist Mono", monospace'; const txt = 'AUTHENTIC · STUDIUM · GRADED · '; for (let i = 0; i < txt.length; i++) { const a = -Math.PI / 2 + i / txt.length * Math.PI * 2; g.save(); g.translate(cx + Math.cos(a) * R * 0.9, cy + Math.sin(a) * R * 0.9); g.rotate(a + Math.PI / 2); g.fillText(txt[i], 0, 0); g.restore(); }
-  g.fillStyle = '#ff0000'; g.font = 'italic 400 ' + Math.round(H * 0.07) + 'px Fraunces, Georgia, serif'; g.textAlign = 'left'; g.fillText('You found it. Look closer.', W * 0.06, H * 0.88);
+  const note = extrasOf(slab).back === 'uvnote' ? NOTES[(extrasOf(slab).note || 0) % NOTES.length] : null;
+  if (note) { /* the Hidden message extra: a handwritten note across the photo, a little underline under it */
+    g.fillStyle = '#ff0000'; g.strokeStyle = '#ff0000'; g.font = 'italic 400 ' + Math.round(H * 0.085) + 'px Fraunces, Georgia, serif'; g.textAlign = 'center'; const words = note.split(' '), lines = []; let ln = '';
+    words.forEach(w => { const t = ln ? ln + ' ' + w : w; if (g.measureText(t).width > W * 0.8 && ln) { lines.push(ln); ln = w; } else ln = t; }); lines.push(ln);
+    lines.forEach((l, i) => { g.save(); g.translate(W * 0.5, H * 0.52 + (i - (lines.length - 1) / 2) * H * 0.11); g.rotate(-0.05); g.fillText(l, 0, 0); g.restore(); });
+    g.lineWidth = 4; g.beginPath(); g.moveTo(W * 0.3, H * 0.52 + lines.length * H * 0.07); g.quadraticCurveTo(W * 0.5, H * 0.55 + lines.length * H * 0.07, W * 0.7, H * 0.5 + lines.length * H * 0.07); g.stroke(); }
+  else { g.fillStyle = '#ff0000'; g.font = 'italic 400 ' + Math.round(H * 0.07) + 'px Fraunces, Georgia, serif'; g.textAlign = 'left'; g.fillText('You found it. Look closer.', W * 0.06, H * 0.88); }
   g.font = '600 ' + Math.round(H * 0.035) + 'px "Geist Mono", monospace'; g.fillStyle = '#00ff00'; g.fillText('CERT ' + certOf(slab), W * 0.06, H * 0.1);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.NoColorSpace; return t; }
 

@@ -71,6 +71,7 @@ export function install(S) {
   function lift(id) { const o = S.table.list.find(x => x.slab && x.slab.id === id); if (o) S.table.remove(o, true); store.detach(id); }
   /* a slab that came from someone else: its own id here, and where it came from */
   function adopt(slab, from) { const d = D(), s = JSON.parse(JSON.stringify(slab)); if (store.pull(s.id)) s.id = 's' + Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+    if (!s.pulledAt) s.pulledAt = slab.ts; s.hist = (s.hist || []).concat(s.from ? [{ who: s.from, at: s.ts }] : []).slice(-12);   /* for the Trade history back */
     s.from = from; s.ts = Date.now(); delete s.pending; d.pulls.push(s); store.save(); file(s.id); return s; }
 
   /* ---------- online: my listings, the simulated collectors, the market's own stock ---------- */

@@ -48,7 +48,7 @@ export function caseFx(obj, S) {
   let hold = !!obj.holdCase, intro = hold ? -1 : 1; group.visible = !hold;
   const Q = new THREE.Quaternion(), lastP = new THREE.Vector3(), lastQ = new THREE.Quaternion(), V = new THREE.Vector3(), lastTilt = new THREE.Vector2(); let first = true;
   const size = new THREE.Vector2();
-  return { group, id,
+  return { group, id, slab, S,
     update(dt) { if (!(dt > 0)) return; dt = Math.min(dt, 0.05); ctx.t += dt;
       /* which way is down inside the case, and how hard it's being moved */
       obj.inner.updateWorldMatrix(true, false); obj.inner.getWorldQuaternion(Q); const qi = Q.clone().invert(); ctx.g.set(0, -1, 0).applyQuaternion(qi); ctx.gxy = Math.hypot(ctx.g.x, ctx.g.y);

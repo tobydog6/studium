@@ -230,7 +230,8 @@ export function install(S) {
     /* the rival's five, rolled from the packs: real slabs, but titled by plate only, so the label never names the artist */
     const d = store.get(), cert = d.certN;
     for (let i = 0; i < HAND; i++) { const a = pick(A), tier = SL.rollTier(Math.random()), s = SL.roll({ graded: true, pack: a.id, tier, finish: (SL.TIER[tier] || {}).finish });
-      s.id = 'who' + Date.now().toString(36) + i; s.title = 'Plate ' + String(s.photo.plate || 1).padStart(3, '0'); G.riv.push({ slab: s, obj: null, used: false }); }
+      s.id = 'who' + Date.now().toString(36) + i; s.title = 'Plate ' + String(s.photo.plate || 1).padStart(3, '0'); if (s.x && s.x.back === 'twoface') { s.x.back = 'contour'; delete s.x.photo2; }   /* another of the artist's photos on the back would give it away */
+      G.riv.push({ slab: s, obj: null, used: false }); }
     d.certN = cert; paintBtn();
     const go = () => M.go('who.open');
     if (M.is('under')) go(); else if (M.is('idle') && S.under) { S.under.flip('under'); let n = 0; const w = setInterval(() => { if (M.is('under')) { clearInterval(w); go(); } else if (++n > 150 || !M.is('flipping') && n > 20) { clearInterval(w); G = null; paintBtn(); S.toast('Turn the table over to the dark side, then play again.'); } }, 150); }

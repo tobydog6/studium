@@ -70,7 +70,7 @@ export function variantFits(v, f) { return !v || !(NO_VARIANT[v] || []).includes
    (mythic pulls a little more often); every extra and the variant cost points (1 common, 2 rare, 3 very rare) and a
    pull holds 4 at most, so past that the cheaper ones are dropped and the rarest kept. Case extras live inside the
    acrylic, so they only show once the pull is graded (a raw print hints at one in its hover glow); fxcase.js draws them. */
-export const EXTRA_SLOTS = { case: { chance: 0.10, name: 'Case' } };
+export const EXTRA_SLOTS = { case: { chance: 0.10, name: 'Case' }, edge: { chance: 0.06, name: 'Edge' }, back: { chance: 0.06, name: 'Back' } };
 export const EXTRAS = [
   { id: 'dust',      slot: 'case', name: 'Floating dust',    pts: 1, w: 18, desc: 'Fine motes hang in the acrylic and catch the light.' },
   { id: 'bubble',    slot: 'case', name: 'Bubble trapped',   pts: 1, w: 16, desc: 'An air bubble in the acrylic that slides to the top.' },
@@ -83,12 +83,21 @@ export const EXTRAS = [
   { id: 'terrarium', slot: 'case', name: 'Terrarium',        pts: 2, w: 6,  desc: 'A little moss garden and a fern along the bottom of the case.' },
   { id: 'amber',     slot: 'case', name: 'Amber',            pts: 3, w: 5,  desc: 'Set in golden resin, with something tiny caught in it.' },
   { id: 'crystals',  slot: 'case', name: 'Growing crystals', pts: 3, w: 4,  desc: 'Crystals growing from the corners, a little more each day you own it.' },
+  /* the edge of the case (graded only); fxsides.js */
+  { id: 'glowedge',  slot: 'edge', name: 'Glowing edge',     pts: 1, w: 10, desc: 'Light lives in the edges of the acrylic, in the finish\'s colour.' },
+  { id: 'prismedge', slot: 'edge', name: 'Prism edges',      pts: 1, w: 8,  desc: 'The edges split the light and throw a little rainbow on the table.' },
+  { id: 'goldleaf',  slot: 'edge', name: 'Gold-leaf edges',  pts: 2, w: 6,  desc: 'Gilded edges, like an old book.' },
+  /* the back of the card (raw prints too); fxsides.js, and the UV torch in fxtools.js */
+  { id: 'contour',   slot: 'back', name: 'Contour back',     pts: 1, w: 10, desc: 'The photo\'s depth drawn on the back as contour lines.' },
+  { id: 'uvnote',    slot: 'back', name: 'Hidden message',   pts: 1, w: 8,  desc: 'A note in UV ink. Only the UV torch shows it.' },
+  { id: 'provenance', slot: 'back', name: 'Trade history',   pts: 1, w: 8,  desc: 'Every owner etched into the back.' },
+  { id: 'twoface',   slot: 'back', name: 'Two-faced',        pts: 3, w: 4,  desc: 'A different photograph on the back.' },
 ];
 export const EXTRA = Object.fromEntries(EXTRAS.map(x => [x.id, x]));
 const VARIANT_PTS = { breakout: 2 }, MAX_PTS = 4;
 /* finishes an extra doesn't suit: the thick blocks and the coin have no room in the case, and no snow on snow */
 const NO_EXTRA = { case: ['crystal', 'scan3d', 'coin'], globe: ['snow'], liquid: ['sunken', 'polaroid', 'tray', 'window'], sand: ['polaroid', 'tray'], terrarium: [], amber: ['window'] };
-const NO_EXTRA_VARIANT = { terrarium: ['breakout'], flower: ['breakout'] };
+const NO_EXTRA_VARIANT = { terrarium: ['breakout'], flower: ['breakout'], contour: ['clear'], provenance: ['clear'], twoface: ['clear'] };   /* a Clear slab has no back to print on */
 export function extraFits(id, finish, variant) { const x = EXTRA[id]; if (!x) return false; return !(NO_EXTRA[x.slot] || []).includes(finish) && !(NO_EXTRA[id] || []).includes(finish) && !(NO_EXTRA_VARIANT[id] || []).includes(variant); }
 function pickExtra(r, slot, finish, variant) { const L = EXTRAS.filter(x => x.slot === slot && extraFits(x.id, finish, variant)), tot = L.reduce((a, x) => a + x.w, 0); if (!tot) return null;
   let v = r() * tot; for (const x of L) { v -= x.w; if (v <= 0) return x.id; } return L[L.length - 1].id; }
@@ -102,6 +111,10 @@ export function rollExtras(r, slab, force) {
     while (pts() > MAX_PTS) { const k = Object.keys(x).sort((a, b) => EXTRA[x[a]].pts - EXTRA[x[b]].pts)[0]; delete x[k]; } }
   if (x.case === 'liquid' && (force ? force.fish : r() < 0.25)) x.fish = true;   /* a goldfish lives in some of the liquid ones */
   if (x.case === 'tinted') x.tint = Math.floor(r() * 4);
+  if (x.back === 'uvnote') x.note = Math.floor(r() * 64);
+  if (x.back === 'twoface') { /* another photo from the same pack; a painted stand-in has no other side, so it draws its depth instead */
+    let p2 = null; for (let i = 0; i < 6 && slab.photo && !slab.photo.painted; i++) { const p = pickPhoto(r, slab.photo.packId); if (p.url && p.url !== slab.photo.url) { p2 = p; break; } }
+    if (p2) x.photo2 = p2; else x.back = 'contour'; }
   return Object.keys(x).length ? x : null;
 }
 /* a slab's extras, with the old Liquid-filled variant read as the case extra it is now */

@@ -105,6 +105,13 @@ export const CASE_GLOWS = {
   terrarium: { color: 0x7fd07a, rate: 5,  vy: 0.18,  life: 2.2, size: 0.36, dots: [0x8fe07a, 0xc8f0a0] },
   amber:     { color: 0xffa030, rate: 6,  vy: 0.1,   life: 2.0, size: 0.3,  dots: [0xffc060, 0xffe0a0] },
   crystals:  { color: 0xc8a8ff, rate: 10, vy: 0,     life: 0.9, size: 0.34, dots: [0xe0d0ff, 0xffffff, 0xffd8f0] },
+  glowedge:  { color: 0xffd08a, rate: 6,  vy: 0.1,   life: 1.2, size: 0.3,  dots: [0xffe0a0, 0xffffff] },
+  prismedge: { color: 0xffffff, rate: 10, vy: 0,     life: 0.8, size: 0.3,  dots: [0xff6a8a, 0xffd04a, 0x6aff9a, 0x6ac8ff, 0xb46aff] },
+  goldleaf:  { color: 0xe0a83a, rate: 8,  vy: -0.15, life: 1.6, size: 0.32, dots: [0xffd070, 0xe0a83a] },
+  contour:   { color: 0xd8b25a, rate: 0,  vy: 0,     life: 1,   size: 0.2,  dots: [0xd8b25a] },
+  uvnote:    { color: 0xb46aff, rate: 4,  vy: 0.05,  life: 1.4, size: 0.3,  dots: [0xc890ff, 0x7affb0] },
+  provenance: { color: 0xb8bcc8, rate: 0, vy: 0,     life: 1,   size: 0.2,  dots: [0xffffff] },
+  twoface:   { color: 0xffffff, rate: 5,  vy: 0,     life: 1.0, size: 0.3,  dots: [0xffffff, 0xffe8c0] },
 };
 export const VARIANT_GLOWS = {
   negative: { color: 0x7fd0ff, color2: 0xdcf3ff, kind: 'cold',   flicker: 0 },
@@ -394,7 +401,7 @@ export function install(S) {
       else if (fin === 'foil') add('foil'); else if (fin === 'etch') add('etch'); else if (fin === 'prism') add('prism', { normal: true }); else add('soft', { color: g.color, wide: fin === 'gold' }).userData.gain = fin === 'matte' ? 0.5 : 0.8;
       if (!v && (fin === 'glitter' || fin === 'gold')) { cl = cloud(fin === 'gold' ? 120 : 160, fin === 'gold' ? { ember: true, sway: 0.04, grav: 0 } : { grav: 0 }); cl.u.uGrav.value.set(0, 0, fin === 'gold' ? 0.08 : 0); fx.add(cl); }
       /* a case extra hints in the glow, even on a raw print where the case isn't there yet: its colour, and what drifts in it */
-      const ce = CASE_GLOWS[S.SL.extrasOf(obj.slab || slabOf(obj) || {}).case], ccl = ce ? cloud(90, { grav: 0 }) : null; let cacc = 0;
+      const xx = S.SL.extrasOf(obj.slab || slabOf(obj) || {}), ce = CASE_GLOWS[xx.case] || CASE_GLOWS[xx.edge] || CASE_GLOWS[xx.back], ccl = ce ? cloud(90, { grav: 0 }) : null; let cacc = 0;
       if (ce) { if (ce.caustic) add('caustic'); else add('soft', { color: ce.color }).userData.gain = 0.45; if (ccl) fx.add(ccl); }
       let acc = 0; const rig = { group: fx, glow: g, set(a) { want = Math.max(0, Math.min(1, a)); },
         update(dt) { obj.group.updateMatrixWorld(true); obj.group.getWorldPosition(fx.position); obj.group.getWorldQuaternion(fx.quaternion); fx.scale.setScalar(obj.group.getWorldScale(new THREE.Vector3()).x || 1); t += dt; cur += (want - cur) * (1 - Math.exp(-dt * 7));

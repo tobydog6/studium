@@ -168,3 +168,10 @@ Flashing: Thunderstorm's strike flicker was about 11 a second, now about 2. Keep
   (holo.js CASE_GLOWS). Back from grading, the extra arrives after the grade count (parcel.js → caseFx.reveal());
   graded at the pull, it arrives just after the chime (reveals.js settle).
 - Test: `node tests/fx-shots.mjs --extras [--finish etch]`.
+- Batch 3, edges and backs (`fxsides.js`, 31 Oct): slots edge (6%, graded only) and back (6%, raw prints too).
+  Edges: Glowing edge (the finish's glow colour in the acrylic's edges), Prism edges (rainbow edges, spectrum streaks
+  on the table that go while it's in the hand), Gold-leaf edges (a cracked gold-leaf frame). Backs: Contour back (the
+  depth map as gold contour lines), Trade history (owners etched; market adopt() keeps s.hist and s.pulledAt),
+  Two-faced (another photo from the same pack, rolled as x.photo2), Hidden message (a note in UV ink on the front,
+  fxtools.js NOTES). Back extras clash with the Clear variant (no back). Case, edge and back rigs are joined as
+  obj.caseFx (joinRigs) so they hold and arrive together; the parcel's grade toast names what arrived.

@@ -132,7 +132,7 @@
     if(a==="teacher"){ return openTeacher("plan"); } }
   // ---- the demo with a Google sign-in: progress saves to their account (Sync, <uid>/demo.json) and comes back next time
   function siDemoSignedIn(){ var w=lsWho(); return !!(w&&w.demo&&w.google&&typeof Sync!=="undefined"&&Sync.signedIn()); }
-  function siDemoHasWork(){ return photos.length>0||!!(typeof Q!=="undefined"&&Q&&Q.quests&&Object.keys(Q.quests).some(function(k){ var q=Q.quests[k]; return q&&((q.stepDone&&q.stepDone.some(Boolean))||q.done); })); }
+  function siDemoHasWork(){ return photos.length>0||!!(typeof Q!=="undefined"&&Q&&Q.quests&&Object.keys(Q.quests).some(function(k){ var q=Q.quests[k]; return q&&((q.stepDone&&Object.keys(q.stepDone).some(function(i){ return !!q.stepDone[i]; }))||q.done); })); }
   /* signed in with work saved: the opening plays and drops you back into the Stump with everything where you left it
      (Sam, 31 Oct: never the old home screen) */
   function siDemoResume(restored){ if(!siDemoSignedIn()||!siDemoHasWork()) return false;

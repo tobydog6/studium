@@ -81,7 +81,8 @@
   function rfAcct(e){ var a=e.querySelector(".rf-acct"), on=typeof Sync!=="undefined"&&Sync.providers().indexOf("google")>=0, inn=typeof siDemoSignedIn==="function"&&siDemoSignedIn(), w=lsWho()||{};
     var nm=String(w.name||"").trim().split(/\s+/), short=nm[0]?nm[0]+(nm.length>1?" "+nm[nm.length-1].charAt(0)+".":""):"You";
     a.innerHTML=!on?"":inn?'<span>'+short.replace(/[<>&"]/g,"")+' · saving to Google</span><button type="button" data-rf="out">Sign out</button>':'<button type="button" data-rf="in">Sign in with Google to save your progress</button>';
-    var carry=inn&&typeof siDemoHasWork==="function"&&siDemoHasWork(); e.querySelectorAll(".rf-go .t").forEach(function(t){ t.textContent=carry?"Carry on":"Launch the demo"; }); }
+    /* Sam, 31 Oct: signed in, the button just says Continue (no running time); it carries on your work, or starts you off if there's none yet */
+    e.querySelectorAll(".rf-go .t").forEach(function(t){ t.textContent=inn?"Continue":"Launch the demo"; }); e.querySelectorAll(".rf-go .s").forEach(function(t){ t.style.display=inn?"none":""; }); }
   function rfShow(){ if(RF.on) return; RF.on=true; RF.going=false; RF.idle=true; RF.f=RF.ft=0.9; RF.over=null; RF.last=0;
     var e=rfEl(); RF.el=e; e.className="on"+(typeof laSeen==="function"&&laSeen()?" been":"");   /* START FRESH only shows once there's something to forget */ document.body.classList.add("rackin"); rfAcct(e);
     ["hub","landing","studio","punctum","signin","teacher","hud"].forEach(function(k){ try{ hubHide(k); }catch(x){} });

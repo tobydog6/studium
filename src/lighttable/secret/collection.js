@@ -52,7 +52,7 @@ export function install(S) {
       if (!n) return '<div class="cl-card orig"><div class="cl-ph"><img src="' + esc(st.url) + '" alt="" loading="lazy"></div><div class="cl-meta"><b>Plate ' + String(st.plate).padStart(3, '0') + '</b><span>Not collected</span></div></div>';
       const i = Math.min(U.at[st.key] || 0, n - 1), s = st.copies[i], t = SL.tierOf(s), off = opts.can && !opts.can(s) || opts.used && opts.used.has(s.id);
       return '<div class="cl-card' + (off ? ' off' : '') + (opts.pick ? ' pk' : '') + '" style="--tc:' + t.color + '" data-cl="card" data-id="' + esc(s.id) + '">' + (n > 1 ? '<div class="cl-behind" style="--n:' + Math.min(3, n - 1) + '"></div>' : '')
-        + '<div class="cl-ph"><img src="' + esc(thumb(s)) + '" alt="" loading="lazy"></div><div class="cl-meta"><b>' + esc(t.name) + '</b><span>' + (s.graded ? 'Grade ' + s.grade : 'Raw') + (s.variant ? ' · ' + esc((SL.VARIANT[s.variant] || {}).name || '') : '') + '</span></div>'
+        + '<div class="cl-ph"><img src="' + esc(thumb(s)) + '" alt="" loading="lazy"></div><div class="cl-meta"><b>' + esc(t.name) + '</b><span>' + (s.graded ? 'Grade ' + s.grade : 'Raw') + SL.lookNames(s).map(n => ' · ' + esc(n)).join('') + '</span></div>'
         + (n > 1 ? '<div class="cl-dup"><button type="button" data-cl="prev" data-k="' + esc(st.key) + '" aria-label="The copy in front">‹</button><span>' + (i + 1) + ' of ' + n + '</span><button type="button" data-cl="next" data-k="' + esc(st.key) + '" aria-label="The copy behind">›</button></div>' : '') + '</div>'; }
     host.addEventListener('click', e => { const b = e.target.closest('[data-cl]'); if (!b) return; const a = b.dataset.cl;
       if (a === 'tab') { U.tab = b.dataset.id; render(); host.scrollTop = 0; return; }

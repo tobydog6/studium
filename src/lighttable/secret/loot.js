@@ -26,7 +26,7 @@ const LAND = [[18.9, -8.3], [18.9, -10.7], [18.9, -9.5]];  /* the print lands be
 export function install(S) {
   S.dev.define('odds', 'Odds', { normal: 'As designed', lucky: 'Lucky (for testing)' }, 'lucky');
   const lucky = () => S.dev.opt('odds') === 'lucky', BIG = ['rare', 'epic', 'legendary', 'mythic'];
-  const rollFor = o => S.SL.roll(lucky() && Math.random() < 0.8 ? { ...o, tier: BIG[Math.floor(Math.random() * BIG.length)], variant: Math.random() < 0.35 ? S.SL.VARIANTS[Math.floor(Math.random() * S.SL.VARIANTS.length)].id : undefined } : o);
+  const rollFor = o => S.SL.roll(lucky() && Math.random() < 0.8 ? { ...o, tier: BIG[Math.floor(Math.random() * BIG.length)], variant: Math.random() < 0.35 ? (V => V[Math.floor(Math.random() * V.length)].id)(S.SL.VARIANTS.filter(v => !v.legacy)) : undefined } : o);
   const { T, M, P, store } = S, E = T.E, ctx = S.ctx;
   const ENV = S.SM.envMap(S.renderer);
   const stdM = (c, r, m, o) => new THREE.MeshStandardMaterial({ color: c, roughness: r ?? 0.5, metalness: m ?? 0, envMap: ENV, envMapIntensity: m > 0.3 ? 1.2 : 0.35, ...(o || {}) });

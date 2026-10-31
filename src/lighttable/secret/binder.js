@@ -30,15 +30,19 @@ let built = null;
 export function binderMesh(S) { if (!built) built = build(S); if (!built.active()) built.resetClosed(); return built.root; }
 
 export function install(S) {
+  /* Select: while a game is choosing from the binder, one click picks a slab without looking at it big (Sam) */
+  const quick = document.createElement('button'); quick.type = 'button'; quick.id = 'skQuick'; quick.hidden = true; quick.innerHTML = '<i></i>Select'; quick.title = 'Click slabs to choose them straight away'; document.body.appendChild(quick);
+  quick.addEventListener('pointerdown', e => e.stopPropagation()); quick.addEventListener('click', () => { if (b) { b.quick = !b.quick; S.sfx('detent'); S.ctx.hint(b.quick ? 'Select is on: click a slab to choose it.' : (b.pick && b.pick.hint) || null); } });
+  { const st = document.createElement('style'); st.textContent = '#skQuick{ position:fixed; left:50%; bottom:calc(84px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); z-index:31; display:flex; align-items:center; gap:10px; height:38px; padding:0 18px; border:1px solid rgba(244,241,234,.25); border-radius:999px; background:rgba(14,13,12,.88); color:var(--text); font:600 11px/1 var(--f-mono); letter-spacing:.16em; text-transform:uppercase; cursor:pointer; } #skQuick[hidden]{ display:none; } #skQuick i{ width:10px; height:10px; border-radius:50%; border:1.5px solid currentColor; } #skQuick.on{ border-color:var(--accent); color:var(--accent); } #skQuick.on i{ background:currentColor; }'; document.head.appendChild(st); }
   const b = binderMesh(S) && built, M = S.M, T = S.T;
-  b.install(S);
+  b.install(S); b.quickBtn = quick;
   S.binder = {
     mesh: () => binderMesh(S),
     open() { if (M.is('idle')) return M.go('binder.open'); if (M.is('vault') && !M.is('vault.binder')) return M.go('vault.binder'); return null; },
     close() { if (b.active()) M.send('CLOSE'); },
     /* a game's chooser: pages of the ids given; choose(slab, worldPos) → true for more; the binder closes into ret */
     pick(o) { const ids = (o.ids || []).slice(), pages = []; while (ids.length) pages.push(ids.splice(0, 9).concat(new Array(9).fill(null)).slice(0, 9));
-      b.pick = { pages, choose: o.choose, ret: o.ret, hint: o.hint || '', label: o.label, hold: o.hold || null, tabs: o.tabs || null }; return M.go('binder.open'); },
+      b.quick = false; b.pick = { pages, choose: o.choose, ret: o.ret, hint: o.hint || '', label: o.label, hold: o.hold || null, tabs: o.tabs || null }; return M.go('binder.open'); },
     turn(dir) { return b.turn(dir || 1); },
     spread() { return b.spread; },
     pockets() { return b.allPockets(); },
@@ -224,8 +228,8 @@ function build(S) {
       await T.tween({ dur: 0.7, ease: T.E.inOutCubic, tag: 'binder', update: e => { spineG.rotation.z = s0 * (1 - e); coverG.rotation.z = c0 * (1 - e); } }); b.busy = false; },
     /* from above and in front, the open spread filling the view; wide pulls back a touch so a slab laid in front shows too */
     frameCam(wide) { if (b.pick && b.pick.hold) { S.cam.set(b.pick.hold.cam); return; } S.cam.set({ pitch: 58 }); if (wide) S.cam.set({ tx: B.x + AX + 0.6, ty: 0, tz: B.z + 1.6, dT: S.cam.fit(11.4, 9.2) }); else S.cam.set({ tx: B.x + AX + 0.4, ty: 0, tz: B.z + 0.3, dT: S.cam.fit(10.8, 6.2) }); },
-    showSpread() { b.busy = false; b.loadSpread(); S.ctx.hint(b.pick ? b.pick.hint : HINT); },
-    leave(next) { if (/^(vault\.binder|binder)(\.|$)/.test(next)) return; S.dropTargets.binder = null; b.pick = null; root.position.set(B.x, 0, B.z); root.rotation.set(0, 0, 0); tabsG.visible = false; b.gen++; T.cancelAll('binder'); b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; b.busy = false; b.mode = null;
+    showSpread() { b.busy = false; b.loadSpread(); S.ctx.hint(b.pick ? (b.quick ? 'Select is on: click a slab to choose it.' : b.pick.hint) : HINT); },
+    leave(next) { if (/^(vault\.binder|binder)(\.|$)/.test(next)) return; S.dropTargets.binder = null; b.pick = null; b.quick = false; if (b.quickBtn) b.quickBtn.hidden = true; root.position.set(B.x, 0, B.z); root.rotation.set(0, 0, 0); tabsG.visible = false; b.gen++; T.cancelAll('binder'); b.setHot(null); b.pending = null; S.ctx.hint(null); b.clearPages(); leaf.visible = false; b.busy = false; b.mode = null;
       if (b.pushed) { S.cam.pop(); b.pushed = false; }
       if (/^vault\./.test(next)) { spineG.rotation.z = 0; coverG.rotation.z = 0; if (next === 'vault.closing') root.visible = false; } else { b.resetClosed(); root.visible = !!(S.under && S.under.on); } },
     /* ---------- pages ---------- */
@@ -301,6 +305,7 @@ function build(S) {
     },
     key(e) { if (!b.active() || b.busy) return false; if (e.key === 'ArrowRight' || e.key === 'PageDown') { b.turn(1); return true; } if (e.key === 'ArrowLeft' || e.key === 'PageUp') { b.turn(-1); return true; } return false; },
     frame(dt) {
+      const q = b.quickBtn; if (q) { q.hidden = !(b.active() && b.pick && S.M.is('binder.open')); q.classList.toggle('on', !!b.quick); }
       if (!b.active()) return; const t = T.time();
       b.allPockets().forEach(pk => { const m = pk.acr.material, isHot = b.hot === pk.group, isPend = b.pending && b.pending.page === pk.page && b.pending.slot === pk.slot;
         const want = isPend ? 0.5 + 0.2 * Math.sin(t * 6) : isHot ? 0.35 : 0, op = isPend || isHot ? 0.42 : 0.2;
@@ -313,9 +318,12 @@ function build(S) {
       if (!pk.obj) { S.toast('An empty pocket. Click a slab, then Move it, to put one here.'); return; }
       b.inspectPocket(pk);
     },
-    /* pick mode: look closer, then choose it; a chosen slab leaves its pocket (the game takes it from there) */
+    /* pick mode: look closer, then choose it; a chosen slab leaves its pocket (the game takes it from there). With Select
+       on (Sam), a click chooses it straight away, without the close look. */
     async pickPocket(pk) {
-      const obj = pk.obj, g = obj.group, gen = b.gen, P = b.pick; b.setHot(null); S.sfx('detent'); S.ctx.hint(null);
+      const obj = pk.obj, g = obj.group, gen = b.gen, P = b.pick; b.setHot(null); S.sfx('detent');
+      if (b.quick) { pk.taken = true; g.updateMatrixWorld(true); const at = g.getWorldPosition(new THREE.Vector3()); g.visible = false; const more = P.choose(obj.slab, at); if (!more && S.M.is('binder.open')) S.M.go('binder.closing'); return; }
+      S.ctx.hint(null);
       T.to(g.scale, { x: 1, y: 1, z: 1 }, { dur: 0.5, ease: T.E.outCubic, tag: 'binder' });
       const r = await S.inspect.open(obj, { actions: [{ id: 'back', label: 'Put back' }, { id: 'choose', label: P.label || 'Choose this one', primary: true }], hint: 'Drag to turn it, scroll to zoom.' });
       if (b.gen !== gen || pk.obj !== obj || b.pick !== P) return;

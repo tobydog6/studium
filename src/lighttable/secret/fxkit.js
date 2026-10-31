@@ -405,7 +405,7 @@ Object.assign(FR, {
   aero: `void main(){ vec3 p=texture2D(uTex,vUv).rgb; float green=clamp((p.g-max(p.r,p.b))*4.0,0.0,1.0); float ir=clamp(p.g*1.25+green*0.9,0.0,1.0);
     vec3 c=vec3(ir*1.05,p.r*0.9,p.g*0.8+p.b*0.2); float l=luma(c); c=mix(vec3(l),c,1.35+0.2*uK); c=(c-0.5)*1.1+0.52; gl_FragColor=vec4(clamp(c,0.0,1.0),1.0);`,
   storm: `void main(){ vec2 A=vec2(uAsp,1.0); vec3 p=texture2D(uTex,vUv).rgb; float d=Dp(vUv); vec3 n=nrm(vUv,0.35);
-    float ph=fract(uT*0.13); float f=step(ph,0.07)*(0.55+0.45*sin(ph*520.0))+step(0.12,ph)*step(ph,0.135)*0.5; f*=min(uK,2.0); float bx=0.25+0.5*h1(vec2(floor(uT*0.13),2.0));
+    float ph=fract(uT*0.13); float f=step(ph,0.07)*(0.55+0.45*sin(ph*110.0))+step(0.12,ph)*step(ph,0.135)*0.5; f*=min(uK,2.0); float bx=0.25+0.5*h1(vec2(floor(uT*0.13),2.0));
     vec3 L=normalize(vec3(bx-0.5,1.0,0.35)); float h0=d*0.25; float sh=1.0; for(int i=1;i<=24;i++){ float s=float(i)*0.008; vec2 q=vUv+normalize(L.xy)*vec2(1.0/uAsp,1.0)*s; if(q.y>1.0) break; if(Dp(q)*0.25>h0+s*L.z/length(L.xy)+0.003) sh=0.25; }
     vec3 night=p*vec3(0.06,0.07,0.11); vec3 lit=p*(0.35+1.6*max(dot(n,L),0.0)*sh)*vec3(0.9,0.95,1.1); vec3 c=mix(night,lit,clamp(f,0.0,1.0));
     float sky=smoothstep(0.3,0.12,d)*smoothstep(0.4,0.7,vUv.y); float bxp=bx+(fbm(vec2(vUv.y*6.0,floor(uT*0.13)))-0.5)*0.16+(vnoise(vec2(vUv.y*40.0,floor(uT*0.13)))-0.5)*0.03;

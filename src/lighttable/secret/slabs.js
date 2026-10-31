@@ -25,7 +25,7 @@ export const VARIANTS = [
   { id: 'clear',    name: 'Clear',    desc: 'Printed on acrylic, so the light comes straight through.' },
   { id: 'stamped',  name: 'Stamped',  desc: 'A numbered foil stamp in the corner, one of only 50.' },
   { id: 'breakout', name: 'Breakout', desc: 'The subject climbs out of the photo and over its mount.' },
-  { id: 'liquid',   name: 'Liquid-filled', desc: 'The case is half full of oil and gold glitter that sloshes as you move it.' },
+  { id: 'liquid',   name: 'Liquid-filled', desc: 'The case is half full of oil and gold glitter that sloshes as you move it.', legacy: true },   /* now a case extra; kept so old pulls still name it */
 ];
 export const VARIANT = Object.fromEntries(VARIANTS.map(v => [v.id, v]));
 /* the first six are the tier finishes; the rest are test finishes for the dev panel (holo.js builds them) */
@@ -64,12 +64,58 @@ export const SEALED = new Set(['crystal', 'window', 'coin', 'scan3d']);
 const NO_VARIANT = { breakout: ['crystal', 'window', 'coin', 'scan3d', 'planet', 'droste', 'kaleido', 'polaroid', 'tray', 'burn', 'terminal', 'camcorder', 'lensball', 'blackhole'],
   liquid: ['crystal', 'window', 'coin', 'scan3d', 'polaroid', 'tray'], full: ['coin', 'scan3d', 'crystal', 'polaroid'], misprint: ['coin', 'scan3d', 'crystal'], negative: ['coin', 'scan3d'], clear: ['coin', 'scan3d', 'crystal', 'window'] };
 export function variantFits(v, f) { return !v || !(NO_VARIANT[v] || []).includes(f); }
+
+/* ---------- extras: pieces that stack on top of the finish and the variant (Sam: "a gold card that also has a cracked
+   case", docs/slab-extras.md). Each lives in a slot and a pull gets at most one per slot. A slot rolls on its own
+   (mythic pulls a little more often); every extra and the variant cost points (1 common, 2 rare, 3 very rare) and a
+   pull holds 4 at most, so past that the cheaper ones are dropped and the rarest kept. Case extras live inside the
+   acrylic, so they only show once the pull is graded (a raw print hints at one in its hover glow); fxcase.js draws them. */
+export const EXTRA_SLOTS = { case: { chance: 0.10, name: 'Case' } };
+export const EXTRAS = [
+  { id: 'dust',      slot: 'case', name: 'Floating dust',    pts: 1, w: 18, desc: 'Fine motes hang in the acrylic and catch the light.' },
+  { id: 'bubble',    slot: 'case', name: 'Bubble trapped',   pts: 1, w: 16, desc: 'An air bubble in the acrylic that slides to the top.' },
+  { id: 'tinted',    slot: 'case', name: 'Tinted case',      pts: 1, w: 16, desc: 'Coloured acrylic: smoke, amber, ice or rose.' },
+  { id: 'flower',    slot: 'case', name: 'Pressed flower',   pts: 1, w: 12, desc: 'A pressed flower or fern sealed in beside the photo.' },
+  { id: 'cracked',   slot: 'case', name: 'Cracked case',     pts: 2, w: 10, desc: 'A hairline crack through the acrylic with a rainbow sheen.' },
+  { id: 'liquid',    slot: 'case', name: 'Liquid-filled',    pts: 2, w: 8,  desc: 'Half full of oil and gold glitter that sloshes as you move it.' },
+  { id: 'globe',     slot: 'case', name: 'Snow globe',       pts: 2, w: 8,  desc: 'Shake it and snow swirls round the photo, then settles.' },
+  { id: 'sand',      slot: 'case', name: 'Sand timer',       pts: 2, w: 6,  desc: 'Gold sand that pours to the bottom whichever way up it is.' },
+  { id: 'terrarium', slot: 'case', name: 'Terrarium',        pts: 2, w: 6,  desc: 'A little moss garden and a fern along the bottom of the case.' },
+  { id: 'amber',     slot: 'case', name: 'Amber',            pts: 3, w: 5,  desc: 'Set in golden resin, with something tiny caught in it.' },
+  { id: 'crystals',  slot: 'case', name: 'Growing crystals', pts: 3, w: 4,  desc: 'Crystals growing from the corners, a little more each day you own it.' },
+];
+export const EXTRA = Object.fromEntries(EXTRAS.map(x => [x.id, x]));
+const VARIANT_PTS = { breakout: 2 }, MAX_PTS = 4;
+/* finishes an extra doesn't suit: the thick blocks and the coin have no room in the case, and no snow on snow */
+const NO_EXTRA = { case: ['crystal', 'scan3d', 'coin'], globe: ['snow'], liquid: ['sunken', 'polaroid', 'tray', 'window'], sand: ['polaroid', 'tray'], terrarium: [], amber: ['window'] };
+const NO_EXTRA_VARIANT = { terrarium: ['breakout'], flower: ['breakout'] };
+export function extraFits(id, finish, variant) { const x = EXTRA[id]; if (!x) return false; return !(NO_EXTRA[x.slot] || []).includes(finish) && !(NO_EXTRA[id] || []).includes(finish) && !(NO_EXTRA_VARIANT[id] || []).includes(variant); }
+function pickExtra(r, slot, finish, variant) { const L = EXTRAS.filter(x => x.slot === slot && extraFits(x.id, finish, variant)), tot = L.reduce((a, x) => a + x.w, 0); if (!tot) return null;
+  let v = r() * tot; for (const x of L) { v -= x.w; if (v <= 0) return x.id; } return L[L.length - 1].id; }
+/* { case: 'globe', fish: true, ... } or null; o.extras forces them (the dev panel, tests) */
+export function rollExtras(r, slab, force) {
+  const x = {}, boost = slab.tier === 'mythic' ? 1.25 : 1;
+  for (const slot in EXTRA_SLOTS) { const f = force && force[slot]; if (f !== undefined) { if (f && extraFits(f, slab.finish, slab.variant)) x[slot] = f; continue; }
+    if (r() < EXTRA_SLOTS[slot].chance * boost) { const id = pickExtra(r, slot, slab.finish, slab.variant); if (id) x[slot] = id; } }
+  if (!force) { /* the cap: the rarest stay */
+    const pts = () => Object.values(x).reduce((a, id) => a + EXTRA[id].pts, 0) + (slab.variant ? VARIANT_PTS[slab.variant] || 1 : 0);
+    while (pts() > MAX_PTS) { const k = Object.keys(x).sort((a, b) => EXTRA[x[a]].pts - EXTRA[x[b]].pts)[0]; delete x[k]; } }
+  if (x.case === 'liquid' && (force ? force.fish : r() < 0.25)) x.fish = true;   /* a goldfish lives in some of the liquid ones */
+  if (x.case === 'tinted') x.tint = Math.floor(r() * 4);
+  return Object.keys(x).length ? x : null;
+}
+/* a slab's extras, with the old Liquid-filled variant read as the case extra it is now */
+export function extrasOf(slab) { if (!slab) return {}; const x = Object.assign({}, slab.x || {}); if (slab.variant === 'liquid' && !x.case) x.case = 'liquid'; return x; }
+/* the variant and the extras by name, for labels and lines (the old Liquid-filled variant once, as its extra) */
+export function lookNames(slab) { const v = slab && slab.variant && VARIANT[slab.variant]; return [v && !v.legacy ? v.name : null, ...extraNames(slab)].filter(Boolean); }
+export function extraNames(slab) { const x = extrasOf(slab); return Object.keys(EXTRA_SLOTS).map(k => x[k] && EXTRA[x[k]] ? EXTRA[x[k]].name + (x[k] === 'liquid' && x.fish ? ' with a goldfish' : '') : null).filter(Boolean); }
 export function rollFinish(r, tier) { const p = POOL[tier] || ['matte']; return p[Math.floor(r() * p.length)]; }
 export const FINISH = Object.fromEntries(FINISHES.map(f => [f.id, f]));
 
 export function rollTier(r) { const total = TIERS.reduce((s, t) => s + t.odds, 0); let acc = 0; const v = r * total; for (const t of TIERS) { acc += t.odds; if (v <= acc) return t.id; } return 'common'; }
 export function rollGrade(r) { let acc = 0; const v = r * 100; for (const [g, w] of GRADE_ODDS) { acc += w; if (v <= acc) return g; } return 8; }
-export function rollVariant(r) { if (r > VARIANT_CHANCE) return null; return VARIANTS[Math.floor(r / VARIANT_CHANCE * VARIANTS.length) % VARIANTS.length].id; }
+/* the old seven-way split, so seeded rolls (the market's daily stock) keep their variants; a landing on the old Liquid-filled is no variant now */
+export function rollVariant(r) { if (r > VARIANT_CHANCE) return null; const v = VARIANTS[Math.floor(r / VARIANT_CHANCE * VARIANTS.length) % VARIANTS.length]; return v.legacy ? null : v.id; }
 export const pad = (n, w) => String(n).padStart(w, '0');
 
 /* ---------- the store ---------- */
@@ -122,6 +168,7 @@ export function roll(o = {}) {
   if (variant === 'stamped') slab.stamp = 1 + Math.floor(r() * 50);
   if (tier === 'mythic') slab.serial = '1/1';
   slab.title = slab.photo.title; slab.label = rollLabel(r, tier); slab.subs = rollSubs(r, grade);
+  const x = rollExtras(r, slab, o.extras); if (x) slab.x = x;
   return slab;
 }
 /* the label colourway is its own small roll (Sam's call): mostly black and gold, sometimes the tier colour, now and then gold */

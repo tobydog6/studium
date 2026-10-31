@@ -38,9 +38,11 @@ export function install(S) {
   /* ---------- value ---------- */
   const finOf = slab => SL.finishOf(slab, null);
   const finK = slab => { const f = finOf(slab), t = TIER[slab.tier] || TIER.common; return SEALED.has(f) ? 1.45 : f === t.finish ? 1 : 1.15; };
+  /* extras on top: each adds by its rarity points (a common one a fifth, a very rare one most of the value again) */
+  const extraK = slab => { const x = slab.x || {}; let k = 1; Object.keys(SL.EXTRA_SLOTS).forEach(sl => { const e = SL.EXTRA[x[sl]]; if (e) k *= 1 + 0.25 * e.pts; }); if (x.fish) k *= 1.2; return k; };
   const drift = (f, day) => { const a = h32(f), b = h32(f + '·'); return 1 + 0.09 * Math.sin(day * 0.43 + a * 6.28) + 0.05 * Math.sin(day * 1.31 + b * 6.28) + 0.03 * Math.sin(day * 2.9 + a * 17); };
   function value(slab, day) { if (!slab) return 0; day = day ?? today(); const g = slab.graded ? GRADE_K[slab.grade] || 1 : 0.7;
-    return Math.max(5, Math.round(BASE[slab.tier] * g * (slab.variant ? 1.6 : 1) * finK(slab) * (0.9 + 0.25 * h32(slab.seed + ':' + slab.tier)) * drift(finOf(slab), day))); }
+    return Math.max(5, Math.round(BASE[slab.tier] * g * (slab.variant ? 1.6 : 1) * extraK(slab) * finK(slab) * (0.9 + 0.25 * h32(slab.seed + ':' + slab.tier)) * drift(finOf(slab), day))); }
   const history = (slab, n) => Array.from({ length: n || 30 }, (_, i) => value(slab, today() - (n || 30) + 1 + i));
 
   /* the activity log: buys, sales, trades, coins earned */
@@ -203,7 +205,7 @@ export function install(S) {
      Each slab is built for real (case, label, finish) and rendered once off screen at a slight turn, then kept as a
      picture; a tile shows the flat photo until its render lands. One at a time, so the table never stalls. */
   const R3 = new Map(), q3 = []; let busy3 = false, rt3 = null, sc3 = null, cam3 = null;
-  const rkey = s => [s.id, s.grade, s.graded ? 1 : 0, s.variant || '', s.seed, s.tier].join('|');
+  const rkey = s => [s.id, s.grade, s.graded ? 1 : 0, s.variant || '', s.seed, s.tier, s.x ? JSON.stringify(s.x) : ''].join('|');
   function r3d(s) { const k = rkey(s); if (R3.has(k)) return R3.get(k); if (!q3.some(x => x.k === k)) { q3.push({ k, s: JSON.parse(JSON.stringify(s)) }); setTimeout(pump3, 30); } return ''; }
   async function pump3() { if (busy3) return; busy3 = true;
     try { while (q3.length) { const { k, s } = q3.shift(); if (R3.has(k)) continue; let url = ''; try { url = await shoot3(s); } catch (e) { console.error('r3d', e); }
@@ -290,7 +292,7 @@ export function install(S) {
     const price = x.kind === 'stock' ? x.it.price : x.kind === 'mine' && x.l ? x.l.price : v, ti = TIERS.findIndex(q => q.id === s.tier);
     const bar = (n, k, cls) => '<p class="x-bar"><span>' + n + '</span><i><u class="' + (cls || '') + '" style="width:' + Math.round(Math.max(2, Math.min(100, k)) ) + '%"></u></i><b>' + (cls === 'up' || cls === 'dn' ? pct(v, v7) : Math.round(k)) + '</b></p>';
     let h = '<div class="x-det" style="--tc:' + t.color + '"><div class="x-stage"><span class="x-big">' + esc(String(s.plate || s.grade || '').padStart(3, '0').slice(-3)) + '</span><div class="x-hold">' + pic(s, 'x-hero') + '<i class="b1"></i><i class="b2"></i><i class="b3"></i><i class="b4"></i></div><i class="x-shadow"></i><p class="x-hints">Examine projects it<br>out of the monitor</p></div>'
-      + '<div class="x-info"><button type="button" class="x-back" data-a="unsel">‹ Back</button><p class="x-kick">' + esc(t.name) + ' / ' + esc(finName(s)) + (s.variant ? ' / ' + esc(s.variant) : '') + '</p>' + titleN(s.title)
+      + '<div class="x-info"><button type="button" class="x-back" data-a="unsel">‹ Back</button><p class="x-kick">' + esc(t.name) + ' / ' + esc(finName(s)) + (SL.lookNames(s).length ? ' / ' + esc(SL.lookNames(s).join(', ')) : '') + '</p>' + titleN(s.title)
       + '<p class="x-meta">' + [x.kind === 'stock' ? esc(x.it.seller) : s.from ? 'from ' + esc(s.from) : 'yours', s.graded ? 'grade ' + s.grade + ' ' + esc(SL.gradeText(s.grade)) : 'raw', s.cert ? esc(s.cert) : ''].filter(Boolean).join(' // ') + '</p>'
       + '<div class="x-bars">' + bar('Rarity', (ti + 1) / TIERS.length * 100) + bar('Range', hi > lo ? (v - lo) / (hi - lo) * 100 : 50) + bar('7D', 50 + (v / v7 - 1) * 250, v >= v7 ? 'up' : 'dn') + '</div>'
       + '<div class="x-nums"><div><span>' + (x.kind === 'stock' ? 'Price' : x.kind === 'mine' && x.l ? 'Asking' : 'Value') + '</span><b>' + fmt(price) + '</b></div>' + (price !== v ? '<div><span>Value</span><b class="dim">' + fmt(v) + '</b></div>' : '<div><span>30D high</span><b class="dim">' + fmt(hi) + '</b></div>') + '</div><div class="x-act">';

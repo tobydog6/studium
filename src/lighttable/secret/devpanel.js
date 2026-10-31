@@ -55,7 +55,7 @@ export function createDev(S) {
   dev.define('finishTest', 'Test finish (override)', fin, 'tier');   /* a new key: Sam had the old one stuck on one finish */
   dev.define('speed', 'Speed', { 1: 'Normal', 0.5: 'Half', 0.25: 'Quarter' }, '1');
   /* the wait for grading: a real day for students, shorter for testing (plus Skip the wait under Try) */
-  dev.define('grading', 'Grading wait', { day: 'A real day', minute: 'One minute', instant: 'Instant' }, 'day');
+  dev.define('grading', 'Grading wait', { day: 'A real day', minute: 'One minute', instant: 'Instant' }, 'instant');   /* Sam, 31 Oct: no wait by default */
   return dev;
 }
 export const DEV_CSS = `
